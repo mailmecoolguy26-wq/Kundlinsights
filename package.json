@@ -1,0 +1,21 @@
+{
+  "name": "kundlinsights",
+  "version": "1.0.0",
+  "description": "KundlInsights is a production-grade iOS and Android application for **Vedic / Jyotish astrology**.",
+  "main": "src/astronomy/index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "node --test tests/**/*.test.js",
+    "audit:horizons": "node scripts/audit-horizons.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "type": "commonjs",
+  "dependencies": {
+    "astronomy-engine": "2.1.17"
+  }
+}

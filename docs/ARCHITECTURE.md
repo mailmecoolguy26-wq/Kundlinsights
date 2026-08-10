@@ -1,0 +1,63 @@
+# Architecture
+
+## Purpose
+
+KundlInsights will be a layered Vedic/Jyotish system. Each layer consumes stable, versioned outputs from the layer below it. The calculation core must remain deterministic, independently testable, and separate from interpretation, UI, and subscription concerns.
+
+## Logical architecture
+
+```
+Mobile applications
+        |
+Application API / orchestration
+        |
+Interpretation, Q&A, prediction, and event services
+        |
+Vedic domain engines
+        |
+Astronomical calculation engine
+        |
+Ephemeris and time/location reference data
+```
+
+## Layer boundaries
+
+1. **Astronomical calculation engine** — normalizes birth/transit input and produces precise geocentric planetary positions, time data, and sidereal conversions.
+2. **Jyotish coordinate system** — pure classification of Layer 1 `siderealLongitudeDegrees` into Rashi, Nakshatra, lord, and Pada facts. It does not calculate houses or interpretations.
+3. **Divisional charts** — derives Varga charts from canonical sidereal longitudes using explicit Vedic rules.
+4. **Vimshottari dasha** — derives MD → AD → PD timelines from the Moon’s nakshatra position.
+5. **Vedic gochar** — evaluates transit positions and Vedic Drishti against natal facts.
+6. **SAV/BAV Ashtakavarga** — computes bindu matrices and aggregate scores using documented Parashari rules.
+7. **Historical event backtesting** — compares calculated cycles and transits with user-supplied dated events.
+8. **Personal event signature** — identifies repeatable chart and timing correlations for one person.
+9. **Future event prediction** — produces evidence-linked, uncertainty-aware forecasts from lower-layer facts.
+10. **AI interpretation and Kundli Q&A** — converts only structured, traceable Vedic facts into user-facing explanations.
+11. **Mobile application** — delivers the experience on iOS and Android.
+12. **Payments, subscriptions, and entitlements** — manages access independently of astrology calculations.
+
+## Core design rules
+
+- A calculation result is immutable and includes the standard/version used to create it. Tropical provider coordinates and sidereal transformations are separate, explicitly named values.
+- Domain engines return structured facts and provenance; they do not generate prose or call AI models.
+- Interpretation receives structured facts only and must cite their calculation provenance internally.
+- Time, place, time-zone resolution, coordinate precision, ephemeris version, and ayanamsha are first-class calculation inputs.
+- All sidereal values use the Lahiri / Chitrapaksha ayanamsha unless a future explicitly versioned standard says otherwise. Temporary calculations are explicitly `PROVISIONAL`; Swiss Ephemeris `SE_SIDM_LAHIRI` is the intended production authority.
+- No Western astrology abstractions are introduced as defaults, compatibility modes, or fallback logic.
+- Pure calculations are deterministic and tested against approved reference charts and edge cases.
+- User identity, billing, and sensitive birth data are kept outside reusable calculation primitives.
+
+## Initial physical structure
+
+```
+src/
+  astronomy/  Layer 1 provider-neutral astronomical calculation engine
+  jyotish/    Layer 2 pure sidereal longitude classification
+tests/
+  astronomy/  Layer 1 deterministic and boundary-condition tests
+docs/
+  ARCHITECTURE.md
+  ASTROLOGY-STANDARDS.md
+  DEVELOPMENT-PLAN.md
+```
+
+The source directory is intentionally unopinionated until the team selects the mobile, backend, and calculation-runtime technology stack.
