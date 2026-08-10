@@ -1,0 +1,18 @@
+{
+  "authority": "experimental-poc",
+  "warning": "Experimental Swiss Ephemeris proof-of-concept data only. This fixture is not a production golden reference and must never establish production tolerances.",
+  "input": { "date": "1990-11-26", "time": "13:40:00", "timezone": "Asia/Kolkata", "utcInstant": "1990-11-26T08:10:00.000Z", "latitude": 17.385, "longitude": 78.4867 },
+  "provenance": { "provider": "Swiss Ephemeris experimental POC", "providerVersion": "2.09.03", "siderealMode": "SE_SIDM_LAHIRI", "nodeModel": "mean", "ayanamshaDegrees": 23.73372915554998, "calculationFlags": "SEFLG_SWIEPH | SEFLG_SPEED | SEFLG_SIDEREAL" },
+  "expected": {
+    "Sun": { "siderealLongitudeDegrees": 220.07412869411786, "longitudeSpeedDegreesPerDay": 1.0116381380169162, "motion": "direct" },
+    "Moon": { "siderealLongitudeDegrees": 319.51991721056595, "longitudeSpeedDegreesPerDay": 13.13022697755131, "motion": "direct" },
+    "Mars": { "siderealLongitudeDegrees": 42.18024017396236, "longitudeSpeedDegreesPerDay": -0.3783182496646813, "motion": "retrograde" },
+    "Mercury": { "siderealLongitudeDegrees": 238.75967666831608, "longitudeSpeedDegreesPerDay": 1.3873326847677507, "motion": "direct" },
+    "Jupiter": { "siderealLongitudeDegrees": 109.83792067850771, "longitudeSpeedDegreesPerDay": 0.012611270085818922, "motion": "direct" },
+    "Venus": { "siderealLongitudeDegrees": 226.21895286738575, "longitudeSpeedDegreesPerDay": 1.2558014373925799, "motion": "direct" },
+    "Saturn": { "siderealLongitudeDegrees": 268.15014478987064, "longitudeSpeedDegreesPerDay": 0.0918825512668464, "motion": "direct" },
+    "Rahu": { "siderealLongitudeDegrees": 277.28835877696315, "longitudeSpeedDegreesPerDay": -0.05299202165278294, "motion": "retrograde" },
+    "Ketu": { "siderealLongitudeDegrees": 97.28835877696315, "longitudeSpeedDegreesPerDay": -0.05299202165278294, "motion": "retrograde" },
+    "Ascendant": { "siderealLongitudeDegrees": 331.2082637948555 }
+  }
+}

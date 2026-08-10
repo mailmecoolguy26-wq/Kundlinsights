@@ -15,12 +15,16 @@ class AstronomicalEngine {
     validCoordinate(input.latitude, -90, 90, 'latitude');
     validCoordinate(input.longitude, -180, 180, 'longitude');
     const instant = localDateTimeToUtc(input);
-    const calculated = this.provider.calculate(instant);
+    const observer = Object.freeze({ latitude: input.latitude, longitude: input.longitude, coordinateReference: 'WGS84' });
+    const calculated = this.provider.calculate({ instant, observer });
     let siderealMetadata;
     const bodies = Object.fromEntries(Object.entries(calculated.bodies).map(([body, raw]) => {
-      const sidereal = this.siderealCalculator.calculateSiderealLongitude({ tropicalLongitudeDegrees: raw.tropicalLongitudeDegrees, instant, ayanamshaSystem: 'Lahiri / Chitrapaksha' });
+      const sidereal = typeof raw.siderealLongitudeDegrees === 'number'
+        ? { siderealLongitudeDegrees: raw.siderealLongitudeDegrees, metadata: raw.siderealMetadata }
+        : this.siderealCalculator.calculateSiderealLongitude({ tropicalLongitudeDegrees: raw.tropicalLongitudeDegrees, instant, ayanamshaSystem: 'Lahiri / Chitrapaksha' });
+      if (!sidereal.metadata) throw new TypeError(`Layer 1 provider body ${body} must include siderealMetadata with native siderealLongitudeDegrees.`);
       siderealMetadata = sidereal.metadata;
-      return [body, Object.freeze({ ...raw, siderealLongitudeDegrees: sidereal.siderealLongitudeDegrees, siderealMetadata: sidereal.metadata })];
+      return [body, Object.freeze({ ...raw, siderealLongitudeDegrees: sidereal.siderealLongitudeDegrees, siderealMetadata: sidereal.metadata, longitudeProvenance: Object.freeze({ tropical: typeof raw.tropicalLongitudeDegrees === 'number' ? (raw.tropicalProvenance || 'provider-native') : 'not-provided', sidereal: raw.siderealLongitudeDegrees === undefined ? 'derived-from-tropical' : 'provider-native' }) })];
     }));
     return Object.freeze({ input: Object.freeze({ date: input.date, time: input.time, timezone: input.timezone, latitude: input.latitude, longitude: input.longitude, coordinateReference: 'WGS84' }), instant: Object.freeze({ utc: instant.toISOString(), unixMilliseconds: instant.getTime() }), bodies: Object.freeze(bodies), sidereal: Object.freeze(siderealMetadata), provider: calculated.provider, calculationStatus: siderealMetadata.calculationStatus });
   }

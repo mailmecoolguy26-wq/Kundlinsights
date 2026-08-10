@@ -3,6 +3,7 @@
 const Astronomy = require('astronomy-engine');
 const { EphemerisProvider } = require('./ephemeris-provider');
 const { normalizeLongitude } = require('./sidereal-calculator');
+const { calculateProvisionalTropicalAscendant } = require('./ascendant-calculator');
 
 const BODY_MAP = Object.freeze({ Sun: Astronomy.Body.Sun, Moon: Astronomy.Body.Moon, Mars: Astronomy.Body.Mars, Mercury: Astronomy.Body.Mercury, Jupiter: Astronomy.Body.Jupiter, Venus: Astronomy.Body.Venus, Saturn: Astronomy.Body.Saturn });
 const DAY_MS = 86400000;
@@ -34,12 +35,27 @@ function meanNodeTropicalLongitude(instant) {
 
 class AstronomyEngineProvider extends EphemerisProvider {
   constructor() { super(); this.metadata = Object.freeze({ provider: 'Astronomy Engine', providerVersion: '2.1.17', ephemerisVersion: 'Astronomy Engine VSOP87/NOVAS model (temporary)', calculationMode: 'interim-development-reference', rawCoordinateSystem: 'apparent-geocentric-true-ecliptic-of-date', calculationStatus: 'PROVISIONAL' }); }
-  calculate(instant) {
+  calculate({ instant, observer }) {
     const bodies = Object.fromEntries(Object.keys(BODY_MAP).map((body) => [body, bodyResult(body, instant)]));
     const rahuLongitude = meanNodeTropicalLongitude(instant);
     const nodeSpeed = (meanNodeTropicalLongitude(new Date(instant.getTime() + 0.01 * DAY_MS)) - meanNodeTropicalLongitude(new Date(instant.getTime() - 0.01 * DAY_MS))) / 0.02;
     bodies.Rahu = { body: 'Rahu', tropicalLongitudeDegrees: rahuLongitude, latitudeDegrees: 0, distanceAu: null, longitudeSpeedDegreesPerDay: nodeSpeed, motion: 'retrograde', coordinateSystem: 'mean-ascending-lunar-node; tropical-ecliptic-of-date' };
     bodies.Ketu = { body: 'Ketu', tropicalLongitudeDegrees: normalizeLongitude(rahuLongitude + 180), latitudeDegrees: -0, distanceAu: null, longitudeSpeedDegreesPerDay: nodeSpeed, motion: 'retrograde', coordinateSystem: 'derived-descending-lunar-node; tropical-ecliptic-of-date; exactly-opposite-rahu' };
+    const ascendantLongitude = calculateProvisionalTropicalAscendant(instant, observer);
+    const ascendantPrevious = calculateProvisionalTropicalAscendant(new Date(instant.getTime() - 0.01 * DAY_MS), observer);
+    const ascendantNext = calculateProvisionalTropicalAscendant(new Date(instant.getTime() + 0.01 * DAY_MS), observer);
+    const ascendantSpeed = signedLongitudeDelta(ascendantPrevious, ascendantNext) / 0.02;
+    bodies.Ascendant = {
+      body: 'Ascendant',
+      tropicalLongitudeDegrees: ascendantLongitude,
+      latitudeDegrees: null,
+      distanceAu: null,
+      longitudeSpeedDegreesPerDay: ascendantSpeed,
+      motion: Math.abs(ascendantSpeed) < 1e-7 ? 'stationary' : ascendantSpeed < 0 ? 'retrograde' : 'direct',
+      coordinateSystem: 'geometric-ecliptic-horizon-intersection; apparent-true-ecliptic-of-date',
+      calculationModel: 'astronomy-engine-eastern-ecliptic-horizon-intersection-v1',
+      provenance: Object.freeze({ observer, horizon: 'geometric', intersection: 'eastern', provisional: true, calculationStatus: 'PROVISIONAL' })
+    };
     return { bodies, provider: this.metadata };
   }
 }

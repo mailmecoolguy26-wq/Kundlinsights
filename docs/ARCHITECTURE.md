@@ -22,7 +22,7 @@ Ephemeris and time/location reference data
 
 ## Layer boundaries
 
-1. **Astronomical calculation engine** — normalizes birth/transit input and produces precise geocentric planetary positions, time data, and sidereal conversions.
+1. **Astronomical calculation engine** — normalizes birth/transit input and produces provider-tagged canonical sidereal coordinates for planets, nodes, and Ascendant.
 2. **Jyotish coordinate system** — pure classification of Layer 1 `siderealLongitudeDegrees` into Rashi, Nakshatra, lord, and Pada facts. It does not calculate houses or interpretations.
 3. **Divisional charts** — derives Varga charts from canonical sidereal longitudes using explicit Vedic rules.
 4. **Vimshottari dasha** — derives MD → AD → PD timelines from the Moon’s nakshatra position.
@@ -42,6 +42,7 @@ Ephemeris and time/location reference data
 - Interpretation receives structured facts only and must cite their calculation provenance internally.
 - Time, place, time-zone resolution, coordinate precision, ephemeris version, and ayanamsha are first-class calculation inputs.
 - All sidereal values use the Lahiri / Chitrapaksha ayanamsha unless a future explicitly versioned standard says otherwise. Temporary calculations are explicitly `PROVISIONAL`; Swiss Ephemeris `SE_SIDM_LAHIRI` is the intended production authority.
+- The provider boundary is explicit: Birth Input → Astronomical Provider → Canonical Sidereal Coordinates → Layer 2 Jyotish Classification → Layer 3 Vargas. Layers 2 and 3 consume only canonical sidereal longitude and are never provider-aware.
 - No Western astrology abstractions are introduced as defaults, compatibility modes, or fallback logic.
 - Pure calculations are deterministic and tested against approved reference charts and edge cases.
 - User identity, billing, and sensitive birth data are kept outside reusable calculation primitives.

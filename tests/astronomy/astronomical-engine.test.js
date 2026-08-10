@@ -11,7 +11,7 @@ function calculate(overrides = {}) { return engine.calculate({ ...base, ...overr
 test('calculates deterministic historical output with explicit tropical and sidereal fields', () => {
   const result = calculate();
   assert.equal(result.instant.utc, '1990-08-15T09:00:00.000Z');
-  assert.deepEqual(Object.keys(result.bodies), ['Sun', 'Moon', 'Mars', 'Mercury', 'Jupiter', 'Venus', 'Saturn', 'Rahu', 'Ketu']);
+  assert.deepEqual(Object.keys(result.bodies), ['Sun', 'Moon', 'Mars', 'Mercury', 'Jupiter', 'Venus', 'Saturn', 'Rahu', 'Ketu', 'Ascendant']);
   assert.ok(Math.abs(result.bodies.Sun.siderealLongitudeDegrees - 118.55969436738184) < 1e-10);
   for (const body of Object.values(result.bodies)) { assert.ok(body.tropicalLongitudeDegrees >= 0 && body.tropicalLongitudeDegrees < 360); assert.ok(body.siderealLongitudeDegrees >= 0 && body.siderealLongitudeDegrees < 360); assert.ok(Number.isFinite(body.longitudeSpeedDegreesPerDay)); assert.equal(Object.hasOwn(body, 'longitudeDegrees'), false); }
   assert.equal(result.provider.provider, 'Astronomy Engine'); assert.equal(result.provider.rawCoordinateSystem, 'apparent-geocentric-true-ecliptic-of-date'); assert.equal(result.calculationStatus, 'PROVISIONAL');

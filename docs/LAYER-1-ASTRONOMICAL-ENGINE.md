@@ -18,7 +18,7 @@ This layer turns a validated civil birth/transit time and WGS84 location into de
 }
 ```
 
-Every body contains `tropicalLongitudeDegrees` and `siderealLongitudeDegrees`; the ambiguous field `longitudeDegrees` is prohibited. The provider's raw tropical coordinates are explicitly `apparent-geocentric-true-ecliptic-of-date`. Each sidereal value has metadata recording system, implementation, reference, ayanamsha value, instant, provisional flag, and status.
+Every body contains mandatory `siderealLongitudeDegrees`; the ambiguous field `longitudeDegrees` is prohibited. `tropicalLongitudeDegrees` is present when supplied by the provider but may be absent for a future provider-native canonical sidereal result. `longitudeProvenance` states whether tropical and sidereal values are provider-native, derived from tropical, or not provided. Each sidereal value has metadata recording system, implementation, reference, ayanamsha value where available, instant, provisional flag, and status.
 
 The DST policy is explicit: invalid local times in a forward clock gap and duplicated local times in a backward overlap are rejected. The caller must provide an unambiguous local time rather than silently receiving an arbitrary instant.
 
@@ -35,6 +35,22 @@ AstronomicalEngine
 ```
 
 `SwissEphemerisProvider` throws a `ProductionLicenseGateError` by design. No Swiss Ephemeris AGPL package or data is present. See `EPHEMERIS-DECISION.md` for the Professional License release gate.
+
+## Provider contract
+
+An `EphemerisProvider` receives a UTC `instant` and an immutable WGS84 `observer` object. It returns tagged bodies for Sun, Moon, Mars, Mercury, Jupiter, Venus, Saturn, Rahu, Ketu, and Ascendant plus provider provenance. A development provider can return tropical coordinates and let `AstronomicalEngine` perform the canonical sidereal transform once. A future production provider can return canonical sidereal values natively, with `siderealMetadata`; Layer 1 then preserves those values without another Lahiri transform. Layer 2 and Layer 3 remain consumers of canonical longitude only.
+
+## Ascendant
+
+Ascendant is a first-class `bodies.Ascendant` result, not a house API. The current Astronomy Engine implementation finds the eastern intersection of the true ecliptic of date and the observer's geometric horizon using the UTC instant, WGS84 latitude, and WGS84 longitude. It reports a tropical result and the existing interim Lahiri canonical sidereal result. Both are explicitly `PROVISIONAL`; no house cusps, house interpretation, refraction, or topocentric planetary conversion is included.
+
+## Future Swiss boundary
+
+The license-gated future provider is expected to use a licensed, current Swiss Ephemeris distribution with `SE_SIDM_LAHIRI`, geocentric planetary calculations, Mean Rahu, Ketu normalized exactly opposite Rahu, native sidereal coordinates, an extended-ayanamsha API equivalent, recorded returned flags, and an observer-aware Ascendant. No Swiss source, data, AGPL package, or POC binding is included in this repository.
+
+## Provider validation fixtures
+
+Provider-independent fixtures carry an `authority` field: `experimental-poc` or `production-authoritative`. Experimental POC values are documentation/compatibility evidence only and must never establish production golden-reference tolerances. Fixtures store civil input, resolved UTC, observer coordinates, provider/version, sidereal mode, node model, ayanamsha, flags/provenance, canonical sidereal longitudes, speeds/motions, and Ascendant.
 
 ## Sidereal and node methodology
 
