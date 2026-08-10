@@ -12,14 +12,16 @@ Complete and validate each layer’s contracts before building dependent feature
 | 2 | D1 / Rashi + Nakshatra | D1 signs, degrees, nakshatras, and padas derived from Layer 1 and regression-tested. |
 | 3 | Divisional charts | Selected Varga charts derived through documented Vedic rules and validated fixtures. |
 | 4 | Vimshottari MD → AD → PD | Exact dasha boundaries from Moon nakshatra balance, with boundary tests. |
-| 5 | Vedic Gochar / transit | Vedic transit facts and Drishti evaluated against natal charts. |
-| 6 | SAV/BAV | Per-graha BAV and aggregate SAV outputs, traceable to rule tables. |
-| 7 | Historical event backtesting | Secure event ingestion and reproducible comparison reports. |
-| 8 | Personal event signature | Explainable, evidence-scored personal correlations. |
-| 9 | Future event prediction | Forecasts with confidence, timing windows, and factor provenance. |
-| 10 | AI interpretation and Kundli Q&A | Grounded explanations sourced only from structured Vedic facts. |
-| 11 | Mobile application | Production iOS and Android workflows, privacy controls, and observability. |
-| 12 | Payments/subscription/entitlement | Platform-compliant entitlement management separated from domain calculations. |
+| 5A | Parashari Rashi houses | D1 whole-sign house assignments from canonical Ascendant and body coordinates. |
+| 5B | Planetary dignity and state | Provider-independent dignity, Maitri, combustion, and preserved motion facts. |
+| 6 | Vedic Gochar / transit | Vedic transit facts and Drishti evaluated against natal charts. |
+| 7 | SAV/BAV | Per-graha BAV and aggregate SAV outputs, traceable to rule tables. |
+| 8 | Historical event backtesting | Secure event ingestion and reproducible comparison reports. |
+| 9 | Personal event signature | Explainable, evidence-scored personal correlations. |
+| 10 | Future event prediction | Forecasts with confidence, timing windows, and factor provenance. |
+| 11 | AI interpretation and Kundli Q&A | Grounded explanations sourced only from structured Vedic facts. |
+| 12 | Mobile application | Production iOS and Android workflows, privacy controls, and observability. |
+| 13 | Payments/subscription/entitlement | Platform-compliant entitlement management separated from domain calculations. |
 
 ## Layer 1 readiness checklist
 
