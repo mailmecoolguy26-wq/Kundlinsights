@@ -28,14 +28,15 @@ Ephemeris and time/location reference data
 4. **Vimshottari dasha** — derives MD → AD → PD timelines from the Moon’s nakshatra position.
 5. **Planetary dignity and state** — derives provider-independent dignities, Maitri, combustion, and motion facts from canonical sidereal coordinates.
 6. **Parashari Graha Drishti** — derives directional, full positional D1 aspect facts from canonical sidereal Rashis.
-7. **Vedic gochar** — evaluates transit positions and Vedic Drishti against natal facts.
-8. **SAV/BAV Ashtakavarga** — computes bindu matrices and aggregate scores using documented Parashari rules.
-9. **Historical event backtesting** — compares calculated cycles and transits with user-supplied dated events.
-10. **Personal event signature** — identifies repeatable chart and timing correlations for one person.
-11. **Future event prediction** — produces evidence-linked, uncertainty-aware forecasts from lower-layer facts.
-12. **AI interpretation and Kundli Q&A** — converts only structured, traceable Vedic facts into user-facing explanations.
-13. **Mobile application** — delivers the experience on iOS and Android.
-14. **Payments, subscriptions, and entitlements** — manages access independently of astrology calculations.
+7. **Core yoga detection** — evaluates versioned D1 yoga predicates from precomputed houses and planetary-state facts, without interpretation.
+8. **Vedic gochar** — evaluates transit positions and Vedic Drishti against natal facts.
+9. **SAV/BAV Ashtakavarga** — computes bindu matrices and aggregate scores using documented Parashari rules.
+10. **Historical event backtesting** — compares calculated cycles and transits with user-supplied dated events.
+11. **Personal event signature** — identifies repeatable chart and timing correlations for one person.
+12. **Future event prediction** — produces evidence-linked, uncertainty-aware forecasts from lower-layer facts.
+13. **AI interpretation and Kundli Q&A** — converts only structured, traceable Vedic facts into user-facing explanations.
+14. **Mobile application** — delivers the experience on iOS and Android.
+15. **Payments, subscriptions, and entitlements** — manages access independently of astrology calculations.
 
 ## Core design rules
 

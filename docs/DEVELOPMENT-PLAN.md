@@ -15,14 +15,15 @@ Complete and validate each layer’s contracts before building dependent feature
 | 5A | Parashari Rashi houses | D1 whole-sign house assignments from canonical Ascendant and body coordinates. |
 | 5B | Planetary dignity and state | Provider-independent dignity, Maitri, combustion, and preserved motion facts. |
 | 6 | Parashari Graha Drishti | D1-only seven-graha full positional aspect facts, independent of provider and house calculation. |
-| 7 | Vedic Gochar / transit | Vedic transit facts and Drishti evaluated against natal charts. |
-| 8 | SAV/BAV | Per-graha BAV and aggregate SAV outputs, traceable to rule tables. |
-| 9 | Historical event backtesting | Secure event ingestion and reproducible comparison reports. |
-| 10 | Personal event signature | Explainable, evidence-scored personal correlations. |
-| 11 | Future event prediction | Forecasts with confidence, timing windows, and factor provenance. |
-| 12 | AI interpretation and Kundli Q&A | Grounded explanations sourced only from structured Vedic facts. |
-| 13 | Mobile application | Production iOS and Android workflows, privacy controls, and observability. |
-| 14 | Payments/subscription/entitlement | Platform-compliant entitlement management separated from domain calculations. |
+| 7 | Core yoga detection | Versioned D1 yoga detection from precomputed houses and planetary-state facts, with immutable evidence and no interpretation. |
+| 8 | Vedic Gochar / transit | Vedic transit facts and Drishti evaluated against natal charts. |
+| 9 | SAV/BAV | Per-graha BAV and aggregate SAV outputs, traceable to rule tables. |
+| 10 | Historical event backtesting | Secure event ingestion and reproducible comparison reports. |
+| 11 | Personal event signature | Explainable, evidence-scored personal correlations. |
+| 12 | Future event prediction | Forecasts with confidence, timing windows, and factor provenance. |
+| 13 | AI interpretation and Kundli Q&A | Grounded explanations sourced only from structured Vedic facts. |
+| 14 | Mobile application | Production iOS and Android workflows, privacy controls, and observability. |
+| 15 | Payments/subscription/entitlement | Platform-compliant entitlement management separated from domain calculations. |
 
 ## Layer 1 readiness checklist
 
