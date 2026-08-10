@@ -19,6 +19,7 @@ Complete and validate each layer’s contracts before building dependent feature
 | 8 | Panchanga and lunar state | Pure instantaneous Tithi, Paksha, lunar state, Karana, and Nitya Yoga from canonical Sun/Moon coordinates. |
 | 9 | Gochar transit foundation | Provider-independent transit snapshot relationships against natal D1 facts, without interpretation or event scanning. |
 | 10 | Transit event scanner | Detects factual transit state transitions through bounded Layer 1/Layer 9 snapshot scanning. |
+| 11A | Raw Ashtakavarga foundation | Computes raw Rekha-based planetary BAV, separate Lagna BAV, and seven-planet raw SAV; Shodhana and Pinda are deferred. |
 | 11 | Historical event backtesting | Secure event ingestion and reproducible comparison reports. |
 | 12 | Personal event signature | Explainable, evidence-scored personal correlations. |
 | 13 | Future event prediction | Forecasts with confidence, timing windows, and factor provenance. |

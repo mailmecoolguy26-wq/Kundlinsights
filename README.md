@@ -26,6 +26,6 @@ tests/  Automated test suites and reference fixtures (not implemented yet)
 
 ## Current status
 
-Layers 1–10 are implemented. Layer 10 scans Layer 1/Layer 9 transit snapshots for factual state transitions with bounded refinement; it contains no interpretation or prediction. See [LAYER-10-TRANSIT-EVENT-SCANNER.md](docs/LAYER-10-TRANSIT-EVENT-SCANNER.md).
+Layers 1–11A are implemented. Layer 10 scans Layer 1/Layer 9 transit snapshots for factual state transitions with bounded refinement; Layer 11A calculates raw, sign-based Parashari Ashtakavarga without interpretation or correction. See [LAYER-10-TRANSIT-EVENT-SCANNER.md](docs/LAYER-10-TRANSIT-EVENT-SCANNER.md) and [LAYER-11A-ASHTAKAVARGA-FOUNDATION.md](docs/LAYER-11A-ASHTAKAVARGA-FOUNDATION.md).
 
 See [ARCHITECTURE.md](docs/ARCHITECTURE.md), [ASTROLOGY-STANDARDS.md](docs/ASTROLOGY-STANDARDS.md), and [DEVELOPMENT-PLAN.md](docs/DEVELOPMENT-PLAN.md).
