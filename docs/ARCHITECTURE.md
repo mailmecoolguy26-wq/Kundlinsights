@@ -30,7 +30,7 @@ Ephemeris and time/location reference data
 6. **Parashari Graha Drishti** — derives directional, full positional D1 aspect facts from canonical sidereal Rashis.
 7. **Core yoga detection** — evaluates versioned D1 yoga predicates from precomputed houses and planetary-state facts, without interpretation.
 8. **Panchanga and lunar state** — derives pure instantaneous Tithi, Paksha, lunar-state, Karana, and Nitya Yoga facts from canonical Sun/Moon coordinates.
-9. **Vedic gochar** — evaluates transit positions and Vedic Drishti against natal facts.
+9. **Gochar transit foundation** — evaluates provider-independent transit snapshot relationships against natal D1 facts without interpretation or event scanning.
 10. **SAV/BAV Ashtakavarga** — computes bindu matrices and aggregate scores using documented Parashari rules.
 11. **Historical event backtesting** — compares calculated cycles and transits with user-supplied dated events.
 12. **Personal event signature** — identifies repeatable chart and timing correlations for one person.

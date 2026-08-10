@@ -26,6 +26,6 @@ tests/  Automated test suites and reference fixtures (not implemented yet)
 
 ## Current status
 
-Layers 1–8 are implemented. Layer 8 is a pure instantaneous Panchanga coordinate engine for Tithi, Paksha, lunar state, Karana, and Nitya Yoga; sunrise-based Vara remains deferred. See [LAYER-8-PANCHANGA-LUNAR-STATE.md](docs/LAYER-8-PANCHANGA-LUNAR-STATE.md). Layer 7 remains the D1-only core yoga detection foundation; Layer 6 remains the D1-only full positional Graha Drishti engine. Layer 2 remains the pure Vedic sidereal coordinate classifier; Layer 1 remains a provisional provider-backed foundation with its licensing gate and contract documented in [EPHEMERIS-DECISION.md](docs/EPHEMERIS-DECISION.md) and [LAYER-1-ASTRONOMICAL-ENGINE.md](docs/LAYER-1-ASTRONOMICAL-ENGINE.md).
+Layers 1–9 are implemented. Layer 9 is a pure Gochar snapshot relationship engine for canonical transit bodies against natal D1 facts; it contains no interpretation or event scanning. See [LAYER-9-GOCHAR-TRANSIT-FOUNDATION.md](docs/LAYER-9-GOCHAR-TRANSIT-FOUNDATION.md). Layer 8 remains the pure instantaneous Panchanga coordinate engine; sunrise-based Vara remains deferred.
 
 See [ARCHITECTURE.md](docs/ARCHITECTURE.md), [ASTROLOGY-STANDARDS.md](docs/ASTROLOGY-STANDARDS.md), and [DEVELOPMENT-PLAN.md](docs/DEVELOPMENT-PLAN.md).

@@ -1,0 +1,4 @@
+'use strict';
+const {FULL_ASPECTS_BY_GRAHA}=require('./reference-data');
+function transitDrishti(transit,natalBodies,houseByRashi){const defs=FULL_ASPECTS_BY_GRAHA[transit.body]||[];return defs.map(def=>{const i=((transit.rashi.rashiIndex-1+def.rashiOffset)%12)+1;const bodies=Object.values(natalBodies).filter(n=>n.body!=='Ascendant'&&n.rashi.rashiIndex===i).map(n=>({natalBody:n.body,natalRashi:n.rashi,natalCanonicalSiderealLongitudeDegrees:n.canonicalSiderealLongitudeDegrees,transitCanonicalSiderealLongitudeDegrees:transit.canonicalSiderealLongitudeDegrees}));return {fromTransitBody:transit.body,aspectNumber:def.aspectNumber,rashiOffset:def.rashiOffset,aspectType:def.aspectType,targetNatalRashiIndex:i,targetNatalHouseNumber:houseByRashi[i],targetNatalBodies:bodies};});}
+module.exports={transitDrishti};
