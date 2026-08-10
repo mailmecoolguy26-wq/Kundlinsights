@@ -133,7 +133,7 @@ test('Layer 2 adapter reuses its normalized canonical sidereal longitude', () =>
 });
 
 test('rejects unsupported Vargas and non-finite canonical sidereal longitudes', () => {
-  assert.throws(() => deriveVargaFromSiderealLongitude('D30', 1), /Unsupported Varga/);
+  assert.throws(() => deriveVargaFromSiderealLongitude('D99', 1), /Unsupported Varga/);
   assert.throws(() => deriveVargaFromSiderealLongitude('D9', Number.NaN), /finite/);
-  assert.deepEqual(Object.keys(VARGA_DEFINITIONS), ['D1', 'D9', 'D10']);
+  assert.ok(Object.keys(VARGA_DEFINITIONS).includes('D30'));
 });

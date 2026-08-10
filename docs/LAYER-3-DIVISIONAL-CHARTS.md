@@ -91,3 +91,18 @@ selector data, and classical provenance. The engine dispatches by strategy:
 
 No later Varga may be added by assuming that D1, D9, or D10's mapping applies
 to it. Its own sourced reference definition is required.
+
+## Completed Parashari ruleset
+
+Layer 3 supports D1, D2, D3, D4, D7, D9, D10, D12, D16, D20, D24, D27, D30,
+D40, D45, and D60. Equal strategies are explicitly distinct from D30's
+irregular range table. D16/D20/D24/D27/D40/D45 record a text-backed anchor
+separately from the forward derived-chart cycle. D30 records the BPHS interval,
+lord, and deity separately from `parashari-trimshamsha-projection-v1`.
+
+D60 has two versioned resulting-Rashi projections: the default
+`santhanam-natal-count-d60-v1` counts the computed remainder inclusively from
+the natal Rashi; `bphs-remainder-absolute-rashi-v1` maps that number directly
+from Mesha. The half-degree part and the 60-name sequence remain separate from
+either projection. Neither D30 nor D60 chart-coordinate projection is labelled
+as a direct BPHS statement.
