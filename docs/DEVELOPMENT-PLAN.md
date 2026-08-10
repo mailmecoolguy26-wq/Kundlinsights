@@ -14,14 +14,15 @@ Complete and validate each layer’s contracts before building dependent feature
 | 4 | Vimshottari MD → AD → PD | Exact dasha boundaries from Moon nakshatra balance, with boundary tests. |
 | 5A | Parashari Rashi houses | D1 whole-sign house assignments from canonical Ascendant and body coordinates. |
 | 5B | Planetary dignity and state | Provider-independent dignity, Maitri, combustion, and preserved motion facts. |
-| 6 | Vedic Gochar / transit | Vedic transit facts and Drishti evaluated against natal charts. |
-| 7 | SAV/BAV | Per-graha BAV and aggregate SAV outputs, traceable to rule tables. |
-| 8 | Historical event backtesting | Secure event ingestion and reproducible comparison reports. |
-| 9 | Personal event signature | Explainable, evidence-scored personal correlations. |
-| 10 | Future event prediction | Forecasts with confidence, timing windows, and factor provenance. |
-| 11 | AI interpretation and Kundli Q&A | Grounded explanations sourced only from structured Vedic facts. |
-| 12 | Mobile application | Production iOS and Android workflows, privacy controls, and observability. |
-| 13 | Payments/subscription/entitlement | Platform-compliant entitlement management separated from domain calculations. |
+| 6 | Parashari Graha Drishti | D1-only seven-graha full positional aspect facts, independent of provider and house calculation. |
+| 7 | Vedic Gochar / transit | Vedic transit facts and Drishti evaluated against natal charts. |
+| 8 | SAV/BAV | Per-graha BAV and aggregate SAV outputs, traceable to rule tables. |
+| 9 | Historical event backtesting | Secure event ingestion and reproducible comparison reports. |
+| 10 | Personal event signature | Explainable, evidence-scored personal correlations. |
+| 11 | Future event prediction | Forecasts with confidence, timing windows, and factor provenance. |
+| 12 | AI interpretation and Kundli Q&A | Grounded explanations sourced only from structured Vedic facts. |
+| 13 | Mobile application | Production iOS and Android workflows, privacy controls, and observability. |
+| 14 | Payments/subscription/entitlement | Platform-compliant entitlement management separated from domain calculations. |
 
 ## Layer 1 readiness checklist
 
