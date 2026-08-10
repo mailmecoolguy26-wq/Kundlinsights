@@ -211,6 +211,12 @@ test('preserves complete provisional Layer 1 provenance and is deeply immutable'
     refinementToleranceMilliseconds: 1000,
     maximumRefinementIterations: 32,
     eventTimeSemantics: 'refined-first-instant-new-state-active',
+    eventFamilies: {
+      rashiIngress: 'layer2-rashi-transition',
+      sadeSatiPhaseChange: 'layer9-sade-sati-transition',
+      sameRashiAssociation: 'layer9-same-rashi-transition',
+      transitDrishti: 'layer9-layer6-drishti-transition',
+    },
     calculationStatus: 'PROVISIONAL',
     provider: {
       provider: 'deterministic-transit-test-provider', providerVersion: 'test-v1', ephemerisVersion: 'synthetic-piecewise',
