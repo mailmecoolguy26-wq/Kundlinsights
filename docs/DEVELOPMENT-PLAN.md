@@ -22,6 +22,9 @@ Complete and validate each layer’s contracts before building dependent feature
 | 11A | Raw Ashtakavarga foundation | Computes raw Rekha-based planetary BAV, separate Lagna BAV, and seven-planet raw SAV. |
 | 11B | Ashtakavarga Shodhana | Applies immutable Trikona then Ekapadhipatya Shodhana to each BAV, including Lagna; raw SAV remains untouched. |
 | 11C | Ashtakavarga Pinda | Calculates versioned Rashi, Graha, and total/Yoga Pinda from seven planetary Shodhita BAVs; Lagna and node Pinda remain deferred. |
+| 12A | Generic evidence infrastructure | Builds a provider-independent immutable natal evidence graph from supplied upstream facts, with no domains, temporal activation, scoring, or interpretation. |
+| 12B | Domain evidence views | Deferred: source-audited domain-specific views, beginning with Career. |
+| 12C | Temporal activation overlay | Deferred: factual Dasha, Gochar, and transit-event context over a natal graph. |
 | 11 | Historical event backtesting | Secure event ingestion and reproducible comparison reports. |
 | 12 | Personal event signature | Explainable, evidence-scored personal correlations. |
 | 13 | Future event prediction | Forecasts with confidence, timing windows, and factor provenance. |
