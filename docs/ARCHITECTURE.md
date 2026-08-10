@@ -32,7 +32,7 @@ Ephemeris and time/location reference data
 8. **Panchanga and lunar state** — derives pure instantaneous Tithi, Paksha, lunar-state, Karana, and Nitya Yoga facts from canonical Sun/Moon coordinates.
 9. **Gochar transit foundation** — evaluates provider-independent transit snapshot relationships against natal D1 facts without interpretation or event scanning.
 10. **Transit event scanner** — detects factual state transitions across time from Layer 1 and Layer 9 snapshots.
-11. **Raw Ashtakavarga foundation and Shodhana** — Layer 11A derives immutable raw seven-planet BAV/SAV and separate Lagna BAV solely from natal D1 Rashi facts. Layer 11B applies immutable Trikona then Ekapadhipatya Shodhana to every BAV, including Lagna; raw SAV remains untouched. Pinda work is deferred to a source-resolution-gated Layer 11C.
+11. **Ashtakavarga foundation, Shodhana, and Pinda** — Layer 11A derives immutable raw seven-planet BAV/SAV and separate Lagna BAV solely from natal D1 Rashi facts. Layer 11B applies immutable Trikona then Ekapadhipatya Shodhana to every BAV, including Lagna; raw SAV remains untouched. Layer 11C calculates versioned Rashi, Graha, and total/Yoga Pinda for seven planetary Shodhita BAVs only.
 11. **Historical event backtesting** — compares calculated cycles and transits with user-supplied dated events.
 12. **Personal event signature** — identifies repeatable chart and timing correlations for one person.
 13. **Future event prediction** — produces evidence-linked, uncertainty-aware forecasts from lower-layer facts.

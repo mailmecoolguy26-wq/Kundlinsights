@@ -21,7 +21,7 @@ Complete and validate each layer’s contracts before building dependent feature
 | 10 | Transit event scanner | Detects factual transit state transitions through bounded Layer 1/Layer 9 snapshot scanning. |
 | 11A | Raw Ashtakavarga foundation | Computes raw Rekha-based planetary BAV, separate Lagna BAV, and seven-planet raw SAV. |
 | 11B | Ashtakavarga Shodhana | Applies immutable Trikona then Ekapadhipatya Shodhana to each BAV, including Lagna; raw SAV remains untouched. |
-| 11C | Ashtakavarga Pinda | Blocked pending authoritative resolution of the Graha multiplier conflict. |
+| 11C | Ashtakavarga Pinda | Calculates versioned Rashi, Graha, and total/Yoga Pinda from seven planetary Shodhita BAVs; Lagna and node Pinda remain deferred. |
 | 11 | Historical event backtesting | Secure event ingestion and reproducible comparison reports. |
 | 12 | Personal event signature | Explainable, evidence-scored personal correlations. |
 | 13 | Future event prediction | Forecasts with confidence, timing windows, and factor provenance. |
