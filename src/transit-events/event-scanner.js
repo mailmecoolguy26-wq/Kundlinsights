@@ -1,0 +1,220 @@
+'use strict';
+
+const { calculateGocharSnapshot } = require('../gochar');
+const { BODIES } = require('../gochar/reference-data');
+const {
+  DEFAULT_COARSE_SCAN_STEP_MS,
+  DEFAULT_REFINEMENT_TOLERANCE_MS,
+  DEFAULT_MAX_REFINEMENT_ITERATIONS,
+  MAX_COARSE_SCAN_STEP_MS,
+  EVENT_TYPES,
+} = require('./reference-data');
+const { order, deduplicate } = require('./event-ordering');
+const { refineCategoricalTransition } = require('./event-refinement');
+
+function freeze(value) {
+  if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
+  Object.freeze(value);
+  Object.values(value).forEach(freeze);
+  return value;
+}
+
+function iso(milliseconds) {
+  return new Date(milliseconds).toISOString();
+}
+
+function validateLayer1Body(name, body) {
+  if (!body || typeof body !== 'object'
+    || typeof body.siderealLongitudeDegrees !== 'number' || !Number.isFinite(body.siderealLongitudeDegrees)
+    || !['direct', 'retrograde', 'stationary'].includes(body.motion)
+    || typeof body.longitudeSpeedDegreesPerDay !== 'number' || !Number.isFinite(body.longitudeSpeedDegreesPerDay)) {
+    throw new TypeError(`Layer 1 provider body ${name} is invalid.`);
+  }
+}
+
+function layer1(engine, milliseconds, observer) {
+  const instant = new Date(milliseconds);
+  const result = engine.calculate({
+    date: instant.toISOString().slice(0, 10),
+    time: instant.toISOString().slice(11, 19),
+    timezone: 'UTC',
+    latitude: observer.latitude,
+    longitude: observer.longitude,
+  });
+  if (!result || !result.bodies || typeof result.bodies !== 'object') {
+    throw new TypeError('Layer 1 provider result is invalid.');
+  }
+  for (const name of BODIES) validateLayer1Body(name, result.bodies[name]);
+  return result;
+}
+
+function validateOptions(options) {
+  const coarseScanStepMilliseconds = options.coarseScanStepMilliseconds ?? DEFAULT_COARSE_SCAN_STEP_MS;
+  const refinementToleranceMilliseconds = options.refinementToleranceMilliseconds ?? DEFAULT_REFINEMENT_TOLERANCE_MS;
+  const maximumRefinementIterations = options.maximumRefinementIterations ?? DEFAULT_MAX_REFINEMENT_ITERATIONS;
+  if (!Number.isFinite(coarseScanStepMilliseconds) || coarseScanStepMilliseconds <= 0 || coarseScanStepMilliseconds > MAX_COARSE_SCAN_STEP_MS) {
+    throw new RangeError('coarseScanStepMilliseconds must be positive and at most one hour.');
+  }
+  if (!Number.isFinite(refinementToleranceMilliseconds) || refinementToleranceMilliseconds <= 0) {
+    throw new RangeError('refinementToleranceMilliseconds must be a positive finite number.');
+  }
+  if (!Number.isInteger(maximumRefinementIterations) || maximumRefinementIterations <= 0) {
+    throw new RangeError('maximumRefinementIterations must be a positive integer.');
+  }
+  return { coarseScanStepMilliseconds, refinementToleranceMilliseconds, maximumRefinementIterations };
+}
+
+function scanTransitEvents({ startInstant, endInstant, natalBodies, natalHouses, astronomicalEngine, observer, eventTypes, options = {} } = {}) {
+  const start = Date.parse(startInstant);
+  const end = Date.parse(endInstant);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || !String(startInstant).endsWith('Z') || !String(endInstant).endsWith('Z') || start >= end) {
+    throw new RangeError('startInstant and endInstant must be valid UTC instants with start before end.');
+  }
+  if (!astronomicalEngine || typeof astronomicalEngine.calculate !== 'function' || !observer) {
+    throw new TypeError('astronomicalEngine and observer are required.');
+  }
+  const configuration = validateOptions(options);
+  const types = eventTypes || [...EVENT_TYPES];
+  for (const type of types) if (!EVENT_TYPES.has(type)) throw new RangeError(`Unsupported event type: ${type}`);
+
+  const at = (milliseconds) => {
+    const layer1Result = layer1(astronomicalEngine, milliseconds, observer);
+    return {
+      layer1Result,
+      snapshot: calculateGocharSnapshot({
+        snapshotInstant: iso(milliseconds),
+        natalBodies,
+        natalHouses,
+        transitBodies: layer1Result.bodies,
+      }),
+    };
+  };
+  const samples = [];
+  for (let time = start; time < end; time += configuration.coarseScanStepMilliseconds) samples.push([time, at(time)]);
+  samples.push([end, at(end)]);
+
+  const events = [];
+  const emit = (eventType, body, milliseconds, payload) => {
+    if (types.includes(eventType)) events.push({ eventType, body, instant: iso(milliseconds), ...payload });
+  };
+  const refine = (lowInstant, highInstant, lowState, stateAtInstant) => refineCategoricalTransition({
+    lowInstant,
+    highInstant,
+    evaluateStateAtInstant: (milliseconds) => stateAtInstant(at(milliseconds)),
+    lowState,
+    refinementToleranceMilliseconds: configuration.refinementToleranceMilliseconds,
+    maximumRefinementIterations: configuration.maximumRefinementIterations,
+  });
+
+  for (let index = 1; index < samples.length; index += 1) {
+    const [lowInstant, old] = samples[index - 1];
+    const [highInstant, next] = samples[index];
+    for (const name of BODIES) {
+      const before = old.snapshot.transitBodies[name];
+      const after = next.snapshot.transitBodies[name];
+      if (before.transitRashi.rashiIndex !== after.transitRashi.rashiIndex) {
+        const transition = refine(lowInstant, highInstant, before.transitRashi.rashiIndex, (result) => result.snapshot.transitBodies[name].transitRashi.rashiIndex);
+        emit('rashiIngress', name, transition, {
+          fromRashi: before.transitRashi,
+          toRashi: after.transitRashi,
+          direction: after.motion === 'retrograde' ? 'retrograde' : 'direct',
+          providerMotion: after.motion,
+        });
+      }
+      if (name === 'Saturn' && before.sadeSati.phase !== after.sadeSati.phase) {
+        const transition = refine(lowInstant, highInstant, before.sadeSati.phase, (result) => result.snapshot.transitBodies.Saturn.sadeSati.phase);
+        emit('sadeSatiPhaseChange', name, transition, {
+          fromPhase: before.sadeSati.phase,
+          toPhase: after.sadeSati.phase,
+          houseFromNatalMoon: after.houseFromNatalMoon,
+        });
+      }
+      const beforeAssociations = new Map(before.sameRashiNatalBodies.map((item) => [item.natalBody, item]));
+      const afterAssociations = new Map(after.sameRashiNatalBodies.map((item) => [item.natalBody, item]));
+      for (const [natalBody, association] of beforeAssociations) if (!afterAssociations.has(natalBody)) emit('sameRashiAssociationEnd', name, highInstant, { transitBody: name, natalBody, rashi: association.natalRashi });
+      for (const [natalBody, association] of afterAssociations) if (!beforeAssociations.has(natalBody)) emit('sameRashiAssociationStart', name, highInstant, { transitBody: name, natalBody, rashi: association.natalRashi });
+      const beforeAspects = new Map(before.aspectsNatalBodies.map((item) => [`${item.aspectNumber}:${item.targetNatalRashiIndex}`, item]));
+      const afterAspects = new Map(after.aspectsNatalBodies.map((item) => [`${item.aspectNumber}:${item.targetNatalRashiIndex}`, item]));
+      for (const [key, aspect] of beforeAspects) if (!afterAspects.has(key)) emit('transitDrishtiEnd', name, highInstant, { transitBody: name, aspectOrdinal: aspect.aspectNumber, natalTargetRashi: aspect.targetNatalRashiIndex, natalTargetHouseNumber: aspect.targetNatalHouseNumber, targetBodies: aspect.targetNatalBodies });
+      for (const [key, aspect] of afterAspects) if (!beforeAspects.has(key)) emit('transitDrishtiStart', name, highInstant, { transitBody: name, aspectOrdinal: aspect.aspectNumber, natalTargetRashi: aspect.targetNatalRashiIndex, natalTargetHouseNumber: aspect.targetNatalHouseNumber, targetBodies: aspect.targetNatalBodies });
+    }
+  }
+
+  for (const name of BODIES) {
+    let priorDirectionalMotion = null;
+    let stationaryWindowEntry = null;
+    for (let index = 1; index < samples.length; index += 1) {
+      const [lowInstant, old] = samples[index - 1];
+      const [highInstant, next] = samples[index];
+      const previousMotion = old.snapshot.transitBodies[name].motion;
+      const nextMotion = next.snapshot.transitBodies[name].motion;
+      if (previousMotion === nextMotion) continue;
+
+      const transition = refine(lowInstant, highInstant, previousMotion, (result) => result.snapshot.transitBodies[name].motion);
+      const transitionResult = at(transition);
+      const transitionBody = transitionResult.layer1Result.bodies[name];
+      const transitionMotion = transitionResult.snapshot.transitBodies[name].motion;
+
+      if ((previousMotion === 'direct' || previousMotion === 'retrograde') && transitionMotion === 'stationary') {
+        priorDirectionalMotion = previousMotion;
+        stationaryWindowEntry = transition;
+        continue;
+      }
+      if (previousMotion === 'stationary' && (transitionMotion === 'direct' || transitionMotion === 'retrograde')) {
+        if (priorDirectionalMotion && transitionMotion !== priorDirectionalMotion) {
+          const entryResult = at(stationaryWindowEntry);
+          const entryBody = entryResult.layer1Result.bodies[name];
+          emit(transitionMotion === 'retrograde' ? 'retrogradeStation' : 'directStation', name, stationaryWindowEntry, {
+            fromMotion: priorDirectionalMotion,
+            toMotion: transitionMotion,
+            stationWindowEntryInstant: iso(stationaryWindowEntry),
+            directionConfirmationInstant: iso(transition),
+            providerMotionAtInstant: entryResult.snapshot.transitBodies[name].motion,
+            longitudeSpeedDegreesPerDay: entryBody.longitudeSpeedDegreesPerDay,
+          });
+        }
+        priorDirectionalMotion = transitionMotion;
+        stationaryWindowEntry = null;
+        continue;
+      }
+      if ((previousMotion === 'direct' || previousMotion === 'retrograde')
+        && (transitionMotion === 'direct' || transitionMotion === 'retrograde')
+        && transitionMotion !== previousMotion) {
+        emit(transitionMotion === 'retrograde' ? 'retrogradeStation' : 'directStation', name, transition, {
+          fromMotion: previousMotion,
+          toMotion: transitionMotion,
+          stationWindowEntryInstant: null,
+          directionConfirmationInstant: iso(transition),
+          providerMotionAtInstant: transitionBody.motion,
+          longitudeSpeedDegreesPerDay: transitionBody.longitudeSpeedDegreesPerDay,
+        });
+        priorDirectionalMotion = transitionMotion;
+        stationaryWindowEntry = null;
+      }
+    }
+  }
+
+  const firstLayer1Result = samples[0][1].layer1Result;
+  const provenance = {
+    providerIndependent: false,
+    astronomicalCalculation: 'delegated-to-layer-1',
+    ayanamshaCalculation: 'delegated-to-layer-1',
+    gocharCalculation: 'delegated-to-layer-9',
+    eventScanning: 'layer10-transition-refinement-v1',
+    coarseScanStepMilliseconds: configuration.coarseScanStepMilliseconds,
+    refinementToleranceMilliseconds: configuration.refinementToleranceMilliseconds,
+    maximumRefinementIterations: configuration.maximumRefinementIterations,
+    eventTimeSemantics: 'refined-first-instant-new-state-active',
+    calculationStatus: firstLayer1Result.calculationStatus || 'UNKNOWN',
+    provider: firstLayer1Result.provider || null,
+  };
+  return freeze({
+    startInstant,
+    endInstant,
+    events: deduplicate(events).sort(order),
+    configuration: { ...configuration },
+    provenance,
+  });
+}
+
+module.exports = { scanTransitEvents };

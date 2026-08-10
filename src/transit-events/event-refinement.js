@@ -1,0 +1,4 @@
+'use strict';
+function refineBooleanTransition({lowInstant,highInstant,evaluateStateAtInstant,wasActiveAtLow,refinementToleranceMilliseconds,maximumRefinementIterations}){let low=lowInstant,high=highInstant;for(let i=0;i<maximumRefinementIterations&&high-low>refinementToleranceMilliseconds;i+=1){const mid=Math.floor((low+high)/2);if(Boolean(evaluateStateAtInstant(mid))===Boolean(wasActiveAtLow))low=mid;else high=mid;}return high;}
+function refineCategoricalTransition({lowInstant,highInstant,evaluateStateAtInstant,lowState,refinementToleranceMilliseconds,maximumRefinementIterations}){return refineBooleanTransition({lowInstant,highInstant,evaluateStateAtInstant:(instant)=>evaluateStateAtInstant(instant)!==lowState,wasActiveAtLow:false,refinementToleranceMilliseconds,maximumRefinementIterations});}
+module.exports={refineBooleanTransition,refineCategoricalTransition};

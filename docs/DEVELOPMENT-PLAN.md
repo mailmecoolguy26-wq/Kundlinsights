@@ -18,7 +18,7 @@ Complete and validate each layer’s contracts before building dependent feature
 | 7 | Core yoga detection | Versioned D1 yoga detection from precomputed houses and planetary-state facts, with immutable evidence and no interpretation. |
 | 8 | Panchanga and lunar state | Pure instantaneous Tithi, Paksha, lunar state, Karana, and Nitya Yoga from canonical Sun/Moon coordinates. |
 | 9 | Gochar transit foundation | Provider-independent transit snapshot relationships against natal D1 facts, without interpretation or event scanning. |
-| 10 | SAV/BAV | Per-graha BAV and aggregate SAV outputs, traceable to rule tables. |
+| 10 | Transit event scanner | Detects factual transit state transitions through bounded Layer 1/Layer 9 snapshot scanning. |
 | 11 | Historical event backtesting | Secure event ingestion and reproducible comparison reports. |
 | 12 | Personal event signature | Explainable, evidence-scored personal correlations. |
 | 13 | Future event prediction | Forecasts with confidence, timing windows, and factor provenance. |

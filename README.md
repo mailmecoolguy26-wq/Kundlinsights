@@ -26,6 +26,6 @@ tests/  Automated test suites and reference fixtures (not implemented yet)
 
 ## Current status
 
-Layers 1–9 are implemented. Layer 9 is a pure Gochar snapshot relationship engine for canonical transit bodies against natal D1 facts; it contains no interpretation or event scanning. See [LAYER-9-GOCHAR-TRANSIT-FOUNDATION.md](docs/LAYER-9-GOCHAR-TRANSIT-FOUNDATION.md). Layer 8 remains the pure instantaneous Panchanga coordinate engine; sunrise-based Vara remains deferred.
+Layers 1–10 are implemented. Layer 10 scans Layer 1/Layer 9 transit snapshots for factual state transitions with bounded refinement; it contains no interpretation or prediction. See [LAYER-10-TRANSIT-EVENT-SCANNER.md](docs/LAYER-10-TRANSIT-EVENT-SCANNER.md).
 
 See [ARCHITECTURE.md](docs/ARCHITECTURE.md), [ASTROLOGY-STANDARDS.md](docs/ASTROLOGY-STANDARDS.md), and [DEVELOPMENT-PLAN.md](docs/DEVELOPMENT-PLAN.md).

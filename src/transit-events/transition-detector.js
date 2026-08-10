@@ -1,0 +1,1 @@
+'use strict';function keySet(items,key){return new Set(items.map(key));}function changes(a,b){const aa=keySet(a,x=>x),bb=keySet(b,x=>x);return {starts:[...bb].filter(x=>!aa.has(x)),ends:[...aa].filter(x=>!bb.has(x))};}module.exports={changes};
