@@ -26,6 +26,6 @@ tests/  Automated test suites and reference fixtures (not implemented yet)
 
 ## Current status
 
-Layers 1–11A are implemented. Layer 10 scans Layer 1/Layer 9 transit snapshots for factual state transitions with bounded refinement; Layer 11A calculates raw, sign-based Parashari Ashtakavarga without interpretation or correction. See [LAYER-10-TRANSIT-EVENT-SCANNER.md](docs/LAYER-10-TRANSIT-EVENT-SCANNER.md) and [LAYER-11A-ASHTAKAVARGA-FOUNDATION.md](docs/LAYER-11A-ASHTAKAVARGA-FOUNDATION.md).
+Layers 1–11B are implemented. Layer 10 scans Layer 1/Layer 9 transit snapshots for factual state transitions with bounded refinement; Layer 11A calculates raw, sign-based Parashari Ashtakavarga; Layer 11B applies pure Trikona and Ekapadhipatya Shodhana to individual BAVs without modifying raw SAV or adding interpretation. See [LAYER-10-TRANSIT-EVENT-SCANNER.md](docs/LAYER-10-TRANSIT-EVENT-SCANNER.md), [LAYER-11A-ASHTAKAVARGA-FOUNDATION.md](docs/LAYER-11A-ASHTAKAVARGA-FOUNDATION.md), and [LAYER-11B-ASHTAKAVARGA-SHODHANA.md](docs/LAYER-11B-ASHTAKAVARGA-SHODHANA.md).
 
 See [ARCHITECTURE.md](docs/ARCHITECTURE.md), [ASTROLOGY-STANDARDS.md](docs/ASTROLOGY-STANDARDS.md), and [DEVELOPMENT-PLAN.md](docs/DEVELOPMENT-PLAN.md).

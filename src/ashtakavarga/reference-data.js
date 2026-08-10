@@ -4,10 +4,23 @@ const { RASHI_DEFINITIONS } = require('../jyotish/reference-data');
 
 const BAV_RULESET_ID = 'parashari-rekha-bav-santhanam-v1';
 const SAV_RULESET_ID = 'parashari-raw-sarvashtakavarga-v1';
+const TRIKONA_SHODHANA_RULESET_ID = 'parashari-trikona-shodhana-santhanam-v1';
+const EKADHIPATYA_SHODHANA_RULESET_ID = 'parashari-ekadhipatya-shodhana-santhanam-v1';
+const SHODHANA_RULESET_ID = 'parashari-ashtakavarga-shodhana-santhanam-v1';
+const EKADHIPATYA_OCCUPANCY_POLICY_ID = 'parashari-ekadhipatya-occupancy-seven-graha-v1';
 const CONTRIBUTOR_ORDER = Object.freeze(['Sun', 'Moon', 'Mars', 'Mercury', 'Jupiter', 'Venus', 'Saturn', 'Ascendant']);
 const PLANETARY_TARGET_ORDER = Object.freeze(['Sun', 'Moon', 'Mars', 'Mercury', 'Jupiter', 'Venus', 'Saturn']);
 const FIXED_TOTALS = Object.freeze({ Sun: 48, Moon: 49, Mars: 39, Mercury: 54, Jupiter: 56, Venus: 52, Saturn: 39, Ascendant: 47 });
 const RAW_SAV_TOTAL = 337;
+const TRIKONA_GROUPS = Object.freeze([[1, 5, 9], [2, 6, 10], [3, 7, 11], [4, 8, 12]].map(Object.freeze));
+const EKADHIPATYA_PAIRS = Object.freeze([
+  Object.freeze({ owner: 'Mars', rashiIndices: Object.freeze([1, 8]) }),
+  Object.freeze({ owner: 'Mercury', rashiIndices: Object.freeze([3, 6]) }),
+  Object.freeze({ owner: 'Jupiter', rashiIndices: Object.freeze([9, 12]) }),
+  Object.freeze({ owner: 'Venus', rashiIndices: Object.freeze([2, 7]) }),
+  Object.freeze({ owner: 'Saturn', rashiIndices: Object.freeze([10, 11]) }),
+]);
+const EKADHIPATYA_OCCUPANCY_BODIES = Object.freeze(['Sun', 'Moon', 'Mars', 'Mercury', 'Jupiter', 'Venus', 'Saturn']);
 
 const RAW_FAVORABLE_REKHA_TABLE = {
   Sun: { Sun:[1,2,4,7,8,9,10,11], Moon:[3,6,10,11], Mars:[1,2,4,7,8,9,10,11], Mercury:[3,5,6,9,10,11,12], Jupiter:[5,6,9,11], Venus:[6,7,12], Saturn:[1,2,4,7,8,9,10,11], Ascendant:[3,4,6,10,11,12] },
@@ -39,4 +52,4 @@ function validateReferenceData(table = RAW_FAVORABLE_REKHA_TABLE) {
 validateReferenceData();
 deepFreeze(RAW_FAVORABLE_REKHA_TABLE);
 
-module.exports = { BAV_RULESET_ID, SAV_RULESET_ID, CONTRIBUTOR_ORDER, PLANETARY_TARGET_ORDER, FIXED_TOTALS, RAW_SAV_TOTAL, RASHI_DEFINITIONS, RAW_FAVORABLE_REKHA_TABLE, validateReferenceData };
+module.exports = { BAV_RULESET_ID, SAV_RULESET_ID, TRIKONA_SHODHANA_RULESET_ID, EKADHIPATYA_SHODHANA_RULESET_ID, SHODHANA_RULESET_ID, EKADHIPATYA_OCCUPANCY_POLICY_ID, CONTRIBUTOR_ORDER, PLANETARY_TARGET_ORDER, FIXED_TOTALS, RAW_SAV_TOTAL, TRIKONA_GROUPS, EKADHIPATYA_PAIRS, EKADHIPATYA_OCCUPANCY_BODIES, RASHI_DEFINITIONS, RAW_FAVORABLE_REKHA_TABLE, validateReferenceData };
