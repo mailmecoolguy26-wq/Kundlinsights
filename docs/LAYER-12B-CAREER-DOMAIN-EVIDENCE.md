@@ -6,7 +6,7 @@ Layer 12B is a deterministic, immutable Career overlay over a completed Layer 12
 
 The overlay selects supplied natal facts and creates traceable derived relationships. It performs no astronomy, coordinate, house, state, Drishti, Varga, Ashtakavarga, Dasha, Gochar, or transit calculation. It does not score, rank, predict, or interpret.
 
-H10 remains the sole primary Career house. Layer 12B2 additionally selects H2 as a neutral resource context and H11 as a neutral gains/acquisition context. H6 remains explicitly deferred: this overlay does not encode service, employment, obstruction, or any outcome. The H10 lord and H10 occupants are read only from Layer 5A FACT nodes; the overlay never recalculates sign ownership or house placement.
+H10 remains the sole primary Career house. Layer 12B2 additionally selects H2 as a neutral resource context and H11 as a neutral gains/acquisition context. Layer 12B3 adds only the narrowly audited H9 and Saturn/Venus source-predicate facts documented in [LAYER-12B3-CAREER-STATUS-PREDICATE-EVIDENCE.md](LAYER-12B3-CAREER-STATUS-PREDICATE-EVIDENCE.md). H6 remains explicitly deferred: this overlay does not encode service, employment, obstruction, or any outcome. The H10 lord and H10 occupants are read only from Layer 5A FACT nodes; the overlay never recalculates sign ownership or house placement.
 
 ## Input and output
 
@@ -32,6 +32,8 @@ Layer 12B2 adds only these H2/H11 relations:
 - `CAREER_HOUSE_DOMAIN_CONNECTION` records only a supplied placement of an approved selected-house lord in another selected Career-domain house.
 
 These relations never mean salary, compensation, promotion, advancement, income from employment, success, failure, or an outcome. Limited D10 Rashi and Ashtakavarga/Pinda context remains H10-only.
+
+Layer 12B3 preserves H9-lord identity and a supplied H9-lord placement in H10 only for its audited source predicate. It reuses the existing factual H10-lord state relation, records only the listed supplied Saturn natal-house and Saturn-from-Venus whole-sign relationships, and leaves the currently unavailable Jupiter-conjunction component as neutral missing data. It does not infer conjunction from sign co-location or Graha Drishti.
 
 Yoga and natural-Karaka Career mappings are deferred because no audited mapping is encoded in this ruleset. Optional missing Layer 5B, Layer 6, D10, or Layer 11 data is reported as `notProvided`; absence is not negative evidence. Missing H2/H11 facts create no Career-context relation and never imply an empty house.
 

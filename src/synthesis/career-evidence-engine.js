@@ -1,7 +1,7 @@
 'use strict';
 
 const { hash, freeze, stable, assertNoForbidden } = require('./evidence-node');
-const { CAREER_DOMAIN, CAREER_RULESET_ID, CAREER_RELATION_TYPES, CAREER_RELATION_SOURCE_STRENGTHS } = require('./career-reference-data');
+const { CAREER_DOMAIN, CAREER_RULESET_ID, CAREER_RELATION_TYPES, CAREER_RELATION_SOURCE_STRENGTHS, CAREER_STATUS_SOURCE_PREDICATES } = require('./career-reference-data');
 
 function same(left, right) { return stable(left) === stable(right); }
 function isObject(value) { return value !== null && typeof value === 'object' && !Array.isArray(value); }
@@ -19,11 +19,11 @@ function houseNumber(value) { return value && Number(value.houseNumber); }
 function bodyOfAssignment(value) { return value && typeof value.body === 'string' ? value.body : null; }
 function assignedHouse(value) { return value && Number(value.rashiHouseNumber ?? value.bhavaNumber); }
 function rashiIndex(value) { const index = value && value.rashi && Number(value.rashi.rashiIndex); return Number.isInteger(index) && index >= 1 && index <= 12 ? index : null; }
-function relation({ relationType, subject, target, inputNodeIds, fact = null }) {
+function relation({ relationType, subject, target, inputNodeIds, fact = null, provenance = null }) {
   if (!CAREER_RELATION_TYPES.includes(relationType)) throw new RangeError(`Unsupported Career relation type: ${relationType}`);
   const ids = [...new Set(inputNodeIds)].sort();
   const identity = { rulesetId: CAREER_RULESET_ID, relationType, subject, target, inputNodeIds: ids };
-  const value = { id: `career-relation:${hash(identity)}`, domain: CAREER_DOMAIN, rulesetId: CAREER_RULESET_ID, relationType, sourceStrength: CAREER_RELATION_SOURCE_STRENGTHS[relationType], subject, target, inputNodeIds: ids, fact, provenance: { sourceGraphLayer: '12A', sourceGraphRulesetBoundary: 'generic-natal-evidence-only', relationshipCalculation: 'selection-of-supplied-facts-only', scope: 'natal-structural-evidence-only' } };
+  const value = { id: `career-relation:${hash(identity)}`, domain: CAREER_DOMAIN, rulesetId: CAREER_RULESET_ID, relationType, sourceStrength: CAREER_RELATION_SOURCE_STRENGTHS[relationType], subject, target, inputNodeIds: ids, fact, provenance: { sourceGraphLayer: '12A', sourceGraphRulesetBoundary: 'generic-natal-evidence-only', relationshipCalculation: 'selection-of-supplied-facts-only', scope: 'natal-structural-evidence-only', ...(provenance || {}) } };
   assertNoForbidden(value);
   return freeze(value);
 }
@@ -46,6 +46,9 @@ function findContextHouse(graph, number) {
   const lords = new Set(matches.map((node) => nodeFact(node).rashiHouseLord && nodeFact(node).rashiHouseLord.name).filter(Boolean));
   if (lords.size !== 1) throw new RangeError(`Career evidence found contradictory or missing Layer 5A House ${number} lords.`);
   return { node: matches.sort((a, b) => a.id.localeCompare(b.id))[0], lord: [...lords][0] };
+}
+function predicateProvenance(predicate, relationshipCalculation = 'selection-of-supplied-facts-only') {
+  return { sourcePredicate: CAREER_STATUS_SOURCE_PREDICATES[predicate], relationshipCalculation, scope: 'source-predicate-factual-evidence-only' };
 }
 function stateFlags(state) {
   const dignity = state && state.dignity || {};
@@ -97,6 +100,8 @@ function buildCareerEvidence(input = {}) {
   });
   const lordAssignment = byBody.get(lord) || null;
   const occupants = [...byBody.values()].filter((node) => assignedHouse(nodeFact(node)) === 10).sort((a, b) => bodyOfAssignment(nodeFact(a)).localeCompare(bodyOfAssignment(nodeFact(b))));
+  const h9 = findContextHouse(graph, 9);
+  const statusPredicateRequested = h9 !== null || byBody.has('Venus');
   const relations = new Map();
   const house = { entityType: 'HOUSE', entityId: '10' };
   addRelation(relations, relation({ relationType: 'CAREER_PRIMARY_HOUSE', subject: house, target: { entityType: 'DOMAIN', entityId: CAREER_DOMAIN }, inputNodeIds: [h10.id], fact: { primaryCareerHouseNumber: 10 } }));
@@ -109,7 +114,8 @@ function buildCareerEvidence(input = {}) {
   else [lord, ...occupants.map((node) => bodyOfAssignment(nodeFact(node)))].filter((body, index, values) => values.indexOf(body) === index).forEach((body) => {
     const state = states.find((node) => node.subject.entityId === body);
     if (!state) return;
-    addRelation(relations, relation({ relationType: body === lord ? 'CAREER_HOUSE_LORD_STATE' : 'CAREER_OCCUPANT_STATE', subject: { entityType: 'GRAHA', entityId: body }, target: { entityType: 'EVIDENCE_NODE', entityId: state.id }, inputNodeIds: [state.id], fact: { suppliedStateFlags: stateFlags(nodeFact(state)) } }));
+    const isH10Lord = body === lord;
+    addRelation(relations, relation({ relationType: isH10Lord ? 'CAREER_HOUSE_LORD_STATE' : 'CAREER_OCCUPANT_STATE', subject: { entityType: 'GRAHA', entityId: body }, target: { entityType: 'EVIDENCE_NODE', entityId: state.id }, inputNodeIds: [state.id], fact: { suppliedStateFlags: stateFlags(nodeFact(state)), ...(isH10Lord && statusPredicateRequested ? { sourcePredicateIds: [CAREER_STATUS_SOURCE_PREDICATES.H10_NATAL.sourcePredicateId] } : {}) }, provenance: isH10Lord && statusPredicateRequested ? predicateProvenance('H10_NATAL') : null }));
   });
   const aspects = sourceNodes(graph, '6');
   if (aspects.length === 0) missingOptional('grahaDrishti');
@@ -170,9 +176,49 @@ function buildCareerEvidence(input = {}) {
     if (!to || to.number === from.number) return;
     addRelation(relations, relation({ relationType: 'CAREER_HOUSE_DOMAIN_CONNECTION', subject: { entityType: 'HOUSE', entityId: String(from.number) }, target: { entityType: 'HOUSE', entityId: String(to.number) }, inputNodeIds: [from.node.id, assignment.id], fact: { fromHouseNumber: from.number, toHouseNumber: to.number, lord: from.lord, connection: 'supplied-house-lord-placement-only' } }));
   });
+  if (statusPredicateRequested) {
+    if (!h9) missingOptional('H9');
+    else {
+      const h9House = { entityType: 'HOUSE', entityId: '9' };
+      addRelation(relations, relation({ relationType: 'CAREER_STATUS_H9_LORD', subject: h9House, target: { entityType: 'GRAHA', entityId: h9.lord }, inputNodeIds: [h9.node.id], fact: { derivation: 'supplied-Layer-5A-house-lord' }, provenance: predicateProvenance('H10_NATAL') }));
+      const h9LordAssignment = byBody.get(h9.lord) || null;
+      if (!h9LordAssignment) missingOptional(`H9.${h9.lord}.placement`);
+      else {
+        const placementHouseNumber = assignedHouse(nodeFact(h9LordAssignment));
+        if (!Number.isInteger(placementHouseNumber) || placementHouseNumber < 1 || placementHouseNumber > 12) missingOptional(`H9.${h9.lord}.placement`);
+        else {
+          addRelation(relations, relation({ relationType: 'CAREER_STATUS_H9_LORD_PLACEMENT', subject: { entityType: 'GRAHA', entityId: h9.lord }, target: { entityType: 'HOUSE', entityId: String(placementHouseNumber) }, inputNodeIds: [h9LordAssignment.id], fact: { lord: h9.lord, natalHouseNumber: placementHouseNumber, derivation: 'supplied-Layer-5A-rashi-house-assignment' }, provenance: predicateProvenance('H10_NATAL') }));
+          if (placementHouseNumber === 10) addRelation(relations, relation({ relationType: 'CAREER_STATUS_H9_LORD_H10_CONNECTION', subject: h9House, target: house, inputNodeIds: [h9.node.id, h9LordAssignment.id], fact: { lord: h9.lord, fromHouseNumber: 9, toHouseNumber: 10, connection: 'supplied-house-lord-placement-only' }, provenance: predicateProvenance('H10_NATAL') }));
+        }
+      }
+    }
+    const h10State = states.find((node) => node.subject.entityId === lord) || null;
+    if (!h10State) missingOptional(`H10.${lord}.state`);
+    // Layer 6 supplies Graha Drishti, not a conjunction FACT. Same-Rashi placement
+    // is intentionally not substituted for conjunction and no orb is calculated here.
+    missingOptional('H10Lord.Jupiter.conjunction');
+    const saturn = byBody.get('Saturn') || null;
+    const venus = byBody.get('Venus') || null;
+    if (!saturn) missingOptional('Saturn.natalPlacement');
+    else {
+      const natalHouseNumber = assignedHouse(nodeFact(saturn));
+      if (!Number.isInteger(natalHouseNumber) || natalHouseNumber < 1 || natalHouseNumber > 12) missingOptional('Saturn.natalHouse');
+      else if ([8, 11, 12].includes(natalHouseNumber)) addRelation(relations, relation({ relationType: 'CAREER_STATUS_SATURN_NATAL_HOUSE', subject: { entityType: 'GRAHA', entityId: 'Saturn' }, target: { entityType: 'HOUSE', entityId: String(natalHouseNumber) }, inputNodeIds: [saturn.id], fact: { natalHouseNumber, sourceListedHouseNumbers: [8, 11, 12] }, provenance: predicateProvenance('VENUS_SATURN_NATAL') }));
+    }
+    if (!venus) missingOptional('Venus.rashi');
+    if (saturn && venus) {
+      const saturnRashiIndex = rashiIndex(nodeFact(saturn));
+      const venusRashiIndex = rashiIndex(nodeFact(venus));
+      if (saturnRashiIndex === null || venusRashiIndex === null) missingOptional('Saturn.Venus.relativeHouse');
+      else {
+        const relativeHouse = ((saturnRashiIndex - venusRashiIndex + 12) % 12) + 1;
+        if ([8, 11, 12].includes(relativeHouse)) addRelation(relations, relation({ relationType: 'CAREER_STATUS_SATURN_FROM_VENUS', subject: { entityType: 'GRAHA', entityId: 'Saturn' }, target: { entityType: 'GRAHA', entityId: 'Venus' }, inputNodeIds: [saturn.id, venus.id], fact: { referenceBody: 'Venus', relativeHouse, sourceListedRelativeHouseNumbers: [8, 11, 12] }, provenance: predicateProvenance('VENUS_SATURN_NATAL', 'whole-sign-relative-rashi-distance-from-supplied-Layer-5A-facts-only') }));
+      }
+    }
+  }
   const derivedRelations = [...relations.values()].sort((left, right) => left.id.localeCompare(right.id));
   const evidenceNodeIds = [...new Set(derivedRelations.flatMap((item) => item.inputNodeIds))].sort();
-  const result = { domain: CAREER_DOMAIN, rulesetId: CAREER_RULESET_ID, sourceGraphId: graph.graphId, evidenceNodeIds, derivedRelations, derivedRelationIds: derivedRelations.map((item) => item.id), missingData: missing.sort((left, right) => left.dataKey.localeCompare(right.dataKey)), provenance: { sourceGraphLayer: '12A', sourceGraphId: graph.graphId, selectionOnly: true, primaryHousePolicy: 'H10-only; H2-H6-H11 deferred', expandedContextHousePolicy: 'H2-resource-context and H11-gain-context; H6 deferred', yogaCareerMapping: 'deferred-no-audited-mapping', naturalKarakaMapping: 'deferred-no-audited-mapping', d10HouseCalculation: 'not-performed', d10ContextPolicy: 'H10-lord-and-occupants-only; H2-H11-not-expanded', dignityEvaluation: 'not-performed', ashtakavargaThresholds: 'not-performed', ashtakavargaContextPolicy: 'H10-only; H2-H11-not-expanded', scope: 'natal-structural-evidence-only' } };
+  const result = { domain: CAREER_DOMAIN, rulesetId: CAREER_RULESET_ID, sourceGraphId: graph.graphId, evidenceNodeIds, derivedRelations, derivedRelationIds: derivedRelations.map((item) => item.id), missingData: missing.sort((left, right) => left.dataKey.localeCompare(right.dataKey)), provenance: { sourceGraphLayer: '12A', sourceGraphId: graph.graphId, selectionOnly: true, primaryHousePolicy: 'H10-only; H2-H6-H11 deferred', expandedContextHousePolicy: 'H2-resource-context and H11-gain-context; H6 deferred', statusPredicateEvidencePolicy: 'H9 and Venus/Saturn factual components only; no evaluated conclusion; conjunction requires an explicit upstream FACT', sourcePredicateProvenance: statusPredicateRequested ? [CAREER_STATUS_SOURCE_PREDICATES.H10_NATAL, CAREER_STATUS_SOURCE_PREDICATES.VENUS_SATURN_NATAL] : [], yogaCareerMapping: 'deferred-no-audited-mapping', naturalKarakaMapping: 'deferred-no-audited-mapping', d10HouseCalculation: 'not-performed', d10ContextPolicy: 'H10-lord-and-occupants-only; H2-H11-not-expanded', dignityEvaluation: 'not-performed', ashtakavargaThresholds: 'not-performed', ashtakavargaContextPolicy: 'H10-only; H2-H11-not-expanded', scope: 'natal-structural-evidence-only' } };
   assertNoForbidden(result);
   return freeze(result);
 }
