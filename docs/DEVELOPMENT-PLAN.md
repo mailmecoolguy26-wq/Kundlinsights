@@ -25,6 +25,7 @@ Complete and validate each layer’s contracts before building dependent feature
 | 12A | Generic evidence infrastructure | Builds a provider-independent immutable natal evidence graph from supplied upstream facts, with no domains, temporal activation, scoring, or interpretation. |
 | 12B | Career domain evidence | Immutable source-audited, H10-primary Career evidence overlay over Layer 12A facts; no timing, scoring, or interpretation. |
 | 12C | Temporal activation overlay | Immutable supplied Dasha, Gochar, and transit-event activation context over Layer 12A/12B static evidence, without prediction or scoring. |
+| 12D | Evidence independence and consistency gate | Deterministic root-lineage, duplication, mechanism, and contradiction analysis over supplied Layer 12 evidence. |
 | 11 | Historical event backtesting | Secure event ingestion and reproducible comparison reports. |
 | 12 | Personal event signature | Explainable, evidence-scored personal correlations. |
 | 13 | Future event prediction | Forecasts with confidence, timing windows, and factor provenance. |

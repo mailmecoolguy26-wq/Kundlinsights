@@ -26,6 +26,6 @@ tests/  Automated test suites and reference fixtures (not implemented yet)
 
 ## Current status
 
-Layers 1–12C are implemented. Layer 11A–11C provide raw, Shodhita, and versioned Pinda Ashtakavarga facts; Layer 12A makes those and other upstream facts available through a deterministic, non-interpretive natal evidence graph; Layer 12B provides a traceable, H10-primary Career evidence overlay; and Layer 12C provides a neutral temporal activation overlay without scoring, interpretation, or prediction. See [LAYER-12A-EVIDENCE-INFRASTRUCTURE.md](docs/LAYER-12A-EVIDENCE-INFRASTRUCTURE.md), [LAYER-12B-CAREER-DOMAIN-EVIDENCE.md](docs/LAYER-12B-CAREER-DOMAIN-EVIDENCE.md), and [LAYER-12C-TEMPORAL-ACTIVATION-EVIDENCE.md](docs/LAYER-12C-TEMPORAL-ACTIVATION-EVIDENCE.md).
+Layers 1–12D are implemented. Layer 12A provides generic static evidence, Layer 12B a Career static overlay, Layer 12C temporal activation evidence, and Layer 12D a deterministic lineage, independence, duplication, and consistency analysis gate without scoring or prediction. See [LAYER-12D-EVIDENCE-CONSISTENCY.md](docs/LAYER-12D-EVIDENCE-CONSISTENCY.md).
 
 See [ARCHITECTURE.md](docs/ARCHITECTURE.md), [ASTROLOGY-STANDARDS.md](docs/ASTROLOGY-STANDARDS.md), and [DEVELOPMENT-PLAN.md](docs/DEVELOPMENT-PLAN.md).
