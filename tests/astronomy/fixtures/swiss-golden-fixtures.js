@@ -1,14 +1,16 @@
 'use strict';
 
-/*
- * Schema only. Numeric values must be generated independently by official Swiss
- * C tooling after licensed ephemeris data is available; no mock values here are
- * astronomical authority.
- */
-const SWISS_AUTHORITY_GOLDEN_FIXTURE_SCHEMA = Object.freeze({
-  fixtureStatus: 'LICENSE_AND_DATA_GATED',
-  source: 'official-swiss-c-or-swetest',
-  required: Object.freeze(['utc', 'jdUt', 'observer', 'swissVersion', 'bindingVersion', 'siderealMode', 'nodeModel', 'requestedFlags', 'returnedFlagsByBody', 'ephemerisManifest', 'bodies'])
-});
-
-module.exports = { SWISS_AUTHORITY_GOLDEN_FIXTURE_SCHEMA };
+function freeze(value) { if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value; Object.freeze(value); Object.values(value).forEach(freeze); return value; }
+// Preserved Layer 1P1 contract: this placeholder remains non-authoritative.
+const SWISS_AUTHORITY_GOLDEN_FIXTURE_SCHEMA = freeze({ fixtureStatus: 'LICENSE_AND_DATA_GATED', source: 'official-swiss-c-or-swetest', required: ['utc', 'jdUt', 'observer', 'swissVersion', 'bindingVersion', 'siderealMode', 'nodeModel', 'requestedFlags', 'returnedFlagsByBody', 'ephemerisManifest', 'bodies'] });
+const M = { manifestId: 'official-swiss-reference-2.10.03-modern-v1', releaseId: 'official-swiss-reference-local-2.10.03', files: [{ fileName: 'sepl_18.se1', byteLength: 484061, sha256: 'ca1393ceab3a44fbc895887cf789c68819ae6a1cbc9b22225872dbe4ccd99a66' }, { fileName: 'semo_18.se1', byteLength: 1304771, sha256: '1ca07bd67c24374d77226180c20a4f9996cba013697894810518e7eb582ca4f7' }] };
+const B = (Sun, Moon, Mercury, Venus, Mars, Jupiter, Saturn, Rahu, ascendant) => ({ Sun, Moon, Mercury, Venus, Mars, Jupiter, Venus: Venus, Saturn, Rahu, Ketu: { longitude: (Rahu.longitude + 180) % 360, speed: Rahu.speed }, Ascendant: { longitude: ascendant } });
+const P = (longitude, speed) => ({ longitude, speed });
+const SWISS_GOLDEN_FIXTURES = freeze([
+  { fixtureId: 'official-swetest-j2000-direct-v1', utc: '2000-01-01T12:00:00.000Z', jdUt: 2451545.00000411, observer: { latitude: 0, longitude: 0 }, bodies: B(P(256.5157004, 1.0193939), P(199.4705784, 12.0212633), P(248.0360610, 1.5562179), P(217.7125709, 1.2090029), P(304.1100832, 0.7756338), P(1.3998649, 0.0407211), P(16.5424409, -0.0199852), P(101.1874234, -0.0529920), 347.5222842) },
+  { fixtureId: 'official-swetest-delhi-mercury-retrograde-v1', utc: '2020-02-20T12:00:00.000Z', jdUt: 2458900, observer: { latitude: 28.6139, longitude: 77.209 }, bodies: B(P(307.1711484, 1.0085271), P(271.8848959, 12.4405118), P(317.7352439, -0.5751257), P(350.5663117, 1.1444843), P(248.6315667, 0.6886538), P(263.5955657, 0.1975239), P(273.0685872, 0.1049285), P(71.4312506, -0.0529920), 118.4278444) },
+  { fixtureId: 'official-swetest-mumbai-slow-retrograde-v1', utc: '2020-06-15T12:00:00.000Z', jdUt: 2459016, observer: { latitude: 19.076, longitude: 72.8777 }, bodies: B(P(60.7005176, 0.9551225), P(355.1481620, 11.8827030), P(80.3482504, 0.2053661), P(43.0794817, -0.3818898), P(328.0202602, 0.6391586), P(271.5548188, -0.0926187), P(276.8550589, -0.0518513), P(65.2841796, -0.0529920), 217.6357711) },
+  { fixtureId: 'official-swetest-hyderabad-lahiri-mean-node-v1', utc: '1990-11-26T08:10:00.000Z', jdUt: 2448221.840274203, observer: { latitude: 17.385, longitude: 78.4867 }, bodies: B(P(220.0741251, 1.0116381), P(319.5198698, 13.1302252), P(238.7596717, 1.3873327), P(226.2189484, 1.2558015), P(42.1802415, -0.3783183), P(109.8379205, 0.0126113), P(268.1501444, 0.0918826), P(277.2883590, -0.0529920), 331.2066391) }
+]);
+const SWISS_GOLDEN_PROVENANCE = freeze({ source: 'INDEPENDENT_OFFICIAL_SWISSEPH_SWETEST', swetestVersion: '2.10.03', ephemerisMode: 'SEFLG_SWIEPH', siderealMode: 'SE_SIDM_LAHIRI', nodeModel: 'SE_MEAN_NODE', flags: ['SEFLG_SWIEPH', 'SEFLG_SPEED', 'SEFLG_SIDEREAL'], manifest: M, commandTemplate: 'swetest -bDD.MM.YYYY -utcHH:MM:SS -p0123456m -eswe -sid1 -speed -fPls -edir<approved-ephemeris-dir>; swetest ... -house<longitude>,<latitude>,W -eswe -sid1 -fPl -edir<approved-ephemeris-dir>' });
+module.exports = freeze({ SWISS_AUTHORITY_GOLDEN_FIXTURE_SCHEMA, SWISS_GOLDEN_FIXTURES, SWISS_GOLDEN_PROVENANCE, LONGITUDE_TOLERANCE_DEGREES: 1e-7, SPEED_TOLERANCE_DEGREES_PER_DAY: 0.000002, ASCENDANT_TOLERANCE_DEGREES: 1e-7 });
