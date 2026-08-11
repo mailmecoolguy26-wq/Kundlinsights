@@ -33,7 +33,7 @@ Ephemeris and time/location reference data
 9. **Gochar transit foundation** — evaluates provider-independent transit snapshot relationships against natal D1 facts without interpretation or event scanning.
 10. **Transit event scanner** — detects factual state transitions across time from Layer 1 and Layer 9 snapshots.
 11. **Ashtakavarga foundation, Shodhana, and Pinda** — Layer 11A derives immutable raw seven-planet BAV/SAV and separate Lagna BAV solely from natal D1 Rashi facts. Layer 11B applies immutable Trikona then Ekapadhipatya Shodhana to every BAV, including Lagna; raw SAV remains untouched. Layer 11C calculates versioned Rashi, Graha, and total/Yoga Pinda for seven planetary Shodhita BAVs only.
-12. **Evidence synthesis foundation** — Layer 12A provides generic immutable natal evidence nodes, edges, neutral missing-data records, traceable derived relationships, and adapters for existing Layer 2–11 facts. Domain and temporal synthesis are deferred.
+12. **Evidence synthesis foundation** — Layer 12A provides generic immutable natal evidence nodes, edges, neutral missing-data records, traceable derived relationships, and adapters for existing Layer 2–11 facts. Layer 12B adds an immutable Career-only overlay that selects supplied H10, H10-lord, occupant, state, Drishti, D10, and neutral Ashtakavarga evidence; temporal synthesis, scoring, and interpretation remain deferred.
 11. **Historical event backtesting** — compares calculated cycles and transits with user-supplied dated events.
 12. **Personal event signature** — identifies repeatable chart and timing correlations for one person.
 13. **Future event prediction** — produces evidence-linked, uncertainty-aware forecasts from lower-layer facts.
