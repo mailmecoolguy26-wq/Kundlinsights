@@ -16,6 +16,7 @@
   "license": "UNLICENSED",
   "type": "commonjs",
   "dependencies": {
-    "astronomy-engine": "2.1.17"
+    "astronomy-engine": "2.1.17",
+    "sweph": "2.10.3-7"
   }
 }

@@ -78,3 +78,6 @@ docs/
 ```
 
 The source directory is intentionally unopinionated until the team selects the mobile, backend, and calculation-runtime technology stack.
+# Layer 1 provider boundary
+
+Birth input is resolved to UTC, then passed to an explicit astronomical provider. The provider returns canonical sidereal longitudes; Layer 2 classifies those coordinates and Layer 3+ remains deterministic and provider-independent. `SwissEphemerisProvider` supplies native Lahiri coordinates for license-gated validation only; `AstronomyEngineProvider` remains the explicit provisional development provider. No provider fallback is automatic.

@@ -69,3 +69,6 @@ Before implementation begins, decide and document:
 ## Not in scope yet
 
 No calculations, ephemeris integration, chart rendering, interpretation, mobile screens, user accounts, or billing implementation is included in this repository foundation.
+# Layer 1P1
+
+Swiss Ephemeris provider support is implemented behind the existing Layer 1 provider abstraction with native Lahiri, Mean Rahu/derived Ketu, fail-closed returned flags, a Swiss sidereal Ascendant, and manifest/license authority gates. Engineering validation is complete; commercial production activation remains license-gated.
