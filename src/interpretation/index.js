@@ -1,1 +1,1 @@
-'use strict'; module.exports = { ...require('./reference-data'), ...require('./interpretive-rule-registry'), ...require('./conclusion-model'), ...require('./interpretation-engine'), ...require('./renderer-contract') };
+'use strict'; module.exports = { ...require('./reference-data'), ...require('./interpretive-rule-registry'), ...require('./conclusion-model'), ...require('./interpretation-engine'), ...require('./renderer-contract'), ...require('./career-rulebook'), ...require('./career-natal-engine') };

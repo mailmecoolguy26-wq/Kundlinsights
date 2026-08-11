@@ -1,0 +1,7 @@
+'use strict'; const { freeze } = require('../synthesis/evidence-node');
+const RULESET_ID='parashari-career-interpretation-foundation-v1';
+const RULES=freeze([
+  {id:'career-h10-signification-scope-v1',rulesetId:RULESET_ID,production:true,domain:'CAREER',topic:'CAREER_H10_SIGNIFICATION_SCOPE_PRESENT',classification:'CLASSICAL_RULE',sourceStatus:'CLASSICAL_RULE',sourceRefs:['BPHS:tenth-house-significations'],requiredEvidenceIds:[],optionalEvidenceIds:[],allowedStatuses:['SUPPORTED','INSUFFICIENT_EVIDENCE','CONTRADICTED']},
+  {id:'career-h10-lord-natal-connection-v1',rulesetId:RULESET_ID,production:true,domain:'CAREER',topic:'CAREER_H10_LORD_NATAL_CONNECTION_PRESENT',classification:'SOURCE_INTERPRETATION',sourceStatus:'SOURCE_INTERPRETATION',sourceRefs:['BPHS:tenth-house-lord-relationship'],requiredEvidenceIds:[],optionalEvidenceIds:[],allowedStatuses:['SUPPORTED','MIXED','INSUFFICIENT_EVIDENCE','CONTRADICTED']},
+  {id:'career-h10-occupant-connection-v1',rulesetId:RULESET_ID,production:true,domain:'CAREER',topic:'CAREER_H10_OCCUPANT_CONNECTION_PRESENT',classification:'SOURCE_INTERPRETATION',sourceStatus:'SOURCE_INTERPRETATION',sourceRefs:['BPHS:tenth-house-significations'],requiredEvidenceIds:[],optionalEvidenceIds:[],allowedStatuses:['SUPPORTED','MIXED','INSUFFICIENT_EVIDENCE','CONTRADICTED','NOT_APPLICABLE']}
+]); module.exports={CAREER_INTERPRETATION_RULESET_ID:RULESET_ID,CAREER_NATAL_RULES:RULES};
