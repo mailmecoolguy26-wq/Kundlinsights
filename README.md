@@ -26,6 +26,6 @@ tests/  Automated test suites and reference fixtures (not implemented yet)
 
 ## Current status
 
-Layers 1–12D are implemented. Layer 12A provides generic static evidence, Layer 12B a Career static overlay, Layer 12C temporal activation evidence, and Layer 12D a deterministic lineage, independence, duplication, and consistency analysis gate without scoring or prediction. See [LAYER-12D-EVIDENCE-CONSISTENCY.md](docs/LAYER-12D-EVIDENCE-CONSISTENCY.md).
+Layers 1–13A are implemented. Layer 13A provides deterministic structured-conclusion and trace infrastructure only; source-audited Career rules and natural-language rendering remain deferred. See [LAYER-13A-INTERPRETATION-INFRASTRUCTURE.md](docs/LAYER-13A-INTERPRETATION-INFRASTRUCTURE.md).
 
 See [ARCHITECTURE.md](docs/ARCHITECTURE.md), [ASTROLOGY-STANDARDS.md](docs/ASTROLOGY-STANDARDS.md), and [DEVELOPMENT-PLAN.md](docs/DEVELOPMENT-PLAN.md).

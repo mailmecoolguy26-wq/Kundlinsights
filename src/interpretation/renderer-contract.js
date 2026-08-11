@@ -1,0 +1,3 @@
+'use strict'; const { freeze } = require('../synthesis/evidence-node');
+function createRendererInput(conclusion) { if (!conclusion || typeof conclusion.conclusionId !== 'string') throw new TypeError('A structured conclusion is required.'); return freeze({ conclusionId: conclusion.conclusionId, domain: conclusion.domain, topic: conclusion.topic, status: conclusion.conclusionStatus, templateKey: null, evidenceIds: conclusion.evidenceIds, contradictions: conclusion.contradictions, missingData: conclusion.missingData, temporalContext: conclusion.temporalContext, provenance: { interpretiveRuleId: conclusion.interpretiveRuleId, rulesetId: conclusion.rulesetId } }); }
+module.exports = { createRendererInput };
