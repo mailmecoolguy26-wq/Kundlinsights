@@ -24,6 +24,7 @@ Complete and validate each layer’s contracts before building dependent feature
 | 11C | Ashtakavarga Pinda | Calculates versioned Rashi, Graha, and total/Yoga Pinda from seven planetary Shodhita BAVs; Lagna and node Pinda remain deferred. |
 | 12A | Generic evidence infrastructure | Builds a provider-independent immutable natal evidence graph from supplied upstream facts, with no domains, temporal activation, scoring, or interpretation. |
 | 12B | Career domain evidence | Immutable source-audited, H10-primary Career evidence overlay over Layer 12A facts; no timing, scoring, or interpretation. |
+| 12B2 | Expanded Career domain evidence | Static neutral H2 resource and H11 gains contexts, with supplied lord/occupant/state/Drishti facts and no H6, D10, or Ashtakavarga expansion. |
 | 12C | Temporal activation overlay | Immutable supplied Dasha, Gochar, and transit-event activation context over Layer 12A/12B static evidence, without prediction or scoring. |
 | 12D | Evidence independence and consistency gate | Deterministic root-lineage, duplication, mechanism, and contradiction analysis over supplied Layer 12 evidence. |
 | 13A | Interpretation infrastructure | Controlled conclusion, trace, test-only rule-registry, and renderer-input infrastructure; substantive source-audited rules deferred to 13B. |
