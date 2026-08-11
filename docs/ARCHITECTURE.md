@@ -36,6 +36,7 @@ Ephemeris and time/location reference data
 12. **Evidence synthesis foundation** — Layer 12A provides generic immutable natal evidence nodes, edges, neutral missing-data records, traceable derived relationships, and adapters for existing Layer 2–11 facts. Layer 12B adds an immutable Career-only overlay; Layer 12C adds supplied temporal activation; Layer 12D analyzes root lineage, overlap, evidence families, mechanism families, and contradictions without recalculation, scoring, interpretation, or prediction.
 13. **Interpretation infrastructure** — Layer 13A provides controlled structured conclusions, test-only rule-registry infrastructure, Layer 12D traceability consumption, and renderer input contracts. It has no substantive Career rules or natural-language generation.
 13B1. **Natal Career structural conclusions** — fixed allowlisted rules expose only H10 scope, H10-lord connection, and supplied H10-occupant connection; no outcome, temporal, D10, or rendering interpretation is included.
+13B2. **Career Dasha activation** — fixed allowlisted neutral Dasha activation context preserves supplied MD/AD/PD hierarchy as one mechanism family.
 11. **Historical event backtesting** — compares calculated cycles and transits with user-supplied dated events.
 12. **Personal event signature** — identifies repeatable chart and timing correlations for one person.
 13. **Future event prediction** — produces evidence-linked, uncertainty-aware forecasts from lower-layer facts.

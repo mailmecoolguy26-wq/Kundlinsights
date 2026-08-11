@@ -26,6 +26,6 @@ tests/  Automated test suites and reference fixtures (not implemented yet)
 
 ## Current status
 
-Layers 1–13B1 are implemented. Layer 13B1 provides only source-classified natal Career structural conclusions for H10, its lord, and supplied occupants; temporal, outcome, and rendering work remains deferred. See [LAYER-13B1-NATAL-CAREER-INTERPRETATION.md](docs/LAYER-13B1-NATAL-CAREER-INTERPRETATION.md).
+Layers 1–13B2 are implemented. Layer 13B2 adds only neutral, supplied Dasha activation context for already-established Career relations; outcomes and rendering remain deferred. See [LAYER-13B2-CAREER-DASHA-ACTIVATION.md](docs/LAYER-13B2-CAREER-DASHA-ACTIVATION.md).
 
 See [ARCHITECTURE.md](docs/ARCHITECTURE.md), [ASTROLOGY-STANDARDS.md](docs/ASTROLOGY-STANDARDS.md), and [DEVELOPMENT-PLAN.md](docs/DEVELOPMENT-PLAN.md).
