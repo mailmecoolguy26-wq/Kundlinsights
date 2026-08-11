@@ -26,6 +26,6 @@ tests/  Automated test suites and reference fixtures (not implemented yet)
 
 ## Current status
 
-Layers 1–13B2 are implemented. Layer 13B2 adds only neutral, supplied Dasha activation context for already-established Career relations; outcomes and rendering remain deferred. See [LAYER-13B2-CAREER-DASHA-ACTIVATION.md](docs/LAYER-13B2-CAREER-DASHA-ACTIVATION.md).
+Layers 1–13B3 are implemented. Layer 13B3 adds neutral supplied Gochar and exact transit-event timing context for existing Career relations; outcomes and rendering remain deferred. See [LAYER-13B3-CAREER-GOCHAR-TIMING.md](docs/LAYER-13B3-CAREER-GOCHAR-TIMING.md).
 
 See [ARCHITECTURE.md](docs/ARCHITECTURE.md), [ASTROLOGY-STANDARDS.md](docs/ASTROLOGY-STANDARDS.md), and [DEVELOPMENT-PLAN.md](docs/DEVELOPMENT-PLAN.md).

@@ -29,6 +29,7 @@ Complete and validate each layer’s contracts before building dependent feature
 | 13A | Interpretation infrastructure | Controlled conclusion, trace, test-only rule-registry, and renderer-input infrastructure; substantive source-audited rules deferred to 13B. |
 | 13B1 | Natal Career structural conclusions | Fixed allowlisted H10, H10-lord, and H10-occupant structural conclusions only. |
 | 13B2 | Career Dasha activation | Fixed allowlisted neutral activation context for active Dasha lords connected to Career evidence. |
+| 13B3 | Career Gochar and timing context | Fixed allowlisted supplied Gochar and Layer 10 timing-context conclusions only. |
 | 11 | Historical event backtesting | Secure event ingestion and reproducible comparison reports. |
 | 12 | Personal event signature | Explainable, evidence-scored personal correlations. |
 | 13 | Future event prediction | Forecasts with confidence, timing windows, and factor provenance. |
