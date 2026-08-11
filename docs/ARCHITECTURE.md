@@ -27,6 +27,7 @@ Ephemeris and time/location reference data
 3. **Divisional charts** — derives Varga charts from canonical sidereal longitudes using explicit Vedic rules.
 4. **Vimshottari dasha** — derives MD → AD → PD timelines from the Moon’s nakshatra position.
 5. **Planetary dignity and state** — derives provider-independent dignities, Maitri, combustion, and motion facts from canonical sidereal coordinates.
+5C. **Graha association foundation** — derives immutable factual natal same-Rashi Graha pairs from canonical sidereal coordinates, with circular-distance metadata only; it does not assert a classical conjunction equivalence.
 6. **Parashari Graha Drishti** — derives directional, full positional D1 aspect facts from canonical sidereal Rashis.
 7. **Core yoga detection** — evaluates versioned D1 yoga predicates from precomputed houses and planetary-state facts, without interpretation.
 8. **Panchanga and lunar state** — derives pure instantaneous Tithi, Paksha, lunar-state, Karana, and Nitya Yoga facts from canonical Sun/Moon coordinates.

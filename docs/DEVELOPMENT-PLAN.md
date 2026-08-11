@@ -14,6 +14,7 @@ Complete and validate each layer’s contracts before building dependent feature
 | 4 | Vimshottari MD → AD → PD | Exact dasha boundaries from Moon nakshatra balance, with boundary tests. |
 | 5A | Parashari Rashi houses | D1 whole-sign house assignments from canonical Ascendant and body coordinates. |
 | 5B | Planetary dignity and state | Provider-independent dignity, Maitri, combustion, and preserved motion facts. |
+| 5C | Graha association foundation | Factual natal same-Rashi Graha pairs with circular-distance metadata only; no orb, Graha Yuddha, interpretation, or classical conjunction equivalence. |
 | 6 | Parashari Graha Drishti | D1-only seven-graha full positional aspect facts, independent of provider and house calculation. |
 | 7 | Core yoga detection | Versioned D1 yoga detection from precomputed houses and planetary-state facts, with immutable evidence and no interpretation. |
 | 8 | Panchanga and lunar state | Pure instantaneous Tithi, Paksha, lunar state, Karana, and Nitya Yoga from canonical Sun/Moon coordinates. |
