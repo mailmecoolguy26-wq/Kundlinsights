@@ -41,6 +41,7 @@ Ephemeris and time/location reference data
 13B3. **Career Gochar and timing context** — fixed allowlisted supplied Gochar and refined Layer 10 event connections without outcome interpretation.
 13B4. **Career temporal co-activation** — fixed ENGINE_CONVENTION policy requiring Layer 12D-independent supplied Dasha and Gochar/transit mechanisms on one existing Career subject, without an event or outcome conclusion.
 13C2. **Classical Career event predicate** — evaluates exactly one source-audited BPHS Venus-Mahadasha/Saturn-Antardasha predicate from Layer 12B3 natal relations, Layer 12C supplied Dasha evidence, and Layer 12D contradiction analysis. Predicate satisfaction is not a guaranteed outcome; H10 honour remains unavailable pending a source-audited yuti definition.
+14A. **Deterministic reading contract** — converts Layer 13 conclusions into immutable CAREER reading items with controlled template keys, exact statuses, source/evidence references, temporal context, and semantic disclosures. It does not recalculate astrology, synthesize an overall outlook, generate prose, or call an LLM.
 11. **Historical event backtesting** — compares calculated cycles and transits with user-supplied dated events.
 12. **Personal event signature** — identifies repeatable chart and timing correlations for one person.
 13. **Future event prediction** — produces evidence-linked, uncertainty-aware forecasts from lower-layer facts.

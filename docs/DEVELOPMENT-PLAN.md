@@ -35,6 +35,7 @@ Complete and validate each layer’s contracts before building dependent feature
 | 13B3 | Career Gochar and timing context | Fixed allowlisted supplied Gochar and Layer 10 timing-context conclusions only. |
 | 13B4 | Career temporal co-activation | Layer 12D-independent supplied Dasha plus Gochar/transit structural co-activation on the same Career subject; no event or outcome inference. |
 | 13C2 | Classical Career event predicate | Evaluates only the audited Venus MD / Saturn AD source predicate from supplied Layer 12B3/12C/12D evidence; predicate satisfaction is not a guaranteed outcome. |
+| 14A | Deterministic reading contract | Converts Layer 13 CAREER conclusions into ordered immutable renderer-safe items with controlled template keys and disclosures; no prose, LLM, or prediction. |
 | 11 | Historical event backtesting | Secure event ingestion and reproducible comparison reports. |
 | 12 | Personal event signature | Explainable, evidence-scored personal correlations. |
 | 13 | Future event prediction | Forecasts with confidence, timing windows, and factor provenance. |
