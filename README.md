@@ -26,6 +26,6 @@ tests/  Automated test suites and reference fixtures (not implemented yet)
 
 ## Current status
 
-Layers 1–14B are implemented. Layer 14B renders Layer 14A Career items as short, controlled deterministic `en-IN` sentences from a fixed template registry. It has no LLM, provider, network, prediction, or free-form prose capability. See [LAYER-14A-DETERMINISTIC-READING-CONTRACT.md](docs/LAYER-14A-DETERMINISTIC-READING-CONTRACT.md) and [LAYER-14B-CONSTRAINED-CAREER-RENDERING.md](docs/LAYER-14B-CONSTRAINED-CAREER-RENDERING.md).
+Layers 1–15A are implemented. Layer 15A composes existing Layer 12–14 contracts into a deterministic Career reading and rendered English output from supplied precomputed evidence only. See [LAYER-15A-CAREER-READING-ORCHESTRATOR.md](docs/LAYER-15A-CAREER-READING-ORCHESTRATOR.md).
 
 See [ARCHITECTURE.md](docs/ARCHITECTURE.md), [ASTROLOGY-STANDARDS.md](docs/ASTROLOGY-STANDARDS.md), and [DEVELOPMENT-PLAN.md](docs/DEVELOPMENT-PLAN.md).
