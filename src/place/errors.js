@@ -1,0 +1,1 @@
+'use strict'; class BirthPlaceResolutionError extends Error { constructor(code, message) { super(message); this.name = 'BirthPlaceResolutionError'; this.code = code; } } module.exports = { BirthPlaceResolutionError };
