@@ -26,6 +26,6 @@ tests/  Automated test suites and reference fixtures (not implemented yet)
 
 ## Current status
 
-Layers 1–13B3 are implemented. Layer 12B2 extends static Career evidence with neutral H2 resource and H11 gains contexts; Layer 13B3 adds neutral supplied Gochar and exact transit-event timing context for existing Career relations. Outcomes and rendering remain deferred. See [LAYER-12B2-EXPANDED-CAREER-DOMAIN-EVIDENCE.md](docs/LAYER-12B2-EXPANDED-CAREER-DOMAIN-EVIDENCE.md) and [LAYER-13B3-CAREER-GOCHAR-TIMING.md](docs/LAYER-13B3-CAREER-GOCHAR-TIMING.md).
+Layers 1–13B4 are implemented. Layer 12B2 extends static Career evidence with neutral H2 resource and H11 gains contexts; Layer 13B4 records only independent supplied Dasha plus Gochar/transit co-activation of the same Career subject. Outcomes and rendering remain deferred. See [LAYER-12B2-EXPANDED-CAREER-DOMAIN-EVIDENCE.md](docs/LAYER-12B2-EXPANDED-CAREER-DOMAIN-EVIDENCE.md) and [LAYER-13B4-CAREER-TEMPORAL-COACTIVATION.md](docs/LAYER-13B4-CAREER-TEMPORAL-COACTIVATION.md).
 
 See [ARCHITECTURE.md](docs/ARCHITECTURE.md), [ASTROLOGY-STANDARDS.md](docs/ASTROLOGY-STANDARDS.md), and [DEVELOPMENT-PLAN.md](docs/DEVELOPMENT-PLAN.md).

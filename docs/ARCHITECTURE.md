@@ -38,6 +38,7 @@ Ephemeris and time/location reference data
 13B1. **Natal Career structural conclusions** — fixed allowlisted rules expose only H10 scope, H10-lord connection, and supplied H10-occupant connection; no outcome, temporal, D10, or rendering interpretation is included.
 13B2. **Career Dasha activation** — fixed allowlisted neutral Dasha activation context preserves supplied MD/AD/PD hierarchy as one mechanism family.
 13B3. **Career Gochar and timing context** — fixed allowlisted supplied Gochar and refined Layer 10 event connections without outcome interpretation.
+13B4. **Career temporal co-activation** — fixed ENGINE_CONVENTION policy requiring Layer 12D-independent supplied Dasha and Gochar/transit mechanisms on one existing Career subject, without an event or outcome conclusion.
 11. **Historical event backtesting** — compares calculated cycles and transits with user-supplied dated events.
 12. **Personal event signature** — identifies repeatable chart and timing correlations for one person.
 13. **Future event prediction** — produces evidence-linked, uncertainty-aware forecasts from lower-layer facts.
