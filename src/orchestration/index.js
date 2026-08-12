@@ -1,1 +1,1 @@
-'use strict'; module.exports = { ...require('./reference-data'), ...require('./career-reading-orchestrator') };
+'use strict'; module.exports = { ...require('./reference-data'), ...require('./career-reading-orchestrator'), ...require('./birth-career-input-validation'), ...require('./birth-career-reading-orchestrator') };
