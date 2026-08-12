@@ -27,9 +27,9 @@ const LONGITUDES = Object.freeze({ Sun: 220.07412509999472, Moon: 319.5198697609
 
 // TEST_ONLY_CODEC: deterministic serialization boundary; it is not encryption and is never selected by runtime code.
 const TEST_ONLY_CODEC = Object.freeze({
-  encodeBirthData(value) { return { ciphertext: Buffer.from(JSON.stringify(value)), encryptionVersion: 1, keyVersion: 'test-v1', algorithm: 'TEST_ONLY_CODEC', nonce: Buffer.from('birth-nonce') }; },
+  encodeBirthData({ birthData }) { return { ciphertext: Buffer.from(JSON.stringify(birthData)), encryptionVersion: 1, keyVersion: 'test-v1', algorithm: 'TEST_ONLY_CODEC', nonce: Buffer.from('birth-nonce') }; },
   decodeBirthData(value) { return JSON.parse(value.ciphertext.toString('utf8')); },
-  encodeRecord(value) { const body = Buffer.from(JSON.stringify(value)); return { inputSnapshotCiphertext: body, provenanceCiphertext: Buffer.from('provenance'), structuredReadingCiphertext: Buffer.from('structured'), renderedReadingCiphertext: value.renderedReading ? Buffer.from('rendered') : null, payloadEncryptionVersion: 1, payloadKeyVersion: 'test-v1', payloadAlgorithm: 'TEST_ONLY_CODEC', inputSnapshotNonce: Buffer.from('input-nonce'), provenanceNonce: Buffer.from('provenance-nonce'), structuredReadingNonce: Buffer.from('structured-nonce'), renderedReadingNonce: value.renderedReading ? Buffer.from('rendered-nonce') : null, integrityMetadata: { codec: 'TEST_ONLY_CODEC' } }; },
+  encodeRecord({ record: value }) { const body = Buffer.from(JSON.stringify(value)); return { inputSnapshotCiphertext: body, provenanceCiphertext: Buffer.from('provenance'), structuredReadingCiphertext: Buffer.from('structured'), renderedReadingCiphertext: value.renderedReading ? Buffer.from('rendered') : null, payloadEncryptionVersion: 1, payloadKeyVersion: 'test-v1', payloadAlgorithm: 'TEST_ONLY_CODEC', inputSnapshotNonce: Buffer.from('input-nonce'), provenanceNonce: Buffer.from('provenance-nonce'), structuredReadingNonce: Buffer.from('structured-nonce'), renderedReadingNonce: value.renderedReading ? Buffer.from('rendered-nonce') : null, integrityMetadata: { codec: 'TEST_ONLY_CODEC' } }; },
   decodeRecord(value) { return JSON.parse(value.inputSnapshotCiphertext.toString('utf8')); },
 });
 
