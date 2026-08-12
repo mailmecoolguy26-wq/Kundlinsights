@@ -100,11 +100,12 @@ function periodContains(period, birthEpochMilliseconds) {
   return BigInt(period.startInstant.epochMilliseconds) <= birthEpochMilliseconds && birthEpochMilliseconds < BigInt(period.endInstant.epochMilliseconds);
 }
 
-function findActiveAtBirth(periods, birthEpochMilliseconds) {
-  const mahadasha = periods.find((period) => periodContains(period, birthEpochMilliseconds));
-  const antardasha = mahadasha.children.find((period) => periodContains(period, birthEpochMilliseconds));
-  const pratyantardasha = antardasha.children.find((period) => periodContains(period, birthEpochMilliseconds));
+function findActiveAt(periods, epochMilliseconds) {
+  const mahadasha = periods.find((period) => periodContains(period, epochMilliseconds));
+  const antardasha = mahadasha.children.find((period) => periodContains(period, epochMilliseconds));
+  const pratyantardasha = antardasha.children.find((period) => periodContains(period, epochMilliseconds));
   return Object.freeze({ mahadasha, antardasha, pratyantardasha });
 }
+function findActiveAtBirth(periods, birthEpochMilliseconds) { return findActiveAt(periods, birthEpochMilliseconds); }
 
-module.exports = { buildMahadashaTimeline, findActiveAtBirth };
+module.exports = { buildMahadashaTimeline, buildAntardashas, findActiveAt, findActiveAtBirth };
