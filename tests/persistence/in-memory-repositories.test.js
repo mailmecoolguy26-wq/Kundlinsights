@@ -14,6 +14,7 @@ function throwsCode(fn, code) { assert.throws(fn, (error) => error && error.code
 
 test('declares the narrow storage-agnostic repository contracts', () => {
   assert.deepEqual(Object.keys(REPOSITORY_CONTRACTS), ['UserRepository', 'BirthProfileRepository', 'ReadingRepository', 'EntitlementRepository', 'PaymentRepository']);
+  assert.equal(REPOSITORY_CONTRACTS.UserRepository.includes('getUserByAuthSubject'), true);
   assert.equal(REPOSITORY_CONTRACTS.ReadingRepository.includes('updateReadingRecord'), false);
   assert.equal(Object.isFrozen(REPOSITORY_CONTRACTS), true);
 });
@@ -26,6 +27,8 @@ test('users reject duplicate identity, update status, and return deep immutable 
   throwsCode(() => users.createUser({ id: 'user-002', authSubject: 'auth-001', createdAt: T0 }), 'DUPLICATE_AUTH_SUBJECT');
   assert.equal(users.updateUserStatus('user-001', 'suspended', T1).status, 'suspended');
   assert.equal(users.getUser('user-001').authSubject, 'auth-001');
+  assert.equal(users.getUserByAuthSubject('auth-001').id, 'user-001');
+  assert.equal(users.getUserByAuthSubject('missing'), null);
   throwsCode(() => users.getUser('unknown'), 'USER_NOT_FOUND');
 });
 

@@ -29,6 +29,7 @@ class InMemoryUserRepository {
   constructor() { this.users = new Map(); this.subjectIds = new Map(); }
   createUser(input = {}) { const id = requiredString(input.id, 'INVALID_USER_ID'); const authSubject = requiredString(input.authSubject, 'INVALID_AUTH_SUBJECT'); if (this.users.has(id)) fail('DUPLICATE_USER_ID'); if (this.subjectIds.has(authSubject)) fail('DUPLICATE_AUTH_SUBJECT'); const item = immutableCopy({ id, authSubject, status: status(input.status || 'active'), createdAt: canonicalTime(input.createdAt), updatedAt: canonicalTime(input.updatedAt || input.createdAt) }); this.users.set(id, item); this.subjectIds.set(authSubject, id); return copyResult(item); }
   getUser(id) { requiredString(id, 'INVALID_USER_ID'); const item = this.users.get(id); if (!item) fail('USER_NOT_FOUND'); return copyResult(item); }
+  getUserByAuthSubject(authSubject) { authSubject = requiredString(authSubject, 'INVALID_AUTH_SUBJECT'); const id = this.subjectIds.get(authSubject); return id ? copyResult(this.users.get(id)) : null; }
   updateUserStatus(id, nextStatus, updatedAt) { const prior = this.getUser(id); const item = immutableCopy({ ...prior, status: status(nextStatus), updatedAt: canonicalTime(updatedAt) }); this.users.set(id, item); return copyResult(item); }
 }
 

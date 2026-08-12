@@ -4,7 +4,7 @@ const { canonicalUtc, canonicalValue } = require('../../readings/reading-integri
 const { freeze } = require('../../synthesis/evidence-node');
 
 const REPOSITORY_CONTRACTS = freeze({
-  UserRepository: freeze(['createUser', 'getUser', 'updateUserStatus']),
+  UserRepository: freeze(['createUser', 'getUser', 'getUserByAuthSubject', 'updateUserStatus']),
   BirthProfileRepository: freeze(['createBirthProfile', 'getBirthProfile', 'listBirthProfilesForUser', 'updateBirthProfile', 'archiveBirthProfile']),
   ReadingRepository: freeze(['insertReadingRecord', 'getReadingRecord', 'listReadingRecordsForUser', 'listReadingRecordsForBirthProfile', 'archiveReadingRecord']),
   EntitlementRepository: freeze(['createEntitlement', 'getEntitlement', 'listActiveEntitlementsForUser', 'consumeEntitlement']),
