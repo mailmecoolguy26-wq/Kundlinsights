@@ -12,6 +12,8 @@ DB-P1 establishes a dependency-free, storage-agnostic application persistence bo
 - `EntitlementRepository`: create, fetch, list active (at an injected evaluation instant), and consume finite entitlements.
 - `PaymentRepository`: insert, fetch, and find a payment by a provider-scoped transaction identifier.
 
+Payment monetary values use caller-supplied, nonnegative JavaScript safe-integer minor units only. For example, `{ amountMinor: 59900, currency: 'INR' }` represents INR 599.00 when the upstream payment/currency layer defines that currency's minor-unit interpretation. The persistence boundary performs no floating-point monetary arithmetic, rounding, major-to-minor conversion, currency conversion, or currency-decimal lookup. `amount` is not an accepted alias.
+
 The contract is intentionally generic. A future `Supabase*Repository` can implement the same methods without changing astrology or reading/replay code.
 
 ## Snapshot and profile rules

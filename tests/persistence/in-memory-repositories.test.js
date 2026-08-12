@@ -77,9 +77,19 @@ test('entitlements use an injected evaluation instant and fail closed for inacti
 
 test('payments are deterministic and provider-scoped transaction identity is idempotent', () => {
   const payments = new InMemoryPaymentRepository();
-  const payment = payments.insertPaymentTransaction({ id: 'payment-001', userId: 'user-001', provider: 'example-pay', providerTransactionId: 'txn-001', status: 'paid', amount: 100, currency: 'INR', createdAt: T0 });
+  const payment = payments.insertPaymentTransaction({ id: 'payment-001', userId: 'user-001', provider: 'example-pay', providerTransactionId: 'txn-001', status: 'paid', amountMinor: 59900, currency: 'INR', createdAt: T0 });
   assert.equal(payments.getPaymentTransaction('payment-001').id, payment.id);
+  assert.equal(payments.getPaymentTransaction('payment-001').amountMinor, 59900);
   assert.equal(payments.findByProviderTransactionId('example-pay', 'txn-001').id, payment.id);
   assert.equal(payments.findByProviderTransactionId('other-pay', 'txn-001'), null);
-  throwsCode(() => payments.insertPaymentTransaction({ id: 'payment-002', userId: 'user-001', provider: 'example-pay', providerTransactionId: 'txn-001', amount: 100, currency: 'INR', createdAt: T0 }), 'DUPLICATE_PROVIDER_TRANSACTION');
+  throwsCode(() => payments.insertPaymentTransaction({ id: 'payment-002', userId: 'user-001', provider: 'example-pay', providerTransactionId: 'txn-001', amountMinor: 100, currency: 'INR', createdAt: T0 }), 'DUPLICATE_PROVIDER_TRANSACTION');
+});
+
+test('payments accept only caller-supplied nonnegative safe integer minor units and reject the legacy amount alias', () => {
+  const payments = new InMemoryPaymentRepository();
+  assert.equal(payments.insertPaymentTransaction({ id: 'payment-zero', userId: 'user-001', provider: 'example-pay', providerTransactionId: 'txn-zero', amountMinor: 0, currency: 'INR', createdAt: T0 }).amountMinor, 0);
+  assert.equal(payments.insertPaymentTransaction({ id: 'payment-one', userId: 'user-001', provider: 'example-pay', providerTransactionId: 'txn-one', amountMinor: 1, currency: 'USD', createdAt: T0 }).amountMinor, 1);
+  for (const [id, amountMinor, extra] of [
+    ['fractional', 1.5], ['negative', -1], ['nan', NaN], ['infinite', Infinity], ['string', '59900'], ['null', null], ['unsafe', Number.MAX_SAFE_INTEGER + 1], ['legacy', undefined, { amount: 599 }],
+  ]) throwsCode(() => payments.insertPaymentTransaction({ id: `payment-${id}`, userId: 'user-001', provider: 'example-pay', providerTransactionId: `txn-${id}`, amountMinor, currency: 'INR', createdAt: T0, ...extra }), 'INVALID_PAYMENT_AMOUNT');
 });
