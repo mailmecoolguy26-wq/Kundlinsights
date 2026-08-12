@@ -92,7 +92,7 @@ class BirthCareerReadingOrchestrator {
     if (dashaRulesetId !== undefined && typeof dashaRulesetId !== 'string') throw new TypeError('dashaRulesetId must be a supported string identifier when supplied.');
     const isDefaultPolicy = dashaRulesetId === undefined;
     const selectedDashaRulesetId = isDefaultPolicy
-      ? DEFAULT_BIRTH_CAREER_ENGINE_PROFILE.dashaRulesetId
+      ? DEFAULT_BIRTH_CAREER_ENGINE_PROFILE.calculation.dashaRulesetId
       : dashaRulesetId;
     const dashaRuleset = resolveVimshottariRuleset(undefined, selectedDashaRulesetId);
     const engineProfile = resolveBirthCareerEngineProfile(dashaRuleset.id);
