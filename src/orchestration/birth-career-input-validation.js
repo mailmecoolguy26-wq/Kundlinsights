@@ -4,6 +4,16 @@ const { createResolvedBirthPlace, validZone } = require('../place');
 const { localDateTimeToUtc } = require('../astronomy/time');
 
 const SUPPORTED_LOCALE = 'en-IN';
+const RUNTIME_CONFIGURATION_FIELDS = Object.freeze([
+  'dashaRulesetId',
+  'canonicalSiderealSunSampler',
+  'astronomicalEngine',
+  'swiss',
+  'swissConfiguration',
+  'ephemerisPath',
+  'manifest',
+  'ayanamsha',
+]);
 
 function utcInstant(value, name) {
   if (typeof value !== 'string' || !value.endsWith('Z') || Number.isNaN(Date.parse(value))) {
@@ -20,6 +30,9 @@ function resolvedPlace(value) {
 function validateBirthCareerRequest(request = {}) {
   if (!request || typeof request !== 'object' || Array.isArray(request) || !request.birth || typeof request.birth !== 'object') {
     throw new TypeError('birth is required.');
+  }
+  for (const field of RUNTIME_CONFIGURATION_FIELDS) {
+    if (Object.hasOwn(request, field)) throw new RangeError(`${field} is runtime infrastructure configuration and is not accepted in a BirthCareer reading request.`);
   }
   const { birth, locale = SUPPORTED_LOCALE, readingInstant, transitScanRange } = request;
   const place = resolvedPlace(birth.place);
