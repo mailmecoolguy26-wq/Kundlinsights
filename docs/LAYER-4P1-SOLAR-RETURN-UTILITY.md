@@ -47,6 +47,14 @@ R_n + round((R_(n+1) - R_n) × f)
 
 This is linear UTC-time interpolation between solved returns, not solar-longitude interpolation and not an active Vimshottari chronology.
 
+### Backward returns and signed coordinates
+
+The utility also resolves an actual previous return strictly before a supplied epoch. It searches chronologically from 380 to 350 civil days before that epoch, applies the same negative-to-zero-or-positive residual crossing rule, and returns the high endpoint of an integer-millisecond bisection bracket no wider than one millisecond. It neither derives a previous return from a future return length nor uses a fixed civil-year approximation.
+
+`buildBidirectionalSolarReturnGrid` can represent `R_-20` through `R_0` through `R_121`. Negative entries are independently solved previous returns using the original natal target; positive entries preserve the existing forward behavior. Twenty is the explicit backward ceiling because Venus, at 20 nominal Vimshottari years, is the longest birth Mahadasha requiring theoretical pre-birth reconstruction. There is no unbounded backward loop or global mutable cache.
+
+Solar-year coordinates are finite signed values. A negative noninteger coordinate uses mathematical floor: `-17.35182417729625` decomposes to index `-18` and fraction `0.6481758227037482`, then interpolates from `R_-18` to `R_-17` with the same rounded UTC-time formula. Exact terminal integer coordinates are valid; a fractional coordinate requires both adjacent grid epochs.
+
 ## Errors, immutability, and validation
 
 Stable error codes are `INVALID_SOLAR_RETURN_TARGET`, `INVALID_SUN_SAMPLE`, `SOLAR_RETURN_BRACKET_NOT_FOUND`, `SOLAR_RETURN_SOLVER_FAILED`, `SOLAR_RETURN_ITERATION_LIMIT`, `INVALID_SOLAR_YEAR_FRACTION`, and `UNSUPPORTED_SOLAR_RETURN_RULESET`. All public utility results, grid entries, provenance, and adapter samples are deeply frozen. Frozen caller input is accepted and not mutated.

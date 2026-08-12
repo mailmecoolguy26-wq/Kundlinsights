@@ -33,10 +33,10 @@ function sampleAt(sampler, epoch) {
   try { return validateCanonicalSiderealSunSample(sample); }
   catch (error) { if (error && error.code === 'INVALID_SUN_SAMPLE') throw error; fail('INVALID_SUN_SAMPLE', 'Sun sampler returned an invalid sample.'); }
 }
-function preflight(sampler, priorEpoch, target) {
+function preflight(sampler, firstEpoch, target) {
   const samples = [];
-  for (let day = 350; day <= 350 + PREFLIGHT_DAYS; day += 1) {
-    const epoch = priorEpoch + day * DAY_MS;
+  for (let day = 0; day <= PREFLIGHT_DAYS; day += 1) {
+    const epoch = firstEpoch + day * DAY_MS;
     const sample = sampleAt(sampler, epoch);
     samples.push({ epoch, residual: signedSolarResidual(sample.canonicalSiderealLongitudeDegrees, target), sample });
   }
@@ -53,7 +53,7 @@ function solveSolarReturn({ sampler, priorInstantUtc, targetLongitude, rulesetId
   if (rulesetId !== SOLAR_RETURN_LAHIRI_BISECTION_V1.id) fail('UNSUPPORTED_SOLAR_RETURN_RULESET', `Unsupported solar-return ruleset: ${rulesetId}`);
   const priorEpoch = epochFromUtc(priorInstantUtc);
   const target = normalizeSolarReturnTarget(targetLongitude);
-  let { low, high } = preflight(sampler, priorEpoch, target);
+  let { low, high } = preflight(sampler, priorEpoch + 350 * DAY_MS, target);
   let iterations = 0;
   while (high.epoch - low.epoch > 1) {
     if (iterations >= MAX_ITERATIONS) fail('SOLAR_RETURN_ITERATION_LIMIT', 'Solar-return bisection exceeded its fixed iteration cap.');
@@ -67,4 +67,22 @@ function solveSolarReturn({ sampler, priorInstantUtc, targetLongitude, rulesetId
   return deepFreeze({ instantUtc: utcFromEpoch(high.epoch), targetLongitude: target, bracketLowUtc: utcFromEpoch(low.epoch), bracketHighUtc: utcFromEpoch(high.epoch), iterations, rulesetId, provenance: deepFreeze({ solver: 'integer-millisecond-bisection', dailyPreflight: '350-to-380-civil-days; one observed negative-to-nonnegative crossing', primaryAcceptance: 'bracket-width-at-most-one-millisecond', sampler: safeSamplerProvenance(high.sample.provenance) }) });
 }
 
-module.exports = { DAY_MS, PREFLIGHT_DAYS, MAX_ITERATIONS, normalizeSolarReturnTarget, signedSolarResidual, solveSolarReturn, SolarReturnError };
+function solvePreviousSolarReturn({ sampler, nextInstantUtc, targetLongitude, rulesetId = SOLAR_RETURN_LAHIRI_BISECTION_V1.id } = {}) {
+  if (rulesetId !== SOLAR_RETURN_LAHIRI_BISECTION_V1.id) fail('UNSUPPORTED_SOLAR_RETURN_RULESET', `Unsupported solar-return ruleset: ${rulesetId}`);
+  const nextEpoch = epochFromUtc(nextInstantUtc);
+  const target = normalizeSolarReturnTarget(targetLongitude);
+  let { low, high } = preflight(sampler, nextEpoch - 380 * DAY_MS, target);
+  let iterations = 0;
+  while (high.epoch - low.epoch > 1) {
+    if (iterations >= MAX_ITERATIONS) fail('SOLAR_RETURN_ITERATION_LIMIT', 'Previous solar-return bisection exceeded its fixed iteration cap.');
+    const epoch = low.epoch + Math.floor((high.epoch - low.epoch) / 2);
+    const sample = sampleAt(sampler, epoch);
+    const residual = signedSolarResidual(sample.canonicalSiderealLongitudeDegrees, target);
+    if (residual >= 0) high = { epoch, residual, sample }; else low = { epoch, residual, sample };
+    iterations += 1;
+  }
+  if (!(low.residual < 0 && high.residual >= 0) || high.epoch >= nextEpoch) fail('SOLAR_RETURN_SOLVER_FAILED', 'Previous solar-return bisection did not produce a strict prior signed crossing.');
+  return deepFreeze({ instantUtc: utcFromEpoch(high.epoch), targetLongitude: target, bracketLowUtc: utcFromEpoch(low.epoch), bracketHighUtc: utcFromEpoch(high.epoch), iterations, rulesetId, provenance: deepFreeze({ solver: 'integer-millisecond-bisection', dailyPreflight: '380-to-350-civil-days-before-next-epoch; one observed negative-to-nonnegative crossing', primaryAcceptance: 'bracket-width-at-most-one-millisecond', direction: 'previous-return', sampler: safeSamplerProvenance(high.sample.provenance) }) });
+}
+
+module.exports = { DAY_MS, PREFLIGHT_DAYS, MAX_ITERATIONS, normalizeSolarReturnTarget, signedSolarResidual, solveSolarReturn, solvePreviousSolarReturn, SolarReturnError };

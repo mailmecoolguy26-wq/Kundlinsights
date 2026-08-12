@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { deepFreeze } = require('../../../src/astronomy');
-const { DAY_MS, MAX_ITERATIONS, normalizeSolarReturnTarget, signedSolarResidual, solveSolarReturn, calculateVimshottariDasha } = require('../../../src/dasha');
+const { DAY_MS, MAX_ITERATIONS, normalizeSolarReturnTarget, signedSolarResidual, solveSolarReturn, solvePreviousSolarReturn, calculateVimshottariDasha } = require('../../../src/dasha');
 
 const BIRTH = '2000-01-01T00:00:00.000Z';
 const BIRTH_EPOCH = new Date(BIRTH).getTime();
@@ -65,6 +65,30 @@ test('returns only safe allowlisted sampler provenance rather than arbitrary pro
   const result = solveSolarReturn({ sampler, priorInstantUtc: BIRTH, targetLongitude: 0 });
   assert.deepEqual(result.provenance.sampler, { providerId: 'synthetic', coordinateFrame: 'geocentric' });
   assert.equal(JSON.stringify(result).includes('/private/ephemeris'), false);
+});
+
+test('solves the strict previous solar return with the same native target and high-endpoint policy', () => {
+  const sampler = syntheticSampler();
+  for (const targetLongitude of [0, 0.001, 359.999]) {
+    const result = solvePreviousSolarReturn({ sampler, nextInstantUtc: BIRTH, targetLongitude });
+    assert.ok(new Date(result.instantUtc).getTime() < BIRTH_EPOCH);
+    assert.ok(new Date(result.bracketHighUtc).getTime() - new Date(result.bracketLowUtc).getTime() <= 1);
+    assert.equal(result.instantUtc, result.bracketHighUtc);
+    assert.equal(result.targetLongitude, normalizeSolarReturnTarget(targetLongitude));
+    assert.equal(result.provenance.direction, 'previous-return');
+  }
+});
+
+test('fails closed for missing, pathological, or noncrossing previous-return samples and repeats deterministically', () => {
+  expectCode(() => solvePreviousSolarReturn({ sampler: syntheticSampler(() => 10), nextInstantUtc: BIRTH, targetLongitude: 0 }), 'SOLAR_RETURN_BRACKET_NOT_FOUND');
+  const pathological = syntheticSampler((epoch) => {
+    const day = Math.floor((epoch - BIRTH_EPOCH) / DAY_MS);
+    return canonical(day === -380 ? 359 : day === -379 ? 1 : day === -378 ? 359 : 10);
+  });
+  expectCode(() => solvePreviousSolarReturn({ sampler: pathological, nextInstantUtc: BIRTH, targetLongitude: 0 }), 'SOLAR_RETURN_SOLVER_FAILED');
+  const first = solvePreviousSolarReturn({ sampler: syntheticSampler(), nextInstantUtc: BIRTH, targetLongitude: 0 });
+  const second = solvePreviousSolarReturn({ sampler: syntheticSampler(), nextInstantUtc: BIRTH, targetLongitude: 0 });
+  assert.deepEqual(first, second);
 });
 
 test('leaves the locked current Savana chronology and default ruleset untouched', () => {
