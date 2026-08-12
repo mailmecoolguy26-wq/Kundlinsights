@@ -9,7 +9,11 @@ const { assembleNatalEvidenceGraph, freeze } = require('../synthesis');
 const { buildCareerReading } = require('./career-reading-orchestrator');
 const { isProductionAstronomicalAuthority } = require('../astronomy');
 const { validateBirthCareerRequest, utcInstantToLayer1Input } = require('./birth-career-input-validation');
-const { BIRTH_CAREER_ORCHESTRATOR_RULESET_ID } = require('./reference-data');
+const {
+  BIRTH_CAREER_ORCHESTRATOR_RULESET_ID,
+  DEFAULT_BIRTH_CAREER_ENGINE_PROFILE,
+  resolveBirthCareerEngineProfile,
+} = require('./reference-data');
 
 function layer1Request(birth) {
   return { date: birth.date, time: birth.time, timezone: birth.place.timezone, latitude: birth.place.latitude, longitude: birth.place.longitude };
@@ -58,7 +62,7 @@ function dashaTimingProvenance(dasha, providerSamplerConsistency) {
   };
 }
 
-function safeProviderProvenance(layer1Result, houses, dasha, place, providerSamplerConsistency) {
+function safeProviderProvenance(layer1Result, houses, dasha, place, providerSamplerConsistency, engineProfile) {
   const provider = layer1Result.provider || {};
   return {
     adapterRulesetId: BIRTH_CAREER_ORCHESTRATOR_RULESET_ID,
@@ -69,7 +73,9 @@ function safeProviderProvenance(layer1Result, houses, dasha, place, providerSamp
     siderealMode: provider.siderealMode || layer1Result.sidereal && layer1Result.sidereal.siderealMode || null,
     nodeModel: provider.nodeModel || null,
     houseRulesetId: houses.rulesetId,
+    engineProfileId: engineProfile.id,
     dashaRulesetId: dasha.ruleset.id,
+    dashaTimeConventionId: dasha.ruleset.timeConventionId,
     dashaTiming: dashaTimingProvenance(dasha, providerSamplerConsistency),
     timezoneRulesetId: place.resolutionVersion,
     timezoneDatasetVersion: place.timezoneResolver.datasetVersion,
@@ -84,12 +90,20 @@ class BirthCareerReadingOrchestrator {
   constructor({ astronomicalEngine, dashaRulesetId, canonicalSiderealSunSampler } = {}) {
     if (!astronomicalEngine || typeof astronomicalEngine.calculate !== 'function') throw new TypeError('BirthCareerReadingOrchestrator requires an injected astronomicalEngine.');
     if (dashaRulesetId !== undefined && typeof dashaRulesetId !== 'string') throw new TypeError('dashaRulesetId must be a supported string identifier when supplied.');
-    const dashaRuleset = resolveVimshottariRuleset(undefined, dashaRulesetId);
+    const isDefaultPolicy = dashaRulesetId === undefined;
+    const selectedDashaRulesetId = isDefaultPolicy
+      ? DEFAULT_BIRTH_CAREER_ENGINE_PROFILE.dashaRulesetId
+      : dashaRulesetId;
+    const dashaRuleset = resolveVimshottariRuleset(undefined, selectedDashaRulesetId);
+    const engineProfile = resolveBirthCareerEngineProfile(dashaRuleset.id);
+    if (!engineProfile) throw new RangeError(`Unsupported BirthCareer Dasha ruleset: ${dashaRuleset.id}`);
     if (dashaRuleset.id === SOLAR_RETURN_VIMSHOTTARI_RULESET.id && (!canonicalSiderealSunSampler || typeof canonicalSiderealSunSampler.sampleCanonicalSiderealSun !== 'function')) {
+      if (isDefaultPolicy) throw orchestrationError('MISSING_DEFAULT_SOLAR_DASHA_SAMPLER', 'Default solar-return Dasha requires canonicalSiderealSunSampler.');
       throw new TypeError('Solar-return Dasha configuration requires canonicalSiderealSunSampler.');
     }
     this.astronomicalEngine = astronomicalEngine;
     this.dashaRuleset = dashaRuleset;
+    this.engineProfile = engineProfile;
     this.canonicalSiderealSunSampler = canonicalSiderealSunSampler || null;
     Object.freeze(this);
   }
@@ -144,7 +158,7 @@ class BirthCareerReadingOrchestrator {
       locale: career.locale,
       reading: career.reading,
       renderedReading: career.renderedReading,
-      provenance: safeProviderProvenance(birthLayer1Result, houses, dasha, input.birth.place, providerSamplerConsistency),
+      provenance: safeProviderProvenance(birthLayer1Result, houses, dasha, input.birth.place, providerSamplerConsistency, this.engineProfile),
     });
   }
 }

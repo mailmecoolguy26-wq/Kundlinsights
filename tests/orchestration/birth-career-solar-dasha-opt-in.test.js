@@ -40,8 +40,8 @@ function activeLords(dasha, instant) {
   return [md.lord.id, ad.lord.id, pd.lord.id];
 }
 
-test('keeps legacy and explicit Savana constructor paths identical and preserves the locked Hyderabad Savana active period', () => {
-  const legacy = new BirthCareerReadingOrchestrator({ astronomicalEngine: engine() }).generate(deepFreeze(request()));
+test('keeps explicit Savana available for legacy replay and preserves the locked Hyderabad Savana active period', () => {
+  const legacy = new BirthCareerReadingOrchestrator({ astronomicalEngine: engine(), dashaRulesetId: 'vimshottari-longitude-proportional-savana-360-v1' }).generate(deepFreeze(request()));
   const explicit = new BirthCareerReadingOrchestrator({ astronomicalEngine: engine(), dashaRulesetId: 'vimshottari-longitude-proportional-savana-360-v1' }).generate(deepFreeze(request()));
   assert.deepEqual(explicit, legacy);
   const dasha = calculateVimshottariDasha({ birthInstant: BIRTH, moonCanonicalSiderealLongitude: BODY_LONGITUDES.Moon });
@@ -77,7 +77,7 @@ test('fails closed for missing, unknown, mismatched, or request-injected solar i
   assert.throws(() => new BirthCareerReadingOrchestrator({ astronomicalEngine: engine(), dashaRulesetId: { id: 'vimshottari-longitude-proportional-savana-360-v1' } }), /string identifier/);
   const mismatched = new BirthCareerReadingOrchestrator({ astronomicalEngine: engine(), canonicalSiderealSunSampler: sampler({ siderealMode: 'OTHER' }), dashaRulesetId: 'vimshottari-longitude-proportional-solar-return-v1' });
   assert.throws(() => mismatched.generate(request()), (error) => error.code === 'INCOMPATIBLE_SOLAR_DASHA_PROVIDER_PROVENANCE');
-  const legacy = new BirthCareerReadingOrchestrator({ astronomicalEngine: engine() });
+  const legacy = new BirthCareerReadingOrchestrator({ astronomicalEngine: engine(), dashaRulesetId: 'vimshottari-longitude-proportional-savana-360-v1' });
   assert.throws(() => legacy.generate(request({ dashaRulesetId: 'vimshottari-longitude-proportional-solar-return-v1' })), /runtime infrastructure/);
   assert.throws(() => legacy.generate(request({ canonicalSiderealSunSampler: sampler() })), /runtime infrastructure/);
 });
@@ -92,7 +92,7 @@ test('solar chronology is deterministic and preserves the supplied Layer 15A pip
 test('leaves Layer 1-backed natal, Gochar, and transit-event inputs identical between chronology selections', () => {
   const range = { startInstant: READING, endInstant: '2026-08-12T01:00:00.000Z' };
   const savanaEngine = engine(); const solarEngine = engine();
-  new BirthCareerReadingOrchestrator({ astronomicalEngine: savanaEngine }).generate(deepFreeze(request({ transitScanRange: range })));
+  new BirthCareerReadingOrchestrator({ astronomicalEngine: savanaEngine, dashaRulesetId: 'vimshottari-longitude-proportional-savana-360-v1' }).generate(deepFreeze(request({ transitScanRange: range })));
   new BirthCareerReadingOrchestrator({ astronomicalEngine: solarEngine, canonicalSiderealSunSampler: sampler(), dashaRulesetId: 'vimshottari-longitude-proportional-solar-return-v1' }).generate(deepFreeze(request({ transitScanRange: range })));
   assert.deepEqual(solarEngine.calls, savanaEngine.calls);
 });

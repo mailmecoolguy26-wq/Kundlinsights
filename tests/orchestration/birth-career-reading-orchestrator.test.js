@@ -21,8 +21,11 @@ function engine() { const calls = []; return { calls, calculate(input) { calls.p
 const place = freeze(createResolvedBirthPlace({ provider: 'mapbox-geocoding', providerPlaceId: 'mock-hyderabad', latitude: 17.385, longitude: 78.4867, timezone: 'Asia/Kolkata', timezoneResolver: { provider: 'timezone-boundary-builder', datasetVersion: '2026c', datasetChecksum: 'c1bd0839c15a94ace5107e84694915fca3ab74907dee7b2ed4e3e5e01acc8f16' } }));
 const request = () => ({ birth: { date: '1990-11-26', time: '13:40:00', place }, readingInstant: '2024-06-01T00:00:00.000Z', locale: 'en-IN' });
 
+const SAVANA_RULESET_ID = 'vimshottari-longitude-proportional-savana-360-v1';
+function savanaOrchestrator(astronomicalEngine) { return new BirthCareerReadingOrchestrator({ astronomicalEngine, dashaRulesetId: SAVANA_RULESET_ID }); }
+
 test('builds the Hyderabad development fixture through Layer 15A using injected native-sidereal astronomy', () => {
-  const fixture = engine(); const result = new BirthCareerReadingOrchestrator({ astronomicalEngine: fixture }).generate(request());
+  const fixture = engine(); const result = savanaOrchestrator(fixture).generate(request());
   assert.equal(fixture.calls.length, 2);
   assert.deepEqual(fixture.calls[0], { date: '1990-11-26', time: '13:40:00', timezone: 'Asia/Kolkata', latitude: 17.385, longitude: 78.4867 });
   assert.deepEqual(fixture.calls[1], { date: '2024-06-01', time: '00:00:00.000', timezone: 'UTC', latitude: 17.385, longitude: 78.4867 });
@@ -36,7 +39,7 @@ test('builds the Hyderabad development fixture through Layer 15A using injected 
 });
 
 test('is deterministic, accepts frozen input, preserves Mean Rahu/Ketu and does not double-convert native Lahiri', () => {
-  const input = freeze(request()); const fixture = engine(); const orchestration = new BirthCareerReadingOrchestrator({ astronomicalEngine: fixture });
+  const input = freeze(request()); const fixture = engine(); const orchestration = savanaOrchestrator(fixture);
   const first = orchestration.generate(input); const second = orchestration.generate(input);
   assert.deepEqual(first, second); assert.equal(fixture.calls.length, 4);
   // The fake provider supplies native sidereal only; a second Lahiri conversion would
@@ -48,22 +51,22 @@ test('is deterministic, accepts frozen input, preserves Mean Rahu/Ketu and does 
 test('accepts Swiss-style native sidereal bodies without invoking the interim Lahiri calculator', () => {
   const nativeProvider = { calculate({ instant }) { return providerResult({ date: instant.toISOString().slice(0, 10), time: instant.toISOString().slice(11, 23), timezone: 'UTC' }); } };
   const noInterimConversion = { calculateSiderealLongitude() { throw new Error('interim Lahiri must not be called for native sidereal bodies'); } };
-  const result = new BirthCareerReadingOrchestrator({ astronomicalEngine: new AstronomicalEngine(nativeProvider, noInterimConversion) }).generate(request());
+  const result = savanaOrchestrator(new AstronomicalEngine(nativeProvider, noInterimConversion)).generate(request());
   assert.equal(result.provenance.calculationStatus, 'LICENSE_GATED_VALIDATION');
   assert.equal(result.provenance.productionAuthority, false);
 });
 
 test('does not fabricate a transit interval and delegates an explicit interval to Layer 10', () => {
-  const omittedEngine = engine(); new BirthCareerReadingOrchestrator({ astronomicalEngine: omittedEngine }).generate(request());
+  const omittedEngine = engine(); savanaOrchestrator(omittedEngine).generate(request());
   assert.equal(omittedEngine.calls.length, 2);
   const explicitEngine = engine(); const explicit = request(); explicit.transitScanRange = { startInstant: '2024-06-01T00:00:00.000Z', endInstant: '2024-06-01T01:00:00.000Z' };
-  new BirthCareerReadingOrchestrator({ astronomicalEngine: explicitEngine }).generate(explicit);
+  savanaOrchestrator(explicitEngine).generate(explicit);
   assert.ok(explicitEngine.calls.length > 2);
 });
 
 test('rejects invalid infrastructure and public inputs without producing a partial reading', () => {
   assert.throws(() => new BirthCareerReadingOrchestrator({}), /astronomicalEngine/);
-  const orchestration = new BirthCareerReadingOrchestrator({ astronomicalEngine: engine() });
+  const orchestration = savanaOrchestrator(engine());
   for (const edit of [
     value => { value.birth.place = { latitude: 17, longitude: 78, timezone: 'Asia/Kolkata' }; },
     value => { value.birth.date = '1990/11/26'; }, value => { value.birth.time = '13:40'; },
@@ -74,7 +77,7 @@ test('rejects invalid infrastructure and public inputs without producing a parti
 
 test('preserves Layer 1 historical DST ambiguity and nonexistent-local-time failures', () => {
   const newYork = createResolvedBirthPlace({ provider: 'mapbox-geocoding', providerPlaceId: 'mock-new-york', latitude: 40.7128, longitude: -74.006, timezone: 'America/New_York', timezoneResolver: { provider: 'timezone-boundary-builder', datasetVersion: '2026c', datasetChecksum: 'c1bd0839c15a94ace5107e84694915fca3ab74907dee7b2ed4e3e5e01acc8f16' } });
-  const orchestration = new BirthCareerReadingOrchestrator({ astronomicalEngine: engine() });
+  const orchestration = savanaOrchestrator(engine());
   for (const [date, time, code] of [['2021-11-07', '01:30:00', 'AMBIGUOUS_LOCAL_TIME'], ['2021-03-14', '02:30:00', 'NONEXISTENT_LOCAL_TIME']]) {
     const value = request(); value.birth = { date, time, place: newYork };
     assert.throws(() => orchestration.generate(value), error => error.code === code);
@@ -82,7 +85,7 @@ test('preserves Layer 1 historical DST ambiguity and nonexistent-local-time fail
 });
 
 test('propagates provider failure as fatal and contains no network or model integration', () => {
-  const failed = new BirthCareerReadingOrchestrator({ astronomicalEngine: { calculate() { throw new Error('provider failed'); } } });
+  const failed = savanaOrchestrator({ calculate() { throw new Error('provider failed'); } });
   assert.throws(() => failed.generate(request()), /provider failed/);
   const source = require('node:fs').readFileSync(require('node:path').join(__dirname, '../../src/orchestration/birth-career-reading-orchestrator.js'), 'utf8');
   for (const forbidden of ['fetch(', 'axios', 'mapbox', 'http', 'openai']) assert.equal(source.toLowerCase().includes(forbidden), false, forbidden);
