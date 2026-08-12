@@ -5,5 +5,6 @@ module.exports = {
   ...require('./dasha-ruleset'),
   ...require('./birth-balance'),
   ...require('./time-conventions'),
-  ...require('./vimshottari-engine')
+  ...require('./vimshottari-engine'),
+  ...require('./solar-return')
 };
