@@ -15,7 +15,7 @@ function dependencies(users, ids) { let index = 0; return { userRepository: user
 test('SEC-P2 provisions and race-recovers application users through the real unique auth_subject constraint', { skip: !connectionString }, async () => {
   const db = new Client({ connectionString }); await db.connect();
   try {
-    await db.query('truncate app.reading_records, app.entitlements, app.payment_transactions, app.birth_profiles, app.users');
+    await db.query('truncate app.user_key_envelopes, app.reading_records, app.entitlements, app.payment_transactions, app.birth_profiles, app.users');
     const users = new PostgresUserRepository({ db });
     const injected = dependencies(users, ['pg-user-a', 'pg-user-b', 'pg-race-a', 'pg-race-b']);
     const first = await resolveOrProvisionAppUser({ principal: principal('supabase-a'), ...injected });
