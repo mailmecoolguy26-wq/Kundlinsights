@@ -2,6 +2,7 @@
 
 const { verifiedPrincipal } = require('../../security/auth');
 const { repositoryError, immutableCopy, requiredString } = require('../../persistence/contracts');
+const { ReadingPayloadCodec } = require('../../security/crypto');
 
 function fail(code) { throw repositoryError(code); }
 function requiredFunction(value, code) { if (typeof value !== 'function') fail(code); return value; }
@@ -12,12 +13,18 @@ function safeError(error, fallback) {
   fail(fallback);
 }
 function publicReading(item) { return immutableCopy({ readingId: item.readingId, domain: item.record.domain, engineProfileId: item.record.engineProfileId, createdAt: item.record.createdAt, status: item.status }); }
+function scopedKeyProvider(key) { return Object.freeze({ current: async () => ({ keyVersion: key.keyVersion, dek: Buffer.from(key.dek) }), forVersion: async () => ({ keyVersion: key.keyVersion, dek: Buffer.from(key.dek) }) }); }
+function rawRecord(raw, record) { return { readingId: raw.readingId, userId: raw.userId, birthProfileId: raw.birthProfileId, status: raw.status, archivedAt: raw.archivedAt, idempotencyKey: raw.idempotencyKey, record }; }
 
 class SecureReadingService {
-  constructor({ authUserResolver, transactionExecutor, repositories, readingGenerator, readingRecordFactory, replayReading, requiresEntitlement, idGenerator, clock } = {}) {
+  constructor({ authUserResolver, transactionExecutor, repositories, secureBirthProfileLoader, readingCryptoCoordinator, readingGenerator, readingRecordFactory, replayReading, requiresEntitlement, idGenerator, clock } = {}) {
     this.authUserResolver = requiredFunction(authUserResolver, 'INVALID_AUTH_USER_RESOLVER');
     this.transactions = transactionExecutor && typeof transactionExecutor.execute === 'function' ? transactionExecutor : fail('INVALID_APPLICATION_TRANSACTION_EXECUTOR');
     this.repositories = requiredFunction(repositories, 'INVALID_APPLICATION_REPOSITORIES');
+    this.secureBirthProfileLoader = secureBirthProfileLoader || null;
+    if (this.secureBirthProfileLoader && typeof this.secureBirthProfileLoader.get !== 'function') fail('INVALID_SECURE_BIRTH_PROFILE_LOADER');
+    this.readingCrypto = readingCryptoCoordinator || null;
+    if (this.readingCrypto && (typeof this.readingCrypto.current !== 'function' || typeof this.readingCrypto.forVersion !== 'function')) fail('INVALID_READING_CRYPTO_COORDINATOR');
     this.readingGenerator = readingGenerator && typeof readingGenerator.generate === 'function' ? readingGenerator : fail('INVALID_READING_GENERATOR');
     this.readingRecordFactory = requiredFunction(readingRecordFactory, 'INVALID_READING_RECORD_FACTORY');
     this.replayReading = requiredFunction(replayReading, 'INVALID_REPLAY_READING');
@@ -40,8 +47,12 @@ class SecureReadingService {
     if (!value || !value.birthProfiles || !value.readings || !value.entitlements) fail('INVALID_APPLICATION_REPOSITORIES');
     return value;
   }
+  async withKey(key, operation) { try { return await operation(new ReadingPayloadCodec({ userDekProvider: scopedKeyProvider(key) })); } finally { if (key && Buffer.isBuffer(key.dek)) key.dek.fill(0); } }
+  async decryptReading(verified, raw) { const key = await this.readingCrypto.forVersion(verified, raw.userId, raw.payloadKeyVersion); const record = await this.withKey(key, (codec) => codec.decodeRecord({ userId: raw.userId, inputSnapshotCiphertext: raw.inputSnapshotCiphertext, provenanceCiphertext: raw.provenanceCiphertext, structuredReadingCiphertext: raw.structuredReadingCiphertext, renderedReadingCiphertext: raw.renderedReadingCiphertext, payloadEncryptionVersion: raw.payloadEncryptionVersion, payloadKeyVersion: raw.payloadKeyVersion, payloadAlgorithm: raw.payloadAlgorithm, inputSnapshotNonce: raw.inputSnapshotNonce, provenanceNonce: raw.provenanceNonce, structuredReadingNonce: raw.structuredReadingNonce, renderedReadingNonce: raw.renderedReadingNonce, integrityMetadata: raw.integrityMetadata, recordMetadata: raw.recordMetadata })); return rawRecord(raw, record); }
   async existing({ verified, user, idempotencyKey }) {
-    return this.execute(verified, 'app_runtime', async (context) => this.repo(context).readings.getReadingRecordByIdempotencyKey(user.id, idempotencyKey));
+    if (!this.readingCrypto) return this.execute(verified, 'app_runtime', async (context) => this.repo(context).readings.getReadingRecordByIdempotencyKey(user.id, idempotencyKey));
+    const raw = await this.execute(verified, 'app_runtime', async (context) => this.repo(context).readings.getEncryptedReadingRecordByIdempotencyKey(user.id, idempotencyKey));
+    return raw ? this.decryptReading(verified, raw) : null;
   }
   async generateSecureReading({ principal: principalInput, birthProfileId, domain, idempotencyKey, readingInstant, locale } = {}) {
     const { verified, user } = await this.resolve(principalInput);
@@ -49,29 +60,46 @@ class SecureReadingService {
     const prior = await this.existing({ verified, user, idempotencyKey: key }); if (prior) return publicReading(prior);
     let profile;
     try {
-      profile = await this.execute(verified, 'app_runtime', async (context) => this.repo(context).birthProfiles.getBirthProfile(profileId));
-      if (!profile || profile.userId !== user.id || profile.status !== 'active') fail('NOT_FOUND_OR_FORBIDDEN');
+      profile = this.secureBirthProfileLoader
+        ? await this.secureBirthProfileLoader.get({ principal: verified, birthProfileId: profileId })
+        : await this.execute(verified, 'app_runtime', async (context) => this.repo(context).birthProfiles.getBirthProfile(profileId));
+      if (!profile || (!this.secureBirthProfileLoader && profile.userId !== user.id) || profile.status !== 'active') fail('NOT_FOUND_OR_FORBIDDEN');
     } catch (error) { safeError(error, 'NOT_FOUND_OR_FORBIDDEN'); }
     let generated;
     try { generated = await this.readingGenerator.generate({ birthProfile: profile, domain: readingDomain, readingInstant, locale }); if (!generated || !generated.input || !generated.result) fail('READING_GENERATION_FAILED'); } catch (error) { safeError(error, 'READING_GENERATION_FAILED'); }
     let record;
     try { record = this.readingRecordFactory({ readingId: this.idGenerator(), createdAt: this.clock(), input: generated.input, result: generated.result }); } catch (error) { safeError(error, 'READING_GENERATION_FAILED'); }
+    let encrypted;
+    if (this.readingCrypto) {
+      try { const operationKey = await this.readingCrypto.current(verified, user.id); encrypted = await this.withKey(operationKey, (codec) => codec.encodeRecord({ userId: user.id, record })); }
+      catch (error) { safeError(error, 'READING_PERSISTENCE_FAILED'); }
+    }
     try {
       const persisted = await this.execute(verified, 'app_runtime', async (context) => {
-        const repos = this.repo(context); const duplicate = await repos.readings.getReadingRecordByIdempotencyKey(user.id, key); if (duplicate) return duplicate;
+        const repos = this.repo(context);
+        const winner = this.readingCrypto
+          ? await repos.readings.getEncryptedReadingRecordByIdempotencyKey(user.id, key)
+          : await repos.readings.getReadingRecordByIdempotencyKey(user.id, key);
+        if (winner) return { kind: 'existing', value: winner };
         let entitlement = null;
         if (this.requiresEntitlement({ domain: readingDomain })) {
           const active = await repos.entitlements.listActiveEntitlementsForUser(user.id, this.clock()); entitlement = active.find((item) => item.productKey === readingDomain) || null;
           if (!entitlement) fail('ENTITLEMENT_EXHAUSTED');
         }
-        const inserted = await repos.readings.insertReadingRecord({ userId: user.id, birthProfileId: profile.id, record, idempotencyKey: key });
         if (entitlement) {
           if (typeof context.setRole === 'function') await context.setRole('app_worker');
           await repos.entitlements.consumeEntitlement(entitlement.id, this.clock());
+          if (typeof context.setRole === 'function') await context.setRole('app_runtime');
         }
-        return inserted;
+        let inserted;
+        if (this.readingCrypto) {
+          inserted = await repos.readings.insertEncryptedReadingRecord({ userId: user.id, birthProfileId: profile.id, record, encryptedPayload: encrypted, idempotencyKey: key });
+          inserted = rawRecord(inserted, record);
+        } else inserted = await repos.readings.insertReadingRecord({ userId: user.id, birthProfileId: profile.id, record, idempotencyKey: key });
+        return { kind: 'created', value: inserted };
       });
-      return publicReading(persisted);
+      const item = persisted.kind === 'existing' && this.readingCrypto ? await this.decryptReading(verified, persisted.value) : persisted.value;
+      return publicReading(item);
     } catch (error) {
       if (error && error.code === 'DUPLICATE_READING_IDEMPOTENCY_KEY') { const winner = await this.existing({ verified, user, idempotencyKey: key }); if (winner) return publicReading(winner); fail('IDEMPOTENCY_CONFLICT'); }
       safeError(error, 'READING_PERSISTENCE_FAILED');
@@ -79,7 +107,7 @@ class SecureReadingService {
   }
   async getSecureReading({ principal: principalInput, readingId } = {}) {
     const { verified, user } = await this.resolve(principalInput); const id = requiredString(readingId, 'INVALID_READING_ID');
-    try { const item = await this.execute(verified, 'app_runtime', async (context) => this.repo(context).readings.getReadingRecord(id)); if (!item || item.userId !== user.id) fail('NOT_FOUND_OR_FORBIDDEN'); return immutableCopy({ readingId: item.readingId, record: item.record }); } catch (error) { safeError(error, 'NOT_FOUND_OR_FORBIDDEN'); }
+    try { const item = this.readingCrypto ? await this.decryptReading(verified, await this.execute(verified, 'app_runtime', async (context) => this.repo(context).readings.getEncryptedReadingRecord(id))) : await this.execute(verified, 'app_runtime', async (context) => this.repo(context).readings.getReadingRecord(id)); if (!item || item.userId !== user.id) fail('NOT_FOUND_OR_FORBIDDEN'); return immutableCopy({ readingId: item.readingId, record: item.record }); } catch (error) { safeError(error, 'NOT_FOUND_OR_FORBIDDEN'); }
   }
   async replaySecureReading({ principal: principalInput, readingId, astronomicalRuntime } = {}) {
     const secure = await this.getSecureReading({ principal: principalInput, readingId });

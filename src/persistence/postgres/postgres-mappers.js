@@ -18,6 +18,10 @@ async function birthProfileFromRow(row, codec) {
   const birthData = await codec.decodeBirthData({ userId: row.user_id, profileId: row.id, ciphertext: row.birth_payload_ciphertext, encryptionVersion: row.birth_payload_encryption_version, keyVersion: row.birth_payload_key_version, algorithm: row.birth_payload_algorithm, nonce: row.birth_payload_nonce });
   return immutableCopy({ id: row.id, userId: row.user_id, displayLabel: row.display_label, birthData, status: row.status, createdAt: dbTime(row.created_at), updatedAt: dbTime(row.updated_at), archivedAt: nullableTime(row.archived_at) });
 }
+function encryptedBirthProfileFromRow(row) {
+  // Internal transport only: Buffers cannot use the JSON-oriented immutableCopy.
+  return Object.freeze({ id: row.id, userId: row.user_id, displayLabel: row.display_label, ciphertext: Buffer.from(toBuffer(row.birth_payload_ciphertext)), encryptionVersion: row.birth_payload_encryption_version, keyVersion: requiredString(row.birth_payload_key_version, 'INVALID_CODEC_PAYLOAD'), algorithm: requiredString(row.birth_payload_algorithm, 'INVALID_CODEC_PAYLOAD'), nonce: Buffer.from(toBuffer(row.birth_payload_nonce)), status: row.status, createdAt: dbTime(row.created_at), updatedAt: dbTime(row.updated_at), archivedAt: nullableTime(row.archived_at) });
+}
 function paymentFromRow(row) { return immutableCopy({ id: row.id, userId: row.user_id, provider: row.provider, providerTransactionId: row.provider_transaction_id, status: row.status, amountMinor: Number(row.amount_minor), currency: row.currency.trim(), createdAt: dbTime(row.created_at), updatedAt: dbTime(row.updated_at) }); }
 function entitlementFromRow(row) { return immutableCopy({ id: row.id, userId: row.user_id, productKey: row.product_key, status: row.status, quantity: row.quantity, validFrom: dbTime(row.valid_from), validUntil: nullableTime(row.valid_until), sourcePaymentTransactionId: row.source_payment_transaction_id }); }
 async function readingFromRow(row, codec) {
@@ -43,6 +47,10 @@ async function readingFromRow(row, codec) {
   });
   return immutableCopy({ readingId: row.id, userId: row.user_id, birthProfileId: row.birth_profile_id, status: row.archived_at ? 'archived' : 'active', archivedAt: nullableTime(row.archived_at), idempotencyKey: row.idempotency_key, record });
 }
+function encryptedReadingFromRow(row) {
+  const recordMetadata = Object.freeze({ readingId: row.id, domain: row.domain, engineProfileId: row.engine_profile_id, schemaVersion: row.record_schema_version, createdAt: dbTime(row.created_at), integrity: Object.freeze({ calculation: Object.freeze({ algorithm: 'sha256', digest: row.calculation_digest }), output: Object.freeze({ algorithm: 'sha256', digest: row.output_digest }), rendered: row.rendered_output_digest === null ? null : Object.freeze({ algorithm: 'sha256', digest: row.rendered_output_digest }) }) });
+  return Object.freeze({ readingId: row.id, userId: row.user_id, birthProfileId: row.birth_profile_id, status: row.archived_at ? 'archived' : 'active', archivedAt: nullableTime(row.archived_at), idempotencyKey: row.idempotency_key, recordMetadata, inputSnapshotCiphertext: Buffer.from(toBuffer(row.input_snapshot_ciphertext)), provenanceCiphertext: Buffer.from(toBuffer(row.provenance_ciphertext)), structuredReadingCiphertext: Buffer.from(toBuffer(row.structured_reading_ciphertext)), renderedReadingCiphertext: row.rendered_reading_ciphertext === null ? null : Buffer.from(toBuffer(row.rendered_reading_ciphertext)), payloadEncryptionVersion: row.payload_encryption_version, payloadKeyVersion: requiredString(row.payload_key_version, 'INVALID_CODEC_PAYLOAD'), payloadAlgorithm: requiredString(row.payload_algorithm, 'INVALID_CODEC_PAYLOAD'), inputSnapshotNonce: Buffer.from(toBuffer(row.input_snapshot_nonce)), provenanceNonce: Buffer.from(toBuffer(row.provenance_nonce)), structuredReadingNonce: Buffer.from(toBuffer(row.structured_reading_nonce)), renderedReadingNonce: row.rendered_reading_nonce === null ? null : Buffer.from(toBuffer(row.rendered_reading_nonce)), integrityMetadata: row.integrity_metadata });
+}
 async function encodedBirthPayload(codec, { userId, profileId, birthData }) {
   const value = await codec.encodeBirthData({ userId, profileId, birthData });
   if (!value || typeof value !== 'object') { const error = new RangeError('INVALID_CODEC_PAYLOAD'); error.code = 'INVALID_CODEC_PAYLOAD'; throw error; }
@@ -61,4 +69,4 @@ async function encodedReadingPayload(codec, { userId, record }) {
   return out;
 }
 
-module.exports = { dbTime, nullableTime, nullableString, toBuffer, profileFingerprint, userFromRow, birthProfileFromRow, paymentFromRow, entitlementFromRow, readingFromRow, encodedBirthPayload, encodedReadingPayload, freeze };
+module.exports = { dbTime, nullableTime, nullableString, toBuffer, profileFingerprint, userFromRow, birthProfileFromRow, encryptedBirthProfileFromRow, paymentFromRow, entitlementFromRow, readingFromRow, encryptedReadingFromRow, encodedBirthPayload, encodedReadingPayload, freeze };
