@@ -41,7 +41,7 @@ async function readingFromRow(row, codec) {
       },
     },
   });
-  return immutableCopy({ readingId: row.id, userId: row.user_id, birthProfileId: row.birth_profile_id, status: row.archived_at ? 'archived' : 'active', archivedAt: nullableTime(row.archived_at), record });
+  return immutableCopy({ readingId: row.id, userId: row.user_id, birthProfileId: row.birth_profile_id, status: row.archived_at ? 'archived' : 'active', archivedAt: nullableTime(row.archived_at), idempotencyKey: row.idempotency_key, record });
 }
 async function encodedBirthPayload(codec, { userId, profileId, birthData }) {
   const value = await codec.encodeBirthData({ userId, profileId, birthData });

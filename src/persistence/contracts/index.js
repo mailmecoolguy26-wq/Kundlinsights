@@ -6,7 +6,7 @@ const { freeze } = require('../../synthesis/evidence-node');
 const REPOSITORY_CONTRACTS = freeze({
   UserRepository: freeze(['createUser', 'getUser', 'getUserByAuthSubject', 'updateUserStatus']),
   BirthProfileRepository: freeze(['createBirthProfile', 'getBirthProfile', 'listBirthProfilesForUser', 'updateBirthProfile', 'archiveBirthProfile']),
-  ReadingRepository: freeze(['insertReadingRecord', 'getReadingRecord', 'listReadingRecordsForUser', 'listReadingRecordsForBirthProfile', 'archiveReadingRecord']),
+  ReadingRepository: freeze(['insertReadingRecord', 'getReadingRecord', 'getReadingRecordByIdempotencyKey', 'listReadingRecordsForUser', 'listReadingRecordsForBirthProfile', 'archiveReadingRecord']),
   EntitlementRepository: freeze(['createEntitlement', 'getEntitlement', 'listActiveEntitlementsForUser', 'consumeEntitlement']),
   PaymentRepository: freeze(['insertPaymentTransaction', 'getPaymentTransaction', 'findByProviderTransactionId']),
 });
