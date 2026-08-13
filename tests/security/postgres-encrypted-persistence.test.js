@@ -24,7 +24,7 @@ async function asRuntime(pool, subject, operation) { return runWithAuthenticated
 
 test('SEC-P4 encrypted DB-P4 payloads round-trip under SEC-P3 RLS without plaintext storage', { skip: !connectionString }, async () => {
   const admin = new Client({ connectionString }); const pool = new Pool({ connectionString, max: 1 }); await admin.connect();
-  const kms = new TestOnlyKms(); const envelopeStore = new TestOnlyKeyEnvelopeStore(); const deks = new UserDekProvider({ kms, envelopeStore }); deks.provisionCurrent('user-a'); deks.provisionCurrent('user-b');
+  const kms = new TestOnlyKms(); const envelopeStore = new TestOnlyKeyEnvelopeStore(); const deks = new UserDekProvider({ kms, envelopeStore }); await deks.provisionCurrent('user-a'); await deks.provisionCurrent('user-b');
   const birthCodec = new BirthProfilePayloadCodec({ userDekProvider: deks }); const readingCodec = new ReadingPayloadCodec({ userDekProvider: deks });
   try {
     await admin.query('truncate app.reading_records, app.entitlements, app.payment_transactions, app.birth_profiles, app.users');
