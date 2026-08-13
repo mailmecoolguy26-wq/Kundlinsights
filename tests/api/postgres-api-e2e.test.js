@@ -12,14 +12,16 @@ const { BirthCareerReadingOrchestrator } = require('../../src/orchestration');
 const { createResolvedBirthPlace } = require('../../src/place');
 const { createReadingRecord } = require('../../src/readings');
 const { TestOnlyKms } = require('../security/crypto/test-only-kms');
-const { createTestOnlyAuthVerifier } = require('../../src/api/test-only-auth-verifier');
+const { createSupabaseAuthVerifier } = require('../../src/security/auth');
+const { generateKeyPair, exportJWK, SignJWT, createLocalJWKSet } = require('jose');
 
 const connectionString = process.env.KUNDLINSIGHTS_API_P1E_DATABASE_URL;
 const T0 = '2026-08-13T00:00:00.000Z'; const ROLE = 'api_p1e_server';
 const a = Object.freeze({ provider: 'supabase', subject: 'api-p1e-a', isAnonymous: false });
 const b = Object.freeze({ provider: 'supabase', subject: 'api-p1e-b', isAnonymous: false });
 const birthData = Object.freeze({ localDate: '1990-11-26', localTime: '13:40:00', timezone: 'Asia/Kolkata', utc: '1990-11-26T08:10:00.000Z', latitude: 17.385, longitude: 78.4867, timezoneProvenance: Object.freeze({ provider: 'test', datasetVersion: '2026c', datasetChecksum: 'test' }) });
-function headers(token, extra = {}) { return { authorization: `Bearer ${token}`, ...extra }; }
+let accessTokens = Object.create(null);
+function headers(token, extra = {}) { return { authorization: `Bearer ${accessTokens[token] || token}`, ...extra }; }
 function assertSafe(value) { const text = JSON.stringify(value).toLowerCase(); for (const forbidden of ['ciphertext', 'wrappeddek', 'rawdek', 'kmskeyref', 'auth_subject', 'authsubject', 'connectionstring', 'databaseurl', 'stack', 'sql']) assert.equal(text.includes(forbidden), false, forbidden); }
 function sampler(engine) { return Object.freeze({ sampleCanonicalSiderealSun: ({ instantUtc }) => { const date = new Date(instantUtc); const result = engine.calculate({ date: date.toISOString().slice(0, 10), time: date.toISOString().slice(11, 19), timezone: 'UTC', latitude: 0, longitude: 0 }); return Object.freeze({ canonicalSiderealLongitudeDegrees: result.bodies.Sun.siderealLongitudeDegrees, provenance: Object.freeze({ providerId: 'api-p1e-real-astronomy-engine', calculationStatus: 'PROVISIONAL', siderealMode: 'Lahiri / Chitrapaksha', coordinateProvenance: 'derived-from-tropical', productionAuthority: false }) }); } }); }
 function scopedProvider(key) { return Object.freeze({ current: async () => ({ keyVersion: key.keyVersion, dek: Buffer.from(key.dek) }), forVersion: async () => ({ keyVersion: key.keyVersion, dek: Buffer.from(key.dek) }) }); }
@@ -31,11 +33,16 @@ test('API-P1E real Fastify composition preserves encrypted user-owned Solar read
     await admin.query(`drop role if exists ${ROLE}`); await admin.query(`create role ${ROLE} login nosuperuser nobypassrls nocreatedb nocreaterole noinherit`); await admin.query(`grant app_runtime, app_worker, app_crypto to ${ROLE}`);
     await admin.query('truncate app.user_key_envelopes, app.reading_records, app.entitlements, app.payment_transactions, app.birth_profiles, app.users');
     server = new Pool({ connectionString: connectionString.replace('postgresql:///', `postgresql://${ROLE}@/`), max: 1 });
+    const key = await generateKeyPair('ES256'); const publicJwk = { ...(await exportJWK(key.publicKey)), kid: 'api-p1e-jwks', alg: 'ES256', use: 'sig' }; const issuer = 'https://local-auth-p1.test/auth/v1';
+    const sign = (subject) => new SignJWT({ role: 'authenticated' }).setProtectedHeader({ alg: 'ES256', kid: 'api-p1e-jwks' }).setIssuer(issuer).setAudience('authenticated').setSubject(subject).setIssuedAt().setExpirationTime(Math.floor(Date.now() / 1000) + 3600).sign(key.privateKey);
+    accessTokens = { a: await sign(a.subject), b: await sign(b.subject) };
+    const authVerifier = createSupabaseAuthVerifier({ issuer, audience: 'authenticated', allowedAlgorithms: ['ES256'], jwksResolver: createLocalJWKSet({ keys: [publicJwk] }) });
     const engine = new AstronomicalEngine(new AstronomyEngineProvider());
-    const composition = createApiComposition({ db: server, authVerifier: createTestOnlyAuthVerifier({ a, b }), kms, astronomicalEngine: engine, canonicalSiderealSunSampler: sampler(engine), idGenerator, clock: () => T0 }); api = composition.api;
+    const composition = createApiComposition({ db: server, authVerifier, kms, astronomicalEngine: engine, canonicalSiderealSunSampler: sampler(engine), idGenerator, clock: () => T0 }); api = composition.api;
     const role = await server.query("select rolsuper,rolbypassrls,rolcanlogin from pg_roles where rolname=session_user"); assert.deepEqual(role.rows[0], { rolsuper: false, rolbypassrls: false, rolcanlogin: true });
     for (const url of ['/health', '/ready']) { const response = await api.inject(url); assert.equal(response.statusCode, 200); assertSafe(response.json()); }
     for (const url of ['/v1/me', '/v1/birth-profiles']) { const response = await api.inject(url); assert.equal(response.statusCode, 401); assert.ok(response.json().requestId); assertSafe(response.json()); }
+    const invalidToken = await api.inject({ url: '/v1/me', headers: { authorization: 'Bearer invalid-token' } }); assert.equal(invalidToken.statusCode, 401); assert.equal((await admin.query('select count(*) from app.users')).rows[0].count, '0'); assertSafe(invalidToken.json());
     const meA = await api.inject({ url: '/v1/me', headers: headers('a') }); const meB = await api.inject({ url: '/v1/me', headers: headers('b') }); assert.equal(meA.statusCode, 200); assert.notEqual(meA.json().user.id, meB.json().user.id); assertSafe(meA.json());
     const profile = await api.inject({ method: 'POST', url: '/v1/birth-profiles', headers: headers('a'), payload: { birthData, userId: meB.json().user.id, ownerId: meB.json().user.id, appUserId: meB.json().user.id } }); assert.equal(profile.statusCode, 201); const profileId = profile.json().birthProfile.id; assertSafe(profile.json());
     const dbProfile = await admin.query('select user_id,birth_payload_ciphertext,birth_payload_key_version from app.birth_profiles where id=$1', [profileId]); assert.equal(dbProfile.rows[0].user_id, meA.json().user.id); assert.equal(Buffer.isBuffer(dbProfile.rows[0].birth_payload_ciphertext), true); assert.ok(dbProfile.rows[0].birth_payload_key_version);
@@ -59,5 +66,5 @@ test('API-P1E real Fastify composition preserves encrypted user-owned Solar read
     const oversized = await api.inject({ method: 'POST', url: '/v1/birth-profiles', headers: headers('a', { 'content-type': 'application/json' }), payload: JSON.stringify({ birthData: { value: 'x'.repeat(17_000) } }) }); assert.equal(oversized.statusCode, 413); assert.ok(oversized.json().requestId); assertSafe(oversized.json());
     const invalid = await api.inject({ method: 'POST', url: '/v1/readings', headers: headers('a'), payload: {} }); assert.equal(invalid.statusCode, 400); assertSafe(invalid.json());
     await assert.rejects(composition.services.transactionExecutor.execute({ principal: a, role: 'app_runtime', operation: ({ db }) => db.query('select * from app.user_key_envelopes') }), (error) => error && error.code === 'AUTHENTICATED_DB_OPERATION_FAILED');
-  } finally { await api?.close().catch(() => {}); await server?.end().catch(() => {}); await admin.query(`drop role if exists ${ROLE}`).catch(() => {}); await admin.end(); }
+  } finally { accessTokens = Object.create(null); await api?.close().catch(() => {}); await server?.end().catch(() => {}); await admin.query(`drop role if exists ${ROLE}`).catch(() => {}); await admin.end(); }
 });

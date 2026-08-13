@@ -50,3 +50,4 @@ async function resolveOrProvisionAppUser({ principal, userRepository, idGenerato
 }
 
 module.exports = { SUPPORTED_PROVIDER, verifiedPrincipal, resolveOrProvisionAppUser };
+module.exports.createSupabaseAuthVerifier = require('./supabase-auth-verifier').createSupabaseAuthVerifier;
