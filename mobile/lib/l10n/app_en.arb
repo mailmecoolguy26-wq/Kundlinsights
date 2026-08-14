@@ -1,0 +1,8 @@
+{
+  "@@locale": "en",
+  "appTitle": "KundlInsights", "home": "Home", "kundli": "Kundli", "insights": "Insights", "readings": "Readings", "profile": "Profile",
+  "welcome": "Welcome to KundlInsights", "activeProfile": "Your active profile", "profileBody": "Connect a birth profile to personalize this space.",
+  "currentInsights": "Your current insights will appear here", "currentInsightsBody": "KundlInsights will present backend-authoritative astrology once your profile is connected.", "comingSoon": "Coming soon", "explore": "Explore", "career": "Career", "marriage": "Marriage", "wealth": "Wealth & Property",
+  "myKundli": "My Kundli", "kundliBody": "Your North Indian Kundli chart will appear here once your birth profile is connected.", "chartSemantics": "Reserved North Indian Kundli chart area. No astrology data is shown yet.",
+  "detailedReadings": "Detailed Readings", "readingsBody": "Your personalized readings will appear here.", "settings": "Settings", "birthProfiles": "Birth Profiles", "language": "Language", "privacy": "Privacy", "terms": "Terms", "unavailable": "Available after account setup", "insightsBody": "Explore the areas KundlInsights will support as secure backend integrations become available."
+}
