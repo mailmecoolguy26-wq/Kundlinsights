@@ -3,6 +3,7 @@
 const { PostgresApplicationTransactionExecutor, SecureReadingService } = require('../application/readings');
 const { SecureBirthProfileService } = require('../application/birth-profiles');
 const { NatalSummaryService } = require('../application/natal-summary');
+const { DivisionalChartService } = require('../application/divisional-charts');
 const { PostgresUserRepository, PostgresBirthProfileRepository, PostgresReadingRepository, PostgresEntitlementRepository } = require('../persistence');
 const { PostgresUserKeyEnvelopeStore, UserDekProvider, BirthProfilePayloadCodec, ReadingPayloadCodec } = require('../security/crypto');
 const { resolveOrProvisionAppUser } = require('../security/auth');
@@ -57,6 +58,7 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   });
   const birthProfileService = new SecureBirthProfileService({ authUserResolver: userResolver, transactionExecutor: tx, repositories, cryptoCoordinator, idGenerator, clock });
   const natalSummaryService = new NatalSummaryService({ birthProfileService, astronomicalEngine });
+  const divisionalChartService = new DivisionalChartService({ birthProfileService, astronomicalEngine });
   const readingGenerator = {
     generate: async ({ birthProfile }) => {
       const { BirthCareerReadingOrchestrator } = require('../orchestration');
@@ -72,9 +74,9 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   const secureReadingService = new SecureReadingService({ authUserResolver: userResolver, transactionExecutor: tx, repositories, secureBirthProfileLoader: birthProfileService, readingCryptoCoordinator: cryptoCoordinator, readingGenerator, readingRecordFactory: createReadingRecord, replayReading: replayPersistedReading, requiresEntitlement, idGenerator, clock });
   const { PlaceResolutionService } = require('./place-resolution-service');
   const placeResolutionService = placeResolver ? new PlaceResolutionService({ birthPlaceResolver: placeResolver }) : null;
-  const api = createApi({ authVerifier, userResolver: { resolve: userResolver }, birthProfileService, natalSummaryService, secureReadingService, placeResolutionService, requestIdGenerator: idGenerator, corsAllowlist, isReady, logger, bodyLimit });
+  const api = createApi({ authVerifier, userResolver: { resolve: userResolver }, birthProfileService, natalSummaryService, divisionalChartService, secureReadingService, placeResolutionService, requestIdGenerator: idGenerator, corsAllowlist, isReady, logger, bodyLimit });
   api.apiRuntime = { astronomicalEngine, canonicalSiderealSunSampler };
-  return Object.freeze({ api, services: Object.freeze({ birthProfileService, natalSummaryService, secureReadingService, userResolver, transactionExecutor: tx }) });
+  return Object.freeze({ api, services: Object.freeze({ birthProfileService, natalSummaryService, divisionalChartService, secureReadingService, userResolver, transactionExecutor: tx }) });
 }
 
 module.exports = { createApiComposition };
