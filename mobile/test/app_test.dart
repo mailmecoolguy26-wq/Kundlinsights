@@ -9,6 +9,9 @@ import 'package:kundlinsights_mobile/features/auth/domain/auth_repository.dart';
 import 'package:kundlinsights_mobile/features/natal/domain/natal_summary.dart';
 import 'package:kundlinsights_mobile/features/natal/domain/natal_summary_repository.dart';
 import 'package:kundlinsights_mobile/features/natal/natal_summary_controller.dart';
+import 'package:kundlinsights_mobile/features/divisional/divisional_chart_controller.dart';
+import 'package:kundlinsights_mobile/features/divisional/domain/divisional_chart.dart';
+import 'package:kundlinsights_mobile/features/divisional/domain/divisional_chart_repository.dart';
 import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile.dart';
 import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile_repository.dart';
 import 'package:kundlinsights_mobile/features/profiles/profile_controller.dart';
@@ -92,9 +95,8 @@ void main() {
     expect(find.text('Lagna'), findsOneWidget);
     expect(find.text('1 · 11'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('Accessible house list'), 240);
-    await tester.tap(find.text('Accessible house list'));
-    await tester.pumpAndSettle();
-    expect(find.text('House 12 — Aquarius'), findsOneWidget);
+    expect(find.text('Accessible house list'), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('House 12, Aquarius')), findsWidgets);
   });
 
   testWidgets('tapping a rendered chart planet opens the existing P5 detail', (
@@ -112,6 +114,35 @@ void main() {
     expect(find.text('Sun'), findsOneWidget);
     expect(find.text('319.5000°'), findsOneWidget);
     expect(find.text('Astronomical Details'), findsOneWidget);
+  });
+
+  testWidgets('switches D1, Navamsa, and Dasamsa without stale chart labels', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(controller, profiles, charts: _DivisionalCharts()),
+    );
+    await controller.restore();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Kundli').last);
+    await tester.pumpAndSettle();
+    expect(find.text('My Kundli'), findsOneWidget);
+
+    await tester.tap(find.text('D9'));
+    await tester.pump();
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    await tester.pumpAndSettle();
+    expect(find.text('Navamsa (D9)'), findsOneWidget);
+    expect(find.text('D9 · Sun'), findsNothing);
+
+    await tester.tap(find.text('D10'));
+    await tester.pumpAndSettle();
+    expect(find.text('Dasamsa (D10)'), findsOneWidget);
+    expect(find.text('Navamsa (D9)'), findsNothing);
+
+    await tester.tap(find.text('D1'));
+    await tester.pumpAndSettle();
+    expect(find.text('My Kundli'), findsOneWidget);
   });
 
   testWidgets(
@@ -175,19 +206,67 @@ void main() {
   });
 }
 
-Widget _app(AuthController controller, BirthProfileRepository profiles) =>
-    ProviderScope(
-      overrides: [
-        birthProfileRepositoryProvider.overrideWithValue(profiles),
-        natalSummaryRepositoryProvider.overrideWithValue(_Natal()),
-      ],
-      child: KundlInsightsApp(authController: controller),
-    );
+Widget _app(
+  AuthController controller,
+  BirthProfileRepository profiles, {
+  DivisionalChartRepository? charts,
+}) => ProviderScope(
+  overrides: [
+    birthProfileRepositoryProvider.overrideWithValue(profiles),
+    natalSummaryRepositoryProvider.overrideWithValue(_Natal()),
+    divisionalChartRepositoryProvider.overrideWithValue(
+      charts ?? const UnavailableDivisionalChartRepository(),
+    ),
+  ],
+  child: KundlInsightsApp(authController: controller),
+);
 
 class _Natal implements NatalSummaryRepository {
   @override
   Future<NatalSummary> getNatalSummary(String birthProfileId) async =>
       _natalSummary(birthProfileId);
+}
+
+class _DivisionalCharts implements DivisionalChartRepository {
+  @override
+  Future<DivisionalChart> getChart({
+    required String birthProfileId,
+    required DivisionalChartType type,
+  }) async {
+    await Future<void>.delayed(Duration.zero);
+    final houses = List.generate(
+      12,
+      (index) => DivisionalChartHouse(
+        house: index + 1,
+        sign: DivisionalSign(
+          rashiIndex: index + 1,
+          sanskritName: '${type.apiName} Sign ${index + 1}',
+          englishName: '${type.apiName} Sign ${index + 1}',
+        ),
+      ),
+    );
+    final ascendant = DivisionalChartPosition(
+      body: 'Ascendant',
+      sign: houses.first.sign,
+      degreeWithinSign: 1.25,
+      house: 1,
+    );
+    return DivisionalChart(
+      birthProfileId: birthProfileId,
+      type: type,
+      ascendant: ascendant,
+      houses: houses,
+      planets: List.generate(
+        DivisionalChart.grahas.length,
+        (index) => DivisionalChartPosition(
+          body: DivisionalChart.grahas[index],
+          sign: houses[index].sign,
+          degreeWithinSign: index + .5,
+          house: index + 1,
+        ),
+      ),
+    );
+  }
 }
 
 NatalSummary _natalSummary(String birthProfileId) {

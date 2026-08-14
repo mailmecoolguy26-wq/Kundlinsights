@@ -8,6 +8,7 @@ import 'theme/app_theme.dart';
 import '../features/auth/auth_controller.dart';
 import '../features/profiles/profile_controller.dart';
 import '../features/natal/natal_summary_controller.dart';
+import '../features/divisional/divisional_chart_controller.dart';
 
 class KundlInsightsApp extends ConsumerWidget {
   const KundlInsightsApp({super.key, required this.authController});
@@ -18,11 +19,19 @@ class KundlInsightsApp extends ConsumerWidget {
     final natal = ref.watch(
       natalSummaryControllerProvider((authController, profiles)),
     );
+    final divisional = ref.watch(
+      divisionalChartControllerProvider((authController, profiles)),
+    );
     return MaterialApp.router(
       title: 'KundlInsights',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      routerConfig: createAppRouter(authController, profiles, natal),
+      routerConfig: createAppRouter(
+        authController,
+        profiles,
+        natal,
+        divisional,
+      ),
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,

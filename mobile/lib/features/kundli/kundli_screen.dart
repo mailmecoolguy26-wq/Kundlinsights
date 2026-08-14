@@ -8,11 +8,81 @@ import '../../shared/widgets/section_header.dart';
 import '../natal/domain/natal_summary.dart';
 import '../natal/natal_summary_controller.dart';
 import '../profiles/profile_controller.dart';
+import '../divisional/divisional_chart_controller.dart';
+import '../divisional/domain/divisional_chart.dart';
+import 'divisional_chart_panel.dart';
 import 'north_indian_chart.dart';
 
-class KundliScreen extends StatelessWidget {
+class KundliScreen extends StatefulWidget {
   const KundliScreen({
     super.key,
+    required this.profileController,
+    required this.natalController,
+    required this.divisionalController,
+  });
+
+  final ProfileController profileController;
+  final NatalSummaryController natalController;
+  final DivisionalChartController divisionalController;
+
+  @override
+  State<KundliScreen> createState() => _KundliScreenState();
+}
+
+class _KundliScreenState extends State<KundliScreen> {
+  DivisionalChartType? _selectedType;
+
+  void _select(DivisionalChartType? type) {
+    setState(() => _selectedType = type);
+    if (type != null) widget.divisionalController.load(type);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    return SafeArea(
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.sm,
+              AppSpacing.md,
+              0,
+            ),
+            child: SegmentedButton<DivisionalChartType?>(
+              segments: [
+                ButtonSegment(value: null, label: Text(t.d1)),
+                ButtonSegment(value: DivisionalChartType.d9, label: Text(t.d9)),
+                ButtonSegment(
+                  value: DivisionalChartType.d10,
+                  label: Text(t.d10),
+                ),
+              ],
+              selected: {_selectedType},
+              onSelectionChanged: (selection) => _select(selection.single),
+            ),
+          ),
+          Expanded(
+            child: _selectedType == null
+                ? _D1KundliContent(
+                    profileController: widget.profileController,
+                    natalController: widget.natalController,
+                  )
+                : DivisionalChartPanel(
+                    profileController: widget.profileController,
+                    controller: widget.divisionalController,
+                    type: _selectedType!,
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _D1KundliContent extends StatelessWidget {
+  const _D1KundliContent({
     required this.profileController,
     required this.natalController,
   });
@@ -26,49 +96,45 @@ class KundliScreen extends StatelessWidget {
     builder: (context, child) {
       final t = AppLocalizations.of(context)!;
       final summary = natalController.summary;
-      return SafeArea(
-        child: RefreshIndicator(
-          onRefresh: natalController.refresh,
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(AppSpacing.md),
-            children: [
-              SectionHeader(
-                title: t.myKundli,
-                subtitle: profileController.activeProfile?.label,
-              ),
-              if (natalController.state == NatalSummaryLoadState.loading ||
-                  natalController.state == NatalSummaryLoadState.initial)
-                const _NatalLoading()
-              else if (summary == null)
-                _NatalError(onRetry: natalController.refresh)
-              else ...[
-                SectionHeader(title: t.northIndianChart),
-                AppCard(
-                  padding: const EdgeInsets.all(AppSpacing.xs),
-                  child: NorthIndianKundliChart(
-                    houses: buildD1ChartHouses(summary),
-                    onHouseTap: (house) => _showHouseDetails(context, house),
-                    onPlanetTap: (planet) => context.goNamed(
-                      'planet-detail',
-                      pathParameters: {'planet': planet.body},
-                    ),
+      return RefreshIndicator(
+        onRefresh: natalController.refresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(AppSpacing.md),
+          children: [
+            SectionHeader(
+              title: t.myKundli,
+              subtitle: profileController.activeProfile?.label,
+            ),
+            if (natalController.state == NatalSummaryLoadState.loading ||
+                natalController.state == NatalSummaryLoadState.initial)
+              const _NatalLoading()
+            else if (summary == null)
+              _NatalError(onRetry: natalController.refresh)
+            else ...[
+              SectionHeader(title: t.northIndianChart),
+              AppCard(
+                padding: const EdgeInsets.all(AppSpacing.xs),
+                child: NorthIndianKundliChart(
+                  houses: buildD1ChartHouses(summary),
+                  onHouseTap: (house) => _showHouseDetails(context, house),
+                  onPlanetTap: (planet) => context.goNamed(
+                    'planet-detail',
+                    pathParameters: {'planet': planet.body},
                   ),
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                _HouseAccessibilityFallback(
-                  houses: buildD1ChartHouses(summary),
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                _IdentityCards(summary: summary),
-                const SizedBox(height: AppSpacing.xl),
-                SectionHeader(title: t.planetaryPositions),
-                ...summary.planets.map(
-                  (position) => _PlanetRow(position: position),
-                ),
-              ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              _HouseAccessibilityFallback(houses: buildD1ChartHouses(summary)),
+              const SizedBox(height: AppSpacing.xl),
+              _IdentityCards(summary: summary),
+              const SizedBox(height: AppSpacing.xl),
+              SectionHeader(title: t.planetaryPositions),
+              ...summary.planets.map(
+                (position) => _PlanetRow(position: position),
+              ),
             ],
-          ),
+          ],
         ),
       );
     },

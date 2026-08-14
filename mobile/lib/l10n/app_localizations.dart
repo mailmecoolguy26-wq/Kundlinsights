@@ -657,6 +657,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Planet Detail'**
   String get planetDetail;
+
+  /// No description provided for @d1.
+  ///
+  /// In en, this message translates to:
+  /// **'D1'**
+  String get d1;
+
+  /// No description provided for @d9.
+  ///
+  /// In en, this message translates to:
+  /// **'D9'**
+  String get d9;
+
+  /// No description provided for @d10.
+  ///
+  /// In en, this message translates to:
+  /// **'D10'**
+  String get d10;
+
+  /// No description provided for @navamsa.
+  ///
+  /// In en, this message translates to:
+  /// **'Navamsa (D9)'**
+  String get navamsa;
+
+  /// No description provided for @dasamsa.
+  ///
+  /// In en, this message translates to:
+  /// **'Dasamsa (D10)'**
+  String get dasamsa;
+
+  /// No description provided for @divisionalChart.
+  ///
+  /// In en, this message translates to:
+  /// **'Divisional Chart'**
+  String get divisionalChart;
+
+  /// No description provided for @divisionalChartUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This divisional chart is unavailable right now. Please try again.'**
+  String get divisionalChartUnavailable;
 }
 
 class _AppLocalizationsDelegate

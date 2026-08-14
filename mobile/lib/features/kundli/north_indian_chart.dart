@@ -20,6 +20,34 @@ class D1ChartHouse {
   final List<NatalPosition> planets;
 }
 
+/// Presentation-safe, backend-authoritative data accepted by every fixed-house
+/// North Indian chart. It deliberately has no calculation helpers.
+class ChartSign {
+  const ChartSign({required this.rashiIndex, required this.englishName});
+
+  final int rashiIndex;
+  final String englishName;
+}
+
+class ChartPlanet {
+  const ChartPlanet({required this.body, this.retrograde = false});
+
+  final String body;
+  final bool retrograde;
+}
+
+class FixedChartHouse {
+  const FixedChartHouse({
+    required this.house,
+    required this.sign,
+    required this.planets,
+  });
+
+  final int house;
+  final ChartSign sign;
+  final List<ChartPlanet> planets;
+}
+
 List<D1ChartHouse> buildD1ChartHouses(NatalSummary summary) {
   final houses =
       summary.houses
@@ -81,12 +109,60 @@ class NorthIndianKundliChart extends StatelessWidget {
   final ValueChanged<NatalPosition> onPlanetTap;
 
   @override
+  Widget build(BuildContext context) => NorthIndianFixedHouseChart(
+    chartLabel: 'D1',
+    houses: houses
+        .map(
+          (house) => FixedChartHouse(
+            house: house.house,
+            sign: ChartSign(
+              rashiIndex: house.sign.rashiIndex,
+              englishName: house.sign.englishName,
+            ),
+            planets: house.planets
+                .map(
+                  (planet) => ChartPlanet(
+                    body: planet.body,
+                    retrograde: planet.retrograde,
+                  ),
+                )
+                .toList(growable: false),
+          ),
+        )
+        .toList(growable: false),
+    onHouseTap: (house) =>
+        onHouseTap(houses.firstWhere((item) => item.house == house.house)),
+    onPlanetTap: (planet) => onPlanetTap(
+      houses
+          .expand((house) => house.planets)
+          .firstWhere((item) => item.body == planet.body),
+    ),
+  );
+}
+
+/// Shared fixed-house renderer for authoritative D1, D9, and D10 data.
+/// The only mapping performed here is a supplied house number to visual region.
+class NorthIndianFixedHouseChart extends StatelessWidget {
+  const NorthIndianFixedHouseChart({
+    super.key,
+    required this.chartLabel,
+    required this.houses,
+    required this.onHouseTap,
+    required this.onPlanetTap,
+  });
+
+  final String chartLabel;
+  final List<FixedChartHouse> houses;
+  final ValueChanged<FixedChartHouse> onHouseTap;
+  final ValueChanged<ChartPlanet> onPlanetTap;
+
+  @override
   Widget build(BuildContext context) {
     final summary = houses
         .map((house) => 'House ${house.house}, ${house.sign.englishName}')
         .join('; ');
     return Semantics(
-      label: 'North Indian D1 chart. $summary',
+      label: 'North Indian $chartLabel chart. $summary',
       child: AspectRatio(
         aspectRatio: 1,
         child: LayoutBuilder(
@@ -126,10 +202,10 @@ class _HouseRegion extends StatelessWidget {
     required this.onPlanetTap,
   });
 
-  final D1ChartHouse house;
+  final FixedChartHouse house;
   final double size;
-  final ValueChanged<D1ChartHouse> onHouseTap;
-  final ValueChanged<NatalPosition> onPlanetTap;
+  final ValueChanged<FixedChartHouse> onHouseTap;
+  final ValueChanged<ChartPlanet> onPlanetTap;
 
   @override
   Widget build(BuildContext context) {

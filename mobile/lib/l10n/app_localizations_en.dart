@@ -307,4 +307,26 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get planetDetail => 'Planet Detail';
+
+  @override
+  String get d1 => 'D1';
+
+  @override
+  String get d9 => 'D9';
+
+  @override
+  String get d10 => 'D10';
+
+  @override
+  String get navamsa => 'Navamsa (D9)';
+
+  @override
+  String get dasamsa => 'Dasamsa (D10)';
+
+  @override
+  String get divisionalChart => 'Divisional Chart';
+
+  @override
+  String get divisionalChartUnavailable =>
+      'This divisional chart is unavailable right now. Please try again.';
 }

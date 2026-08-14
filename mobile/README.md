@@ -56,4 +56,8 @@ P6 implements the North Indian D1 chart as a fixed-house, responsive visual layo
 
 The chart supports multiple Grahas per house, a backend-supplied retrograde marker, and a separate Lagna marker. A house tap shows only its authoritative number, sign, and contained planets; a planet tap reuses the existing P5 Planet Detail route. An accessible expandable list represents every house with its sign and planets (or no planets). The same profile and authenticated-user isolation that protects natal-summary state therefore also protects chart state; a prior chart clears before another profile or user can render it.
 
-The client continues to perform no local astrology calculation. D9, D10, and Vimshottari Dasha views remain deferred to later milestones.
+The client continues to perform no local astrology calculation.
+
+## P7 D9 Navamsa and D10 Dasamsa
+
+P7 adds authenticated D9 and D10 views using `GET /v1/birth-profiles/:id/divisional-charts/d9` and `GET /v1/birth-profiles/:id/divisional-charts/d10`. They share the P6 North Indian fixed-house renderer, but receive all Varga signs, degrees, houses, Ascendant, and Graha placements directly from the API-P4A DTO. Flutter never calculates a Varga, derives a sign or house, or infers retrograde/Nakshatra data. D11 is not exposed. Vimshottari remains the next backend API milestone.

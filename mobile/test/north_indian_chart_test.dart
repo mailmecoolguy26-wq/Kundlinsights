@@ -64,6 +64,51 @@ void main() {
       expect(tappedPlanet?.body, 'Saturn');
     },
   );
+
+  testWidgets(
+    'reuses fixed-house geometry and accessibility semantics for D9 and D10',
+    (tester) async {
+      FixedChartHouse? tappedHouse;
+      ChartPlanet? tappedPlanet;
+      final houses = List.generate(
+        12,
+        (index) => FixedChartHouse(
+          house: index + 1,
+          sign: ChartSign(
+            rashiIndex: index + 1,
+            englishName: 'D Sign ${index + 1}',
+          ),
+          planets: index == 6 ? const [ChartPlanet(body: 'Sun')] : const [],
+        ),
+      );
+      for (final label in const ['D9', 'D10']) {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 390,
+                child: NorthIndianFixedHouseChart(
+                  chartLabel: label,
+                  houses: houses,
+                  onHouseTap: (house) => tappedHouse = house,
+                  onPlanetTap: (planet) => tappedPlanet = planet,
+                ),
+              ),
+            ),
+          ),
+        );
+        expect(
+          find.bySemanticsLabel(RegExp('North Indian $label chart')),
+          findsOneWidget,
+        );
+        expect(find.text('7 · 7'), findsOneWidget);
+        await tester.tap(find.text('7 · 7'));
+        expect(tappedHouse?.house, 7);
+        await tester.tap(find.text('Su'));
+        expect(tappedPlanet?.body, 'Sun');
+      }
+    },
+  );
 }
 
 NatalSummary _summary() {

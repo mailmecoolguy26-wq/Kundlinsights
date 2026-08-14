@@ -17,6 +17,9 @@ import '../features/profiles/profile_controller.dart';
 import '../features/natal/data/natal_summary_api_repository.dart';
 import '../features/natal/domain/natal_summary_repository.dart';
 import '../features/natal/natal_summary_controller.dart';
+import '../features/divisional/data/divisional_chart_api_repository.dart';
+import '../features/divisional/domain/divisional_chart_repository.dart';
+import '../features/divisional/divisional_chart_controller.dart';
 import 'app.dart';
 
 Future<void> bootstrap() async {
@@ -25,10 +28,12 @@ Future<void> bootstrap() async {
   final AuthRepository repository;
   final BirthProfileRepository profileRepository;
   final NatalSummaryRepository natalSummaryRepository;
+  final DivisionalChartRepository divisionalChartRepository;
   if (config == null) {
     repository = _UnavailableAuthRepository();
     profileRepository = const UnavailableBirthProfileRepository();
     natalSummaryRepository = const UnavailableNatalSummaryRepository();
+    divisionalChartRepository = const UnavailableDivisionalChartRepository();
   } else {
     await Supabase.initialize(
       url: config.supabaseUrl,
@@ -41,6 +46,7 @@ Future<void> bootstrap() async {
     );
     profileRepository = BirthProfileApiRepository(apiClient);
     natalSummaryRepository = NatalSummaryApiRepository(apiClient);
+    divisionalChartRepository = DivisionalChartApiRepository(apiClient);
   }
   final controller = AuthController(repository);
   await controller.restore();
@@ -51,6 +57,9 @@ Future<void> bootstrap() async {
         birthProfileRepositoryProvider.overrideWithValue(profileRepository),
         natalSummaryRepositoryProvider.overrideWithValue(
           natalSummaryRepository,
+        ),
+        divisionalChartRepositoryProvider.overrideWithValue(
+          divisionalChartRepository,
         ),
       ],
       child: KundlInsightsApp(authController: controller),

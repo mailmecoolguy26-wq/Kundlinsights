@@ -10,6 +10,7 @@ import '../../features/insights/insights_screen.dart';
 import '../../features/kundli/kundli_screen.dart';
 import '../../features/kundli/planet_detail_screen.dart';
 import '../../features/natal/natal_summary_controller.dart';
+import '../../features/divisional/divisional_chart_controller.dart';
 import '../../features/profiles/presentation/birth_profile_onboarding_screen.dart';
 import '../../features/profiles/presentation/birth_profiles_screen.dart';
 import '../../features/profiles/profile_controller.dart';
@@ -20,6 +21,7 @@ GoRouter createAppRouter(
   AuthController authController,
   ProfileController profiles,
   NatalSummaryController natal,
+  DivisionalChartController divisional,
 ) => GoRouter(
   initialLocation: '/splash',
   refreshListenable: Listenable.merge([authController, profiles]),
@@ -113,6 +115,7 @@ GoRouter createAppRouter(
               builder: (context, state) => KundliScreen(
                 profileController: profiles,
                 natalController: natal,
+                divisionalController: divisional,
               ),
               routes: [
                 GoRoute(

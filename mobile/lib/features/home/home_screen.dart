@@ -119,9 +119,9 @@ class _SummaryLoading extends StatelessWidget {
     return Semantics(
       label: t.natalSummaryLoading,
       child: const SizedBox(
-      height: 164,
-      child: Center(child: CircularProgressIndicator()),
-    ),
+        height: 164,
+        child: Center(child: CircularProgressIndicator()),
+      ),
     );
   }
 }
