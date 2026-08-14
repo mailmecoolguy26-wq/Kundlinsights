@@ -27,7 +27,7 @@ test('SEC-P4 encrypted DB-P4 payloads round-trip under SEC-P3 RLS without plaint
   const kms = new TestOnlyKms(); const envelopeStore = new TestOnlyKeyEnvelopeStore(); const deks = new UserDekProvider({ kms, envelopeStore }); await deks.provisionCurrent('user-a'); await deks.provisionCurrent('user-b');
   const birthCodec = new BirthProfilePayloadCodec({ userDekProvider: deks }); const readingCodec = new ReadingPayloadCodec({ userDekProvider: deks });
   try {
-    await admin.query('truncate app.reading_records, app.entitlements, app.payment_transactions, app.birth_profiles, app.users');
+    await admin.query('truncate app.user_key_envelopes, app.reading_records, app.entitlements, app.payment_transactions, app.birth_profiles, app.users');
     await admin.query("insert into app.users (id,auth_subject,status,created_at,updated_at) values ('user-a','subject-a','active',$1,$1),('user-b','subject-b','active',$1,$1)", [T0]);
     await asRuntime(pool, 'subject-a', async (db) => {
       const profiles = new PostgresBirthProfileRepository({ db, birthProfilePayloadCodec: birthCodec }); const readings = new PostgresReadingRepository({ db, readingPayloadCodec: readingCodec });

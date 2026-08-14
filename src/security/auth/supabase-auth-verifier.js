@@ -1,7 +1,7 @@
 'use strict';
 
 const { jwtVerify, createRemoteJWKSet } = require('jose');
-const { verifiedPrincipal } = require('./index');
+const { verifiedPrincipal } = require('./verified-principal');
 
 const DEFAULT_ALGORITHMS = Object.freeze(['ES256', 'ES384', 'ES512', 'RS256', 'RS384', 'RS512', 'PS256', 'PS384', 'PS512']);
 

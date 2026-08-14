@@ -1,21 +1,10 @@
 'use strict';
 
 const { canonicalTime, immutableCopy, repositoryError } = require('../../persistence/contracts');
-
-const SUPPORTED_PROVIDER = 'supabase';
+const { SUPPORTED_PROVIDER, verifiedPrincipal } = require('./verified-principal');
 
 function fail(code) { throw repositoryError(code); }
 function requiredInjectedFunction(value, code) { if (typeof value !== 'function') fail(code); return value; }
-function verifiedPrincipal(principal) {
-  if (!principal || typeof principal !== 'object' || Array.isArray(principal)) fail('INVALID_AUTH_PRINCIPAL');
-  if (typeof principal.provider !== 'string' || !principal.provider || principal.provider.trim() !== principal.provider) fail('INVALID_AUTH_PRINCIPAL');
-  if (principal.provider !== SUPPORTED_PROVIDER) fail('UNSUPPORTED_AUTH_PROVIDER');
-  if (typeof principal.subject !== 'string' || !principal.subject || principal.subject.trim() !== principal.subject) fail('INVALID_AUTH_PRINCIPAL');
-  if (typeof principal.isAnonymous !== 'boolean') fail('INVALID_AUTH_PRINCIPAL');
-  if (principal.claims !== undefined && (!principal.claims || typeof principal.claims !== 'object' || Array.isArray(principal.claims))) fail('INVALID_AUTH_PRINCIPAL');
-  if (Object.prototype.hasOwnProperty.call(principal, 'jwt') || Object.prototype.hasOwnProperty.call(principal, 'token') || Object.prototype.hasOwnProperty.call(principal, 'accessToken')) fail('INVALID_AUTH_PRINCIPAL');
-  return immutableCopy({ provider: principal.provider, subject: principal.subject, isAnonymous: principal.isAnonymous, ...(principal.claims === undefined ? {} : { claims: principal.claims }) }, 'INVALID_AUTH_PRINCIPAL');
-}
 function activeUser(user) { if (!user || typeof user !== 'object' || user.status !== 'active') fail('APP_USER_DISABLED'); return user; }
 function userRepositoryBoundary(userRepository) {
   if (!userRepository || typeof userRepository.getUserByAuthSubject !== 'function' || typeof userRepository.createUser !== 'function') fail('INVALID_USER_REPOSITORY');

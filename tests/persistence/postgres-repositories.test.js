@@ -50,7 +50,7 @@ function actualReadingRecord(ruleset) {
 test('Postgres repositories preserve DB-P1 contracts against a disposable local PostgreSQL database', { skip: !connectionString }, async () => {
   const db = new Client({ connectionString }); await db.connect();
   try {
-    await db.query('truncate app.reading_records, app.entitlements, app.payment_transactions, app.birth_profiles, app.users');
+    await db.query('truncate app.user_key_envelopes, app.reading_records, app.entitlements, app.payment_transactions, app.birth_profiles, app.users');
     const users = new PostgresUserRepository({ db });
     const profiles = new PostgresBirthProfileRepository({ db, birthProfilePayloadCodec: TEST_ONLY_CODEC });
     const readings = new PostgresReadingRepository({ db, readingPayloadCodec: TEST_ONLY_CODEC });
@@ -59,7 +59,11 @@ test('Postgres repositories preserve DB-P1 contracts against a disposable local 
 
     assert.equal((await users.createUser({ id: 'user-a', authSubject: 'auth-a', createdAt: T0 })).id, 'user-a');
     await throwsCode(users.createUser({ id: 'user-a', authSubject: 'auth-b', createdAt: T0 }), 'DUPLICATE_USER_ID');
-    await throwsCode(users.createUser({ id: 'user-b', authSubject: 'auth-a', createdAt: T0 }), 'DUPLICATE_AUTH_SUBJECT');
+    const durableAuthSubjectWinner = await users.createUser({ id: 'user-b', authSubject: 'auth-a', createdAt: T0 });
+    assert.equal(durableAuthSubjectWinner.id, 'user-a');
+    assert.equal(durableAuthSubjectWinner.authSubject, 'auth-a');
+    assert.equal((await db.query("select count(*) from app.users where auth_subject='auth-a'")).rows[0].count, '1');
+    assert.equal((await db.query("select count(*) from app.users where id='user-b'")).rows[0].count, '0');
     assert.equal((await users.updateUserStatus('user-a', 'suspended', T1)).status, 'suspended');
     await users.updateUserStatus('user-a', 'active', T1);
     assert.equal((await users.getUser('user-a')).authSubject, 'auth-a');

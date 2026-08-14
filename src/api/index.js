@@ -1,16 +1,17 @@
 'use strict';
-const Fastify = require('fastify'); const crypto = require('node:crypto'); const { mapApiError } = require('./api-error');
+const Fastify = require('fastify'); const cors = require('@fastify/cors'); const crypto = require('node:crypto'); const { mapApiError } = require('./api-error');
 function required(value, name) { if (!value || typeof value !== 'object') throw new TypeError(`INVALID_${name}`); return value; }
 function id(value, name) { if (typeof value !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(value)) { const e = new Error(); e.code = `INVALID_${name}`; throw e; } return value; }
 function dtoProfile(p) { return { id: p.id, displayLabel: p.displayLabel, birthData: p.birthData, status: p.status, createdAt: p.createdAt, updatedAt: p.updatedAt }; }
 function dtoReading(r) { return { readingId: r.readingId, domain: r.domain || r.record && r.record.domain, engineProfileId: r.engineProfileId || r.record && r.record.engineProfileId, createdAt: r.createdAt || r.record && r.record.createdAt, status: r.status }; }
-function createApi({ authVerifier, userResolver, birthProfileService, secureReadingService, entitlementService, requestIdGenerator = crypto.randomUUID, corsAllowlist = [] } = {}) {
+function createApi({ authVerifier, userResolver, birthProfileService, secureReadingService, entitlementService, requestIdGenerator = crypto.randomUUID, corsAllowlist = [], isReady = () => true, logger = false, bodyLimit = 16 * 1024 } = {}) {
   required(authVerifier, 'AUTH_VERIFIER'); if (typeof authVerifier.verifyRequest !== 'function') throw new TypeError('INVALID_AUTH_VERIFIER'); required(userResolver, 'USER_RESOLVER'); required(birthProfileService, 'BIRTH_PROFILE_SERVICE'); required(secureReadingService, 'SECURE_READING_SERVICE');
-  const app = Fastify({ logger: false, bodyLimit: 16 * 1024, requestIdHeader: 'x-request-id', genReqId: () => requestIdGenerator() });
-  app.addHook('onRequest', async (request, reply) => { const origin = request.headers.origin; if (origin && corsAllowlist.includes(origin)) reply.header('access-control-allow-origin', origin); });
+  if (!Array.isArray(corsAllowlist) || !corsAllowlist.every((origin) => typeof origin === 'string' && origin.startsWith('https://') && !origin.includes('*')) || typeof isReady !== 'function' || !Number.isInteger(bodyLimit) || bodyLimit < 1024 || bodyLimit > 16 * 1024) throw new TypeError('INVALID_API_RUNTIME_OPTIONS');
+  const app = Fastify({ logger, bodyLimit, requestIdHeader: 'x-request-id', genReqId: () => requestIdGenerator() });
+  app.register(cors, { origin: (origin, callback) => callback(null, !!origin && corsAllowlist.includes(origin)), methods: ['GET', 'POST'], allowedHeaders: ['authorization', 'content-type', 'idempotency-key'], exposedHeaders: ['x-request-id'], credentials: false, strictPreflight: true, logLevel: 'silent' });
   app.addHook('preHandler', async (request) => { if (request.routeOptions.url === '/health' || request.routeOptions.url === '/ready') return; request.principal = await authVerifier.verifyRequest(request); });
   app.setErrorHandler((error, request, reply) => { const out = mapApiError(error); reply.code(out.statusCode).send({ ...out.body, requestId: request.id }); });
-  app.get('/health', async () => ({ status: 'ok' })); app.get('/ready', async () => ({ status: 'ready' }));
+  app.get('/health', async () => ({ status: 'ok' })); app.get('/ready', async (request, reply) => { if (!isReady()) { reply.code(503); return { status: 'not-ready' }; } return { status: 'ready' }; });
   app.get('/v1/me', async (request) => { const user = await userResolver.resolve(request.principal); return { user: { id: user.id, status: user.status }, requestId: request.id }; });
   app.post('/v1/birth-profiles', async (request, reply) => { const body = request.body || {}; if (!body.birthData || typeof body !== 'object') { const e = new Error(); e.code = 'INVALID_BIRTH_PROFILE_INPUT'; throw e; } const created = await birthProfileService.create({ principal: request.principal, birthData: body.birthData, displayLabel: body.displayLabel == null ? null : String(body.displayLabel) }); reply.code(201); return { birthProfile: dtoProfile(created), requestId: request.id }; });
   app.get('/v1/birth-profiles', async (request) => ({ birthProfiles: (await birthProfileService.list({ principal: request.principal })).map(dtoProfile), requestId: request.id }));
