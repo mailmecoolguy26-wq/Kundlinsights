@@ -1,3 +1,5 @@
 import 'app/bootstrap.dart';
 
-void main() => bootstrap();
+void main() {
+  bootstrap();
+}

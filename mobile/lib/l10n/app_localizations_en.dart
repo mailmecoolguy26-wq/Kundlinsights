@@ -97,4 +97,42 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get insightsBody =>
       'Explore the areas KundlInsights will support as secure backend integrations become available.';
+
+  @override
+  String get signInTitle => 'Welcome back';
+
+  @override
+  String get signUpTitle => 'Create your account';
+
+  @override
+  String get signIn => 'Sign in';
+
+  @override
+  String get signUp => 'Sign up';
+
+  @override
+  String get signOut => 'Sign out';
+
+  @override
+  String get email => 'Email';
+
+  @override
+  String get password => 'Password';
+
+  @override
+  String get confirmPassword => 'Confirm password';
+
+  @override
+  String get createAccount => 'Create an account';
+
+  @override
+  String get alreadyHaveAccount => 'Already have an account? Sign in';
+
+  @override
+  String get passwordRequirements =>
+      'Use a valid email and matching passwords with at least 8 characters.';
+
+  @override
+  String get authRequestFailed =>
+      'Unable to complete that request. Please try again.';
 }

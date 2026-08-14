@@ -2,15 +2,44 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/account/profile_screen.dart';
+import '../../features/auth/auth_controller.dart';
+import '../../features/auth/domain/auth_repository.dart';
+import '../../features/auth/presentation/auth_screens.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/insights/insights_screen.dart';
 import '../../features/kundli/kundli_screen.dart';
 import '../../features/readings/readings_screen.dart';
 import '../../l10n/app_localizations.dart';
 
-final appRouter = GoRouter(
-  initialLocation: '/home',
+GoRouter createAppRouter(AuthController authController) => GoRouter(
+  initialLocation: '/splash',
+  refreshListenable: authController,
+  redirect: (context, state) {
+    final status = authController.state.status;
+    final location = state.matchedLocation;
+    final isAuthRoute = location == '/login' || location == '/signup';
+
+    if (status == AuthStatus.initializing || status == AuthStatus.loading) {
+      return location == '/splash' ? null : '/splash';
+    }
+    if (status != AuthStatus.authenticated) {
+      return isAuthRoute ? null : '/login';
+    }
+    return location == '/splash' || isAuthRoute ? '/home' : null;
+  },
   routes: [
+    GoRoute(
+      path: '/splash',
+      builder: (context, state) => const _SplashScreen(),
+    ),
+    GoRoute(
+      path: '/login',
+      builder: (context, state) => LoginScreen(controller: authController),
+    ),
+    GoRoute(
+      path: '/signup',
+      builder: (context, state) => SignupScreen(controller: authController),
+    ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, shell) => AppShell(navigationShell: shell),
       branches: [
@@ -71,7 +100,8 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/profile',
               name: 'profile',
-              builder: (context, state) => const ProfileScreen(),
+              builder: (context, state) =>
+                  ProfileScreen(authController: authController),
             ),
           ],
         ),
@@ -80,9 +110,19 @@ final appRouter = GoRouter(
   ],
 );
 
+class _SplashScreen extends StatelessWidget {
+  const _SplashScreen();
+
+  @override
+  Widget build(BuildContext context) =>
+      const Scaffold(body: Center(child: CircularProgressIndicator()));
+}
+
 class AppShell extends StatelessWidget {
   const AppShell({super.key, required this.navigationShell});
+
   final StatefulNavigationShell navigationShell;
+
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
@@ -128,7 +168,9 @@ class AppShell extends StatelessWidget {
 
 class SecondaryPlaceholder extends StatelessWidget {
   const SecondaryPlaceholder({super.key, required this.title});
+
   final String title;
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: Text(title)),

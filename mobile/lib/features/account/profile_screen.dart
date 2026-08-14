@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../../app/theme/app_theme.dart';
+import '../auth/auth_controller.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/section_header.dart';
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+  const ProfileScreen({super.key, required this.authController});
+
+  final AuthController authController;
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
@@ -28,6 +31,12 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
             ),
+          const SizedBox(height: AppSpacing.md),
+          OutlinedButton.icon(
+            onPressed: authController.logout,
+            icon: const Icon(Icons.logout),
+            label: Text(t.signOut),
+          ),
         ],
       ),
     );
