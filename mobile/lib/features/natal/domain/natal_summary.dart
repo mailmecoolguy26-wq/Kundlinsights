@@ -119,11 +119,13 @@ class NatalSummary {
   const NatalSummary({
     required this.birthProfileId,
     required this.summary,
+    this.houses = const [],
     required this.planets,
   });
 
   final String birthProfileId;
   final NatalIdentitySummary summary;
+  final List<NatalHouse> houses;
   final List<NatalPosition> planets;
 
   NatalPosition? planet(Graha graha) => planets
@@ -137,6 +139,18 @@ class NatalSummary {
           .map<NatalPosition>((value) => NatalPosition.fromJson(_asMap(value)))
           .toList(growable: false),
     );
+    final houses = List<NatalHouse>.unmodifiable(
+      _list(json, 'houses')
+          .map<NatalHouse>((value) => NatalHouse.fromJson(_asMap(value)))
+          .toList(growable: false),
+    );
+    if (houses.length != 12 ||
+        !List.generate(
+          12,
+          (index) => index + 1,
+        ).every((house) => houses.any((item) => item.house == house))) {
+      throw const FormatException('Natal summary has an invalid house set.');
+    }
     final names = planets.map((planet) => planet.body).toSet();
     if (planets.length != Graha.values.length ||
         names.length != Graha.values.length ||
@@ -146,9 +160,20 @@ class NatalSummary {
     return NatalSummary(
       birthProfileId: _string(json, 'birthProfileId'),
       summary: NatalIdentitySummary.fromJson(_map(json, 'summary')),
+      houses: houses,
       planets: planets,
     );
   }
+}
+
+class NatalHouse {
+  const NatalHouse({required this.house, required this.sign});
+  final int house;
+  final NatalSign sign;
+  factory NatalHouse.fromJson(Map<String, dynamic> json) => NatalHouse(
+    house: _int(json, 'house'),
+    sign: NatalSign.fromJson(_map(json, 'sign')),
+  );
 }
 
 Map<String, dynamic> _map(Map<String, dynamic> json, String key) =>

@@ -267,6 +267,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get house => 'House';
 
   @override
+  String get noPlanets => 'No planets';
+
+  @override
+  String get chartAccessibleHouseList => 'Accessible house list';
+
+  @override
   String get degreeInSign => 'Degree in Sign';
 
   @override

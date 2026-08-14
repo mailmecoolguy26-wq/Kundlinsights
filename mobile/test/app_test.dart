@@ -81,7 +81,7 @@ void main() {
     }
   });
 
-  testWidgets('Kundli North Indian chart placeholder is semantic', (
+  testWidgets('Kundli renders an accessible North Indian D1 chart', (
     tester,
   ) async {
     await tester.pumpWidget(_app(controller, profiles));
@@ -89,14 +89,29 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Kundli').last);
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.text('North Indian chart visualization will appear here.'),
-      240,
-    );
-    expect(
-      find.text('North Indian chart visualization will appear here.'),
-      findsOneWidget,
-    );
+    expect(find.text('Lagna'), findsOneWidget);
+    expect(find.text('1 · 11'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Accessible house list'), 240);
+    await tester.tap(find.text('Accessible house list'));
+    await tester.pumpAndSettle();
+    expect(find.text('House 12 — Aquarius'), findsOneWidget);
+  });
+
+  testWidgets('tapping a rendered chart planet opens the existing P5 detail', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_app(controller, profiles));
+    await controller.restore();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Kundli').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Su (R)'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sun'), findsOneWidget);
+    expect(find.text('319.5000°'), findsOneWidget);
+    expect(find.text('Astronomical Details'), findsOneWidget);
   });
 
   testWidgets(
@@ -108,6 +123,7 @@ void main() {
       expect(find.text('Aquarius'), findsWidgets);
       await tester.tap(find.text('Kundli').last);
       await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Planetary Positions'), 240);
       expect(find.text('Planetary Positions'), findsOneWidget);
       expect(find.text('Sun'), findsOneWidget);
       await tester.tap(find.text('Sun'));
@@ -200,7 +216,7 @@ NatalSummary _natalSummary(String birthProfileId) {
           longitude: 319.5,
           sign: sign,
           degreeWithinSign: 19.5,
-          house: 12,
+          house: graha == Graha.sun ? 1 : 12,
           nakshatra: nakshatra,
           pada: 2,
           speed: -0.1,
@@ -217,6 +233,10 @@ NatalSummary _natalSummary(String birthProfileId) {
       moonNakshatra: nakshatra,
       moonPada: 2,
       sunSign: sign,
+    ),
+    houses: List<NatalHouse>.generate(
+      12,
+      (index) => NatalHouse(house: index + 1, sign: sign),
     ),
     planets: planets,
   );

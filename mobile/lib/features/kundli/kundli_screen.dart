@@ -8,6 +8,7 @@ import '../../shared/widgets/section_header.dart';
 import '../natal/domain/natal_summary.dart';
 import '../natal/natal_summary_controller.dart';
 import '../profiles/profile_controller.dart';
+import 'north_indian_chart.dart';
 
 class KundliScreen extends StatelessWidget {
   const KundliScreen({
@@ -42,6 +43,23 @@ class KundliScreen extends StatelessWidget {
               else if (summary == null)
                 _NatalError(onRetry: natalController.refresh)
               else ...[
+                SectionHeader(title: t.northIndianChart),
+                AppCard(
+                  padding: const EdgeInsets.all(AppSpacing.xs),
+                  child: NorthIndianKundliChart(
+                    houses: buildD1ChartHouses(summary),
+                    onHouseTap: (house) => _showHouseDetails(context, house),
+                    onPlanetTap: (planet) => context.goNamed(
+                      'planet-detail',
+                      pathParameters: {'planet': planet.body},
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _HouseAccessibilityFallback(
+                  houses: buildD1ChartHouses(summary),
+                ),
+                const SizedBox(height: AppSpacing.xl),
                 _IdentityCards(summary: summary),
                 const SizedBox(height: AppSpacing.xl),
                 SectionHeader(title: t.planetaryPositions),
@@ -49,29 +67,85 @@ class KundliScreen extends StatelessWidget {
                   (position) => _PlanetRow(position: position),
                 ),
               ],
-              const SizedBox(height: AppSpacing.xl),
-              SectionHeader(title: t.northIndianChart),
-              Semantics(
-                label: t.northIndianChartSemantics,
-                child: AppCard(
-                  child: Column(
-                    children: [
-                      const Icon(Icons.grid_view_rounded, size: 48),
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        t.northIndianChartPlaceholder,
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             ],
           ),
         ),
       );
     },
   );
+}
+
+void _showHouseDetails(BuildContext context, D1ChartHouse house) {
+  final t = AppLocalizations.of(context)!;
+  showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (context) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${t.house} ${house.house}',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text('${t.sign}: ${house.sign.englishName}'),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              house.planets.isEmpty
+                  ? t.noPlanets
+                  : house.planets
+                        .map(
+                          (planet) =>
+                              '${planet.body}${planet.retrograde ? ' (${t.retrograde})' : ''}',
+                        )
+                        .join(', '),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _HouseAccessibilityFallback extends StatelessWidget {
+  const _HouseAccessibilityFallback({required this.houses});
+
+  final List<D1ChartHouse> houses;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    return Material(
+      color: Colors.transparent,
+      child: ExpansionTile(
+        title: Text(t.chartAccessibleHouseList),
+        children: houses
+            .map(
+              (house) => ListTile(
+                dense: true,
+                title: Text(
+                  '${t.house} ${house.house} — ${house.sign.englishName}',
+                ),
+                subtitle: Text(
+                  house.planets.isEmpty
+                      ? t.noPlanets
+                      : house.planets
+                            .map(
+                              (planet) =>
+                                  '${planet.body}${planet.retrograde ? ' (${t.retrograde})' : ''}',
+                            )
+                            .join(', '),
+                ),
+              ),
+            )
+            .toList(growable: false),
+      ),
+    );
+  }
 }
 
 class _NatalLoading extends StatelessWidget {

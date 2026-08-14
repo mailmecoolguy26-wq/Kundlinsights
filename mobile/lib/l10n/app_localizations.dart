@@ -580,6 +580,18 @@ abstract class AppLocalizations {
   /// **'House'**
   String get house;
 
+  /// No description provided for @noPlanets.
+  ///
+  /// In en, this message translates to:
+  /// **'No planets'**
+  String get noPlanets;
+
+  /// No description provided for @chartAccessibleHouseList.
+  ///
+  /// In en, this message translates to:
+  /// **'Accessible house list'**
+  String get chartAccessibleHouseList;
+
   /// No description provided for @degreeInSign.
   ///
   /// In en, this message translates to:

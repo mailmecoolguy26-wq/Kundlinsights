@@ -48,4 +48,12 @@ P5 integrates the authenticated backend contract `GET /v1/birth-profiles/:id/nat
 
 `lib/features/natal` maps the frozen public DTO into a safe client model and scopes its in-memory state to the authenticated subject plus active birth profile. On a profile or identity change, the prior summary clears before another profile can render. A same-subject token refresh leaves the active summary intact. No natal-summary payload is persisted or logged.
 
-Home and Kundli display only backend-authoritative Lahiri/Mean-Node natal fields. Flutter formats supplied degrees, longitude, and speed for presentation but performs no astrological calculation, sign derivation, Nakshatra/Pada calculation, house calculation, or retrograde inference. P5 adds factual planetary-position and planet-detail views. North Indian D1 chart visualization is intentionally deferred to P6.
+Home and Kundli display only backend-authoritative Lahiri/Mean-Node natal fields. Flutter formats supplied degrees, longitude, and speed for presentation but performs no astrological calculation, sign derivation, Nakshatra/Pada calculation, house calculation, or retrograde inference. P5 adds factual planetary-position and planet-detail views.
+
+## P6 North Indian D1 chart
+
+P6 implements the North Indian D1 chart as a fixed-house, responsive visual layout. All twelve house regions are rendered, with House 1/Lagna in the conventional top-centre region. House numbers and signs are supplied authoritatively by API-P3.1, while each Graha's placement uses its API-P3 authoritative house value. Flutter only maps an already-authoritative house number to visual geometry; it never derives a Rashi sequence, a house, or a sign from the Ascendant or longitude.
+
+The chart supports multiple Grahas per house, a backend-supplied retrograde marker, and a separate Lagna marker. A house tap shows only its authoritative number, sign, and contained planets; a planet tap reuses the existing P5 Planet Detail route. An accessible expandable list represents every house with its sign and planets (or no planets). The same profile and authenticated-user isolation that protects natal-summary state therefore also protects chart state; a prior chart clears before another profile or user can render it.
+
+The client continues to perform no local astrology calculation. D9, D10, and Vimshottari Dasha views remain deferred to later milestones.

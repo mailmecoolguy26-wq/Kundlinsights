@@ -36,14 +36,14 @@ void main() {
       expect(natalRepository.calls, callsBeforeRefresh);
       expect(natal.summary!.birthProfileId, 'b');
 
-    authSource.switchSubject('user-b');
-    expect(natal.summary, isNull);
-    await _settle();
-    expect(natal.summary!.birthProfileId, 'b-1');
+      authSource.switchSubject('user-b');
+      expect(natal.summary, isNull);
+      await _settle();
+      expect(natal.summary!.birthProfileId, 'b-1');
 
-    await authSource.logout();
-    expect(natal.summary, isNull);
-    expect(natal.state, NatalSummaryLoadState.initial);
+      await authSource.logout();
+      expect(natal.summary, isNull);
+      expect(natal.state, NatalSummaryLoadState.initial);
 
       natal.dispose();
       profiles.dispose();
@@ -174,6 +174,10 @@ NatalSummary _summary(String id) {
       moonNakshatra: nakshatra,
       moonPada: 1,
       sunSign: sign,
+    ),
+    houses: List<NatalHouse>.generate(
+      12,
+      (index) => NatalHouse(house: index + 1, sign: sign),
     ),
     planets: planets,
   );

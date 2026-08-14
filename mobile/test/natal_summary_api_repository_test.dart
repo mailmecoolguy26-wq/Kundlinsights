@@ -45,6 +45,9 @@ void main() {
       expect(moon.longitude, 319.519869761);
       expect(moon.house, 12);
       expect(moon.retrograde, isTrue);
+      expect(summary.houses, hasLength(12));
+      expect(summary.houses.first.house, 1);
+      expect(summary.houses.first.sign.rashiIndex, 1);
     },
   );
 
@@ -107,6 +110,17 @@ Map<String, dynamic> _summary(String id) => {
     'moon': {'sign': _sign, 'nakshatra': _nakshatra, 'pada': 2},
     'sun': {'sign': _sign},
   },
+  'houses': List.generate(
+    12,
+    (index) => {
+      'house': index + 1,
+      'sign': {
+        'rashiIndex': index + 1,
+        'sanskritName': 'Sign ${index + 1}',
+        'englishName': 'Sign ${index + 1}',
+      },
+    },
+  ),
   'planets': Graha.values.map((graha) => _position(graha.apiName)).toList(),
 };
 
