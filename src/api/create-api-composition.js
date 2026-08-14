@@ -11,7 +11,7 @@ function req(value, name) {
   return value;
 }
 
-function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canonicalSiderealSunSampler, idGenerator, clock, requiresEntitlement = () => true, corsAllowlist, isReady, logger, bodyLimit } = {}) {
+function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canonicalSiderealSunSampler, placeResolver = null, idGenerator, clock, requiresEntitlement = () => true, corsAllowlist, isReady, logger, bodyLimit } = {}) {
   const { createApi } = require('./index');
   req(db, 'DB'); req(authVerifier, 'AUTH_VERIFIER'); req(kms, 'KMS');
   req(astronomicalEngine, 'ASTRONOMICAL_ENGINE'); req(canonicalSiderealSunSampler, 'SUN_SAMPLER');
@@ -68,7 +68,9 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   };
   const { createReadingRecord, replayPersistedReading } = require('../readings');
   const secureReadingService = new SecureReadingService({ authUserResolver: userResolver, transactionExecutor: tx, repositories, secureBirthProfileLoader: birthProfileService, readingCryptoCoordinator: cryptoCoordinator, readingGenerator, readingRecordFactory: createReadingRecord, replayReading: replayPersistedReading, requiresEntitlement, idGenerator, clock });
-  const api = createApi({ authVerifier, userResolver: { resolve: userResolver }, birthProfileService, secureReadingService, requestIdGenerator: idGenerator, corsAllowlist, isReady, logger, bodyLimit });
+  const { PlaceResolutionService } = require('./place-resolution-service');
+  const placeResolutionService = placeResolver ? new PlaceResolutionService({ birthPlaceResolver: placeResolver }) : null;
+  const api = createApi({ authVerifier, userResolver: { resolve: userResolver }, birthProfileService, secureReadingService, placeResolutionService, requestIdGenerator: idGenerator, corsAllowlist, isReady, logger, bodyLimit });
   api.apiRuntime = { astronomicalEngine, canonicalSiderealSunSampler };
   return Object.freeze({ api, services: Object.freeze({ birthProfileService, secureReadingService, userResolver, transactionExecutor: tx }) });
 }

@@ -23,6 +23,8 @@ function loadProductionConfig(env = process.env) {
     db: Object.freeze({ ssl: Object.freeze({ rejectUnauthorized: true }), max: integer(env.DB_POOL_MAX, 10, 1, 50), connectionTimeoutMillis: integer(env.DB_CONNECTION_TIMEOUT_MS, 5000, 100, 60000), idleTimeoutMillis: integer(env.DB_IDLE_TIMEOUT_MS, 30000, 1000, 300000) }),
     auth: Object.freeze({ issuer, jwksUri, audience: env.SUPABASE_AUTH_AUDIENCE, allowedAlgorithms: algorithms(env.SUPABASE_AUTH_ALLOWED_ALGORITHMS) }),
     aws: (() => { const kmsKeyArn = awsArn(env.KUNDLINSIGHTS_KMS_KEY_ARN); return Object.freeze({ region: awsRegion(env.AWS_REGION), kmsKeyArn, historicalKmsKeyArns: historicalArns(env.KUNDLINSIGHTS_HISTORICAL_KMS_KEY_ARNS, kmsKeyArn) }); })(),
+    google: Object.freeze({ mapsApiKey: text(env.GOOGLE_MAPS_API_KEY) ? env.GOOGLE_MAPS_API_KEY : invalid(), timeoutMilliseconds: integer(env.GOOGLE_GEOCODING_TIMEOUT_MS, 5000, 100, 15000) }),
+    timezoneRuntime: Object.freeze({ manifestPath: text(env.TIMEZONE_RUNTIME_MANIFEST_PATH) ? env.TIMEZONE_RUNTIME_MANIFEST_PATH : invalid(), binaryPath: text(env.TIMEZONE_RUNTIME_BINARY_PATH) ? env.TIMEZONE_RUNTIME_BINARY_PATH : invalid() }),
     corsOrigins: origins(env.CORS_ALLOWED_ORIGINS), bodyLimitBytes: integer(env.REQUEST_BODY_LIMIT_BYTES, 16384, 1024, 16384), shutdownTimeoutMilliseconds: integer(env.SHUTDOWN_TIMEOUT_MS, 30000, 1000, 120000), logLevel: env.LOG_LEVEL === undefined ? 'info' : ['fatal', 'error', 'warn', 'info'].includes(env.LOG_LEVEL) ? env.LOG_LEVEL : invalid(),
   });
 }
