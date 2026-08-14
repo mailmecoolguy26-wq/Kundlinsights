@@ -507,6 +507,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Profile editing and deletion are not available yet.'**
   String get editDeleteUnavailable;
+
+  /// No description provided for @natalSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Natal Summary'**
+  String get natalSummary;
+
+  /// No description provided for @ascendant.
+  ///
+  /// In en, this message translates to:
+  /// **'Ascendant'**
+  String get ascendant;
+
+  /// No description provided for @moonSign.
+  ///
+  /// In en, this message translates to:
+  /// **'Moon Sign'**
+  String get moonSign;
+
+  /// No description provided for @sunSign.
+  ///
+  /// In en, this message translates to:
+  /// **'Sun Sign'**
+  String get sunSign;
+
+  /// No description provided for @sign.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign'**
+  String get sign;
+
+  /// No description provided for @nakshatra.
+  ///
+  /// In en, this message translates to:
+  /// **'Nakshatra'**
+  String get nakshatra;
+
+  /// No description provided for @pada.
+  ///
+  /// In en, this message translates to:
+  /// **'Pada'**
+  String get pada;
+
+  /// No description provided for @planetaryPositions.
+  ///
+  /// In en, this message translates to:
+  /// **'Planetary Positions'**
+  String get planetaryPositions;
+
+  /// No description provided for @northIndianChart.
+  ///
+  /// In en, this message translates to:
+  /// **'North Indian Chart'**
+  String get northIndianChart;
+
+  /// No description provided for @northIndianChartPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'North Indian chart visualization will appear here.'**
+  String get northIndianChartPlaceholder;
+
+  /// No description provided for @northIndianChartSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'North Indian chart visualization placeholder. No chart geometry is shown yet.'**
+  String get northIndianChartSemantics;
+
+  /// No description provided for @house.
+  ///
+  /// In en, this message translates to:
+  /// **'House'**
+  String get house;
+
+  /// No description provided for @degreeInSign.
+  ///
+  /// In en, this message translates to:
+  /// **'Degree in Sign'**
+  String get degreeInSign;
+
+  /// No description provided for @longitude.
+  ///
+  /// In en, this message translates to:
+  /// **'Longitude'**
+  String get longitude;
+
+  /// No description provided for @speed.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed'**
+  String get speed;
+
+  /// No description provided for @motion.
+  ///
+  /// In en, this message translates to:
+  /// **'Motion'**
+  String get motion;
+
+  /// No description provided for @retrograde.
+  ///
+  /// In en, this message translates to:
+  /// **'Retrograde'**
+  String get retrograde;
+
+  /// No description provided for @astronomicalDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Astronomical Details'**
+  String get astronomicalDetails;
+
+  /// No description provided for @natalSummaryUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Your natal summary is unavailable right now. Please try again.'**
+  String get natalSummaryUnavailable;
+
+  /// No description provided for @natalSummaryLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Natal summary loading'**
+  String get natalSummaryLoading;
+
+  /// No description provided for @speedDegreesPerDay.
+  ///
+  /// In en, this message translates to:
+  /// **'{value}°/day'**
+  String speedDegreesPerDay(Object value);
+
+  /// No description provided for @refresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get refresh;
+
+  /// No description provided for @planetDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Planet Detail'**
+  String get planetDetail;
 }
 
 class _AppLocalizationsDelegate

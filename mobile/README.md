@@ -41,3 +41,11 @@ The mobile client contains no astrology calculation, birth-profile implementatio
 P4 adds the authenticated first-profile flow: profile label, birth date, exact local birth time, API-backed place search, backend birth-time resolution, review, and profile creation. The app uses `GET /v1/places/search`, `POST /v1/places/resolve-birth-time`, and the existing birth-profile endpoints through the sole Dio client. It does not calculate latitude, longitude, timezone, historical offset, or UTC; it submits the backend-resolved `birthData` unchanged.
 
 Place-search results show the required `Google Maps` attribution. The client does not store search history or log place queries, and it never receives a Google Maps API key. The profile controller is Riverpod-scoped and keeps the active profile as in-memory UI state only. It clears the collection and active selection on logout, so a subsequent user does not see prior-user profile state. Profile edit and delete are deliberately unavailable because the backend has no matching routes.
+
+## P5 natal summary
+
+P5 integrates the authenticated backend contract `GET /v1/birth-profiles/:id/natal-summary` through the existing sole Dio client. The request uses only the active birth-profile ID; Flutter does not resend birth data, identity data, coordinates, timezone, or any astrology settings.
+
+`lib/features/natal` maps the frozen public DTO into a safe client model and scopes its in-memory state to the authenticated subject plus active birth profile. On a profile or identity change, the prior summary clears before another profile can render. A same-subject token refresh leaves the active summary intact. No natal-summary payload is persisted or logged.
+
+Home and Kundli display only backend-authoritative Lahiri/Mean-Node natal fields. Flutter formats supplied degrees, longitude, and speed for presentation but performs no astrological calculation, sign derivation, Nakshatra/Pada calculation, house calculation, or retrograde inference. P5 adds factual planetary-position and planet-detail views. North Indian D1 chart visualization is intentionally deferred to P6.

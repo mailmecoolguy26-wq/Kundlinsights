@@ -6,6 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kundlinsights_mobile/app/app.dart';
 import 'package:kundlinsights_mobile/features/auth/auth_controller.dart';
 import 'package:kundlinsights_mobile/features/auth/domain/auth_repository.dart';
+import 'package:kundlinsights_mobile/features/natal/domain/natal_summary.dart';
+import 'package:kundlinsights_mobile/features/natal/domain/natal_summary_repository.dart';
+import 'package:kundlinsights_mobile/features/natal/natal_summary_controller.dart';
 import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile.dart';
 import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile_repository.dart';
 import 'package:kundlinsights_mobile/features/profiles/profile_controller.dart';
@@ -78,19 +81,45 @@ void main() {
     }
   });
 
-  testWidgets('Kundli reserved chart is semantic', (tester) async {
+  testWidgets('Kundli North Indian chart placeholder is semantic', (
+    tester,
+  ) async {
     await tester.pumpWidget(_app(controller, profiles));
     await controller.restore();
     await tester.pumpAndSettle();
     await tester.tap(find.text('Kundli').last);
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('North Indian chart visualization will appear here.'),
+      240,
+    );
     expect(
-      find.bySemanticsLabel(
-        'Reserved North Indian Kundli chart area. No astrology data is shown yet.',
-      ),
+      find.text('North Indian chart visualization will appear here.'),
       findsOneWidget,
     );
   });
+
+  testWidgets(
+    'renders backend natal facts, nine Grahas, and a factual planet detail',
+    (tester) async {
+      await tester.pumpWidget(_app(controller, profiles));
+      await controller.restore();
+      await tester.pumpAndSettle();
+      expect(find.text('Aquarius'), findsWidgets);
+      await tester.tap(find.text('Kundli').last);
+      await tester.pumpAndSettle();
+      expect(find.text('Planetary Positions'), findsOneWidget);
+      expect(find.text('Sun'), findsOneWidget);
+      await tester.tap(find.text('Sun'));
+      await tester.pumpAndSettle();
+      expect(find.text('319.5000°'), findsOneWidget);
+      expect(find.text('Astronomical Details'), findsOneWidget);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Ketu'), 240);
+      expect(find.text('Ketu'), findsOneWidget);
+    },
+  );
 
   testWidgets('unauthenticated sessions are redirected to sign in', (
     tester,
@@ -132,9 +161,66 @@ void main() {
 
 Widget _app(AuthController controller, BirthProfileRepository profiles) =>
     ProviderScope(
-      overrides: [birthProfileRepositoryProvider.overrideWithValue(profiles)],
+      overrides: [
+        birthProfileRepositoryProvider.overrideWithValue(profiles),
+        natalSummaryRepositoryProvider.overrideWithValue(_Natal()),
+      ],
       child: KundlInsightsApp(authController: controller),
     );
+
+class _Natal implements NatalSummaryRepository {
+  @override
+  Future<NatalSummary> getNatalSummary(String birthProfileId) async =>
+      _natalSummary(birthProfileId);
+}
+
+NatalSummary _natalSummary(String birthProfileId) {
+  const sign = NatalSign(
+    rashiIndex: 11,
+    sanskritName: 'Kumbha',
+    englishName: 'Aquarius',
+  );
+  const nakshatra = NatalNakshatra(nakshatraIndex: 24, name: 'Shatabhisha');
+  const ascendant = NatalPosition(
+    body: 'Ascendant',
+    longitude: 331.2,
+    sign: sign,
+    degreeWithinSign: 1.2,
+    house: 1,
+    nakshatra: nakshatra,
+    pada: 1,
+    speed: null,
+    motion: null,
+    retrograde: false,
+  );
+  final planets = Graha.values
+      .map(
+        (graha) => NatalPosition(
+          body: graha.apiName,
+          longitude: 319.5,
+          sign: sign,
+          degreeWithinSign: 19.5,
+          house: 12,
+          nakshatra: nakshatra,
+          pada: 2,
+          speed: -0.1,
+          motion: 'retrograde',
+          retrograde: true,
+        ),
+      )
+      .toList(growable: false);
+  return NatalSummary(
+    birthProfileId: birthProfileId,
+    summary: NatalIdentitySummary(
+      ascendant: ascendant,
+      moonSign: sign,
+      moonNakshatra: nakshatra,
+      moonPada: 2,
+      sunSign: sign,
+    ),
+    planets: planets,
+  );
+}
 
 class _Profiles implements BirthProfileRepository {
   _Profiles({this.empty = false});

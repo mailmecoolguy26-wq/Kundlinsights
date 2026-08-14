@@ -14,6 +14,9 @@ import '../features/auth/domain/auth_repository.dart';
 import '../features/profiles/data/birth_profile_api_repository.dart';
 import '../features/profiles/domain/birth_profile_repository.dart';
 import '../features/profiles/profile_controller.dart';
+import '../features/natal/data/natal_summary_api_repository.dart';
+import '../features/natal/domain/natal_summary_repository.dart';
+import '../features/natal/natal_summary_controller.dart';
 import 'app.dart';
 
 Future<void> bootstrap() async {
@@ -21,18 +24,23 @@ Future<void> bootstrap() async {
   final config = AppConfig.fromEnvironment();
   final AuthRepository repository;
   final BirthProfileRepository profileRepository;
+  final NatalSummaryRepository natalSummaryRepository;
   if (config == null) {
     repository = _UnavailableAuthRepository();
     profileRepository = const UnavailableBirthProfileRepository();
+    natalSummaryRepository = const UnavailableNatalSummaryRepository();
   } else {
     await Supabase.initialize(
       url: config.supabaseUrl,
       publishableKey: config.supabaseAnonKey,
     );
     repository = SupabaseAuthRepository(Supabase.instance.client);
-    profileRepository = BirthProfileApiRepository(
-      ApiClient(config: config, tokens: AuthApiTokenSource(repository)),
+    final apiClient = ApiClient(
+      config: config,
+      tokens: AuthApiTokenSource(repository),
     );
+    profileRepository = BirthProfileApiRepository(apiClient);
+    natalSummaryRepository = NatalSummaryApiRepository(apiClient);
   }
   final controller = AuthController(repository);
   await controller.restore();
@@ -41,6 +49,9 @@ Future<void> bootstrap() async {
       overrides: [
         secureStateStoreProvider.overrideWithValue(const SecureStateStore()),
         birthProfileRepositoryProvider.overrideWithValue(profileRepository),
+        natalSummaryRepositoryProvider.overrideWithValue(
+          natalSummaryRepository,
+        ),
       ],
       child: KundlInsightsApp(authController: controller),
     ),

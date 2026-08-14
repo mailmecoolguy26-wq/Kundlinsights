@@ -8,6 +8,8 @@ import '../../features/auth/presentation/auth_screens.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/insights/insights_screen.dart';
 import '../../features/kundli/kundli_screen.dart';
+import '../../features/kundli/planet_detail_screen.dart';
+import '../../features/natal/natal_summary_controller.dart';
 import '../../features/profiles/presentation/birth_profile_onboarding_screen.dart';
 import '../../features/profiles/presentation/birth_profiles_screen.dart';
 import '../../features/profiles/profile_controller.dart';
@@ -17,6 +19,7 @@ import '../../l10n/app_localizations.dart';
 GoRouter createAppRouter(
   AuthController authController,
   ProfileController profiles,
+  NatalSummaryController natal,
 ) => GoRouter(
   initialLocation: '/splash',
   refreshListenable: Listenable.merge([authController, profiles]),
@@ -95,8 +98,10 @@ GoRouter createAppRouter(
             GoRoute(
               path: '/home',
               name: 'home',
-              builder: (context, state) =>
-                  HomeScreen(profileController: profiles),
+              builder: (context, state) => HomeScreen(
+                profileController: profiles,
+                natalController: natal,
+              ),
             ),
           ],
         ),
@@ -105,13 +110,18 @@ GoRouter createAppRouter(
             GoRoute(
               path: '/kundli',
               name: 'kundli',
-              builder: (context, state) => const KundliScreen(),
+              builder: (context, state) => KundliScreen(
+                profileController: profiles,
+                natalController: natal,
+              ),
               routes: [
                 GoRoute(
-                  path: 'planet',
+                  path: 'planet/:planet',
                   name: 'planet-detail',
-                  builder: (context, state) =>
-                      const SecondaryPlaceholder(title: 'Planet Detail'),
+                  builder: (context, state) => PlanetDetailScreen(
+                    natalController: natal,
+                    planetName: state.pathParameters['planet']!,
+                  ),
                 ),
               ],
             ),

@@ -227,4 +227,78 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get editDeleteUnavailable =>
       'Profile editing and deletion are not available yet.';
+
+  @override
+  String get natalSummary => 'Natal Summary';
+
+  @override
+  String get ascendant => 'Ascendant';
+
+  @override
+  String get moonSign => 'Moon Sign';
+
+  @override
+  String get sunSign => 'Sun Sign';
+
+  @override
+  String get sign => 'Sign';
+
+  @override
+  String get nakshatra => 'Nakshatra';
+
+  @override
+  String get pada => 'Pada';
+
+  @override
+  String get planetaryPositions => 'Planetary Positions';
+
+  @override
+  String get northIndianChart => 'North Indian Chart';
+
+  @override
+  String get northIndianChartPlaceholder =>
+      'North Indian chart visualization will appear here.';
+
+  @override
+  String get northIndianChartSemantics =>
+      'North Indian chart visualization placeholder. No chart geometry is shown yet.';
+
+  @override
+  String get house => 'House';
+
+  @override
+  String get degreeInSign => 'Degree in Sign';
+
+  @override
+  String get longitude => 'Longitude';
+
+  @override
+  String get speed => 'Speed';
+
+  @override
+  String get motion => 'Motion';
+
+  @override
+  String get retrograde => 'Retrograde';
+
+  @override
+  String get astronomicalDetails => 'Astronomical Details';
+
+  @override
+  String get natalSummaryUnavailable =>
+      'Your natal summary is unavailable right now. Please try again.';
+
+  @override
+  String get natalSummaryLoading => 'Natal summary loading';
+
+  @override
+  String speedDegreesPerDay(Object value) {
+    return '$value°/day';
+  }
+
+  @override
+  String get refresh => 'Refresh';
+
+  @override
+  String get planetDetail => 'Planet Detail';
 }
