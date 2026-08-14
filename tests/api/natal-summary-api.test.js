@@ -70,6 +70,10 @@ test('GET natal summary maps existing Layer 1/2 and Rashi-house authority into a
   const result = response.json().natalSummary;
   assert.equal(result.birthProfileId, 'profile-a');
   assert.deepEqual(result.planets.map((item) => item.body), GRAHAS);
+  assert.deepEqual(result.houses.map((item) => item.house), Array.from({ length: 12 }, (_, index) => index + 1));
+  assert.equal(new Set(result.houses.map((item) => item.house)).size, 12);
+  assert.equal(new Set(result.houses.map((item) => item.sign.rashiIndex)).size, 12);
+  assert.equal(result.houses[0].sign.rashiIndex, result.summary.ascendant.sign.rashiIndex);
   assert.equal(result.planets.some((item) => item.body === 'Ascendant'), false);
   assert.equal(result.ascendant, undefined);
   assert.equal(result.summary.ascendant.body, 'Ascendant');
@@ -91,6 +95,14 @@ test('GET natal summary maps existing Layer 1/2 and Rashi-house authority into a
     ascendantCanonicalSiderealLongitude: LONGITUDES.Ascendant,
     bodies: Object.fromEntries(Object.entries(LONGITUDES).map(([name, longitude]) => [name, body(name, longitude)])),
   });
+  assert.deepEqual(result.houses, expectedHouses.houses.map((house) => ({
+    house: house.houseNumber,
+    sign: {
+      rashiIndex: house.rashi.rashiIndex,
+      sanskritName: house.rashi.sanskritName,
+      englishName: house.rashi.englishName,
+    },
+  })));
   assert.equal(saturn.house, expectedHouses.planetaryAssignments.find((item) => item.body === 'Saturn').rashiHouseNumber);
   assert.deepEqual(result.calculation, { zodiac: 'sidereal', ayanamsha: 'Lahiri / Chitrapaksha', siderealMode: 'SE_SIDM_LAHIRI', nodeModel: 'MEAN_NODE', calculationStatus: 'LICENSE_GATED_VALIDATION' });
   for (const planet of result.planets) {
@@ -102,6 +114,7 @@ test('GET natal summary maps existing Layer 1/2 and Rashi-house authority into a
     assert.equal(Number.isInteger(planet.pada), true);
     assert.equal(typeof planet.speed, 'number');
     assert.equal(['direct', 'retrograde'].includes(planet.motion), true);
+    assert.deepEqual(planet.sign, result.houses[planet.house - 1].sign);
   }
   assertSafe(response.json());
   await api.close();

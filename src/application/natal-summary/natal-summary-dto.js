@@ -53,6 +53,13 @@ function safeCalculationMetadata(layer1Result) {
   });
 }
 
+function houseSignAssignments(houses) {
+  return freeze(houses.houses.map((house) => freeze({
+    house: house.houseNumber,
+    sign: sign(house.rashi),
+  })));
+}
+
 function toNatalSummaryDto({ birthProfileId, layer1Result, layer2Bodies, houses }) {
   if (!birthProfileId || !layer1Result || !layer2Bodies || !houses) {
     throw new TypeError('Natal summary DTO requires an owned birth profile and completed Layer 1/2/house results.');
@@ -79,6 +86,7 @@ function toNatalSummaryDto({ birthProfileId, layer1Result, layer2Bodies, houses 
       moon: freeze({ sign: moon.sign, nakshatra: moon.nakshatra, pada: moon.pada }),
       sun: freeze({ sign: sun.sign }),
     }),
+    houses: houseSignAssignments(houses),
     planets,
     calculation: safeCalculationMetadata(layer1Result),
   });
