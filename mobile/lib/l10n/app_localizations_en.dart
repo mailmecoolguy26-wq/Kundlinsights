@@ -135,4 +135,96 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get authRequestFailed =>
       'Unable to complete that request. Please try again.';
+
+  @override
+  String get createBirthProfile => 'Create birth profile';
+
+  @override
+  String get addProfile => 'Add profile';
+
+  @override
+  String get profileLabel => 'Profile label';
+
+  @override
+  String get profileLabelHint => 'For example, My Profile';
+
+  @override
+  String get defaultProfileLabel => 'Birth profile';
+
+  @override
+  String get dateOfBirth => 'Date of birth';
+
+  @override
+  String get birthTime => 'Birth time';
+
+  @override
+  String get placeOfBirth => 'Place of birth';
+
+  @override
+  String get selectDate => 'Select date';
+
+  @override
+  String get selectTime => 'Select time';
+
+  @override
+  String get birthTimeHelp =>
+      'Birth time is important for calculating your Ascendant and house positions.';
+
+  @override
+  String get placeSearchHint => 'Start typing a city or place';
+
+  @override
+  String get noPlaceResults => 'No places found. Try another search.';
+
+  @override
+  String get googleMapsAttribution => 'Google Maps';
+
+  @override
+  String get reviewProfile => 'Review profile';
+
+  @override
+  String get edit => 'Edit';
+
+  @override
+  String get createProfile => 'Create Profile';
+
+  @override
+  String get continueLabel => 'Continue';
+
+  @override
+  String get step => 'Step';
+
+  @override
+  String get stepOf => 'of';
+
+  @override
+  String get completeRequiredFields => 'Complete this field to continue.';
+
+  @override
+  String get profileRequestFailed =>
+      'We could not complete that request. Please try again.';
+
+  @override
+  String get ambiguousBirthTime =>
+      'This local time occurs twice due to a clock change. Please confirm a different time.';
+
+  @override
+  String get nonexistentBirthTime =>
+      'This local time did not occur due to a clock change. Please choose another time.';
+
+  @override
+  String get active => 'Active';
+
+  @override
+  String get activeProfileIndicator => 'Active birth profile';
+
+  @override
+  String get retry => 'Retry';
+
+  @override
+  String get profileUnavailable => 'This profile is unavailable.';
+
+  @override
+  String get editDeleteUnavailable =>
+      'Profile editing and deletion are not available yet.';
 }

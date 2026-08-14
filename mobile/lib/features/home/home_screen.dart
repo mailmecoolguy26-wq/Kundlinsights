@@ -4,9 +4,11 @@ import '../../app/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/section_header.dart';
+import '../profiles/profile_controller.dart';
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, required this.profileController});
+  final ProfileController profileController;
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
@@ -24,7 +26,7 @@ class HomeScreen extends StatelessWidget {
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
                 const SizedBox(height: AppSpacing.xs),
-                Text(t.profileBody),
+                Text(profileController.activeProfile?.label ?? t.profileBody),
               ],
             ),
           ),

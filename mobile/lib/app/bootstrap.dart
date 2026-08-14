@@ -5,24 +5,34 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/config/app_config.dart';
+import '../core/api/api_client.dart';
 import '../core/storage/secure_state_store.dart';
 import '../features/auth/auth_controller.dart';
+import '../features/auth/data/auth_api_token_source.dart';
 import '../features/auth/data/supabase_auth_repository.dart';
 import '../features/auth/domain/auth_repository.dart';
+import '../features/profiles/data/birth_profile_api_repository.dart';
+import '../features/profiles/domain/birth_profile_repository.dart';
+import '../features/profiles/profile_controller.dart';
 import 'app.dart';
 
 Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
   final config = AppConfig.fromEnvironment();
   final AuthRepository repository;
+  final BirthProfileRepository profileRepository;
   if (config == null) {
     repository = _UnavailableAuthRepository();
+    profileRepository = const UnavailableBirthProfileRepository();
   } else {
     await Supabase.initialize(
       url: config.supabaseUrl,
       publishableKey: config.supabaseAnonKey,
     );
     repository = SupabaseAuthRepository(Supabase.instance.client);
+    profileRepository = BirthProfileApiRepository(
+      ApiClient(config: config, tokens: AuthApiTokenSource(repository)),
+    );
   }
   final controller = AuthController(repository);
   await controller.restore();
@@ -30,6 +40,7 @@ Future<void> bootstrap() async {
     ProviderScope(
       overrides: [
         secureStateStoreProvider.overrideWithValue(const SecureStateStore()),
+        birthProfileRepositoryProvider.overrideWithValue(profileRepository),
       ],
       child: KundlInsightsApp(authController: controller),
     ),

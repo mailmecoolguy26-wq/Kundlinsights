@@ -5,11 +5,19 @@ import '../auth/auth_controller.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/section_header.dart';
+import '../profiles/profile_controller.dart';
+
+import 'package:go_router/go_router.dart';
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key, required this.authController});
+  const ProfileScreen({
+    super.key,
+    required this.authController,
+    required this.profileController,
+  });
 
   final AuthController authController;
+  final ProfileController profileController;
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
@@ -18,7 +26,21 @@ class ProfileScreen extends StatelessWidget {
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
           SectionHeader(title: t.settings),
-          for (final label in [t.birthProfiles, t.language, t.privacy, t.terms])
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: AppCard(
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(t.birthProfiles),
+                subtitle: Text(
+                  profileController.activeProfile?.label ?? t.unavailable,
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.go('/profiles'),
+              ),
+            ),
+          ),
+          for (final label in [t.language, t.privacy, t.terms])
             Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.sm),
               child: AppCard(

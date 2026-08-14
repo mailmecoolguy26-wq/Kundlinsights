@@ -333,6 +333,180 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unable to complete that request. Please try again.'**
   String get authRequestFailed;
+
+  /// No description provided for @createBirthProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Create birth profile'**
+  String get createBirthProfile;
+
+  /// No description provided for @addProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Add profile'**
+  String get addProfile;
+
+  /// No description provided for @profileLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile label'**
+  String get profileLabel;
+
+  /// No description provided for @profileLabelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'For example, My Profile'**
+  String get profileLabelHint;
+
+  /// No description provided for @defaultProfileLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Birth profile'**
+  String get defaultProfileLabel;
+
+  /// No description provided for @dateOfBirth.
+  ///
+  /// In en, this message translates to:
+  /// **'Date of birth'**
+  String get dateOfBirth;
+
+  /// No description provided for @birthTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Birth time'**
+  String get birthTime;
+
+  /// No description provided for @placeOfBirth.
+  ///
+  /// In en, this message translates to:
+  /// **'Place of birth'**
+  String get placeOfBirth;
+
+  /// No description provided for @selectDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Select date'**
+  String get selectDate;
+
+  /// No description provided for @selectTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Select time'**
+  String get selectTime;
+
+  /// No description provided for @birthTimeHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Birth time is important for calculating your Ascendant and house positions.'**
+  String get birthTimeHelp;
+
+  /// No description provided for @placeSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Start typing a city or place'**
+  String get placeSearchHint;
+
+  /// No description provided for @noPlaceResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No places found. Try another search.'**
+  String get noPlaceResults;
+
+  /// No description provided for @googleMapsAttribution.
+  ///
+  /// In en, this message translates to:
+  /// **'Google Maps'**
+  String get googleMapsAttribution;
+
+  /// No description provided for @reviewProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Review profile'**
+  String get reviewProfile;
+
+  /// No description provided for @edit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get edit;
+
+  /// No description provided for @createProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Profile'**
+  String get createProfile;
+
+  /// No description provided for @continueLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get continueLabel;
+
+  /// No description provided for @step.
+  ///
+  /// In en, this message translates to:
+  /// **'Step'**
+  String get step;
+
+  /// No description provided for @stepOf.
+  ///
+  /// In en, this message translates to:
+  /// **'of'**
+  String get stepOf;
+
+  /// No description provided for @completeRequiredFields.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete this field to continue.'**
+  String get completeRequiredFields;
+
+  /// No description provided for @profileRequestFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'We could not complete that request. Please try again.'**
+  String get profileRequestFailed;
+
+  /// No description provided for @ambiguousBirthTime.
+  ///
+  /// In en, this message translates to:
+  /// **'This local time occurs twice due to a clock change. Please confirm a different time.'**
+  String get ambiguousBirthTime;
+
+  /// No description provided for @nonexistentBirthTime.
+  ///
+  /// In en, this message translates to:
+  /// **'This local time did not occur due to a clock change. Please choose another time.'**
+  String get nonexistentBirthTime;
+
+  /// No description provided for @active.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get active;
+
+  /// No description provided for @activeProfileIndicator.
+  ///
+  /// In en, this message translates to:
+  /// **'Active birth profile'**
+  String get activeProfileIndicator;
+
+  /// No description provided for @retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get retry;
+
+  /// No description provided for @profileUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This profile is unavailable.'**
+  String get profileUnavailable;
+
+  /// No description provided for @editDeleteUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile editing and deletion are not available yet.'**
+  String get editDeleteUnavailable;
 }
 
 class _AppLocalizationsDelegate

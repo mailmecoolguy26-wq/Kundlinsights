@@ -12,7 +12,8 @@ enum ApiFailureKind {
 }
 
 class ApiFailure implements Exception {
-  const ApiFailure(this.kind, {this.requestId});
+  const ApiFailure(this.kind, {this.requestId, this.code});
   final ApiFailureKind kind;
   final String? requestId;
+  final String? code;
 }

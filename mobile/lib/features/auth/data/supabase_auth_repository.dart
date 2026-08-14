@@ -18,11 +18,13 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   Stream<AuthSnapshot> get states => _states.stream;
 
-  AuthSnapshot _snapshot() => AuthSnapshot(
-    _client.auth.currentSession == null
-        ? AuthStatus.unauthenticated
-        : AuthStatus.authenticated,
-  );
+  AuthSnapshot _snapshot() {
+    final session = _client.auth.currentSession;
+    return AuthSnapshot(
+      session == null ? AuthStatus.unauthenticated : AuthStatus.authenticated,
+      subject: session?.user.id,
+    );
+  }
 
   @override
   Future<AuthSnapshot> restore() async => _snapshot();
