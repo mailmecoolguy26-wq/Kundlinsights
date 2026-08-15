@@ -6,6 +6,7 @@ const { NatalSummaryService } = require('../application/natal-summary');
 const { DivisionalChartService } = require('../application/divisional-charts');
 const { VimshottariService } = require('../application/vimshottari');
 const { TransitSnapshotService } = require('../application/transit-snapshot');
+const { AshtakavargaService } = require('../application/ashtakavarga');
 const { PostgresUserRepository, PostgresBirthProfileRepository, PostgresReadingRepository, PostgresEntitlementRepository } = require('../persistence');
 const { PostgresUserKeyEnvelopeStore, UserDekProvider, BirthProfilePayloadCodec, ReadingPayloadCodec } = require('../security/crypto');
 const { resolveOrProvisionAppUser } = require('../security/auth');
@@ -63,6 +64,7 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   const divisionalChartService = new DivisionalChartService({ birthProfileService, astronomicalEngine });
   const vimshottariService = new VimshottariService({ birthProfileService, astronomicalEngine, canonicalSiderealSunSampler });
   const transitSnapshotService = new TransitSnapshotService({ birthProfileService, astronomicalEngine });
+  const ashtakavargaService = new AshtakavargaService({ birthProfileService, astronomicalEngine });
   const readingGenerator = {
     generate: async ({ birthProfile }) => {
       const { BirthCareerReadingOrchestrator } = require('../orchestration');
@@ -78,7 +80,7 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   const secureReadingService = new SecureReadingService({ authUserResolver: userResolver, transactionExecutor: tx, repositories, secureBirthProfileLoader: birthProfileService, readingCryptoCoordinator: cryptoCoordinator, readingGenerator, readingRecordFactory: createReadingRecord, replayReading: replayPersistedReading, requiresEntitlement, idGenerator, clock });
   const { PlaceResolutionService } = require('./place-resolution-service');
   const placeResolutionService = placeResolver ? new PlaceResolutionService({ birthPlaceResolver: placeResolver }) : null;
-  const api = createApi({ authVerifier, userResolver: { resolve: userResolver }, birthProfileService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, secureReadingService, placeResolutionService, requestIdGenerator: idGenerator, corsAllowlist, isReady, logger, bodyLimit });
+  const api = createApi({ authVerifier, userResolver: { resolve: userResolver }, birthProfileService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, ashtakavargaService, secureReadingService, placeResolutionService, requestIdGenerator: idGenerator, corsAllowlist, isReady, logger, bodyLimit });
   api.apiRuntime = { astronomicalEngine, canonicalSiderealSunSampler };
   return Object.freeze({ api, services: Object.freeze({ birthProfileService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, secureReadingService, userResolver, transactionExecutor: tx }) });
 }
