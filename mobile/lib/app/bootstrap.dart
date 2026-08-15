@@ -23,6 +23,9 @@ import '../features/divisional/divisional_chart_controller.dart';
 import '../features/vimshottari/data/vimshottari_api_repository.dart';
 import '../features/vimshottari/domain/vimshottari_repository.dart';
 import '../features/vimshottari/vimshottari_controller.dart';
+import '../features/transits/data/transit_snapshot_api_repository.dart';
+import '../features/transits/domain/transit_snapshot_repository.dart';
+import '../features/transits/transit_snapshot_controller.dart';
 import 'app.dart';
 
 Future<void> bootstrap() async {
@@ -33,12 +36,14 @@ Future<void> bootstrap() async {
   final NatalSummaryRepository natalSummaryRepository;
   final DivisionalChartRepository divisionalChartRepository;
   final VimshottariRepository vimshottariRepository;
+  final TransitSnapshotRepository transitSnapshotRepository;
   if (config == null) {
     repository = _UnavailableAuthRepository();
     profileRepository = const UnavailableBirthProfileRepository();
     natalSummaryRepository = const UnavailableNatalSummaryRepository();
     divisionalChartRepository = const UnavailableDivisionalChartRepository();
     vimshottariRepository = const UnavailableVimshottariRepository();
+    transitSnapshotRepository = const UnavailableTransitSnapshotRepository();
   } else {
     await Supabase.initialize(
       url: config.supabaseUrl,
@@ -53,6 +58,7 @@ Future<void> bootstrap() async {
     natalSummaryRepository = NatalSummaryApiRepository(apiClient);
     divisionalChartRepository = DivisionalChartApiRepository(apiClient);
     vimshottariRepository = VimshottariApiRepository(apiClient);
+    transitSnapshotRepository = TransitSnapshotApiRepository(apiClient);
   }
   final controller = AuthController(repository);
   await controller.restore();
@@ -68,6 +74,9 @@ Future<void> bootstrap() async {
           divisionalChartRepository,
         ),
         vimshottariRepositoryProvider.overrideWithValue(vimshottariRepository),
+        transitSnapshotRepositoryProvider.overrideWithValue(
+          transitSnapshotRepository,
+        ),
       ],
       child: KundlInsightsApp(authController: controller),
     ),

@@ -17,6 +17,8 @@ import '../../features/profiles/profile_controller.dart';
 import '../../features/readings/readings_screen.dart';
 import '../../features/vimshottari/presentation/vimshottari_timeline_screen.dart';
 import '../../features/vimshottari/vimshottari_controller.dart';
+import '../../features/transits/presentation/current_transits_screen.dart';
+import '../../features/transits/transit_snapshot_controller.dart';
 import '../../l10n/app_localizations.dart';
 
 GoRouter createAppRouter(
@@ -25,6 +27,7 @@ GoRouter createAppRouter(
   NatalSummaryController natal,
   DivisionalChartController divisional,
   VimshottariController vimshottari,
+  TransitSnapshotController transits,
 ) => GoRouter(
   initialLocation: '/splash',
   refreshListenable: Listenable.merge([authController, profiles]),
@@ -51,6 +54,14 @@ GoRouter createAppRouter(
     return null;
   },
   routes: [
+    GoRoute(
+      path: '/transits',
+      name: 'current-transits',
+      builder: (context, state) => CurrentTransitsScreen(
+        profileController: profiles,
+        controller: transits,
+      ),
+    ),
     GoRoute(
       path: '/splash',
       builder: (context, state) => const _LoadingScreen(),

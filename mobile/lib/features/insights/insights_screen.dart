@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
@@ -17,6 +18,18 @@ class InsightsScreen extends StatelessWidget {
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
           SectionHeader(title: text.insights, subtitle: text.insightsBody),
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: AppCard(
+              child: ListTile(
+                leading: const Icon(Icons.public_outlined),
+                title: Text(text.currentTransits),
+                subtitle: Text(text.gochar),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.pushNamed('current-transits'),
+              ),
+            ),
+          ),
           _InsightItem(
             title: text.career,
             icon: Icons.work_outline,

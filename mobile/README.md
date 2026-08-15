@@ -71,3 +71,11 @@ Flutter sends an explicit UTC instant for current state and only UTC `from`, `to
 P8 state is scoped to the authenticated subject, active birth profile, and the selected timeline query (level and UTC window). When Profile A changes to Profile B, Profile A’s current and timeline state is invalidated immediately; it cannot render beneath Profile B, which loads independently. A direct authenticated User A-to-User B change clears User A’s Dasha state immediately, while a token or session refresh for the same authenticated subject retains valid state.
 
 Each asynchronous current or timeline request is bound to that state identity. A late response is discarded after a profile or authenticated-user change, or after a newer timeline level/window request. For example, if an MD request begins, the user selects PD, and the earlier MD response arrives last, it cannot overwrite the PD result. Likewise, a late Profile A response is discarded after switching to Profile B.
+
+## P9 Current Transits / Gochar
+
+P9 uses the authenticated API-P5A snapshot endpoint, `GET /v1/birth-profiles/:id/transits?at=<UTC RFC3339>`. The app sends a new explicit current UTC instant for each load or refresh; it never sends raw birth data or a client user ID. The backend is authoritative for all nine Grahas, their transit sign, degree within sign, natal-house placement, motion/retrograde state, and factual Sade Sati status.
+
+Flutter only formats the supplied values. It does not calculate transits, Rashis, degrees, houses, retrograde, or Sade Sati. Same-Rashi associations, Transit Drishti, transit events, predictions, and interpretations are deliberately absent from P9.
+
+Transit state is scoped to the authenticated subject and active profile. A profile or user change clears prior state immediately; a same-subject token refresh preserves it. Generation identities prevent late responses from an earlier profile or refresh from overwriting the newest snapshot.

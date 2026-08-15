@@ -10,6 +10,7 @@ import '../features/profiles/profile_controller.dart';
 import '../features/natal/natal_summary_controller.dart';
 import '../features/divisional/divisional_chart_controller.dart';
 import '../features/vimshottari/vimshottari_controller.dart';
+import '../features/transits/transit_snapshot_controller.dart';
 
 class KundlInsightsApp extends ConsumerWidget {
   const KundlInsightsApp({super.key, required this.authController});
@@ -26,6 +27,9 @@ class KundlInsightsApp extends ConsumerWidget {
     final vimshottari = ref.watch(
       vimshottariControllerProvider((authController, profiles)),
     );
+    final transits = ref.watch(
+      transitSnapshotControllerProvider((authController, profiles)),
+    );
     return MaterialApp.router(
       title: 'KundlInsights',
       debugShowCheckedModeBanner: false,
@@ -36,6 +40,7 @@ class KundlInsightsApp extends ConsumerWidget {
         natal,
         divisional,
         vimshottari,
+        transits,
       ),
       localizationsDelegates: const [
         AppLocalizations.delegate,

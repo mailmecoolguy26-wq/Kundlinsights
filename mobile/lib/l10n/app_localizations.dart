@@ -262,6 +262,90 @@ abstract class AppLocalizations {
   /// **'Explore the areas KundlInsights will support as secure backend integrations become available.'**
   String get insightsBody;
 
+  /// No description provided for @currentTransits.
+  ///
+  /// In en, this message translates to:
+  /// **'Current Transits'**
+  String get currentTransits;
+
+  /// No description provided for @gochar.
+  ///
+  /// In en, this message translates to:
+  /// **'Gochar'**
+  String get gochar;
+
+  /// No description provided for @transitSign.
+  ///
+  /// In en, this message translates to:
+  /// **'Transit Sign'**
+  String get transitSign;
+
+  /// No description provided for @natalHouse.
+  ///
+  /// In en, this message translates to:
+  /// **'Natal House'**
+  String get natalHouse;
+
+  /// No description provided for @direct.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct'**
+  String get direct;
+
+  /// No description provided for @sadeSati.
+  ///
+  /// In en, this message translates to:
+  /// **'Sade Sati'**
+  String get sadeSati;
+
+  /// No description provided for @active.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get active;
+
+  /// No description provided for @notActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Not Active'**
+  String get notActive;
+
+  /// No description provided for @snapshotTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Snapshot Time'**
+  String get snapshotTime;
+
+  /// No description provided for @planetaryTransits.
+  ///
+  /// In en, this message translates to:
+  /// **'Planetary Transits'**
+  String get planetaryTransits;
+
+  /// No description provided for @phase.
+  ///
+  /// In en, this message translates to:
+  /// **'Phase'**
+  String get phase;
+
+  /// No description provided for @status.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get status;
+
+  /// No description provided for @currentTransitsLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Current transits loading'**
+  String get currentTransitsLoading;
+
+  /// No description provided for @currentTransitsUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Your current transits are unavailable right now. Please try again.'**
+  String get currentTransitsUnavailable;
+
   /// No description provided for @signInTitle.
   ///
   /// In en, this message translates to:
@@ -477,12 +561,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This local time did not occur due to a clock change. Please choose another time.'**
   String get nonexistentBirthTime;
-
-  /// No description provided for @active.
-  ///
-  /// In en, this message translates to:
-  /// **'Active'**
-  String get active;
 
   /// No description provided for @activeProfileIndicator.
   ///

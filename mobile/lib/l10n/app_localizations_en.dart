@@ -99,6 +99,49 @@ class AppLocalizationsEn extends AppLocalizations {
       'Explore the areas KundlInsights will support as secure backend integrations become available.';
 
   @override
+  String get currentTransits => 'Current Transits';
+
+  @override
+  String get gochar => 'Gochar';
+
+  @override
+  String get transitSign => 'Transit Sign';
+
+  @override
+  String get natalHouse => 'Natal House';
+
+  @override
+  String get direct => 'Direct';
+
+  @override
+  String get sadeSati => 'Sade Sati';
+
+  @override
+  String get active => 'Active';
+
+  @override
+  String get notActive => 'Not Active';
+
+  @override
+  String get snapshotTime => 'Snapshot Time';
+
+  @override
+  String get planetaryTransits => 'Planetary Transits';
+
+  @override
+  String get phase => 'Phase';
+
+  @override
+  String get status => 'Status';
+
+  @override
+  String get currentTransitsLoading => 'Current transits loading';
+
+  @override
+  String get currentTransitsUnavailable =>
+      'Your current transits are unavailable right now. Please try again.';
+
+  @override
   String get signInTitle => 'Welcome back';
 
   @override
@@ -211,9 +254,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get nonexistentBirthTime =>
       'This local time did not occur due to a clock change. Please choose another time.';
-
-  @override
-  String get active => 'Active';
 
   @override
   String get activeProfileIndicator => 'Active birth profile';
