@@ -4,7 +4,7 @@ function required(value, name) { if (!value || typeof value !== 'object') throw 
 function id(value, name) { if (typeof value !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(value)) { const e = new Error(); e.code = `INVALID_${name}`; throw e; } return value; }
 function dtoProfile(p) { return { id: p.id, displayLabel: p.displayLabel, birthData: p.birthData, status: p.status, createdAt: p.createdAt, updatedAt: p.updatedAt }; }
 function dtoReading(r) { return { readingId: r.readingId, domain: r.domain || r.record && r.record.domain, engineProfileId: r.engineProfileId || r.record && r.record.engineProfileId, createdAt: r.createdAt || r.record && r.record.createdAt, status: r.status }; }
-function createApi({ authVerifier, userResolver, birthProfileService, natalSummaryService = null, divisionalChartService = null, secureReadingService, placeResolutionService = null, entitlementService, requestIdGenerator = crypto.randomUUID, corsAllowlist = [], isReady = () => true, logger = false, bodyLimit = 16 * 1024 } = {}) {
+function createApi({ authVerifier, userResolver, birthProfileService, natalSummaryService = null, divisionalChartService = null, vimshottariService = null, secureReadingService, placeResolutionService = null, entitlementService, requestIdGenerator = crypto.randomUUID, corsAllowlist = [], isReady = () => true, logger = false, bodyLimit = 16 * 1024 } = {}) {
   required(authVerifier, 'AUTH_VERIFIER'); if (typeof authVerifier.verifyRequest !== 'function') throw new TypeError('INVALID_AUTH_VERIFIER'); required(userResolver, 'USER_RESOLVER'); required(birthProfileService, 'BIRTH_PROFILE_SERVICE'); required(secureReadingService, 'SECURE_READING_SERVICE');
   if (!Array.isArray(corsAllowlist) || !corsAllowlist.every((origin) => typeof origin === 'string' && origin.startsWith('https://') && !origin.includes('*')) || typeof isReady !== 'function' || !Number.isInteger(bodyLimit) || bodyLimit < 1024 || bodyLimit > 16 * 1024) throw new TypeError('INVALID_API_RUNTIME_OPTIONS');
   const app = Fastify({ logger, bodyLimit, requestIdHeader: 'x-request-id', genReqId: () => requestIdGenerator() });
@@ -36,6 +36,11 @@ function createApi({ authVerifier, userResolver, birthProfileService, natalSumma
         requestId: request.id,
       }));
     }
+  }
+  if (vimshottariService) {
+    if (typeof vimshottariService.current !== 'function' || typeof vimshottariService.timeline !== 'function') throw new TypeError('INVALID_VIMSHOTTARI_SERVICE');
+    app.get('/v1/birth-profiles/:id/vimshottari', async (request) => ({ vimshottari: await vimshottariService.current({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), at: request.query.at }), requestId: request.id }));
+    app.get('/v1/birth-profiles/:id/vimshottari/timeline', async (request) => ({ vimshottariTimeline: await vimshottariService.timeline({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), from: request.query.from, to: request.query.to, level: request.query.level }), requestId: request.id }));
   }
   app.get('/v1/birth-profiles/:id', async (request) => ({ birthProfile: dtoProfile(await birthProfileService.get({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID') })), requestId: request.id }));
   app.post('/v1/readings', async (request, reply) => { const body = request.body || {}; const key = request.headers['idempotency-key']; if (typeof key !== 'string' || !/^[A-Za-z0-9._:-]{1,128}$/.test(key)) { const e = new Error(); e.code = 'INVALID_IDEMPOTENCY_KEY'; throw e; } const reading = await secureReadingService.generateSecureReading({ principal: request.principal, birthProfileId: id(body.birthProfileId, 'BIRTH_PROFILE_ID'), domain: id(body.domain, 'READING_DOMAIN'), idempotencyKey: key, readingInstant: body.readingInstant, locale: body.locale }); reply.code(201); return { reading: dtoReading(reading), requestId: request.id }; });
