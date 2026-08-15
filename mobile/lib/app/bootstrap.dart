@@ -20,6 +20,9 @@ import '../features/natal/natal_summary_controller.dart';
 import '../features/divisional/data/divisional_chart_api_repository.dart';
 import '../features/divisional/domain/divisional_chart_repository.dart';
 import '../features/divisional/divisional_chart_controller.dart';
+import '../features/vimshottari/data/vimshottari_api_repository.dart';
+import '../features/vimshottari/domain/vimshottari_repository.dart';
+import '../features/vimshottari/vimshottari_controller.dart';
 import 'app.dart';
 
 Future<void> bootstrap() async {
@@ -29,11 +32,13 @@ Future<void> bootstrap() async {
   final BirthProfileRepository profileRepository;
   final NatalSummaryRepository natalSummaryRepository;
   final DivisionalChartRepository divisionalChartRepository;
+  final VimshottariRepository vimshottariRepository;
   if (config == null) {
     repository = _UnavailableAuthRepository();
     profileRepository = const UnavailableBirthProfileRepository();
     natalSummaryRepository = const UnavailableNatalSummaryRepository();
     divisionalChartRepository = const UnavailableDivisionalChartRepository();
+    vimshottariRepository = const UnavailableVimshottariRepository();
   } else {
     await Supabase.initialize(
       url: config.supabaseUrl,
@@ -47,6 +52,7 @@ Future<void> bootstrap() async {
     profileRepository = BirthProfileApiRepository(apiClient);
     natalSummaryRepository = NatalSummaryApiRepository(apiClient);
     divisionalChartRepository = DivisionalChartApiRepository(apiClient);
+    vimshottariRepository = VimshottariApiRepository(apiClient);
   }
   final controller = AuthController(repository);
   await controller.restore();
@@ -61,6 +67,7 @@ Future<void> bootstrap() async {
         divisionalChartRepositoryProvider.overrideWithValue(
           divisionalChartRepository,
         ),
+        vimshottariRepositoryProvider.overrideWithValue(vimshottariRepository),
       ],
       child: KundlInsightsApp(authController: controller),
     ),

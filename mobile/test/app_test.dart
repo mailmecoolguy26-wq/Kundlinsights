@@ -15,6 +15,9 @@ import 'package:kundlinsights_mobile/features/divisional/domain/divisional_chart
 import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile.dart';
 import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile_repository.dart';
 import 'package:kundlinsights_mobile/features/profiles/profile_controller.dart';
+import 'package:kundlinsights_mobile/features/vimshottari/domain/vimshottari.dart';
+import 'package:kundlinsights_mobile/features/vimshottari/domain/vimshottari_repository.dart';
+import 'package:kundlinsights_mobile/features/vimshottari/vimshottari_controller.dart';
 
 void main() {
   late _FakeAuthRepository repository;
@@ -204,18 +207,37 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Welcome back'), findsOneWidget);
   });
+
+  testWidgets('Home shows factual current Dasha with a timeline CTA', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_app(controller, profiles, vimshottari: _Dasha()));
+    await controller.restore();
+    await tester.pumpAndSettle();
+    expect(find.text('Current Mahadasha'), findsOneWidget);
+    expect(find.text('Mercury'), findsOneWidget);
+    expect(find.text('Current Antardasha'), findsOneWidget);
+    expect(find.text('Venus'), findsOneWidget);
+    expect(find.text('Current Pratyantardasha'), findsOneWidget);
+    expect(find.text('Sun'), findsOneWidget);
+    expect(find.text('View full Dasha timeline'), findsOneWidget);
+  });
 }
 
 Widget _app(
   AuthController controller,
   BirthProfileRepository profiles, {
   DivisionalChartRepository? charts,
+  VimshottariRepository? vimshottari,
 }) => ProviderScope(
   overrides: [
     birthProfileRepositoryProvider.overrideWithValue(profiles),
     natalSummaryRepositoryProvider.overrideWithValue(_Natal()),
     divisionalChartRepositoryProvider.overrideWithValue(
       charts ?? const UnavailableDivisionalChartRepository(),
+    ),
+    vimshottariRepositoryProvider.overrideWithValue(
+      vimshottari ?? const UnavailableVimshottariRepository(),
     ),
   ],
   child: KundlInsightsApp(authController: controller),
@@ -225,6 +247,40 @@ class _Natal implements NatalSummaryRepository {
   @override
   Future<NatalSummary> getNatalSummary(String birthProfileId) async =>
       _natalSummary(birthProfileId);
+}
+
+class _Dasha implements VimshottariRepository {
+  @override
+  Future<VimshottariCurrent> getCurrent({
+    required String birthProfileId,
+    required DateTime atUtc,
+  }) async => VimshottariCurrent(
+    birthProfileId: birthProfileId,
+    at: atUtc.toIso8601String(),
+    mahadasha: _period('Mercury'),
+    antardasha: _period('Venus'),
+    pratyantardasha: _period('Sun'),
+  );
+
+  @override
+  Future<VimshottariTimeline> getTimeline({
+    required String birthProfileId,
+    required DateTime fromUtc,
+    required DateTime toUtc,
+    required VimshottariLevel level,
+  }) async => VimshottariTimeline(
+    birthProfileId: birthProfileId,
+    level: level,
+    from: fromUtc.toIso8601String(),
+    to: toUtc.toIso8601String(),
+    periods: [_period('Mercury')],
+  );
+
+  DashaPeriod _period(String lord) => DashaPeriod(
+    lord: lord,
+    start: '2027-01-01T00:00:00.000Z',
+    end: '2027-02-01T00:00:00.000Z',
+  );
 }
 
 class _DivisionalCharts implements DivisionalChartRepository {

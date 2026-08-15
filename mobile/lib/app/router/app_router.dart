@@ -15,6 +15,8 @@ import '../../features/profiles/presentation/birth_profile_onboarding_screen.dar
 import '../../features/profiles/presentation/birth_profiles_screen.dart';
 import '../../features/profiles/profile_controller.dart';
 import '../../features/readings/readings_screen.dart';
+import '../../features/vimshottari/presentation/vimshottari_timeline_screen.dart';
+import '../../features/vimshottari/vimshottari_controller.dart';
 import '../../l10n/app_localizations.dart';
 
 GoRouter createAppRouter(
@@ -22,6 +24,7 @@ GoRouter createAppRouter(
   ProfileController profiles,
   NatalSummaryController natal,
   DivisionalChartController divisional,
+  VimshottariController vimshottari,
 ) => GoRouter(
   initialLocation: '/splash',
   refreshListenable: Listenable.merge([authController, profiles]),
@@ -51,6 +54,14 @@ GoRouter createAppRouter(
     GoRoute(
       path: '/splash',
       builder: (context, state) => const _LoadingScreen(),
+    ),
+    GoRoute(
+      path: '/vimshottari',
+      name: 'vimshottari-timeline',
+      builder: (context, state) => VimshottariTimelineScreen(
+        profileController: profiles,
+        controller: vimshottari,
+      ),
     ),
     GoRoute(
       path: '/profiles-loading',
@@ -103,6 +114,7 @@ GoRouter createAppRouter(
               builder: (context, state) => HomeScreen(
                 profileController: profiles,
                 natalController: natal,
+                vimshottariController: vimshottari,
               ),
             ),
           ],

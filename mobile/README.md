@@ -61,3 +61,13 @@ The client continues to perform no local astrology calculation.
 ## P7 D9 Navamsa and D10 Dasamsa
 
 P7 adds authenticated D9 and D10 views using `GET /v1/birth-profiles/:id/divisional-charts/d9` and `GET /v1/birth-profiles/:id/divisional-charts/d10`. They share the P6 North Indian fixed-house renderer, but receive all Varga signs, degrees, houses, Ascendant, and Graha placements directly from the API-P4A DTO. Flutter never calculates a Varga, derives a sign or house, or infers retrograde/Nakshatra data. D11 is not exposed. Vimshottari remains the next backend API milestone.
+
+## P8 Vimshottari state and timeline
+
+P8 uses only the authenticated API-P4B endpoints: `GET /v1/birth-profiles/:id/vimshottari?at=<UTC RFC3339>` for the current Mahadasha, Antardasha, and Pratyantardasha, and `GET /v1/birth-profiles/:id/vimshottari/timeline?from=<UTC RFC3339>&to=<UTC RFC3339>&level=md|ad|pd` for a flat, chronological timeline.
+
+Flutter sends an explicit UTC instant for current state and only UTC `from`, `to`, and `level` for timelines. It uses safe one-, three-, and five-year presets; the largest is 1,825 days and stays below the backend’s 1,827-civil-day maximum. The backend remains authoritative for the production solar-return ruleset, period boundaries, hierarchy, and all Dasha calculation. The mobile client exposes neither a ruleset selector nor any prediction or interpretation, and it never sends raw birth data or calculates Vimshottari locally.
+
+P8 state is scoped to the authenticated subject, active birth profile, and the selected timeline query (level and UTC window). When Profile A changes to Profile B, Profile A’s current and timeline state is invalidated immediately; it cannot render beneath Profile B, which loads independently. A direct authenticated User A-to-User B change clears User A’s Dasha state immediately, while a token or session refresh for the same authenticated subject retains valid state.
+
+Each asynchronous current or timeline request is bound to that state identity. A late response is discarded after a profile or authenticated-user change, or after a newer timeline level/window request. For example, if an MD request begins, the user selects PD, and the earlier MD response arrives last, it cannot overwrite the PD result. Likewise, a late Profile A response is discarded after switching to Profile B.

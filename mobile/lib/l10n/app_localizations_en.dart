@@ -329,4 +329,62 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get divisionalChartUnavailable =>
       'This divisional chart is unavailable right now. Please try again.';
+
+  @override
+  String get currentDasha => 'Current Dasha';
+
+  @override
+  String get currentDashaLoading => 'Current Dasha loading';
+
+  @override
+  String get currentMahadasha => 'Current Mahadasha';
+
+  @override
+  String get currentAntardasha => 'Current Antardasha';
+
+  @override
+  String get currentPratyantardasha => 'Current Pratyantardasha';
+
+  @override
+  String get viewFullDashaTimeline => 'View full Dasha timeline';
+
+  @override
+  String get vimshottariTimeline => 'Vimshottari Dasha';
+
+  @override
+  String get vimshottariTimelineLoading => 'Vimshottari timeline loading';
+
+  @override
+  String get vimshottariUnavailable =>
+      'Your Vimshottari data is unavailable right now. Please try again.';
+
+  @override
+  String get dashaLevel => 'Dasha level';
+
+  @override
+  String get timelineWindow => 'Timeline window';
+
+  @override
+  String get nextOneYear => 'Next 1 year';
+
+  @override
+  String get nextThreeYears => 'Next 3 years';
+
+  @override
+  String get nextFiveYears => 'Next 5 years';
+
+  @override
+  String get mahadasha => 'Mahadasha';
+
+  @override
+  String get antardasha => 'Antardasha';
+
+  @override
+  String get pratyantardasha => 'Pratyantardasha';
+
+  @override
+  String get starts => 'Starts';
+
+  @override
+  String get ends => 'Ends';
 }

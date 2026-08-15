@@ -699,6 +699,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This divisional chart is unavailable right now. Please try again.'**
   String get divisionalChartUnavailable;
+
+  /// No description provided for @currentDasha.
+  ///
+  /// In en, this message translates to:
+  /// **'Current Dasha'**
+  String get currentDasha;
+
+  /// No description provided for @currentDashaLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Current Dasha loading'**
+  String get currentDashaLoading;
+
+  /// No description provided for @currentMahadasha.
+  ///
+  /// In en, this message translates to:
+  /// **'Current Mahadasha'**
+  String get currentMahadasha;
+
+  /// No description provided for @currentAntardasha.
+  ///
+  /// In en, this message translates to:
+  /// **'Current Antardasha'**
+  String get currentAntardasha;
+
+  /// No description provided for @currentPratyantardasha.
+  ///
+  /// In en, this message translates to:
+  /// **'Current Pratyantardasha'**
+  String get currentPratyantardasha;
+
+  /// No description provided for @viewFullDashaTimeline.
+  ///
+  /// In en, this message translates to:
+  /// **'View full Dasha timeline'**
+  String get viewFullDashaTimeline;
+
+  /// No description provided for @vimshottariTimeline.
+  ///
+  /// In en, this message translates to:
+  /// **'Vimshottari Dasha'**
+  String get vimshottariTimeline;
+
+  /// No description provided for @vimshottariTimelineLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Vimshottari timeline loading'**
+  String get vimshottariTimelineLoading;
+
+  /// No description provided for @vimshottariUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Vimshottari data is unavailable right now. Please try again.'**
+  String get vimshottariUnavailable;
+
+  /// No description provided for @dashaLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Dasha level'**
+  String get dashaLevel;
+
+  /// No description provided for @timelineWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'Timeline window'**
+  String get timelineWindow;
+
+  /// No description provided for @nextOneYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Next 1 year'**
+  String get nextOneYear;
+
+  /// No description provided for @nextThreeYears.
+  ///
+  /// In en, this message translates to:
+  /// **'Next 3 years'**
+  String get nextThreeYears;
+
+  /// No description provided for @nextFiveYears.
+  ///
+  /// In en, this message translates to:
+  /// **'Next 5 years'**
+  String get nextFiveYears;
+
+  /// No description provided for @mahadasha.
+  ///
+  /// In en, this message translates to:
+  /// **'Mahadasha'**
+  String get mahadasha;
+
+  /// No description provided for @antardasha.
+  ///
+  /// In en, this message translates to:
+  /// **'Antardasha'**
+  String get antardasha;
+
+  /// No description provided for @pratyantardasha.
+  ///
+  /// In en, this message translates to:
+  /// **'Pratyantardasha'**
+  String get pratyantardasha;
+
+  /// No description provided for @starts.
+  ///
+  /// In en, this message translates to:
+  /// **'Starts'**
+  String get starts;
+
+  /// No description provided for @ends.
+  ///
+  /// In en, this message translates to:
+  /// **'Ends'**
+  String get ends;
 }
 
 class _AppLocalizationsDelegate
