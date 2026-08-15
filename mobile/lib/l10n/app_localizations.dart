@@ -891,6 +891,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Ends'**
   String get ends;
+
+  /// No description provided for @ashtakavarga.
+  ///
+  /// In en, this message translates to:
+  /// **'Ashtakavarga'**
+  String get ashtakavarga;
+
+  /// No description provided for @sarvashtakavarga.
+  ///
+  /// In en, this message translates to:
+  /// **'Sarvashtakavarga'**
+  String get sarvashtakavarga;
+
+  /// No description provided for @sav.
+  ///
+  /// In en, this message translates to:
+  /// **'SAV'**
+  String get sav;
+
+  /// No description provided for @bhinnashtakavarga.
+  ///
+  /// In en, this message translates to:
+  /// **'Bhinnashtakavarga'**
+  String get bhinnashtakavarga;
+
+  /// No description provided for @bav.
+  ///
+  /// In en, this message translates to:
+  /// **'BAV'**
+  String get bav;
+
+  /// No description provided for @lagnaBav.
+  ///
+  /// In en, this message translates to:
+  /// **'Lagna BAV'**
+  String get lagnaBav;
+
+  /// No description provided for @score.
+  ///
+  /// In en, this message translates to:
+  /// **'Score'**
+  String get score;
+
+  /// No description provided for @sun.
+  ///
+  /// In en, this message translates to:
+  /// **'Sun'**
+  String get sun;
+
+  /// No description provided for @moon.
+  ///
+  /// In en, this message translates to:
+  /// **'Moon'**
+  String get moon;
+
+  /// No description provided for @mars.
+  ///
+  /// In en, this message translates to:
+  /// **'Mars'**
+  String get mars;
+
+  /// No description provided for @mercury.
+  ///
+  /// In en, this message translates to:
+  /// **'Mercury'**
+  String get mercury;
+
+  /// No description provided for @jupiter.
+  ///
+  /// In en, this message translates to:
+  /// **'Jupiter'**
+  String get jupiter;
+
+  /// No description provided for @venus.
+  ///
+  /// In en, this message translates to:
+  /// **'Venus'**
+  String get venus;
+
+  /// No description provided for @saturn.
+  ///
+  /// In en, this message translates to:
+  /// **'Saturn'**
+  String get saturn;
+
+  /// No description provided for @loading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading'**
+  String get loading;
+
+  /// No description provided for @noData.
+  ///
+  /// In en, this message translates to:
+  /// **'No data'**
+  String get noData;
+
+  /// No description provided for @ashtakavargaUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Ashtakavarga data is unavailable right now. Please try again.'**
+  String get ashtakavargaUnavailable;
 }
 
 class _AppLocalizationsDelegate

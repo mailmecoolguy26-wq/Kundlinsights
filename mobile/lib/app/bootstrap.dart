@@ -26,6 +26,10 @@ import '../features/vimshottari/vimshottari_controller.dart';
 import '../features/transits/data/transit_snapshot_api_repository.dart';
 import '../features/transits/domain/transit_snapshot_repository.dart';
 import '../features/transits/transit_snapshot_controller.dart';
+import '../features/ashtakavarga/data/ashtakavarga_repository.dart';
+import '../features/ashtakavarga/domain/ashtakavarga.dart';
+import '../features/ashtakavarga/domain/ashtakavarga_repository.dart';
+import '../features/ashtakavarga/ashtakavarga_controller.dart';
 import 'app.dart';
 
 Future<void> bootstrap() async {
@@ -37,6 +41,7 @@ Future<void> bootstrap() async {
   final DivisionalChartRepository divisionalChartRepository;
   final VimshottariRepository vimshottariRepository;
   final TransitSnapshotRepository transitSnapshotRepository;
+  final AshtakavargaRepository ashtakavargaRepository;
   if (config == null) {
     repository = _UnavailableAuthRepository();
     profileRepository = const UnavailableBirthProfileRepository();
@@ -44,6 +49,7 @@ Future<void> bootstrap() async {
     divisionalChartRepository = const UnavailableDivisionalChartRepository();
     vimshottariRepository = const UnavailableVimshottariRepository();
     transitSnapshotRepository = const UnavailableTransitSnapshotRepository();
+    ashtakavargaRepository = const _UnavailableAshtakavargaRepository();
   } else {
     await Supabase.initialize(
       url: config.supabaseUrl,
@@ -59,6 +65,7 @@ Future<void> bootstrap() async {
     divisionalChartRepository = DivisionalChartApiRepository(apiClient);
     vimshottariRepository = VimshottariApiRepository(apiClient);
     transitSnapshotRepository = TransitSnapshotApiRepository(apiClient);
+    ashtakavargaRepository = AshtakavargaApiRepository(apiClient);
   }
   final controller = AuthController(repository);
   await controller.restore();
@@ -77,10 +84,21 @@ Future<void> bootstrap() async {
         transitSnapshotRepositoryProvider.overrideWithValue(
           transitSnapshotRepository,
         ),
+        ashtakavargaRepositoryProvider.overrideWithValue(
+          ashtakavargaRepository,
+        ),
       ],
       child: KundlInsightsApp(authController: controller),
     ),
   );
+}
+
+class _UnavailableAshtakavargaRepository implements AshtakavargaRepository {
+  const _UnavailableAshtakavargaRepository();
+
+  @override
+  Future<Ashtakavarga> getAshtakavarga({required String birthProfileId}) =>
+      Future<Ashtakavarga>.error(StateError('Configuration is required.'));
 }
 
 final secureStateStoreProvider = Provider<SecureStateStore>((ref) {

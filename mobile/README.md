@@ -79,3 +79,11 @@ P9 uses the authenticated API-P5A snapshot endpoint, `GET /v1/birth-profiles/:id
 Flutter only formats the supplied values. It does not calculate transits, Rashis, degrees, houses, retrograde, or Sade Sati. Same-Rashi associations, Transit Drishti, transit events, predictions, and interpretations are deliberately absent from P9.
 
 Transit state is scoped to the authenticated subject and active profile. A profile or user change clears prior state immediately; a same-subject token refresh preserves it. Generation identities prevent late responses from an earlier profile or refresh from overwriting the newest snapshot.
+
+## P10 Ashtakavarga
+
+P10 presents the factual API-P5B response from `GET /v1/birth-profiles/:id/ashtakavarga` through the existing authenticated Dio client. Kundli provides the route to Ashtakavarga; it is not a sixth bottom-navigation tab. The view shows SAV as twelve authoritative sign scores, BAV for exactly Sun, Moon, Mars, Mercury, Jupiter, Venus, and Saturn, plus separate Lagna BAV. Rahu and Ketu BAV are not exposed.
+
+All scores remain sign-oriented. Flutter does not convert signs to houses, use the Ascendant to reinterpret them, calculate Ashtakavarga, normalize or rank scores, or add strength meanings, predictions, or interpretations. Shodhana, Pinda, contributor matrices, and calculation traces are not available in P10.
+
+Ashtakavarga state is scoped to the authenticated subject and active birth profile. It clears immediately for a profile or user change, remains for a same-subject token refresh, and its request generation prevents late responses from an earlier profile or refresh from overwriting current data. No raw birth data or client user ID is sent.

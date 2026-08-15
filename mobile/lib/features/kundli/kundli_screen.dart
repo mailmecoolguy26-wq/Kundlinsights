@@ -106,6 +106,15 @@ class _D1KundliContent extends StatelessWidget {
               title: t.myKundli,
               subtitle: profileController.activeProfile?.label,
             ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: () => context.push('/ashtakavarga'),
+                icon: const Icon(Icons.grid_view_outlined),
+                label: Text(t.ashtakavarga),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
             if (natalController.state == NatalSummaryLoadState.loading ||
                 natalController.state == NatalSummaryLoadState.initial)
               const _NatalLoading()

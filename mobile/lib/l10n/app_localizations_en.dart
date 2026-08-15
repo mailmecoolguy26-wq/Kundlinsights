@@ -427,4 +427,56 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ends => 'Ends';
+
+  @override
+  String get ashtakavarga => 'Ashtakavarga';
+
+  @override
+  String get sarvashtakavarga => 'Sarvashtakavarga';
+
+  @override
+  String get sav => 'SAV';
+
+  @override
+  String get bhinnashtakavarga => 'Bhinnashtakavarga';
+
+  @override
+  String get bav => 'BAV';
+
+  @override
+  String get lagnaBav => 'Lagna BAV';
+
+  @override
+  String get score => 'Score';
+
+  @override
+  String get sun => 'Sun';
+
+  @override
+  String get moon => 'Moon';
+
+  @override
+  String get mars => 'Mars';
+
+  @override
+  String get mercury => 'Mercury';
+
+  @override
+  String get jupiter => 'Jupiter';
+
+  @override
+  String get venus => 'Venus';
+
+  @override
+  String get saturn => 'Saturn';
+
+  @override
+  String get loading => 'Loading';
+
+  @override
+  String get noData => 'No data';
+
+  @override
+  String get ashtakavargaUnavailable =>
+      'Your Ashtakavarga data is unavailable right now. Please try again.';
 }

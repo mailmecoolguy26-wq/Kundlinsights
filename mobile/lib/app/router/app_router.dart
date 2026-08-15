@@ -19,6 +19,8 @@ import '../../features/vimshottari/presentation/vimshottari_timeline_screen.dart
 import '../../features/vimshottari/vimshottari_controller.dart';
 import '../../features/transits/presentation/current_transits_screen.dart';
 import '../../features/transits/transit_snapshot_controller.dart';
+import '../../features/ashtakavarga/ashtakavarga_controller.dart';
+import '../../features/ashtakavarga/presentation/ashtakavarga_screen.dart';
 import '../../l10n/app_localizations.dart';
 
 GoRouter createAppRouter(
@@ -28,6 +30,7 @@ GoRouter createAppRouter(
   DivisionalChartController divisional,
   VimshottariController vimshottari,
   TransitSnapshotController transits,
+  AshtakavargaController ashtakavarga,
 ) => GoRouter(
   initialLocation: '/splash',
   refreshListenable: Listenable.merge([authController, profiles]),
@@ -54,6 +57,14 @@ GoRouter createAppRouter(
     return null;
   },
   routes: [
+    GoRoute(
+      path: '/ashtakavarga',
+      name: 'ashtakavarga',
+      builder: (context, state) => AshtakavargaScreen(
+        profileController: profiles,
+        controller: ashtakavarga,
+      ),
+    ),
     GoRoute(
       path: '/transits',
       name: 'current-transits',

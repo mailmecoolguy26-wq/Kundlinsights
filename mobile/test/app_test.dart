@@ -18,6 +18,11 @@ import 'package:kundlinsights_mobile/features/profiles/profile_controller.dart';
 import 'package:kundlinsights_mobile/features/vimshottari/domain/vimshottari.dart';
 import 'package:kundlinsights_mobile/features/vimshottari/domain/vimshottari_repository.dart';
 import 'package:kundlinsights_mobile/features/vimshottari/vimshottari_controller.dart';
+import 'package:kundlinsights_mobile/features/ashtakavarga/domain/ashtakavarga.dart';
+import 'package:kundlinsights_mobile/features/ashtakavarga/domain/ashtakavarga_repository.dart';
+import 'package:kundlinsights_mobile/features/ashtakavarga/ashtakavarga_controller.dart';
+
+import 'ashtakavarga_fixture.dart';
 
 void main() {
   late _FakeAuthRepository repository;
@@ -222,6 +227,35 @@ void main() {
     expect(find.text('Sun'), findsOneWidget);
     expect(find.text('View full Dasha timeline'), findsOneWidget);
   });
+
+  testWidgets('Kundli opens factual sign-oriented Ashtakavarga', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(_app(controller, profiles));
+    await controller.restore();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Kundli').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ashtakavarga'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sarvashtakavarga'), findsOneWidget);
+    expect(find.text('Lagna BAV'), findsOneWidget);
+    expect(find.text('Rashi-1'), findsWidgets);
+    expect(find.text('Rahu'), findsNothing);
+    expect(find.text('Ketu'), findsNothing);
+    expect(find.textContaining('House'), findsNothing);
+    expect(find.textContaining('Strong'), findsNothing);
+
+    await tester.tap(find.text('Moon'));
+    await tester.pumpAndSettle();
+    expect(find.text('BAV'), findsOneWidget);
+    await tester.tap(find.text('Saturn'));
+    await tester.pumpAndSettle();
+    expect(find.text('Lagna BAV'), findsOneWidget);
+  });
 }
 
 Widget _app(
@@ -229,6 +263,7 @@ Widget _app(
   BirthProfileRepository profiles, {
   DivisionalChartRepository? charts,
   VimshottariRepository? vimshottari,
+  AshtakavargaRepository? ashtakavarga,
 }) => ProviderScope(
   overrides: [
     birthProfileRepositoryProvider.overrideWithValue(profiles),
@@ -239,9 +274,20 @@ Widget _app(
     vimshottariRepositoryProvider.overrideWithValue(
       vimshottari ?? const UnavailableVimshottariRepository(),
     ),
+    ashtakavargaRepositoryProvider.overrideWithValue(
+      ashtakavarga ?? _Ashtakavarga(),
+    ),
   ],
   child: KundlInsightsApp(authController: controller),
 );
+
+class _Ashtakavarga implements AshtakavargaRepository {
+  @override
+  Future<Ashtakavarga> getAshtakavarga({
+    required String birthProfileId,
+  }) async =>
+      Ashtakavarga.fromJson(ashtakavargaFixture(profileId: birthProfileId));
+}
 
 class _Natal implements NatalSummaryRepository {
   @override
