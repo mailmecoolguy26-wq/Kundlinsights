@@ -2,7 +2,7 @@
 
 const { READING_RECORD_SCHEMA_VERSION } = require('../../readings');
 const { freeze } = require('../../synthesis/evidence-node');
-const { fail, requiredString, canonicalTime, immutableCopy, compareCreatedAscending, compareCreatedDescending } = require('../contracts');
+const { fail, requiredString, canonicalTime, immutableCopy, compareCreatedAscending } = require('../contracts');
 
 function status(value, code = 'INVALID_STATUS') { return requiredString(value, code); }
 function nullableUtc(value, code) { return value === null || value === undefined ? null : canonicalTime(value, code); }
@@ -47,8 +47,8 @@ class InMemoryReadingRepository {
   insertReadingRecord(input = {}) { const record = verifyReadingRecord(input.record); const readingId = record.readingId; const userId = requiredString(input.userId, 'INVALID_USER_ID'); const idempotencyKey = input.idempotencyKey === null || input.idempotencyKey === undefined ? null : requiredString(input.idempotencyKey, 'INVALID_IDEMPOTENCY_KEY'); if (this.readings.has(readingId)) fail('DUPLICATE_READING_ID'); if (idempotencyKey && [...this.readings.values()].some((item) => item.userId === userId && item.idempotencyKey === idempotencyKey)) fail('DUPLICATE_READING_IDEMPOTENCY_KEY'); const item = immutableCopy({ readingId, userId, birthProfileId: input.birthProfileId === null || input.birthProfileId === undefined ? null : requiredString(input.birthProfileId, 'INVALID_BIRTH_PROFILE_ID'), status: status(input.status || 'active'), archivedAt: nullableUtc(input.archivedAt, 'INVALID_ARCHIVED_AT'), idempotencyKey, record }); this.readings.set(readingId, item); return copyResult(item); }
   getReadingRecord(readingId) { requiredString(readingId, 'INVALID_READING_ID'); const item = this.readings.get(readingId); if (!item) fail('READING_NOT_FOUND'); return copyResult(item); }
   getReadingRecordByIdempotencyKey(userId, idempotencyKey) { userId = requiredString(userId, 'INVALID_USER_ID'); idempotencyKey = requiredString(idempotencyKey, 'INVALID_IDEMPOTENCY_KEY'); const item = [...this.readings.values()].find((value) => value.userId === userId && value.idempotencyKey === idempotencyKey); return item ? copyResult(item) : null; }
-  listReadingRecordsForUser(userId) { requiredString(userId, 'INVALID_USER_ID'); return freeze([...this.readings.values()].filter((item) => item.userId === userId).sort((a, b) => compareCreatedDescending(a.record, b.record)).map(copyResult)); }
-  listReadingRecordsForBirthProfile(birthProfileId) { requiredString(birthProfileId, 'INVALID_BIRTH_PROFILE_ID'); return freeze([...this.readings.values()].filter((item) => item.birthProfileId === birthProfileId).sort((a, b) => compareCreatedDescending(a.record, b.record)).map(copyResult)); }
+  listReadingRecordsForUser(userId) { requiredString(userId, 'INVALID_USER_ID'); return freeze([...this.readings.values()].filter((item) => item.userId === userId).sort((a, b) => Date.parse(b.record.createdAt) - Date.parse(a.record.createdAt) || a.readingId.localeCompare(b.readingId)).map(copyResult)); }
+  listReadingRecordsForBirthProfile(birthProfileId) { requiredString(birthProfileId, 'INVALID_BIRTH_PROFILE_ID'); return freeze([...this.readings.values()].filter((item) => item.birthProfileId === birthProfileId).sort((a, b) => Date.parse(b.record.createdAt) - Date.parse(a.record.createdAt) || a.readingId.localeCompare(b.readingId)).map(copyResult)); }
   archiveReadingRecord(readingId, archivedAt) { const prior = this.getReadingRecord(readingId); const item = immutableCopy({ ...prior, status: 'archived', archivedAt: canonicalTime(archivedAt, 'INVALID_ARCHIVED_AT') }); this.readings.set(readingId, item); return copyResult(item); }
 }
 

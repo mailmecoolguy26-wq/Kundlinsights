@@ -13,6 +13,18 @@ function safeError(error, fallback) {
   fail(fallback);
 }
 function publicReading(item) { return immutableCopy({ readingId: item.readingId, domain: item.record.domain, engineProfileId: item.record.engineProfileId, createdAt: item.record.createdAt, status: item.status }); }
+function publicReadingSummary(item) {
+  return immutableCopy({
+    readingId: item.readingId,
+    birthProfileId: item.birthProfileId,
+    domain: item.record.domain,
+    status: item.status,
+    createdAt: item.record.createdAt,
+    readingInstant: item.record.input.readingInstant,
+    locale: item.record.input.locale,
+  });
+}
+function publicReadingDetail(item) { return immutableCopy({ ...publicReadingSummary(item), content: item.record.renderedReading }); }
 function scopedKeyProvider(key) { return Object.freeze({ current: async () => ({ keyVersion: key.keyVersion, dek: Buffer.from(key.dek) }), forVersion: async () => ({ keyVersion: key.keyVersion, dek: Buffer.from(key.dek) }) }); }
 function rawRecord(raw, record) { return { readingId: raw.readingId, userId: raw.userId, birthProfileId: raw.birthProfileId, status: raw.status, archivedAt: raw.archivedAt, idempotencyKey: raw.idempotencyKey, record }; }
 
@@ -107,8 +119,35 @@ class SecureReadingService {
   }
   async getSecureReading({ principal: principalInput, readingId } = {}) {
     const { verified, user } = await this.resolve(principalInput); const id = requiredString(readingId, 'INVALID_READING_ID');
-    try { const item = this.readingCrypto ? await this.decryptReading(verified, await this.execute(verified, 'app_runtime', async (context) => this.repo(context).readings.getEncryptedReadingRecord(id))) : await this.execute(verified, 'app_runtime', async (context) => this.repo(context).readings.getReadingRecord(id)); if (!item || item.userId !== user.id) fail('NOT_FOUND_OR_FORBIDDEN'); return immutableCopy({ readingId: item.readingId, record: item.record }); } catch (error) { safeError(error, 'NOT_FOUND_OR_FORBIDDEN'); }
+    try { const item = this.readingCrypto ? await this.decryptReading(verified, await this.execute(verified, 'app_runtime', async (context) => this.repo(context).readings.getEncryptedReadingRecord(id))) : await this.execute(verified, 'app_runtime', async (context) => this.repo(context).readings.getReadingRecord(id)); if (!item || item.userId !== user.id) fail('NOT_FOUND_OR_FORBIDDEN'); return immutableCopy({ readingId: item.readingId, birthProfileId: item.birthProfileId, status: item.status, record: item.record }); } catch (error) { safeError(error, 'NOT_FOUND_OR_FORBIDDEN'); }
   }
+  async listSecureReadings({ principal: principalInput, birthProfileId } = {}) {
+    const { verified, user } = await this.resolve(principalInput);
+    const profileId = birthProfileId === undefined ? null : requiredString(birthProfileId, 'INVALID_BIRTH_PROFILE_ID');
+    if (profileId !== null) {
+      try {
+        const profile = this.secureBirthProfileLoader
+          ? await this.secureBirthProfileLoader.get({ principal: verified, birthProfileId: profileId })
+          : await this.execute(verified, 'app_runtime', async (context) => this.repo(context).birthProfiles.getBirthProfile(profileId));
+        if (!profile || (!this.secureBirthProfileLoader && profile.userId !== user.id)) fail('NOT_FOUND_OR_FORBIDDEN');
+      } catch (error) { safeError(error, 'NOT_FOUND_OR_FORBIDDEN'); }
+    }
+    try {
+      const raw = await this.execute(verified, 'app_runtime', async (context) => {
+        const readings = this.repo(context).readings;
+        if (this.readingCrypto) {
+          const method = profileId === null ? readings.listEncryptedReadingRecordsForUser : readings.listEncryptedReadingRecordsForBirthProfile;
+          if (typeof method !== 'function') fail('INVALID_APPLICATION_REPOSITORIES');
+          return method.call(readings, profileId === null ? user.id : profileId, 50);
+        }
+        const method = profileId === null ? readings.listReadingRecordsForUser : readings.listReadingRecordsForBirthProfile;
+        return method.call(readings, profileId === null ? user.id : profileId).slice(0, 50);
+      });
+      const records = this.readingCrypto ? await Promise.all(raw.map((item) => this.decryptReading(verified, item))) : raw;
+      return immutableCopy(records.filter((item) => item.userId === user.id).map(publicReadingSummary));
+    } catch (error) { safeError(error, 'READING_LIST_FAILED'); }
+  }
+  async getSecureReadingDetail(input = {}) { return publicReadingDetail(await this.getSecureReading(input)); }
   async replaySecureReading({ principal: principalInput, readingId, astronomicalRuntime } = {}) {
     const secure = await this.getSecureReading({ principal: principalInput, readingId });
     try { return immutableCopy({ readingId: secure.readingId, replay: await this.replayReading({ record: secure.record, astronomicalRuntime }) }); } catch (error) { safeError(error, 'READING_INTEGRITY_FAILED'); }
