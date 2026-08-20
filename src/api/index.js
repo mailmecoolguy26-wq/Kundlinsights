@@ -16,6 +16,10 @@ function createApi({ authVerifier, userResolver, birthProfileService, natalSumma
   app.setErrorHandler((error, request, reply) => { const out = mapApiError(error); reply.code(out.statusCode).send({ ...out.body, requestId: request.id }); });
   app.get('/health', async () => ({ status: 'ok' })); app.get('/ready', async (request, reply) => { if (!isReady()) { reply.code(503); return { status: 'not-ready' }; } return { status: 'ready' }; });
   app.get('/v1/me', async (request) => { const user = await userResolver.resolve(request.principal); return { user: { id: user.id, status: user.status }, requestId: request.id }; });
+  app.get('/v1/me/entitlements', async (request) => {
+    if (typeof secureReadingService.getReadingEntitlementStatus !== 'function') throw new TypeError('INVALID_SECURE_READING_SERVICE');
+    return { entitlements: await secureReadingService.getReadingEntitlementStatus({ principal: request.principal }), requestId: request.id };
+  });
   if (placeResolutionService) {
     if (typeof placeResolutionService.search !== 'function' || typeof placeResolutionService.resolveBirthTime !== 'function') throw new TypeError('INVALID_PLACE_RESOLUTION_SERVICE');
     app.get('/v1/places/search', async (request) => ({ results: await placeResolutionService.search({ query: request.query && request.query.q }), requestId: request.id }));

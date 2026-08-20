@@ -71,3 +71,20 @@ test('SEC-P6 retains duplicate-insert recovery and never returns another user’
   const result = await scoped.service.generateSecureReading({ ...fallbackRequest, idempotencyKey: 'shared-key' });
   assert.notEqual(result.readingId, 'user-b-winner-abcdefgh'); assert.equal(scoped.readings.listReadingRecordsForUser('user-a').length, 1); assert.equal(scoped.readings.listReadingRecordsForUser('user-b').length, 1);
 });
+test('API-P5C3 status reuses the create-reading entitlement selection authority without consuming or reserving a grant', async () => {
+  const { service, entitlements } = setup(); const originalConsume = entitlements.consumeEntitlement.bind(entitlements); let consumes = 0;
+  entitlements.consumeEntitlement = (...args) => { consumes += 1; return originalConsume(...args); };
+  assert.deepEqual(await service.getReadingEntitlementStatus({ principal: principal('subject-a') }), { career: { eligible: true } });
+  assert.equal(entitlements.getEntitlement('ent-a').quantity, 1); assert.equal(consumes, 0);
+  await service.generateSecureReading({ principal: principal('subject-a'), birthProfileId: 'profile-a', domain: 'CAREER', idempotencyKey: 'status-consistency', readingInstant: T0, locale: 'en-IN' });
+  assert.equal(consumes, 1); assert.deepEqual(await service.getReadingEntitlementStatus({ principal: principal('subject-a') }), { career: { eligible: false } });
+});
+test('API-P5C3 status excludes consumed, expired, and other-user grants while accepting multiple valid CAREER grants', async () => {
+  const exhausted = setup({ entitlement: 0 });
+  exhausted.entitlements.createEntitlement({ id: 'expired', userId: 'user-a', productKey: 'CAREER', status: 'active', quantity: 3, validFrom: '2026-08-12T00:00:00.000Z', validUntil: T0 });
+  exhausted.entitlements.createEntitlement({ id: 'other-user', userId: 'user-b', productKey: 'CAREER', status: 'active', quantity: 3, validFrom: T0 });
+  assert.deepEqual(await exhausted.service.getReadingEntitlementStatus({ principal: principal('subject-a') }), { career: { eligible: false } });
+  assert.deepEqual(await exhausted.service.getReadingEntitlementStatus({ principal: principal('subject-b') }), { career: { eligible: true } });
+  exhausted.entitlements.createEntitlement({ id: 'second-valid', userId: 'user-a', productKey: 'CAREER', status: 'active', quantity: 2, validFrom: T0 });
+  assert.deepEqual(await exhausted.service.getReadingEntitlementStatus({ principal: principal('subject-a') }), { career: { eligible: true } });
+});

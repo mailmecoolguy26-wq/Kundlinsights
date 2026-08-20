@@ -25,6 +25,10 @@ function publicReadingSummary(item) {
   });
 }
 function publicReadingDetail(item) { return immutableCopy({ ...publicReadingSummary(item), content: item.record.renderedReading }); }
+async function eligibleEntitlement(repositories, userId, domain, evaluationTime) {
+  const active = await repositories.entitlements.listActiveEntitlementsForUser(userId, evaluationTime);
+  return active.find((item) => item.productKey === domain) || null;
+}
 function scopedKeyProvider(key) { return Object.freeze({ current: async () => ({ keyVersion: key.keyVersion, dek: Buffer.from(key.dek) }), forVersion: async () => ({ keyVersion: key.keyVersion, dek: Buffer.from(key.dek) }) }); }
 function rawRecord(raw, record) { return { readingId: raw.readingId, userId: raw.userId, birthProfileId: raw.birthProfileId, status: raw.status, archivedAt: raw.archivedAt, idempotencyKey: raw.idempotencyKey, record }; }
 
@@ -95,7 +99,7 @@ class SecureReadingService {
         if (winner) return { kind: 'existing', value: winner };
         let entitlement = null;
         if (this.requiresEntitlement({ domain: readingDomain })) {
-          const active = await repos.entitlements.listActiveEntitlementsForUser(user.id, this.clock()); entitlement = active.find((item) => item.productKey === readingDomain) || null;
+          entitlement = await eligibleEntitlement(repos, user.id, readingDomain, this.clock());
           if (!entitlement) fail('ENTITLEMENT_EXHAUSTED');
         }
         if (entitlement) {
@@ -116,6 +120,15 @@ class SecureReadingService {
       if (error && error.code === 'DUPLICATE_READING_IDEMPOTENCY_KEY') { const winner = await this.existing({ verified, user, idempotencyKey: key }); if (winner) return publicReading(winner); fail('IDEMPOTENCY_CONFLICT'); }
       safeError(error, 'READING_PERSISTENCE_FAILED');
     }
+  }
+  async getReadingEntitlementStatus({ principal: principalInput } = {}) {
+    const { verified, user } = await this.resolve(principalInput);
+    const domain = 'CAREER';
+    if (!this.requiresEntitlement({ domain })) return immutableCopy({ career: { eligible: true } });
+    try {
+      const entitlement = await this.execute(verified, 'app_runtime', async (context) => eligibleEntitlement(this.repo(context), user.id, domain, this.clock()));
+      return immutableCopy({ career: { eligible: entitlement !== null } });
+    } catch (error) { safeError(error, 'ENTITLEMENT_STATUS_FAILED'); }
   }
   async getSecureReading({ principal: principalInput, readingId } = {}) {
     const { verified, user } = await this.resolve(principalInput); const id = requiredString(readingId, 'INVALID_READING_ID');
