@@ -83,6 +83,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get careerReading => 'Career Reading';
 
   @override
+  String get generateCareerReading => 'Generate Career Reading';
+
+  @override
+  String get generatingCareerReading => 'Generating your Career Reading…';
+
+  @override
+  String get checkingCareerReadingAvailability =>
+      'Checking Career Reading availability…';
+
+  @override
+  String get careerReadingUnavailable =>
+      'Career Reading is currently unavailable.';
+
+  @override
+  String get careerAvailabilityUnavailable =>
+      'Career Reading availability is unavailable right now.';
+
+  @override
   String get createdOn => 'Created';
 
   @override

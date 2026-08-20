@@ -232,6 +232,36 @@ abstract class AppLocalizations {
   /// **'Career Reading'**
   String get careerReading;
 
+  /// No description provided for @generateCareerReading.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate Career Reading'**
+  String get generateCareerReading;
+
+  /// No description provided for @generatingCareerReading.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating your Career Reading…'**
+  String get generatingCareerReading;
+
+  /// No description provided for @checkingCareerReadingAvailability.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking Career Reading availability…'**
+  String get checkingCareerReadingAvailability;
+
+  /// No description provided for @careerReadingUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Career Reading is currently unavailable.'**
+  String get careerReadingUnavailable;
+
+  /// No description provided for @careerAvailabilityUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Career Reading availability is unavailable right now.'**
+  String get careerAvailabilityUnavailable;
+
   /// No description provided for @createdOn.
   ///
   /// In en, this message translates to:

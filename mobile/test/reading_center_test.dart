@@ -148,13 +148,13 @@ void main() {
     final auth = AuthController(authSource);
     await auth.restore();
     final profiles = ProfileController(_Profiles(authSource), auth);
-    await _settle();
+    await tester.pump();
     final repository = _ReadingRepository();
     final controller = ReadingController(repository, auth, profiles);
     await tester.pumpWidget(_localized(ReadingsScreen(controller: controller)));
     await tester.pumpAndSettle();
     expect(find.text('Career Reading'), findsOneWidget);
-    expect(find.bySemanticsLabel(RegExp('Career Reading')), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('Career Reading')), findsWidgets);
 
     repository.nextList = const [];
     await controller.refresh();
@@ -174,7 +174,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Career structure'), findsOneWidget);
+    expect(find.text('Career structure'), findsWidgets);
     expect(find.text('Stored text.'), findsOneWidget);
     expect(repository.listCalls, greaterThan(0));
     expect(repository.detailCalls, greaterThan(0));
@@ -190,7 +190,7 @@ void main() {
       final auth = AuthController(authSource);
       await auth.restore();
       final profiles = ProfileController(_Profiles(authSource), auth);
-      await _settle();
+      await tester.pump();
       final repository = _ReadingRepository()..failDetail = true;
       final controller = ReadingController(repository, auth, profiles);
       await tester.pumpWidget(

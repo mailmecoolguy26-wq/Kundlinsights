@@ -30,14 +30,18 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
   }) => _request<T>(path, queryParameters: queryParameters);
 
-  Future<Response<T>> post<T>(String path, {Object? data}) =>
-      _request<T>(path, data: data, method: 'POST');
+  Future<Response<T>> post<T>(
+    String path, {
+    Object? data,
+    Map<String, String>? headers,
+  }) => _request<T>(path, data: data, method: 'POST', headers: headers);
 
   Future<Response<T>> _request<T>(
     String path, {
     Map<String, dynamic>? queryParameters,
     Object? data,
     String method = 'GET',
+    Map<String, String>? headers,
     bool retried = false,
   }) async {
     try {
@@ -51,7 +55,7 @@ class ApiClient {
         queryParameters: queryParameters,
         options: Options(
           method: method,
-          headers: {'Authorization': 'Bearer $token'},
+          headers: {'Authorization': 'Bearer $token', ...?headers},
         ),
       );
     } on DioException catch (error) {
@@ -63,6 +67,7 @@ class ApiClient {
             queryParameters: queryParameters,
             data: data,
             method: method,
+            headers: headers,
             retried: true,
           );
         }

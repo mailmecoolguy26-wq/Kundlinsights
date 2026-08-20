@@ -33,6 +33,9 @@ import '../features/ashtakavarga/ashtakavarga_controller.dart';
 import '../features/readings/data/reading_api_repository.dart';
 import '../features/readings/domain/reading_repository.dart';
 import '../features/readings/reading_controller.dart';
+import '../features/readings/data/career_reading_generation_api_repository.dart';
+import '../features/readings/domain/career_reading_generation.dart';
+import '../features/readings/career_reading_generation_controller.dart';
 import 'app.dart';
 
 Future<void> bootstrap() async {
@@ -46,6 +49,7 @@ Future<void> bootstrap() async {
   final TransitSnapshotRepository transitSnapshotRepository;
   final AshtakavargaRepository ashtakavargaRepository;
   final ReadingRepository readingRepository;
+  final CareerReadingGenerationRepository generationRepository;
   if (config == null) {
     repository = _UnavailableAuthRepository();
     profileRepository = const UnavailableBirthProfileRepository();
@@ -55,6 +59,7 @@ Future<void> bootstrap() async {
     transitSnapshotRepository = const UnavailableTransitSnapshotRepository();
     ashtakavargaRepository = const _UnavailableAshtakavargaRepository();
     readingRepository = const UnavailableReadingRepository();
+    generationRepository = _UnavailableGenerationRepository();
   } else {
     await Supabase.initialize(
       url: config.supabaseUrl,
@@ -72,6 +77,7 @@ Future<void> bootstrap() async {
     transitSnapshotRepository = TransitSnapshotApiRepository(apiClient);
     ashtakavargaRepository = AshtakavargaApiRepository(apiClient);
     readingRepository = ReadingApiRepository(apiClient);
+    generationRepository = CareerReadingGenerationApiRepository(apiClient);
   }
   final controller = AuthController(repository);
   await controller.restore();
@@ -94,10 +100,25 @@ Future<void> bootstrap() async {
           ashtakavargaRepository,
         ),
         readingRepositoryProvider.overrideWithValue(readingRepository),
+        careerReadingGenerationRepositoryProvider.overrideWithValue(
+          generationRepository,
+        ),
       ],
       child: KundlInsightsApp(authController: controller),
     ),
   );
+}
+
+class _UnavailableGenerationRepository
+    implements CareerReadingGenerationRepository {
+  @override
+  Future<CareerEligibility> getCareerEligibility() =>
+      Future.error(StateError('Configuration is required.'));
+  @override
+  Future<CreatedCareerReading> createCareerReading({
+    required String birthProfileId,
+    required String idempotencyKey,
+  }) => Future.error(StateError('Configuration is required.'));
 }
 
 class _UnavailableAshtakavargaRepository implements AshtakavargaRepository {

@@ -13,6 +13,7 @@ import '../features/vimshottari/vimshottari_controller.dart';
 import '../features/transits/transit_snapshot_controller.dart';
 import '../features/ashtakavarga/ashtakavarga_controller.dart';
 import '../features/readings/reading_controller.dart';
+import '../features/readings/career_reading_generation_controller.dart';
 
 class KundlInsightsApp extends ConsumerWidget {
   const KundlInsightsApp({super.key, required this.authController});
@@ -38,6 +39,13 @@ class KundlInsightsApp extends ConsumerWidget {
     final readings = ref.watch(
       readingControllerProvider((authController, profiles)),
     );
+    final generation = ref.watch(
+      careerReadingGenerationControllerProvider((
+        authController,
+        profiles,
+        readings,
+      )),
+    );
     return MaterialApp.router(
       title: 'KundlInsights',
       debugShowCheckedModeBanner: false,
@@ -51,6 +59,7 @@ class KundlInsightsApp extends ConsumerWidget {
         transits,
         ashtakavarga,
         readings,
+        generation,
       ),
       localizationsDelegates: const [
         AppLocalizations.delegate,

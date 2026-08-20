@@ -16,6 +16,7 @@ import '../../features/profiles/presentation/birth_profiles_screen.dart';
 import '../../features/profiles/profile_controller.dart';
 import '../../features/readings/readings_screen.dart';
 import '../../features/readings/reading_controller.dart';
+import '../../features/readings/career_reading_generation_controller.dart';
 import '../../features/vimshottari/presentation/vimshottari_timeline_screen.dart';
 import '../../features/vimshottari/vimshottari_controller.dart';
 import '../../features/transits/presentation/current_transits_screen.dart';
@@ -33,6 +34,7 @@ GoRouter createAppRouter(
   TransitSnapshotController transits,
   AshtakavargaController ashtakavarga,
   ReadingController readings,
+  CareerReadingGenerationController generation,
 ) => GoRouter(
   initialLocation: '/splash',
   refreshListenable: Listenable.merge([authController, profiles]),
@@ -180,7 +182,8 @@ GoRouter createAppRouter(
             GoRoute(
               path: '/readings',
               name: 'readings',
-              builder: (context, state) => ReadingsScreen(controller: readings),
+              builder: (context, state) =>
+                  ReadingsScreen(controller: readings, generation: generation),
               routes: [
                 GoRoute(
                   path: 'detail/:id',
