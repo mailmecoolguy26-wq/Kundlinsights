@@ -48,6 +48,7 @@ class DeterministicTransitProvider extends EphemerisProvider {
     this.trajectories = trajectories;
     this.omitBodies = omitBodies;
     this.responseOverride = responseOverride;
+    this.requestedBodies = [];
     this.metadata = Object.freeze({
       provider,
       providerVersion: 'test-v1',
@@ -57,14 +58,16 @@ class DeterministicTransitProvider extends EphemerisProvider {
     });
   }
 
-  calculate({ instant, observer }) { // observer is accepted to match the Layer 1 provider contract.
+  calculate({ instant, observer, bodies: requestedBodies }) { // observer is accepted to match the Layer 1 provider contract.
     if (!(instant instanceof Date) || Number.isNaN(instant.getTime())) {
       throw new TypeError('instant is required.');
     }
 
     const time = instant.getTime();
     const bodies = {};
-    for (const body of BODIES) {
+    const selectedBodies = requestedBodies === undefined ? BODIES : requestedBodies;
+    this.requestedBodies.push([...selectedBodies]);
+    for (const body of selectedBodies) {
       const segments = this.trajectories[body] || [{
         type: 'stationary',
         startInstant: '2000-01-01T00:00:00.000Z',

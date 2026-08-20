@@ -16,7 +16,7 @@ class AstronomicalEngine {
     validCoordinate(input.longitude, -180, 180, 'longitude');
     const instant = localDateTimeToUtc(input);
     const observer = Object.freeze({ latitude: input.latitude, longitude: input.longitude, coordinateReference: 'WGS84' });
-    const calculated = this.provider.calculate({ instant, observer });
+    const calculated = this.provider.calculate({ instant, observer, bodies: input.bodies });
     let siderealMetadata;
     const bodies = Object.fromEntries(Object.entries(calculated.bodies).map(([body, raw]) => {
       const sidereal = typeof raw.siderealLongitudeDegrees === 'number'

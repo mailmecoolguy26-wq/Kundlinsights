@@ -32,7 +32,7 @@ function validateLayer1Body(name, body) {
   }
 }
 
-function layer1(engine, milliseconds, observer) {
+function layer1(engine, milliseconds, observer, bodies) {
   const instant = new Date(milliseconds);
   const result = engine.calculate({
     date: instant.toISOString().slice(0, 10),
@@ -40,11 +40,12 @@ function layer1(engine, milliseconds, observer) {
     timezone: 'UTC',
     latitude: observer.latitude,
     longitude: observer.longitude,
+    bodies,
   });
   if (!result || !result.bodies || typeof result.bodies !== 'object') {
     throw new TypeError('Layer 1 provider result is invalid.');
   }
-  for (const name of BODIES) validateLayer1Body(name, result.bodies[name]);
+  for (const name of bodies) validateLayer1Body(name, result.bodies[name]);
   return result;
 }
 
@@ -80,7 +81,14 @@ function drishtiMap(transitBody) {
   return new Map(edges.map((edge) => [`${edge.aspectNumber}:${edge.targetNatalRashiIndex}:${edge.natalBody || ''}`, edge]));
 }
 
-function scanTransitEvents({ startInstant, endInstant, natalBodies, natalHouses, astronomicalEngine, observer, eventTypes, options = {} } = {}) {
+function selectedBodies(bodies) {
+  if (bodies === undefined) return BODIES;
+  if (!Array.isArray(bodies) || bodies.length === 0) throw new RangeError('bodies must be a non-empty array of supported transit bodies.');
+  for (const body of bodies) if (!BODIES.includes(body)) throw new RangeError(`Unsupported transit body: ${body}`);
+  return BODIES.filter((body) => bodies.includes(body));
+}
+
+function scanTransitEvents({ startInstant, endInstant, natalBodies, natalHouses, astronomicalEngine, observer, eventTypes, bodies, options = {} } = {}) {
   const start = Date.parse(startInstant);
   const end = Date.parse(endInstant);
   if (!Number.isFinite(start) || !Number.isFinite(end) || !String(startInstant).endsWith('Z') || !String(endInstant).endsWith('Z') || start >= end) {
@@ -92,16 +100,17 @@ function scanTransitEvents({ startInstant, endInstant, natalBodies, natalHouses,
   const configuration = validateOptions(options);
   const types = eventTypes || [...EVENT_TYPES];
   for (const type of types) if (!EVENT_TYPES.has(type)) throw new RangeError(`Unsupported event type: ${type}`);
+  const selected = selectedBodies(bodies);
 
   const at = (milliseconds) => {
-    const layer1Result = layer1(astronomicalEngine, milliseconds, observer);
+    const layer1Result = layer1(astronomicalEngine, milliseconds, observer, selected);
     return {
       layer1Result,
       snapshot: calculateGocharSnapshot({
         snapshotInstant: iso(milliseconds),
         natalBodies,
         natalHouses,
-        transitBodies: layer1Result.bodies,
+        transitBodies: layer1Result.bodies, bodies: selected,
       }),
     };
   };
@@ -133,7 +142,7 @@ function scanTransitEvents({ startInstant, endInstant, natalBodies, natalHouses,
   for (let index = 1; index < samples.length; index += 1) {
     const [lowInstant, old] = samples[index - 1];
     const [highInstant, next] = samples[index];
-    for (const name of BODIES) {
+    for (const name of selected) {
       const before = old.snapshot.transitBodies[name];
       const after = next.snapshot.transitBodies[name];
       if (before.transitRashi.rashiIndex !== after.transitRashi.rashiIndex) {
@@ -207,7 +216,7 @@ function scanTransitEvents({ startInstant, endInstant, natalBodies, natalHouses,
     }
   }
 
-  for (const name of BODIES) {
+  for (const name of selected) {
     let priorDirectionalMotion = null;
     let stationaryWindowEntry = null;
     for (let index = 1; index < samples.length; index += 1) {

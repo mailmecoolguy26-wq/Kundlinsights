@@ -4,7 +4,8 @@ class EphemerisProvider {
   /**
    * Calculates provider coordinates for a UTC instant.
    *
-   * Request: { instant: Date, observer: { latitude, longitude, coordinateReference } }.
+   * Request: { instant: Date, observer: { latitude, longitude, coordinateReference }, bodies? }.
+   * `bodies`, when supplied, is a canonical caller-selected calculation set.
    * Result: { bodies, provider }. Every body must provide canonical
    * siderealLongitudeDegrees either natively with siderealMetadata or indirectly
    * through tropicalLongitudeDegrees. Tropical longitude is optional when a future

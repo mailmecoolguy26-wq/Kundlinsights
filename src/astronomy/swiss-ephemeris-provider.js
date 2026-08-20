@@ -29,19 +29,24 @@ class SwissEphemerisProvider extends EphemerisProvider {
     Object.freeze(this);
   }
 
-  calculate({ instant, observer }) {
+  calculate({ instant, observer, bodies: requestedBodies }) {
     const jdUt = this.nativeAdapter.julianDayUt(instant);
     const bodies = {};
     const returnedFlagsByBody = {};
-    for (const body of Object.keys(BODY_CONSTANT_NAMES)) {
+    const requested = requestedBodies === undefined ? [...Object.keys(BODY_CONSTANT_NAMES), 'Ketu', 'Ascendant'] : requestedBodies;
+    for (const body of Object.keys(BODY_CONSTANT_NAMES).filter((body) => requested.includes(body))) {
       const native = this.nativeAdapter.calculateBody(jdUt, body);
       returnedFlagsByBody[body] = native.returnedFlags;
       bodies[body] = bodyResult(body, native, this.metadata.calculationStatus, body === 'Rahu' ? { nodeModel: 'MEAN_NODE', swissConstant: 'SE_MEAN_NODE' } : { swissConstant: BODY_CONSTANT_NAMES[body] });
     }
-    const rahu = bodies.Rahu;
-    bodies.Ketu = deepFreeze({ ...rahu, body: 'Ketu', siderealLongitudeDegrees: normalizeLongitude(rahu.siderealLongitudeDegrees + 180), provenance: deepFreeze({ coordinateProvenance: 'derived-normalized-rahu-plus-180', ketuDerivation: 'NORMALIZED_RAHU_PLUS_180', longitudeSpeedSource: 'Rahu', speedUnit: 'degrees-per-day' }) });
-    const ascendant = this.nativeAdapter.calculateAscendant(jdUt, observer);
-    bodies.Ascendant = deepFreeze({ body: 'Ascendant', siderealLongitudeDegrees: ascendant.longitude, siderealMetadata: nativeSiderealMetadata(this.metadata.calculationStatus), tropicalLongitudeDegrees: null, longitudeSpeedDegreesPerDay: null, motion: null, coordinateSystem: 'observer-aware-ecliptic-horizon-intersection; native-sidereal-lahiri', provenance: deepFreeze({ coordinateProvenance: 'provider-native', api: ascendant.api, houseSystemCarrier: ascendant.houseSystemCarrier, observer: deepFreeze({ latitude: observer.latitude, longitude: observer.longitude, coordinateReference: observer.coordinateReference }), houseCuspsExposed: false }) });
+    if (requested.includes('Ketu')) {
+      const rahu = bodies.Rahu || bodyResult('Rahu', this.nativeAdapter.calculateBody(jdUt, 'Rahu'), this.metadata.calculationStatus, { nodeModel: 'MEAN_NODE', swissConstant: 'SE_MEAN_NODE' });
+      bodies.Ketu = deepFreeze({ ...rahu, body: 'Ketu', siderealLongitudeDegrees: normalizeLongitude(rahu.siderealLongitudeDegrees + 180), provenance: deepFreeze({ coordinateProvenance: 'derived-normalized-rahu-plus-180', ketuDerivation: 'NORMALIZED_RAHU_PLUS_180', longitudeSpeedSource: 'Rahu', speedUnit: 'degrees-per-day' }) });
+    }
+    if (requested.includes('Ascendant')) {
+      const ascendant = this.nativeAdapter.calculateAscendant(jdUt, observer);
+      bodies.Ascendant = deepFreeze({ body: 'Ascendant', siderealLongitudeDegrees: ascendant.longitude, siderealMetadata: nativeSiderealMetadata(this.metadata.calculationStatus), tropicalLongitudeDegrees: null, longitudeSpeedDegreesPerDay: null, motion: null, coordinateSystem: 'observer-aware-ecliptic-horizon-intersection; native-sidereal-lahiri', provenance: deepFreeze({ coordinateProvenance: 'provider-native', api: ascendant.api, houseSystemCarrier: ascendant.houseSystemCarrier, observer: deepFreeze({ latitude: observer.latitude, longitude: observer.longitude, coordinateReference: observer.coordinateReference }), houseCuspsExposed: false }) });
+    }
     return deepFreeze({ bodies, provider: deepFreeze({ ...this.metadata, requestedFlags: this.nativeAdapter.requestedFlags, returnedFlagsByBody, jdUt, productionLicenseGate: this.productionLicenseGate }) });
   }
 }

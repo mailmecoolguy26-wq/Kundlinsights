@@ -35,17 +35,21 @@ function meanNodeTropicalLongitude(instant) {
 
 class AstronomyEngineProvider extends EphemerisProvider {
   constructor() { super(); this.metadata = Object.freeze({ provider: 'Astronomy Engine', providerVersion: '2.1.17', ephemerisVersion: 'Astronomy Engine VSOP87/NOVAS model (temporary)', calculationMode: 'interim-development-reference', rawCoordinateSystem: 'apparent-geocentric-true-ecliptic-of-date', calculationStatus: 'PROVISIONAL' }); }
-  calculate({ instant, observer }) {
-    const bodies = Object.fromEntries(Object.keys(BODY_MAP).map((body) => [body, bodyResult(body, instant)]));
-    const rahuLongitude = meanNodeTropicalLongitude(instant);
-    const nodeSpeed = (meanNodeTropicalLongitude(new Date(instant.getTime() + 0.01 * DAY_MS)) - meanNodeTropicalLongitude(new Date(instant.getTime() - 0.01 * DAY_MS))) / 0.02;
-    bodies.Rahu = { body: 'Rahu', tropicalLongitudeDegrees: rahuLongitude, latitudeDegrees: 0, distanceAu: null, longitudeSpeedDegreesPerDay: nodeSpeed, motion: 'retrograde', coordinateSystem: 'mean-ascending-lunar-node; tropical-ecliptic-of-date' };
-    bodies.Ketu = { body: 'Ketu', tropicalLongitudeDegrees: normalizeLongitude(rahuLongitude + 180), latitudeDegrees: -0, distanceAu: null, longitudeSpeedDegreesPerDay: nodeSpeed, motion: 'retrograde', coordinateSystem: 'derived-descending-lunar-node; tropical-ecliptic-of-date; exactly-opposite-rahu' };
-    const ascendantLongitude = calculateProvisionalTropicalAscendant(instant, observer);
-    const ascendantPrevious = calculateProvisionalTropicalAscendant(new Date(instant.getTime() - 0.01 * DAY_MS), observer);
-    const ascendantNext = calculateProvisionalTropicalAscendant(new Date(instant.getTime() + 0.01 * DAY_MS), observer);
-    const ascendantSpeed = signedLongitudeDelta(ascendantPrevious, ascendantNext) / 0.02;
-    bodies.Ascendant = {
+  calculate({ instant, observer, bodies: requestedBodies }) {
+    const requested = requestedBodies === undefined ? [...Object.keys(BODY_MAP), 'Rahu', 'Ketu', 'Ascendant'] : requestedBodies;
+    const bodies = Object.fromEntries(Object.keys(BODY_MAP).filter((body) => requested.includes(body)).map((body) => [body, bodyResult(body, instant)]));
+    if (requested.includes('Rahu') || requested.includes('Ketu')) {
+      const rahuLongitude = meanNodeTropicalLongitude(instant);
+      const nodeSpeed = (meanNodeTropicalLongitude(new Date(instant.getTime() + 0.01 * DAY_MS)) - meanNodeTropicalLongitude(new Date(instant.getTime() - 0.01 * DAY_MS))) / 0.02;
+      if (requested.includes('Rahu')) bodies.Rahu = { body: 'Rahu', tropicalLongitudeDegrees: rahuLongitude, latitudeDegrees: 0, distanceAu: null, longitudeSpeedDegreesPerDay: nodeSpeed, motion: 'retrograde', coordinateSystem: 'mean-ascending-lunar-node; tropical-ecliptic-of-date' };
+      if (requested.includes('Ketu')) bodies.Ketu = { body: 'Ketu', tropicalLongitudeDegrees: normalizeLongitude(rahuLongitude + 180), latitudeDegrees: -0, distanceAu: null, longitudeSpeedDegreesPerDay: nodeSpeed, motion: 'retrograde', coordinateSystem: 'derived-descending-lunar-node; tropical-ecliptic-of-date; exactly-opposite-rahu' };
+    }
+    if (requested.includes('Ascendant')) {
+      const ascendantLongitude = calculateProvisionalTropicalAscendant(instant, observer);
+      const ascendantPrevious = calculateProvisionalTropicalAscendant(new Date(instant.getTime() - 0.01 * DAY_MS), observer);
+      const ascendantNext = calculateProvisionalTropicalAscendant(new Date(instant.getTime() + 0.01 * DAY_MS), observer);
+      const ascendantSpeed = signedLongitudeDelta(ascendantPrevious, ascendantNext) / 0.02;
+      bodies.Ascendant = {
       body: 'Ascendant',
       tropicalLongitudeDegrees: ascendantLongitude,
       latitudeDegrees: null,
@@ -55,7 +59,8 @@ class AstronomyEngineProvider extends EphemerisProvider {
       coordinateSystem: 'geometric-ecliptic-horizon-intersection; apparent-true-ecliptic-of-date',
       calculationModel: 'astronomy-engine-eastern-ecliptic-horizon-intersection-v1',
       provenance: Object.freeze({ observer, horizon: 'geometric', intersection: 'eastern', provisional: true, calculationStatus: 'PROVISIONAL' })
-    };
+      };
+    }
     return { bodies, provider: this.metadata };
   }
 }
