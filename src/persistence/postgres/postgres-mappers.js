@@ -24,6 +24,7 @@ function encryptedBirthProfileFromRow(row) {
 }
 function paymentFromRow(row) { return immutableCopy({ id: row.id, userId: row.user_id, provider: row.provider, providerTransactionId: row.provider_transaction_id, status: row.status, amountMinor: Number(row.amount_minor), currency: row.currency.trim(), createdAt: dbTime(row.created_at), updatedAt: dbTime(row.updated_at) }); }
 function entitlementFromRow(row) { return immutableCopy({ id: row.id, userId: row.user_id, productKey: row.product_key, status: row.status, quantity: row.quantity, validFrom: dbTime(row.valid_from), validUntil: nullableTime(row.valid_until), sourcePaymentTransactionId: row.source_payment_transaction_id }); }
+function careerEventFromRow(row) { return immutableCopy({ id: row.id, userId: row.user_id, birthProfileId: row.birth_profile_id, eventType: row.event_type, eventDatePrecision: row.event_date_precision, eventYear: Number(row.event_year), eventMonth: row.event_month === null ? null : Number(row.event_month), eventDay: row.event_day === null ? null : Number(row.event_day), title: row.title, notes: row.notes, createdAt: dbTime(row.created_at), updatedAt: dbTime(row.updated_at), deletedAt: nullableTime(row.deleted_at) }); }
 async function readingFromRow(row, codec) {
   const record = await codec.decodeRecord({
     userId: row.user_id,
@@ -69,4 +70,4 @@ async function encodedReadingPayload(codec, { userId, record }) {
   return out;
 }
 
-module.exports = { dbTime, nullableTime, nullableString, toBuffer, profileFingerprint, userFromRow, birthProfileFromRow, encryptedBirthProfileFromRow, paymentFromRow, entitlementFromRow, readingFromRow, encryptedReadingFromRow, encodedBirthPayload, encodedReadingPayload, freeze };
+module.exports = { dbTime, nullableTime, nullableString, toBuffer, profileFingerprint, userFromRow, birthProfileFromRow, encryptedBirthProfileFromRow, paymentFromRow, entitlementFromRow, careerEventFromRow, readingFromRow, encryptedReadingFromRow, encodedBirthPayload, encodedReadingPayload, freeze };
