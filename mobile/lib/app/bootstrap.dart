@@ -30,6 +30,9 @@ import '../features/ashtakavarga/data/ashtakavarga_repository.dart';
 import '../features/ashtakavarga/domain/ashtakavarga.dart';
 import '../features/ashtakavarga/domain/ashtakavarga_repository.dart';
 import '../features/ashtakavarga/ashtakavarga_controller.dart';
+import '../features/readings/data/reading_api_repository.dart';
+import '../features/readings/domain/reading_repository.dart';
+import '../features/readings/reading_controller.dart';
 import 'app.dart';
 
 Future<void> bootstrap() async {
@@ -42,6 +45,7 @@ Future<void> bootstrap() async {
   final VimshottariRepository vimshottariRepository;
   final TransitSnapshotRepository transitSnapshotRepository;
   final AshtakavargaRepository ashtakavargaRepository;
+  final ReadingRepository readingRepository;
   if (config == null) {
     repository = _UnavailableAuthRepository();
     profileRepository = const UnavailableBirthProfileRepository();
@@ -50,6 +54,7 @@ Future<void> bootstrap() async {
     vimshottariRepository = const UnavailableVimshottariRepository();
     transitSnapshotRepository = const UnavailableTransitSnapshotRepository();
     ashtakavargaRepository = const _UnavailableAshtakavargaRepository();
+    readingRepository = const UnavailableReadingRepository();
   } else {
     await Supabase.initialize(
       url: config.supabaseUrl,
@@ -66,6 +71,7 @@ Future<void> bootstrap() async {
     vimshottariRepository = VimshottariApiRepository(apiClient);
     transitSnapshotRepository = TransitSnapshotApiRepository(apiClient);
     ashtakavargaRepository = AshtakavargaApiRepository(apiClient);
+    readingRepository = ReadingApiRepository(apiClient);
   }
   final controller = AuthController(repository);
   await controller.restore();
@@ -87,6 +93,7 @@ Future<void> bootstrap() async {
         ashtakavargaRepositoryProvider.overrideWithValue(
           ashtakavargaRepository,
         ),
+        readingRepositoryProvider.overrideWithValue(readingRepository),
       ],
       child: KundlInsightsApp(authController: controller),
     ),

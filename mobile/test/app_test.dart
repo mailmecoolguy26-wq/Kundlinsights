@@ -83,7 +83,7 @@ void main() {
     for (final item in const [
       ('Kundli', 'My Kundli'),
       ('Insights', 'Career'),
-      ('Readings', 'Detailed Readings'),
+      ('Readings', 'My Readings'),
       ('Profile', 'Settings'),
     ]) {
       await tester.tap(find.text(item.$1).last);

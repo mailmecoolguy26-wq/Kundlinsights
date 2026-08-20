@@ -220,6 +220,48 @@ abstract class AppLocalizations {
   /// **'Your personalized readings will appear here.'**
   String get readingsBody;
 
+  /// No description provided for @myReadings.
+  ///
+  /// In en, this message translates to:
+  /// **'My Readings'**
+  String get myReadings;
+
+  /// No description provided for @careerReading.
+  ///
+  /// In en, this message translates to:
+  /// **'Career Reading'**
+  String get careerReading;
+
+  /// No description provided for @createdOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Created'**
+  String get createdOn;
+
+  /// No description provided for @noReadingsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No readings yet.'**
+  String get noReadingsYet;
+
+  /// No description provided for @noReadingsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You’ll find your personalized readings here after they’re generated.'**
+  String get noReadingsBody;
+
+  /// No description provided for @readingsUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Your saved readings are unavailable right now. Please try again.'**
+  String get readingsUnavailable;
+
+  /// No description provided for @readingUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This saved reading is unavailable right now. Please return to My Readings and try again.'**
+  String get readingUnavailable;
+
   /// No description provided for @settings.
   ///
   /// In en, this message translates to:

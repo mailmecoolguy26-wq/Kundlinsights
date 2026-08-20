@@ -77,6 +77,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get readingsBody => 'Your personalized readings will appear here.';
 
   @override
+  String get myReadings => 'My Readings';
+
+  @override
+  String get careerReading => 'Career Reading';
+
+  @override
+  String get createdOn => 'Created';
+
+  @override
+  String get noReadingsYet => 'No readings yet.';
+
+  @override
+  String get noReadingsBody =>
+      'You’ll find your personalized readings here after they’re generated.';
+
+  @override
+  String get readingsUnavailable =>
+      'Your saved readings are unavailable right now. Please try again.';
+
+  @override
+  String get readingUnavailable =>
+      'This saved reading is unavailable right now. Please return to My Readings and try again.';
+
+  @override
   String get settings => 'Settings';
 
   @override
