@@ -6,6 +6,12 @@ Production Career generation requires `OPENAI_API_KEY` and `OPENAI_CAREER_MODEL`
 
 Astronomical calculations use an explicit Layer 1 provider boundary. The default development provider remains provisional; the Swiss Ephemeris provider is implemented only for license-gated engineering validation and is not production authority until its deployment license and data-manifest gates are satisfied.
 
+## Local development runtime
+
+Run `npm run start:dev` with `NODE_ENV=development`. Required local configuration is `DEV_DATABASE_URL`, `DEV_SUPABASE_AUTH_ISSUER`, `DEV_SUPABASE_AUTH_JWKS_URL`, `DEV_SUPABASE_AUTH_AUDIENCE`, and a non-production 32-byte base64 `DEV_LOCAL_KMS_KEY_BASE64`. `DEV_HOST` defaults to `0.0.0.0`; `DEV_PORT` defaults to `3000`.
+
+This runtime preserves encrypted PostgreSQL persistence using the local development envelope key. It requires no AWS KMS, Swiss license, or OpenAI credentials merely to boot. It uses the provisional/reference Astronomy Engine provider and must never be used for commercial production.
+
 KundlInsights is a production-grade iOS and Android application for **Vedic / Jyotish astrology**.
 
 It is intentionally being built in layers, beginning with a deterministic astronomical calculation foundation and progressing through charting, dashas, transits, Ashtakavarga, event analysis, prediction, interpretation, mobile delivery, and subscriptions.

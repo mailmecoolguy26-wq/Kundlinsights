@@ -1,0 +1,18 @@
+'use strict';
+
+const { DEFAULT_ALGORITHMS } = require('../security/auth/supabase-auth-verifier');
+
+function invalid() { const error = new Error('Invalid development configuration.'); error.code = 'INVALID_DEVELOPMENT_CONFIGURATION'; throw error; }
+function text(value) { return typeof value === 'string' && value.trim() === value && value.length > 0; }
+function integer(value, fallback, minimum, maximum) { const raw = value === undefined ? fallback : value; if (!/^(0|[1-9]\d*)$/.test(String(raw))) invalid(); const result = Number(raw); if (!Number.isSafeInteger(result) || result < minimum || result > maximum) invalid(); return result; }
+function databaseUrl(value) { if (!text(value)) invalid(); try { const parsed = new URL(value); if (!['postgres:', 'postgresql:'].includes(parsed.protocol) || !parsed.hostname) invalid(); return value; } catch { invalid(); } }
+function httpsUrl(value) { if (!text(value)) invalid(); try { const parsed = new URL(value); if (parsed.protocol !== 'https:') invalid(); return parsed.toString(); } catch { invalid(); } }
+function localKey(value) { if (!text(value)) invalid(); const key = Buffer.from(value, 'base64'); if (key.length !== 32 || key.toString('base64') !== value) invalid(); return key; }
+
+function loadDevelopmentConfig(env = process.env) {
+  if (!env || env.NODE_ENV !== 'development') invalid(); const algorithms = text(env.DEV_SUPABASE_AUTH_ALLOWED_ALGORITHMS) ? env.DEV_SUPABASE_AUTH_ALLOWED_ALGORITHMS.split(',') : DEFAULT_ALGORITHMS;
+  if (!algorithms.length || !algorithms.every((algorithm) => DEFAULT_ALGORITHMS.includes(algorithm))) invalid();
+  return Object.freeze({ host: text(env.DEV_HOST) ? env.DEV_HOST : '0.0.0.0', port: integer(env.DEV_PORT, 3000, 1, 65535), databaseUrl: databaseUrl(env.DEV_DATABASE_URL), auth: Object.freeze({ issuer: httpsUrl(env.DEV_SUPABASE_AUTH_ISSUER), jwksUri: httpsUrl(env.DEV_SUPABASE_AUTH_JWKS_URL), audience: text(env.DEV_SUPABASE_AUTH_AUDIENCE) ? env.DEV_SUPABASE_AUTH_AUDIENCE : invalid(), allowedAlgorithms: Object.freeze([...new Set(algorithms)]) }), localKms: Object.freeze({ key: localKey(env.DEV_LOCAL_KMS_KEY_BASE64), keyVersion: text(env.DEV_LOCAL_KMS_KEY_VERSION) ? env.DEV_LOCAL_KMS_KEY_VERSION : 'development-local-kek-v1' }), corsOrigins: Object.freeze([]), bodyLimitBytes: integer(env.DEV_REQUEST_BODY_LIMIT_BYTES, 16384, 1024, 16384) });
+}
+
+module.exports = { loadDevelopmentConfig };
