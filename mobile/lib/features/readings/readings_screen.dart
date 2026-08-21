@@ -315,21 +315,38 @@ class _DetailBody extends StatelessWidget {
         const SizedBox(height: AppSpacing.xs),
         Text('${t.createdOn}: $date'),
         const SizedBox(height: AppSpacing.lg),
-        for (final section in detail.content.sections) ...[
-          Semantics(
-            header: true,
-            child: Text(
-              section.headline,
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          for (final item in section.items) _StoredReadingItem(item: item),
-          const SizedBox(height: AppSpacing.lg),
+        _ReadingContentSections(content: detail.content),
+        if (detail.calibratedContent != null) ...[
+          const SizedBox(height: AppSpacing.md),
+          _ReadingContentSections(content: detail.calibratedContent!),
         ],
       ],
     );
   }
+}
+
+class _ReadingContentSections extends StatelessWidget {
+  const _ReadingContentSections({required this.content});
+  final ReadingContent content;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      for (final section in content.sections) ...[
+        Semantics(
+          header: true,
+          child: Text(
+            section.headline,
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        for (final item in section.items) _StoredReadingItem(item: item),
+        const SizedBox(height: AppSpacing.lg),
+      ],
+    ],
+  );
 }
 
 class _StoredReadingItem extends StatelessWidget {

@@ -26,11 +26,44 @@ void main() {
       'Stored text.',
     );
     expect(detail.content.sections.single.items.single.sourceTitle, isNull);
+    expect(detail.calibratedContent, isNull);
     expect(
       () => ReadingDetail.fromJson({..._detailJson(), 'content': null}),
       throwsFormatException,
     );
   });
+
+  test(
+    'parses optional calibrated content in exact server section and item order',
+    () {
+      final detail = ReadingDetail.fromJson({
+        ..._detailJson(),
+        'calibratedContent': _calibratedContent([
+          _section('future-key', 'Future server title', 'Future server text.'),
+          _section(
+            'unknown-future-key',
+            'Unknown server title',
+            'Unknown text.',
+          ),
+          _section('calibration', 'Calibration', 'Calibration text.'),
+        ]),
+      });
+      expect(detail.calibratedContent, isNotNull);
+      expect(
+        detail.calibratedContent!.sections.map((section) => section.section),
+        ['future-key', 'unknown-future-key', 'calibration'],
+      );
+      expect(
+        detail.calibratedContent!.sections[1].items.single.sentence,
+        'Unknown text.',
+      );
+      final empty = ReadingDetail.fromJson({
+        ..._detailJson(),
+        'calibratedContent': _calibratedContent([]),
+      });
+      expect(empty.calibratedContent!.sections, isEmpty);
+    },
+  );
 
   test(
     'preserves backend list order and supports the documented 50-item cap',
@@ -209,6 +242,117 @@ void main() {
       auth.dispose();
     },
   );
+
+  testWidgets('renders returned NONE and LIMITED calibrated sections only', (
+    tester,
+  ) async {
+    final none = _detailJson()
+      ..['calibratedContent'] = _calibratedContent([
+        _section('calibration', 'Calibration', 'No historical calibration.'),
+      ]);
+    final limited = _detailJson()
+      ..['calibratedContent'] = _calibratedContent([
+        _section('calibration', 'Calibration', 'Limited calibration.'),
+        _section(
+          'decision-considerations',
+          'Considerations',
+          'Review options.',
+        ),
+      ]);
+    final authSource = _AuthSource();
+    final auth = AuthController(authSource);
+    await auth.restore();
+    final profiles = ProfileController(_Profiles(authSource), auth);
+    await tester.pump();
+    final repository = _ReadingRepository()
+      ..nextDetail = ReadingDetail.fromJson(none);
+    final controller = ReadingController(repository, auth, profiles);
+    await tester.pumpWidget(
+      _localized(
+        ReadingDetailScreen(controller: controller, readingId: 'reading-a'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('No historical calibration.'), findsOneWidget);
+    expect(find.text('Historical patterns'), findsNothing);
+    expect(find.text('Upcoming periods'), findsNothing);
+
+    repository.nextDetail = ReadingDetail.fromJson({
+      ..._detailJson(),
+      'calibratedContent': _calibratedContent([]),
+    });
+    await controller.loadDetail('reading-a');
+    await tester.pumpAndSettle();
+    expect(find.text('Stored text.'), findsOneWidget);
+    expect(find.text('Calibration'), findsNothing);
+
+    repository.nextDetail = ReadingDetail.fromJson(limited);
+    await controller.loadDetail('reading-a');
+    await tester.pumpAndSettle();
+    expect(find.text('Limited calibration.'), findsOneWidget);
+    expect(find.text('Review options.'), findsOneWidget);
+    expect(find.text('Historical patterns'), findsNothing);
+    expect(find.text('Upcoming periods'), findsNothing);
+    controller.dispose();
+    profiles.dispose();
+    auth.dispose();
+  });
+
+  testWidgets(
+    'renders full calibrated content in server order after existing content',
+    (tester) async {
+      final detail = _detailJson()
+        ..['calibratedContent'] = _calibratedContent([
+          _section('calibration', 'Calibration', 'Calibration text.'),
+          _section(
+            'historical-patterns',
+            'Historical patterns',
+            'Historical text.',
+          ),
+          _section('upcoming-periods', 'Upcoming periods', 'Future text.'),
+          _section(
+            'decision-considerations',
+            'Considerations',
+            'Consider this.',
+          ),
+          _section('calculation-note', 'Calculation note', 'Provisional note.'),
+          _section('unknown-section', 'Unknown section', 'Unknown text.'),
+        ]);
+      final authSource = _AuthSource();
+      final auth = AuthController(authSource);
+      await auth.restore();
+      final profiles = ProfileController(_Profiles(authSource), auth);
+      await tester.pump();
+      final repository = _ReadingRepository()
+        ..nextDetail = ReadingDetail.fromJson(detail);
+      final controller = ReadingController(repository, auth, profiles);
+      await tester.pumpWidget(
+        _localized(
+          ReadingDetailScreen(controller: controller, readingId: 'reading-a'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final calibratedHeadlines = [
+        'Calibration',
+        'Historical patterns',
+        'Upcoming periods',
+        'Considerations',
+        'Calculation note',
+        'Unknown section',
+      ];
+      for (final headline in calibratedHeadlines) {
+        final finder = find.text(headline);
+        expect(finder, findsOneWidget);
+        await tester.ensureVisible(finder);
+      }
+      expect(find.text('Stored text.'), findsOneWidget);
+      expect(find.text('Provisional note.'), findsOneWidget);
+      expect(find.text('Unknown text.'), findsOneWidget);
+      controller.dispose();
+      profiles.dispose();
+      auth.dispose();
+    },
+  );
 }
 
 Widget _localized(Widget child) => MaterialApp(
@@ -253,6 +397,19 @@ Map<String, dynamic> _detailJson({String profileId = 'profile-a'}) => {
     ],
   },
 };
+Map<String, dynamic> _section(
+  String section,
+  String headline,
+  String sentence,
+) => {
+  'section': section,
+  'headline': headline,
+  'items': [
+    {'headline': '$headline item', 'sentence': sentence},
+  ],
+};
+Map<String, dynamic> _calibratedContent(List<Map<String, dynamic>> sections) =>
+    {'domain': 'CAREER', 'locale': 'en-IN', 'sections': sections};
 
 class _ReadingRepository implements ReadingRepository {
   _ReadingRepository({Set<int>? deferredListCalls})
@@ -265,6 +422,7 @@ class _ReadingRepository implements ReadingRepository {
   bool failList = false;
   bool failDetail = false;
   List<ReadingSummary>? nextList;
+  ReadingDetail? nextDetail;
   @override
   Future<List<ReadingSummary>> getReadings({String? birthProfileId}) {
     listCalls++;
@@ -291,7 +449,7 @@ class _ReadingRepository implements ReadingRepository {
       _pendingDetail = Completer<ReadingDetail>();
       return _pendingDetail!.future;
     }
-    return Future.value(_detail('profile-a'));
+    return Future.value(nextDetail ?? _detail('profile-a'));
   }
 
   void completeDetail(ReadingDetail value) => _pendingDetail!.complete(value);

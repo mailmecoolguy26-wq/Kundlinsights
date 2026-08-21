@@ -125,14 +125,21 @@ class ReadingDetail extends ReadingSummary {
     required super.readingInstant,
     required super.locale,
     required this.content,
+    this.calibratedContent,
   });
 
   final ReadingContent content;
+  final ReadingContent? calibratedContent;
 
   factory ReadingDetail.fromJson(Map<String, dynamic> json) {
     final content = json['content'];
     if (content is! Map<String, dynamic>) {
       throw const FormatException('Stored reading content is unavailable.');
+    }
+    final calibratedContent = json['calibratedContent'];
+    if (calibratedContent != null &&
+        calibratedContent is! Map<String, dynamic>) {
+      throw const FormatException('Malformed calibrated reading content.');
     }
     final summary = ReadingSummary.fromJson(json);
     return ReadingDetail(
@@ -144,6 +151,9 @@ class ReadingDetail extends ReadingSummary {
       readingInstant: summary.readingInstant,
       locale: summary.locale,
       content: ReadingContent.fromJson(content),
+      calibratedContent: calibratedContent == null
+          ? null
+          : ReadingContent.fromJson(calibratedContent),
     );
   }
 }
