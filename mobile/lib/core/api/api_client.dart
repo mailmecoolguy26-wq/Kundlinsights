@@ -36,6 +36,12 @@ class ApiClient {
     Map<String, String>? headers,
   }) => _request<T>(path, data: data, method: 'POST', headers: headers);
 
+  Future<Response<T>> patch<T>(String path, {Object? data}) =>
+      _request<T>(path, data: data, method: 'PATCH');
+
+  Future<Response<T>> delete<T>(String path) =>
+      _request<T>(path, method: 'DELETE');
+
   Future<Response<T>> _request<T>(
     String path, {
     Map<String, dynamic>? queryParameters,

@@ -521,4 +521,107 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get ashtakavargaUnavailable =>
       'Your Ashtakavarga data is unavailable right now. Please try again.';
+
+  @override
+  String get careerCalibration => 'Career Calibration';
+
+  @override
+  String get careerCalibrationIntro =>
+      'Add career milestones to help personalize future career readings. You can enter an exact date, month, or year.';
+
+  @override
+  String get addMilestone => 'Add milestone';
+
+  @override
+  String get editMilestone => 'Edit milestone';
+
+  @override
+  String get saveChanges => 'Save changes';
+
+  @override
+  String get eventType => 'Event type';
+
+  @override
+  String get datePrecision => 'Date precision';
+
+  @override
+  String get year => 'Year';
+
+  @override
+  String get month => 'Month';
+
+  @override
+  String get day => 'Day';
+
+  @override
+  String get titleOptional => 'Title (optional)';
+
+  @override
+  String get notesOptional => 'Notes (optional)';
+
+  @override
+  String get noCareerHistory => 'No career history added';
+
+  @override
+  String get addAnotherMilestone =>
+      'Add another milestone to enable historical comparison.';
+
+  @override
+  String get careerHistoryReady =>
+      'Enough history added to personalize your career analysis.';
+
+  @override
+  String get careerEventsUnavailable =>
+      'Your career milestones are unavailable right now. Please try again.';
+
+  @override
+  String get deleteCareerMilestone => 'Delete this career milestone?';
+
+  @override
+  String get deleteCareerMilestoneBody =>
+      'It will be removed from your career calibration history.';
+
+  @override
+  String get delete => 'Delete';
+
+  @override
+  String get cancel => 'Cancel';
+
+  @override
+  String get careerEventFuture =>
+      'Career milestones must not be in the future.';
+
+  @override
+  String get invalidCareerEvent =>
+      'Please complete the required milestone details.';
+
+  @override
+  String get firstJob => 'First job';
+
+  @override
+  String get jobSwitch => 'Job switch';
+
+  @override
+  String get promotion => 'Promotion';
+
+  @override
+  String get roleChange => 'Role change';
+
+  @override
+  String get salaryGrowth => 'Salary growth';
+
+  @override
+  String get jobLoss => 'Job loss';
+
+  @override
+  String get businessStarted => 'Business started';
+
+  @override
+  String get careerBreakthrough => 'Career breakthrough';
+
+  @override
+  String get careerSetback => 'Career setback';
+
+  @override
+  String get other => 'Other';
 }

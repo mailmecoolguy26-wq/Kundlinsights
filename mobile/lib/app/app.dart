@@ -14,6 +14,7 @@ import '../features/transits/transit_snapshot_controller.dart';
 import '../features/ashtakavarga/ashtakavarga_controller.dart';
 import '../features/readings/reading_controller.dart';
 import '../features/readings/career_reading_generation_controller.dart';
+import '../features/career_events/career_event_controller.dart';
 
 class KundlInsightsApp extends ConsumerWidget {
   const KundlInsightsApp({super.key, required this.authController});
@@ -46,6 +47,9 @@ class KundlInsightsApp extends ConsumerWidget {
         readings,
       )),
     );
+    final careerEvents = ref.watch(
+      careerEventControllerProvider((authController, profiles)),
+    );
     return MaterialApp.router(
       title: 'KundlInsights',
       debugShowCheckedModeBanner: false,
@@ -60,6 +64,7 @@ class KundlInsightsApp extends ConsumerWidget {
         ashtakavarga,
         readings,
         generation,
+        careerEvents,
       ),
       localizationsDelegates: const [
         AppLocalizations.delegate,

@@ -36,6 +36,9 @@ import '../features/readings/reading_controller.dart';
 import '../features/readings/data/career_reading_generation_api_repository.dart';
 import '../features/readings/domain/career_reading_generation.dart';
 import '../features/readings/career_reading_generation_controller.dart';
+import '../features/career_events/data/career_event_api_repository.dart';
+import '../features/career_events/domain/career_event_repository.dart';
+import '../features/career_events/career_event_controller.dart';
 import 'app.dart';
 
 Future<void> bootstrap() async {
@@ -50,6 +53,7 @@ Future<void> bootstrap() async {
   final AshtakavargaRepository ashtakavargaRepository;
   final ReadingRepository readingRepository;
   final CareerReadingGenerationRepository generationRepository;
+  final CareerEventRepository careerEventRepository;
   if (config == null) {
     repository = _UnavailableAuthRepository();
     profileRepository = const UnavailableBirthProfileRepository();
@@ -60,6 +64,7 @@ Future<void> bootstrap() async {
     ashtakavargaRepository = const _UnavailableAshtakavargaRepository();
     readingRepository = const UnavailableReadingRepository();
     generationRepository = _UnavailableGenerationRepository();
+    careerEventRepository = const UnavailableCareerEventRepository();
   } else {
     await Supabase.initialize(
       url: config.supabaseUrl,
@@ -78,6 +83,7 @@ Future<void> bootstrap() async {
     ashtakavargaRepository = AshtakavargaApiRepository(apiClient);
     readingRepository = ReadingApiRepository(apiClient);
     generationRepository = CareerReadingGenerationApiRepository(apiClient);
+    careerEventRepository = CareerEventApiRepository(apiClient);
   }
   final controller = AuthController(repository);
   await controller.restore();
@@ -103,6 +109,7 @@ Future<void> bootstrap() async {
         careerReadingGenerationRepositoryProvider.overrideWithValue(
           generationRepository,
         ),
+        careerEventRepositoryProvider.overrideWithValue(careerEventRepository),
       ],
       child: KundlInsightsApp(authController: controller),
     ),

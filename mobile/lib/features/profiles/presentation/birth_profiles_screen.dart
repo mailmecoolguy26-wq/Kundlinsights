@@ -81,6 +81,14 @@ class ProfileDetailScreen extends StatelessWidget {
             onTap: () => controller.select(profile),
           ),
           const SizedBox(height: AppSpacing.md),
+          Card(
+            child: ListTile(
+              title: Text(t.careerCalibration),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.go('/career-calibration'),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
           Text(t.editDeleteUnavailable),
         ],
       ),

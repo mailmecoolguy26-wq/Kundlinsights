@@ -1065,6 +1065,198 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your Ashtakavarga data is unavailable right now. Please try again.'**
   String get ashtakavargaUnavailable;
+
+  /// No description provided for @careerCalibration.
+  ///
+  /// In en, this message translates to:
+  /// **'Career Calibration'**
+  String get careerCalibration;
+
+  /// No description provided for @careerCalibrationIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Add career milestones to help personalize future career readings. You can enter an exact date, month, or year.'**
+  String get careerCalibrationIntro;
+
+  /// No description provided for @addMilestone.
+  ///
+  /// In en, this message translates to:
+  /// **'Add milestone'**
+  String get addMilestone;
+
+  /// No description provided for @editMilestone.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit milestone'**
+  String get editMilestone;
+
+  /// No description provided for @saveChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Save changes'**
+  String get saveChanges;
+
+  /// No description provided for @eventType.
+  ///
+  /// In en, this message translates to:
+  /// **'Event type'**
+  String get eventType;
+
+  /// No description provided for @datePrecision.
+  ///
+  /// In en, this message translates to:
+  /// **'Date precision'**
+  String get datePrecision;
+
+  /// No description provided for @year.
+  ///
+  /// In en, this message translates to:
+  /// **'Year'**
+  String get year;
+
+  /// No description provided for @month.
+  ///
+  /// In en, this message translates to:
+  /// **'Month'**
+  String get month;
+
+  /// No description provided for @day.
+  ///
+  /// In en, this message translates to:
+  /// **'Day'**
+  String get day;
+
+  /// No description provided for @titleOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Title (optional)'**
+  String get titleOptional;
+
+  /// No description provided for @notesOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes (optional)'**
+  String get notesOptional;
+
+  /// No description provided for @noCareerHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'No career history added'**
+  String get noCareerHistory;
+
+  /// No description provided for @addAnotherMilestone.
+  ///
+  /// In en, this message translates to:
+  /// **'Add another milestone to enable historical comparison.'**
+  String get addAnotherMilestone;
+
+  /// No description provided for @careerHistoryReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Enough history added to personalize your career analysis.'**
+  String get careerHistoryReady;
+
+  /// No description provided for @careerEventsUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Your career milestones are unavailable right now. Please try again.'**
+  String get careerEventsUnavailable;
+
+  /// No description provided for @deleteCareerMilestone.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this career milestone?'**
+  String get deleteCareerMilestone;
+
+  /// No description provided for @deleteCareerMilestoneBody.
+  ///
+  /// In en, this message translates to:
+  /// **'It will be removed from your career calibration history.'**
+  String get deleteCareerMilestoneBody;
+
+  /// No description provided for @delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get delete;
+
+  /// No description provided for @cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
+  /// No description provided for @careerEventFuture.
+  ///
+  /// In en, this message translates to:
+  /// **'Career milestones must not be in the future.'**
+  String get careerEventFuture;
+
+  /// No description provided for @invalidCareerEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Please complete the required milestone details.'**
+  String get invalidCareerEvent;
+
+  /// No description provided for @firstJob.
+  ///
+  /// In en, this message translates to:
+  /// **'First job'**
+  String get firstJob;
+
+  /// No description provided for @jobSwitch.
+  ///
+  /// In en, this message translates to:
+  /// **'Job switch'**
+  String get jobSwitch;
+
+  /// No description provided for @promotion.
+  ///
+  /// In en, this message translates to:
+  /// **'Promotion'**
+  String get promotion;
+
+  /// No description provided for @roleChange.
+  ///
+  /// In en, this message translates to:
+  /// **'Role change'**
+  String get roleChange;
+
+  /// No description provided for @salaryGrowth.
+  ///
+  /// In en, this message translates to:
+  /// **'Salary growth'**
+  String get salaryGrowth;
+
+  /// No description provided for @jobLoss.
+  ///
+  /// In en, this message translates to:
+  /// **'Job loss'**
+  String get jobLoss;
+
+  /// No description provided for @businessStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Business started'**
+  String get businessStarted;
+
+  /// No description provided for @careerBreakthrough.
+  ///
+  /// In en, this message translates to:
+  /// **'Career breakthrough'**
+  String get careerBreakthrough;
+
+  /// No description provided for @careerSetback.
+  ///
+  /// In en, this message translates to:
+  /// **'Career setback'**
+  String get careerSetback;
+
+  /// No description provided for @other.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get other;
 }
 
 class _AppLocalizationsDelegate

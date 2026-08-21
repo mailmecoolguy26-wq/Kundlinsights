@@ -17,6 +17,8 @@ import '../../features/profiles/profile_controller.dart';
 import '../../features/readings/readings_screen.dart';
 import '../../features/readings/reading_controller.dart';
 import '../../features/readings/career_reading_generation_controller.dart';
+import '../../features/career_events/career_event_controller.dart';
+import '../../features/career_events/presentation/career_calibration_screen.dart';
 import '../../features/vimshottari/presentation/vimshottari_timeline_screen.dart';
 import '../../features/vimshottari/vimshottari_controller.dart';
 import '../../features/transits/presentation/current_transits_screen.dart';
@@ -35,6 +37,7 @@ GoRouter createAppRouter(
   AshtakavargaController ashtakavarga,
   ReadingController readings,
   CareerReadingGenerationController generation,
+  CareerEventController careerEvents,
 ) => GoRouter(
   initialLocation: '/splash',
   refreshListenable: Listenable.merge([authController, profiles]),
@@ -127,6 +130,12 @@ GoRouter createAppRouter(
           ),
         ),
       ],
+    ),
+    GoRoute(
+      path: '/career-calibration',
+      name: 'career-calibration',
+      builder: (context, state) =>
+          CareerCalibrationScreen(controller: careerEvents),
     ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, shell) =>
