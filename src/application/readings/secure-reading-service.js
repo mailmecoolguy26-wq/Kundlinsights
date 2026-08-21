@@ -24,7 +24,19 @@ function publicReadingSummary(item) {
     locale: item.record.input.locale,
   });
 }
-function publicReadingDetail(item) { return immutableCopy({ ...publicReadingSummary(item), content: item.record.renderedReading }); }
+function calibratedContent(record) {
+  const interpretation = record && record.reading && record.reading.calibrationInterpretation;
+  if (!interpretation || typeof interpretation !== 'object') return null;
+  const sections = []; const add = (section, headline, items) => { if (items.length) sections.push({ section, headline, items }); };
+  const summary = interpretation.calibrationSummary;
+  if (summary && typeof summary.narrative === 'string') add('calibration', 'Calibration', [{ headline: 'Career calibration', sentence: summary.narrative }]);
+  add('historical-patterns', 'Historical patterns', (interpretation.recurringHistoricalEvidence || []).filter((item) => item && typeof item.text === 'string').map((item) => ({ headline: 'Recurring pattern', sentence: item.text })));
+  add('upcoming-periods', 'Upcoming periods', (interpretation.upcomingRecurrenceWindows || []).filter((item) => item && typeof item.text === 'string').map((item) => ({ headline: 'Upcoming period', sentence: item.text })));
+  add('decision-considerations', 'Decision considerations', (interpretation.decisionConsiderations || []).filter((item) => typeof item === 'string').map((sentence) => ({ headline: 'Consideration', sentence })));
+  if (interpretation.disclosure && interpretation.disclosure.hasProvisionalEvidence === true) add('calculation-note', 'Calculation note', [{ headline: 'Calculation basis', sentence: 'Some calculations use a provisional calculation basis.' }]);
+  return { domain: record.domain, locale: record.input.locale, sections };
+}
+function publicReadingDetail(item) { const calibrated = calibratedContent(item.record); return immutableCopy({ ...publicReadingSummary(item), content: item.record.renderedReading, ...(calibrated ? { calibratedContent: calibrated } : {}) }); }
 async function eligibleEntitlement(repositories, userId, domain, evaluationTime) {
   const active = await repositories.entitlements.listActiveEntitlementsForUser(userId, evaluationTime);
   return active.find((item) => item.productKey === domain) || null;

@@ -15,12 +15,12 @@ function assertSafe(value) {
   for (const [key, child] of Object.entries(value)) { assert.equal(prohibited.has(key), false, `prohibited field ${key}`); assertSafe(child); }
 }
 function summary(id, createdAt, profile = 'profile-a') { return { readingId: id, birthProfileId: profile, domain: 'CAREER', status: 'active', createdAt, readingInstant: '2026-08-17T00:00:00.000Z', locale: 'en-IN' }; }
-function detail(id, profile = 'profile-a') { return { ...summary(id, '2026-08-17T00:00:00.000Z', profile), content: { domain: 'CAREER', locale: 'en-IN', sections: [{ section: 'CAREER_STRUCTURE', headline: 'Career structure', items: [{ topic: 'H10', sentence: 'Stored reading content.' }] }] } }; }
+function detail(id, profile = 'profile-a', calibratedContent = undefined) { return { ...summary(id, '2026-08-17T00:00:00.000Z', profile), content: { domain: 'CAREER', locale: 'en-IN', sections: [{ section: 'CAREER_STRUCTURE', headline: 'Career structure', items: [{ topic: 'H10', sentence: 'Stored reading content.' }] }] }, ...(calibratedContent === undefined ? {} : { calibratedContent }) }; }
 function buildApi(calls) {
   const service = {
     async generateSecureReading() { throw new Error('not used'); },
     async listSecureReadings(input) { calls.list.push(input); if (input.principal.subject !== 'subject-a') return []; return [summary('reading-new', '2026-08-18T00:00:00.000Z'), summary('reading-old', '2026-08-17T00:00:00.000Z')]; },
-    async getSecureReadingDetail(input) { calls.detail.push(input); if (input.principal.subject !== 'subject-a' || input.readingId === 'reading-b') { const error = new Error(); error.code = 'NOT_FOUND_OR_FORBIDDEN'; throw error; } return detail(input.readingId); },
+    async getSecureReadingDetail(input) { calls.detail.push(input); if (input.principal.subject !== 'subject-a' || input.readingId === 'reading-b') { const error = new Error(); error.code = 'NOT_FOUND_OR_FORBIDDEN'; throw error; } return detail(input.readingId, 'profile-a', input.readingId === 'reading-calibrated' ? { domain: 'CAREER', locale: 'en-IN', sections: [{ section: 'calibration', headline: 'Calibration', items: [{ headline: 'Career calibration', sentence: 'Calibration is limited.' }] }] } : undefined); },
     async replaySecureReading() { calls.replay += 1; throw new Error('replay must not run'); },
   };
   return createApi({ authVerifier: createTestOnlyAuthVerifier({ a, b }), userResolver: { resolve: async () => ({ id: 'internal-user', status: 'active' }) }, birthProfileService: { create: async () => null, list: async () => [], get: async () => null }, secureReadingService: service, requestIdGenerator: () => 'request-1' });
@@ -38,8 +38,17 @@ test('API-P5C2 lists only safe owned reading summaries in newest-first order wit
 test('API-P5C2 returns owned stored detail without replay and hides cross-user reading IDs', async () => {
   const calls = { list: [], detail: [], replay: 0 }; const api = buildApi(calls);
   const owned = await api.inject(request('a', '/v1/readings/reading-a'));
-  assert.equal(owned.statusCode, 200); assert.equal(owned.json().reading.content.sections[0].items[0].sentence, 'Stored reading content.'); assertSafe(owned.json());
+  assert.equal(owned.statusCode, 200); assert.equal(owned.json().reading.content.sections[0].items[0].sentence, 'Stored reading content.'); assert.equal('calibratedContent' in owned.json().reading, false); assertSafe(owned.json());
   const foreign = await api.inject(request('b', '/v1/readings/reading-b'));
   assert.equal(foreign.statusCode, 404); assert.deepEqual(foreign.json().error, { code: 'NOT_FOUND_OR_FORBIDDEN', message: 'NOT_FOUND_OR_FORBIDDEN' });
   assert.equal(calls.replay, 0); assert.equal(calls.list.length, 0); await api.close();
+});
+
+test('P7B passes the optional normalized calibrated detail through GET while preserving legacy content', async () => {
+  const calls = { list: [], detail: [], replay: 0 }; const api = buildApi(calls);
+  const response = await api.inject(request('a', '/v1/readings/reading-calibrated'));
+  assert.equal(response.statusCode, 200); assert.equal(response.json().reading.content.sections[0].items[0].sentence, 'Stored reading content.');
+  assert.equal(response.json().reading.calibratedContent.sections[0].items[0].sentence, 'Calibration is limited.');
+  assert.equal(JSON.stringify(response.json().reading.calibratedContent).match(/evidenceId|patternKey|provenance|schemaVersion|private/), null);
+  assertSafe(response.json()); await api.close();
 });
