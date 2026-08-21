@@ -81,8 +81,14 @@ class SecureReadingService {
         : await this.execute(verified, 'app_runtime', async (context) => this.repo(context).birthProfiles.getBirthProfile(profileId));
       if (!profile || (!this.secureBirthProfileLoader && profile.userId !== user.id) || profile.status !== 'active') fail('NOT_FOUND_OR_FORBIDDEN');
     } catch (error) { safeError(error, 'NOT_FOUND_OR_FORBIDDEN'); }
+    if (this.requiresEntitlement({ domain: readingDomain })) {
+      try {
+        const entitlement = await this.execute(verified, 'app_runtime', async (context) => eligibleEntitlement(this.repo(context), user.id, readingDomain, this.clock()));
+        if (!entitlement) fail('ENTITLEMENT_EXHAUSTED');
+      } catch (error) { safeError(error, 'ENTITLEMENT_EXHAUSTED'); }
+    }
     let generated;
-    try { generated = await this.readingGenerator.generate({ birthProfile: profile, domain: readingDomain, readingInstant, locale }); if (!generated || !generated.input || !generated.result) fail('READING_GENERATION_FAILED'); } catch (error) { safeError(error, 'READING_GENERATION_FAILED'); }
+    try { generated = await this.readingGenerator.generate({ principal: verified, birthProfile: profile, domain: readingDomain, readingInstant, locale }); if (!generated || !generated.input || !generated.result) fail('READING_GENERATION_FAILED'); } catch (error) { safeError(error, 'READING_GENERATION_FAILED'); }
     let record;
     try { record = this.readingRecordFactory({ readingId: this.idGenerator(), createdAt: this.clock(), input: generated.input, result: generated.result }); } catch (error) { safeError(error, 'READING_GENERATION_FAILED'); }
     let encrypted;

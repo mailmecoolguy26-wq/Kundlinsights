@@ -68,6 +68,7 @@ function recordProvenance(result) {
     houses: { rulesetId: provenance.houseRulesetId || null },
     reading: { rulesetId: result.reading && result.reading.rulesetId || null, interpretationRulesetId: provenance.layer15aRulesetId || null },
     renderer: { rulesetId: result.renderedReading && result.renderedReading.provenance && result.renderedReading.provenance.rendererRulesetId || null },
+    calibration: provenance.calibrationMetadata || null,
   };
 }
 function calculationPayload({ engineProfileId, input, provenance }) {

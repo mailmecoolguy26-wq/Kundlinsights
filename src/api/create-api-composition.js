@@ -1,13 +1,13 @@
 'use strict';
 
-const { PostgresApplicationTransactionExecutor, SecureReadingService } = require('../application/readings');
+const { PostgresApplicationTransactionExecutor, SecureReadingService, CareerReadingInterpreter, CalibratedCareerReadingGenerator } = require('../application/readings');
 const { SecureBirthProfileService } = require('../application/birth-profiles');
 const { NatalSummaryService } = require('../application/natal-summary');
 const { DivisionalChartService } = require('../application/divisional-charts');
 const { VimshottariService } = require('../application/vimshottari');
 const { TransitSnapshotService } = require('../application/transit-snapshot');
 const { AshtakavargaService } = require('../application/ashtakavarga');
-const { CareerEventService, CareerEventAstrologyService } = require('../application/career-events');
+const { CareerEventService, CareerEventAstrologyService, CareerPatternComparisonService, CareerFutureRecurrenceService, CareerReadingContextBuilder } = require('../application/career-events');
 const { PostgresUserRepository, PostgresBirthProfileRepository, PostgresReadingRepository, PostgresEntitlementRepository, PostgresCareerEventRepository } = require('../persistence');
 const { PostgresUserKeyEnvelopeStore, UserDekProvider, BirthProfilePayloadCodec, ReadingPayloadCodec } = require('../security/crypto');
 const { resolveOrProvisionAppUser } = require('../security/auth');
@@ -69,7 +69,10 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   const transitSnapshotService = new TransitSnapshotService({ birthProfileService, astronomicalEngine });
   const ashtakavargaService = new AshtakavargaService({ birthProfileService, astronomicalEngine });
   const careerEventAstrologyService = new CareerEventAstrologyService({ careerEventService, birthProfileService, astronomicalEngine, canonicalSiderealSunSampler, divisionalChartService, ashtakavargaService });
-  const readingGenerator = {
+  const careerPatternComparisonService = new CareerPatternComparisonService({ careerEventService, careerEventAstrologyService });
+  const careerFutureRecurrenceService = new CareerFutureRecurrenceService({ careerPatternComparisonService, birthProfileService, astronomicalEngine, canonicalSiderealSunSampler, ashtakavargaService, clock });
+  const careerReadingContextBuilder = new CareerReadingContextBuilder({ careerEventService, careerPatternComparisonService, careerFutureRecurrenceService });
+  const baseReadingGenerator = {
     generate: async ({ birthProfile }) => {
       const { BirthCareerReadingOrchestrator } = require('../orchestration');
       const { createResolvedBirthPlace } = require('../place');
@@ -80,6 +83,9 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
       return { input: { birth: { ...birth, placeResolution: { resolutionVersion: place.resolutionVersion, timezoneResolver: birth.timezoneProvenance }, display: null }, readingInstant: clock(), transitScanRange: null, locale: 'en-IN' }, result };
     },
   };
+  const calibrationGenerator = { generate: async ({ interpretationInput }) => ({ schemaVersion: interpretationInput.schemaVersion, calibrationSummary: { calibrationLevel: interpretationInput.calibrationLevel, narrative: interpretationInput.calibrationLevel === 'CALIBRATED' && interpretationInput.historicalEvidence.length === 0 ? 'No recurring evidence is available.' : 'This context deserves attention.', eventCount: interpretationInput.eventCount }, recurringHistoricalEvidence: [], upcomingRecurrenceWindows: [], decisionConsiderations: [], disclosure: { hasProvisionalEvidence: interpretationInput.hasProvisionalEvidence } }) };
+  const careerReadingInterpreter = new CareerReadingInterpreter({ careerReadingContextBuilder, generator: calibrationGenerator });
+  const readingGenerator = new CalibratedCareerReadingGenerator({ baseGenerator: baseReadingGenerator, careerReadingContextBuilder, careerReadingInterpreter });
   const { createReadingRecord, replayPersistedReading } = require('../readings');
   const secureReadingService = new SecureReadingService({ authUserResolver: userResolver, transactionExecutor: tx, repositories, secureBirthProfileLoader: birthProfileService, readingCryptoCoordinator: cryptoCoordinator, readingGenerator, readingRecordFactory: createReadingRecord, replayReading: replayPersistedReading, requiresEntitlement, idGenerator, clock });
   const { PlaceResolutionService } = require('./place-resolution-service');
