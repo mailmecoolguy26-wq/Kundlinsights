@@ -10,6 +10,8 @@ The pinned binding is `sweph@2.10.3-7`, using Swiss Ephemeris `2.10.03` through 
 
 Commercial activation requires a separately recorded Swiss Ephemeris Professional License, approved deployment configuration, verified data manifest, and all production-authority predicate gates. No license credential, production ephemeris file, private binary, or compliance ID belongs in this repository.
 
+The production bootstrap reads `SWISS_EPHEMERIS_LICENSE_CONFIRMED=true`, an absolute `SWISS_EPHEMERIS_PATH`, and a JSON `SWISS_EPHEMERIS_MANIFEST`. It builds one shared `SwissNativeAdapter` for both `SwissEphemerisProvider` and `SwissCanonicalSiderealSunSampler`; it never falls back to Astronomy Engine. Missing license confirmation, malformed manifest, missing data, checksum mismatch, native initialization failure, or a failed authority sample prevents the process from listening.
+
 ## Native policy
 
 The native adapter initializes one immutable process-wide policy:

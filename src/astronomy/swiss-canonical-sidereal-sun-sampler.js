@@ -4,9 +4,13 @@ const { assertCanonicalUtcInstant, validateCanonicalSiderealSunSample, sunSample
 const { SWISS_BINDING, CALCULATION_STATUS } = require('./swiss-reference-data');
 
 class SwissCanonicalSiderealSunSampler {
-  constructor({ nativeAdapter } = {}) {
+  constructor({ nativeAdapter, calculationStatus = CALCULATION_STATUS, productionAuthority = false } = {}) {
     if (!nativeAdapter || typeof nativeAdapter.julianDayUt !== 'function' || typeof nativeAdapter.calculateBody !== 'function') throw new TypeError('SwissCanonicalSiderealSunSampler requires a SwissNativeAdapter.');
+    if (!['LICENSE_GATED_VALIDATION', 'PRODUCTION'].includes(calculationStatus)) throw new TypeError('SwissCanonicalSiderealSunSampler calculationStatus is invalid.');
+    if (productionAuthority === true && calculationStatus !== 'PRODUCTION') throw new TypeError('SwissCanonicalSiderealSunSampler production authority requires production status.');
     this.nativeAdapter = nativeAdapter;
+    this.calculationStatus = calculationStatus;
+    this.productionAuthority = productionAuthority === true;
     Object.freeze(this);
   }
 
@@ -19,10 +23,10 @@ class SwissCanonicalSiderealSunSampler {
         canonicalSiderealLongitudeDegrees: native.longitude,
         provenance: deepFreeze({
           provider: 'Swiss Ephemeris', providerId: 'swiss-ephemeris', swissVersion: this.nativeAdapter.swissVersion,
-          binding: SWISS_BINDING, calculationStatus: CALCULATION_STATUS, ephemerisMode: 'SWIEPH',
+          binding: SWISS_BINDING, calculationStatus: this.calculationStatus, ephemerisMode: 'SWIEPH',
           siderealMode: 'SE_SIDM_LAHIRI', coordinateFrame: 'geocentric-ecliptic-of-date; native-sidereal-lahiri',
           coordinateProvenance: 'provider-native', body: 'Sun', requestedFlags: this.nativeAdapter.requestedFlags,
-          returnedFlags: native.returnedFlags, productionAuthority: false
+          returnedFlags: native.returnedFlags, productionAuthority: this.productionAuthority
         })
       });
       return validateCanonicalSiderealSunSample(result);

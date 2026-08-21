@@ -8,6 +8,8 @@
     "test": "tests"
   },
   "scripts": {
+    "start": "node src/runtime/start-production.js",
+    "dev:start": "node src/runtime/start-development.js",
     "test": "node --test tests/**/*.test.js",
     "audit:horizons": "node scripts/audit-horizons.js"
   },

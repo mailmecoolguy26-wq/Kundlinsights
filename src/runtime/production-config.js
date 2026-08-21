@@ -1,6 +1,8 @@
 'use strict';
 
+const path = require('node:path');
 const { DEFAULT_ALGORITHMS } = require('../security/auth/supabase-auth-verifier');
+const { validateManifest } = require('../astronomy/swiss-native-adapter');
 
 function invalid() { const error = new Error('Invalid production configuration.'); error.code = 'INVALID_PRODUCTION_CONFIGURATION'; throw error; }
 function text(value) { return typeof value === 'string' && value.trim() === value && value.length > 0; }
@@ -12,6 +14,8 @@ function algorithms(value) { if (!text(value)) invalid(); const items = value.sp
 function awsArn(value) { if (!text(value) || !/^arn:aws(?:-[a-z]+)?:kms:[a-z0-9-]+:\d{12}:key\/[0-9a-f-]+$/i.test(value)) invalid(); return value; }
 function awsRegion(value) { if (!text(value) || !/^[a-z]{2}(?:-gov)?-[a-z]+-\d+$/.test(value)) invalid(); return value; }
 function historicalArns(value, current) { if (value === undefined || value === '') return Object.freeze([]); const items = value.split(',').map(awsArn); if (new Set(items).size !== items.length || items.includes(current)) invalid(); return Object.freeze(items); }
+function swissManifest(value) { if (!text(value)) invalid(); try { return validateManifest(JSON.parse(value)); } catch { invalid(); } }
+function swissProduction(value) { if (value !== 'true') invalid(); return true; }
 
 function loadProductionConfig(env = process.env) {
   if (!env || env.NODE_ENV !== 'production' || !text(env.HOST)) invalid();
@@ -25,6 +29,7 @@ function loadProductionConfig(env = process.env) {
     aws: (() => { const kmsKeyArn = awsArn(env.KUNDLINSIGHTS_KMS_KEY_ARN); return Object.freeze({ region: awsRegion(env.AWS_REGION), kmsKeyArn, historicalKmsKeyArns: historicalArns(env.KUNDLINSIGHTS_HISTORICAL_KMS_KEY_ARNS, kmsKeyArn) }); })(),
     google: Object.freeze({ mapsApiKey: text(env.GOOGLE_MAPS_API_KEY) ? env.GOOGLE_MAPS_API_KEY : invalid(), timeoutMilliseconds: integer(env.GOOGLE_GEOCODING_TIMEOUT_MS, 5000, 100, 15000) }),
     openai: Object.freeze({ apiKey: text(env.OPENAI_API_KEY) ? env.OPENAI_API_KEY : invalid(), careerModel: text(env.OPENAI_CAREER_MODEL) ? env.OPENAI_CAREER_MODEL : invalid(), timeoutMilliseconds: integer(env.OPENAI_CAREER_TIMEOUT_MS, 15000, 100, 30000) }),
+    swissEphemeris: (() => { if (!text(env.SWISS_EPHEMERIS_PATH) || !path.isAbsolute(env.SWISS_EPHEMERIS_PATH)) invalid(); return Object.freeze({ ephemerisPath: env.SWISS_EPHEMERIS_PATH, manifest: swissManifest(env.SWISS_EPHEMERIS_MANIFEST), licenseConfirmed: swissProduction(env.SWISS_EPHEMERIS_LICENSE_CONFIRMED) }); })(),
     timezoneRuntime: Object.freeze({ manifestPath: text(env.TIMEZONE_RUNTIME_MANIFEST_PATH) ? env.TIMEZONE_RUNTIME_MANIFEST_PATH : invalid(), binaryPath: text(env.TIMEZONE_RUNTIME_BINARY_PATH) ? env.TIMEZONE_RUNTIME_BINARY_PATH : invalid() }),
     corsOrigins: origins(env.CORS_ALLOWED_ORIGINS), bodyLimitBytes: integer(env.REQUEST_BODY_LIMIT_BYTES, 16384, 1024, 16384), shutdownTimeoutMilliseconds: integer(env.SHUTDOWN_TIMEOUT_MS, 30000, 1000, 120000), logLevel: env.LOG_LEVEL === undefined ? 'info' : ['fatal', 'error', 'warn', 'info'].includes(env.LOG_LEVEL) ? env.LOG_LEVEL : invalid(),
   });

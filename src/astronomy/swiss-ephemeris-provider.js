@@ -21,11 +21,13 @@ class SwissEphemerisProvider extends EphemerisProvider {
   constructor(configuration) {
     super();
     if (!configuration) throw new ProductionLicenseGateError('SwissEphemerisProvider requires explicit license-gated validation configuration.');
-    const { nativeAdapter, ephemerisPath, manifest, binding, manifestVerifier, productionLicenseGate = false } = configuration;
+    const { nativeAdapter, ephemerisPath, manifest, binding, manifestVerifier, productionLicenseGate = false, calculationStatus = CALCULATION_STATUS, productionAuthority = false } = configuration;
     this.nativeAdapter = nativeAdapter || new SwissNativeAdapter({ ephemerisPath, manifest, binding, manifestVerifier });
     if (!this.nativeAdapter || typeof this.nativeAdapter.julianDayUt !== 'function' || typeof this.nativeAdapter.calculateBody !== 'function' || typeof this.nativeAdapter.calculateAscendant !== 'function') throw new TypeError('SwissEphemerisProvider requires a SwissNativeAdapter.');
     this.productionLicenseGate = productionLicenseGate === true;
-    this.metadata = deepFreeze({ provider: 'Swiss Ephemeris', providerId: 'swiss-ephemeris', calculationStatus: CALCULATION_STATUS, swissVersion: this.nativeAdapter.swissVersion, binding: SWISS_BINDING, ephemerisMode: 'SWIEPH', siderealMode: 'SE_SIDM_LAHIRI', nodeModel: 'MEAN_NODE', coordinateFrame: 'native-sidereal', ephemerisManifestStatus: 'VERIFIED', productionAuthority: false });
+    if (!['LICENSE_GATED_VALIDATION', 'PRODUCTION'].includes(calculationStatus)) throw new TypeError('SwissEphemerisProvider calculationStatus is invalid.');
+    if (productionAuthority === true && (!this.productionLicenseGate || calculationStatus !== 'PRODUCTION')) throw new ProductionLicenseGateError('Swiss production authority requires an explicit confirmed production license gate.');
+    this.metadata = deepFreeze({ provider: 'Swiss Ephemeris', providerId: 'swiss-ephemeris', calculationStatus, swissVersion: this.nativeAdapter.swissVersion, binding: SWISS_BINDING, ephemerisMode: 'SWIEPH', siderealMode: 'SE_SIDM_LAHIRI', nodeModel: 'MEAN_NODE', coordinateFrame: 'native-sidereal', ephemerisManifestStatus: 'VERIFIED', productionAuthority: productionAuthority === true });
     Object.freeze(this);
   }
 
