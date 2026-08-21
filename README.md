@@ -1,5 +1,9 @@
 # KundlInsights
 
+## Production OpenAI Career generation
+
+Production Career generation requires `OPENAI_API_KEY` and `OPENAI_CAREER_MODEL`; `OPENAI_CAREER_TIMEOUT_MS` is optional (default `15000`, range `100–30000`). Configure these only in the production secret manager and redeploy to rotate keys. Do not add keys to source control, client applications, or normal test/CI environments.
+
 Astronomical calculations use an explicit Layer 1 provider boundary. The default development provider remains provisional; the Swiss Ephemeris provider is implemented only for license-gated engineering validation and is not production authority until its deployment license and data-manifest gates are satisfied.
 
 KundlInsights is a production-grade iOS and Android application for **Vedic / Jyotish astrology**.

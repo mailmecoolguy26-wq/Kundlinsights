@@ -8,6 +8,7 @@ const { createTestOnlyAuthVerifier } = require('../../src/api/test-only-auth-ver
 const { PlaceResolutionService } = require('../../src/api/place-resolution-service');
 const { GoogleGeocodingProvider, BirthPlaceResolver } = require('../../src/place');
 const { productionLogger } = require('../../src/runtime');
+const pino = require('pino');
 
 const principal = { provider: 'supabase', subject: 'logging-user', isAnonymous: false };
 const key = 'TEST_GOOGLE_KEY_DO_NOT_LOG';
@@ -40,3 +41,4 @@ test('provider failures cannot leak encoded place text, Google URL, or key into 
   for (const forbidden of ['New Delhi, India', 'New%20Delhi%2C%20India', 'New+Delhi%2C+India', '?q=', 'maps.googleapis.com', key]) assert.equal(output.includes(forbidden), false);
   assert.match(output, /"method":"GET"/); assert.match(output, /"url":"\/v1\/places\/search"/); assert.match(output, /"statusCode":503/);
 });
+test('production logger selectively redacts OpenAI and authorization secrets',()=>{const logs=capture();const logger=pino(productionLogger('info'),logs.stream);logger.info({OPENAI_API_KEY:'sk-test-openai-secret',openai:{apiKey:'sk-test-openai-secret'},headers:{authorization:'Bearer sk-test-openai-secret'},provider:'openai',model:'test-career-model',category:'timeout'},'safe');const output=logs.output();assert.equal(output.includes('sk-test-openai-secret'),false);assert.match(output,/test-career-model/);assert.match(output,/"provider":"openai"/);});

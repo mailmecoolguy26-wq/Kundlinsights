@@ -1,6 +1,7 @@
 'use strict';
 
-const { PostgresApplicationTransactionExecutor, SecureReadingService, CareerReadingInterpreter, CalibratedCareerReadingGenerator } = require('../application/readings');
+const { PostgresApplicationTransactionExecutor, SecureReadingService, CareerReadingInterpreter, CalibratedCareerReadingGenerator, CareerReadingPromptBuilder, ProviderBackedCareerGenerator } = require('../application/readings');
+const { OpenAICareerGenerationAdapter } = require('../infrastructure/ai/openai-career-generation-adapter');
 const { SecureBirthProfileService } = require('../application/birth-profiles');
 const { NatalSummaryService } = require('../application/natal-summary');
 const { DivisionalChartService } = require('../application/divisional-charts');
@@ -17,7 +18,7 @@ function req(value, name) {
   return value;
 }
 
-function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canonicalSiderealSunSampler, placeResolver = null, idGenerator, clock, requiresEntitlement = () => true, corsAllowlist, isReady, logger, bodyLimit } = {}) {
+function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canonicalSiderealSunSampler, placeResolver = null, openai = null, idGenerator, clock, requiresEntitlement = () => true, corsAllowlist, isReady, logger, bodyLimit } = {}) {
   const { createApi } = require('./index');
   req(db, 'DB'); req(authVerifier, 'AUTH_VERIFIER'); req(kms, 'KMS');
   req(astronomicalEngine, 'ASTRONOMICAL_ENGINE'); req(canonicalSiderealSunSampler, 'SUN_SAMPLER');
@@ -83,7 +84,7 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
       return { input: { birth: { ...birth, placeResolution: { resolutionVersion: place.resolutionVersion, timezoneResolver: birth.timezoneProvenance }, display: null }, readingInstant: clock(), transitScanRange: null, locale: 'en-IN' }, result };
     },
   };
-  const calibrationGenerator = { generate: async ({ interpretationInput }) => ({ schemaVersion: interpretationInput.schemaVersion, calibrationSummary: { calibrationLevel: interpretationInput.calibrationLevel, narrative: interpretationInput.calibrationLevel === 'CALIBRATED' && interpretationInput.historicalEvidence.length === 0 ? 'No recurring evidence is available.' : 'This context deserves attention.', eventCount: interpretationInput.eventCount }, recurringHistoricalEvidence: [], upcomingRecurrenceWindows: [], decisionConsiderations: [], disclosure: { hasProvisionalEvidence: interpretationInput.hasProvisionalEvidence } }) };
+  const calibrationGenerator = openai ? new ProviderBackedCareerGenerator({ promptBuilder: new CareerReadingPromptBuilder(), providerAdapter: new OpenAICareerGenerationAdapter({ apiKey: openai.apiKey, model: openai.careerModel, timeoutMilliseconds: openai.timeoutMilliseconds }), locale: 'en-IN' }) : { generate: async ({ interpretationInput }) => ({ schemaVersion: interpretationInput.schemaVersion, calibrationSummary: { calibrationLevel: interpretationInput.calibrationLevel, narrative: interpretationInput.calibrationLevel === 'CALIBRATED' && interpretationInput.historicalEvidence.length === 0 ? 'No recurring evidence is available.' : 'This context deserves attention.', eventCount: interpretationInput.eventCount }, recurringHistoricalEvidence: [], upcomingRecurrenceWindows: [], decisionConsiderations: [], disclosure: { hasProvisionalEvidence: interpretationInput.hasProvisionalEvidence } }) };
   const careerReadingInterpreter = new CareerReadingInterpreter({ careerReadingContextBuilder, generator: calibrationGenerator });
   const readingGenerator = new CalibratedCareerReadingGenerator({ baseGenerator: baseReadingGenerator, careerReadingContextBuilder, careerReadingInterpreter });
   const { createReadingRecord, replayPersistedReading } = require('../readings');
