@@ -96,3 +96,25 @@ test('keeps multiple natal targets and event identities distinct at the same ref
   assert.deepEqual(events.map((event) => event.natalBody), ['Rahu', 'Venus']);
   assert.ok(events.every((event) => withinSecond(event.instant, boundary)));
 });
+
+test('preserves a primary-body Drishti transition at the twenty-four-hour cadence', () => {
+  const startInstant = '2024-02-01T00:00:00.000Z';
+  const endInstant = '2024-02-11T00:00:00.000Z';
+  const input = {
+    trajectories: { Jupiter: [linear(startInstant, '2024-02-12T00:00:00.000Z', 29.6, 0.2)] },
+    natalLongitudes: natalTargets([4]),
+    eventTypes: ['transitDrishtiStart', 'transitDrishtiEnd'],
+    bodies: ['Jupiter'],
+    startInstant,
+    endInstant,
+  };
+  const baseline = createScan({ ...input, options: { coarseScanStepMilliseconds: 3600000 } });
+  const optimized = createScan({ ...input, options: { coarseScanStepMilliseconds: 86400000 } });
+  assert.equal(baseline.events.length, optimized.events.length);
+  for (const [left, right] of baseline.events.map((event, index) => [event, optimized.events[index]])) {
+    const { instant: leftInstant, ...leftPayload } = left;
+    const { instant: rightInstant, ...rightPayload } = right;
+    assert.deepEqual(rightPayload, leftPayload);
+    assert.ok(Math.abs(Date.parse(rightInstant) - Date.parse(leftInstant)) <= 1000);
+  }
+});

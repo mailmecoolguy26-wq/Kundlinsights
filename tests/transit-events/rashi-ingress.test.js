@@ -3,9 +3,20 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { START, END, COVERAGE_END, createScan, linear, stationary, withinSecond } = require('./fixtures/transit-scan-helpers');
+const { DeterministicTransitProvider } = require('./fixtures/deterministic-transit-provider');
 
 function ingressScan(segments) {
   return createScan({ trajectories: { Jupiter: segments }, eventTypes: ['rashiIngress'] });
+}
+
+function equivalentEvents(baseline, optimized) {
+  assert.equal(baseline.events.length, optimized.events.length);
+  for (const [left, right] of baseline.events.map((event, index) => [event, optimized.events[index]])) {
+    const { instant: leftInstant, ...leftPayload } = left;
+    const { instant: rightInstant, ...rightPayload } = right;
+    assert.deepEqual(leftPayload, rightPayload);
+    assert.ok(Math.abs(Date.parse(leftInstant) - Date.parse(rightInstant)) <= 1000);
+  }
 }
 
 test('refines direct and retrograde Rashi ingress at the Layer 2 half-open boundary', () => {
@@ -61,4 +72,35 @@ test('does not collapse multiple genuine crossings occurring in separate approve
   assert.equal(result.events.length, 4);
   assert.deepEqual(result.events.map((event) => event.toRashi.rashiIndex), [2, 3, 4, 5]);
   assert.ok(result.events.every((event) => Date.parse(event.instant) <= Date.parse(END)));
+});
+
+test('preserves a primary-body ingress under the explicit twenty-four-hour cadence', () => {
+  const startInstant = '2024-02-01T00:00:00.000Z';
+  const endInstant = '2024-02-11T00:00:00.000Z';
+  for (const [startLongitudeDegrees, longitudeRateDegreesPerDay, expected] of [[29.6, 0.2, [1, 2]], [30.4, -0.2, [2, 1]]]) {
+    const segments = [linear(startInstant, '2024-02-12T00:00:00.000Z', startLongitudeDegrees, longitudeRateDegreesPerDay)];
+    const input = { trajectories: { Jupiter: segments }, eventTypes: ['rashiIngress'], bodies: ['Jupiter'], startInstant, endInstant };
+    const baseline = createScan({ ...input, options: { coarseScanStepMilliseconds: 3600000 } });
+    const optimized = createScan({ ...input, options: { coarseScanStepMilliseconds: 86400000 } });
+
+    equivalentEvents(baseline, optimized);
+    assert.deepEqual(optimized.events.map((event) => [event.fromRashi.rashiIndex, event.toRashi.rashiIndex]), [expected]);
+    assert.ok(withinSecond(optimized.events[0].instant, '2024-02-03T00:00:00.000Z'));
+  }
+});
+
+test('reduces twenty-four-month primary-body provider calls while preserving ingress output', () => {
+  const startInstant = '2024-02-01T00:00:00.000Z';
+  const endInstant = '2026-02-01T00:00:00.000Z';
+  const trajectories = { Jupiter: [linear(startInstant, '2026-02-02T00:00:00.000Z', 29.9, 0.05)] };
+  const baselineProvider = new DeterministicTransitProvider({ trajectories });
+  const optimizedProvider = new DeterministicTransitProvider({ trajectories });
+  const input = { trajectories, eventTypes: ['rashiIngress'], bodies: ['Jupiter'], startInstant, endInstant };
+  const baseline = createScan({ ...input, provider: baselineProvider, options: { coarseScanStepMilliseconds: 3600000 } });
+  const optimized = createScan({ ...input, provider: optimizedProvider, options: { coarseScanStepMilliseconds: 86400000 } });
+
+  equivalentEvents(baseline, optimized);
+  assert.equal(baseline.configuration.coarseScanStepMilliseconds, 3600000);
+  assert.equal(optimized.configuration.coarseScanStepMilliseconds, 86400000);
+  assert.ok(optimizedProvider.requestedBodies.length <= baselineProvider.requestedBodies.length / 20);
 });

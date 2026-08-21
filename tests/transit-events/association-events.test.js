@@ -4,11 +4,12 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { START, COVERAGE_END, createScan, linear, stationary, withinSecond } = require('./fixtures/transit-scan-helpers');
 
-function associations(segments, natalLongitudes = {}) {
+function associations(segments, natalLongitudes = {}, scanOptions = {}) {
   return createScan({
     trajectories: { Jupiter: segments },
     natalLongitudes,
     eventTypes: ['sameRashiAssociationEnd', 'sameRashiAssociationStart'],
+    ...scanOptions,
   });
 }
 
@@ -70,5 +71,21 @@ test('retains association start, end, and re-entry start as separate refined rel
   assert.deepEqual(events.map((event) => event.transition), ['start', 'end', 'start']);
   for (const [event, instant] of events.map((event, index) => [event, ['2024-02-01T00:30:00.000Z', '2024-02-01T01:45:00.000Z', '2024-02-01T03:00:00.000Z'][index]])) {
     assert.ok(withinSecond(event.instant, instant));
+  }
+});
+
+test('preserves a primary-body association transition at the twenty-four-hour cadence', () => {
+  const startInstant = '2024-02-01T00:00:00.000Z';
+  const endInstant = '2024-02-11T00:00:00.000Z';
+  const scanOptions = { startInstant, endInstant, bodies: ['Jupiter'] };
+  const segments = [linear(startInstant, '2024-02-12T00:00:00.000Z', 29.6, 0.2)];
+  const baseline = associations(segments, { Sun: 35 }, { ...scanOptions, options: { coarseScanStepMilliseconds: 3600000 } });
+  const optimized = associations(segments, { Sun: 35 }, { ...scanOptions, options: { coarseScanStepMilliseconds: 86400000 } });
+  assert.equal(baseline.events.length, optimized.events.length);
+  for (const [left, right] of baseline.events.map((event, index) => [event, optimized.events[index]])) {
+    const { instant: leftInstant, ...leftPayload } = left;
+    const { instant: rightInstant, ...rightPayload } = right;
+    assert.deepEqual(rightPayload, leftPayload);
+    assert.ok(Math.abs(Date.parse(rightInstant) - Date.parse(leftInstant)) <= 1000);
   }
 });

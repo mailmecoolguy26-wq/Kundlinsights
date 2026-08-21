@@ -35,10 +35,10 @@ function engineFor(trajectories, fixtureOptions = {}) {
   return new AstronomicalEngine(new DeterministicTransitProvider({ trajectories, ...fixtureOptions }));
 }
 
-function scan({ trajectories = {}, fixtureOptions = {}, eventTypes = ['retrogradeStation', 'directStation'], options = {} } = {}) {
+function scan({ trajectories = {}, fixtureOptions = {}, eventTypes = ['retrogradeStation', 'directStation'], options = {}, startInstant = START, endInstant = END } = {}) {
   return scanTransitEvents({
-    startInstant: START,
-    endInstant: END,
+    startInstant,
+    endInstant,
     natalBodies,
     natalHouses,
     astronomicalEngine: engineFor(trajectories, fixtureOptions),
@@ -156,10 +156,10 @@ test('does not duplicate a station through multiple stationary coarse samples', 
 });
 
 test('validates coarse scan and refinement options while retaining approved defaults', () => {
-  for (const coarseScanStepMilliseconds of [3600000]) {
+  for (const coarseScanStepMilliseconds of [3600000, 86400000]) {
     assert.equal(scan({ options: { coarseScanStepMilliseconds } }).configuration.coarseScanStepMilliseconds, coarseScanStepMilliseconds);
   }
-  for (const invalid of [3600001, 0, -1, NaN, Infinity]) {
+  for (const invalid of [86400001, 0, -1, NaN, Infinity]) {
     assert.throws(() => scan({ options: { coarseScanStepMilliseconds: invalid } }), RangeError);
   }
   assert.equal(scan({ options: { refinementToleranceMilliseconds: 250, maximumRefinementIterations: 8 } }).configuration.refinementToleranceMilliseconds, 250);
@@ -176,6 +176,31 @@ test('validates coarse scan and refinement options while retaining approved defa
     refinementToleranceMilliseconds: 1000,
     maximumRefinementIterations: 32,
   });
+});
+
+test('preserves primary-body direct and retrograde station outputs at the twenty-four-hour cadence', () => {
+  const startInstant = '2024-01-01T00:00:00.000Z';
+  const station = '2024-01-04T00:00:00.000Z';
+  const endInstant = '2024-01-09T00:00:00.000Z';
+  const directToRetrograde = [
+    linear(startInstant, station, 20, 0.1),
+    linear(station, '2024-01-10T00:00:00.000Z', 20.3, -0.1),
+  ];
+  const retrogradeToDirect = [
+    linear(startInstant, station, 20.3, -0.1),
+    linear(station, '2024-01-10T00:00:00.000Z', 20, 0.1),
+  ];
+  for (const trajectories of [directToRetrograde, retrogradeToDirect]) {
+    const input = { trajectories: { Jupiter: trajectories }, startInstant, endInstant };
+    const baseline = scan({ ...input, options: { coarseScanStepMilliseconds: 3600000 } });
+    const optimized = scan({ ...input, options: { coarseScanStepMilliseconds: 86400000 } });
+    assert.equal(baseline.events.length, 1);
+    assert.equal(optimized.events.length, 1);
+    const { instant: baselineInstant, ...baselinePayload } = baseline.events[0];
+    const { instant: optimizedInstant, ...optimizedPayload } = optimized.events[0];
+    assert.deepEqual(optimizedPayload, baselinePayload);
+    assert.ok(Math.abs(Date.parse(optimizedInstant) - Date.parse(baselineInstant)) <= 1000);
+  }
 });
 
 test('rejects invalid provider results explicitly through the Layer 1 provider boundary', () => {

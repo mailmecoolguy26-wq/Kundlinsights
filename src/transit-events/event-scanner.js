@@ -54,7 +54,7 @@ function validateOptions(options) {
   const refinementToleranceMilliseconds = options.refinementToleranceMilliseconds ?? DEFAULT_REFINEMENT_TOLERANCE_MS;
   const maximumRefinementIterations = options.maximumRefinementIterations ?? DEFAULT_MAX_REFINEMENT_ITERATIONS;
   if (!Number.isFinite(coarseScanStepMilliseconds) || coarseScanStepMilliseconds <= 0 || coarseScanStepMilliseconds > MAX_COARSE_SCAN_STEP_MS) {
-    throw new RangeError('coarseScanStepMilliseconds must be positive and at most one hour.');
+    throw new RangeError('coarseScanStepMilliseconds must be positive and at most twenty-four hours.');
   }
   if (!Number.isFinite(refinementToleranceMilliseconds) || refinementToleranceMilliseconds <= 0) {
     throw new RangeError('refinementToleranceMilliseconds must be a positive finite number.');
@@ -138,6 +138,23 @@ function scanTransitEvents({ startInstant, endInstant, natalBodies, natalHouses,
     refinementToleranceMilliseconds: configuration.refinementToleranceMilliseconds,
     maximumRefinementIterations: configuration.maximumRefinementIterations,
   });
+  const ingressBracket = (transition, name, priorRashiIndex) => {
+    const gridHigh = start + Math.ceil((transition - start) / DEFAULT_COARSE_SCAN_STEP_MS) * DEFAULT_COARSE_SCAN_STEP_MS;
+    for (const candidate of [gridHigh, gridHigh - DEFAULT_COARSE_SCAN_STEP_MS, gridHigh + DEFAULT_COARSE_SCAN_STEP_MS]) {
+      const highInstant = Math.min(candidate, end);
+      const lowInstant = candidate > end
+        ? start + Math.floor((end - start) / DEFAULT_COARSE_SCAN_STEP_MS) * DEFAULT_COARSE_SCAN_STEP_MS
+        : highInstant - DEFAULT_COARSE_SCAN_STEP_MS;
+      if (lowInstant < start || highInstant <= lowInstant) continue;
+      const canonicalBefore = at(lowInstant).snapshot.transitBodies[name];
+      const canonicalAfter = at(highInstant).snapshot.transitBodies[name];
+      if (canonicalBefore.transitRashi.rashiIndex === priorRashiIndex
+        && canonicalAfter.transitRashi.rashiIndex !== priorRashiIndex) {
+        return { lowInstant, highInstant, canonicalBefore, canonicalAfter };
+      }
+    }
+    throw new RangeError('Cannot locate the canonical ingress refinement bracket.');
+  };
 
   for (let index = 1; index < samples.length; index += 1) {
     const [lowInstant, old] = samples[index - 1];
@@ -145,19 +162,21 @@ function scanTransitEvents({ startInstant, endInstant, natalBodies, natalHouses,
     for (const name of selected) {
       const before = old.snapshot.transitBodies[name];
       const after = next.snapshot.transitBodies[name];
-      if (before.transitRashi.rashiIndex !== after.transitRashi.rashiIndex) {
-        const transition = refine(lowInstant, highInstant, before.transitRashi.rashiIndex, (result) => result.snapshot.transitBodies[name].transitRashi.rashiIndex);
+      if (types.includes('rashiIngress') && before.transitRashi.rashiIndex !== after.transitRashi.rashiIndex) {
+        const coarseTransition = refine(lowInstant, highInstant, before.transitRashi.rashiIndex, (result) => result.snapshot.transitBodies[name].transitRashi.rashiIndex);
+        const { lowInstant: canonicalLowInstant, highInstant: canonicalHighInstant, canonicalBefore, canonicalAfter } = ingressBracket(coarseTransition, name, before.transitRashi.rashiIndex);
+        const transition = refine(canonicalLowInstant, canonicalHighInstant, canonicalBefore.transitRashi.rashiIndex, (result) => result.snapshot.transitBodies[name].transitRashi.rashiIndex);
         const refined = at(transition).snapshot.transitBodies[name];
         emit('rashiIngress', name, transition, {
-          fromRashi: before.transitRashi,
-          toRashi: after.transitRashi,
+          fromRashi: canonicalBefore.transitRashi,
+          toRashi: canonicalAfter.transitRashi,
           direction: refined.motion === 'retrograde' ? 'retrograde' : 'direct',
           canonicalSiderealLongitudeDegrees: refined.transitCanonicalSiderealLongitudeDegrees,
           providerMotion: refined.motion,
           provenance: 'layer2-rashi-transition',
         });
       }
-      if (name === 'Saturn' && before.sadeSati.phase !== after.sadeSati.phase) {
+      if (types.includes('sadeSatiPhaseChange') && name === 'Saturn' && before.sadeSati.phase !== after.sadeSati.phase) {
         const transition = refine(lowInstant, highInstant, before.sadeSati.phase, (result) => result.snapshot.transitBodies.Saturn.sadeSati.phase);
         const refined = at(transition).snapshot;
         const saturn = refined.transitBodies.Saturn;
@@ -171,52 +190,56 @@ function scanTransitEvents({ startInstant, endInstant, natalBodies, natalHouses,
           provenance: 'layer9-sade-sati-transition',
         });
       }
-      const beforeAssociations = associationMap(before);
-      const afterAssociations = associationMap(after);
-      for (const natalBody of new Set([...beforeAssociations.keys(), ...afterAssociations.keys()])) {
-        const wasActive = beforeAssociations.has(natalBody);
-        if (wasActive === afterAssociations.has(natalBody)) continue;
-        const transition = refineBoolean(lowInstant, highInstant, wasActive, (result) => associationMap(result.snapshot.transitBodies[name]).has(natalBody));
-        const refined = at(transition).snapshot.transitBodies[name];
-        const association = associationMap(refined).get(natalBody) || beforeAssociations.get(natalBody) || afterAssociations.get(natalBody);
-        emit(wasActive ? 'sameRashiAssociationEnd' : 'sameRashiAssociationStart', name, transition, {
-          transitBody: name,
-          natalBody,
-          transition: wasActive ? 'end' : 'start',
-          transitRashi: refined.transitRashi,
-          natalRashi: association.natalRashi,
-          angularSeparationDegrees: association.minimumCircularLongitudeSeparationDegrees,
-          providerMotion: refined.motion,
-          provenance: 'layer9-same-rashi-transition',
-        });
+      if (types.includes('sameRashiAssociationStart') || types.includes('sameRashiAssociationEnd')) {
+        const beforeAssociations = associationMap(before);
+        const afterAssociations = associationMap(after);
+        for (const natalBody of new Set([...beforeAssociations.keys(), ...afterAssociations.keys()])) {
+          const wasActive = beforeAssociations.has(natalBody);
+          if (wasActive === afterAssociations.has(natalBody)) continue;
+          const transition = refineBoolean(lowInstant, highInstant, wasActive, (result) => associationMap(result.snapshot.transitBodies[name]).has(natalBody));
+          const refined = at(transition).snapshot.transitBodies[name];
+          const association = associationMap(refined).get(natalBody) || beforeAssociations.get(natalBody) || afterAssociations.get(natalBody);
+          emit(wasActive ? 'sameRashiAssociationEnd' : 'sameRashiAssociationStart', name, transition, {
+            transitBody: name,
+            natalBody,
+            transition: wasActive ? 'end' : 'start',
+            transitRashi: refined.transitRashi,
+            natalRashi: association.natalRashi,
+            angularSeparationDegrees: association.minimumCircularLongitudeSeparationDegrees,
+            providerMotion: refined.motion,
+            provenance: 'layer9-same-rashi-transition',
+          });
+        }
       }
-      const beforeAspects = drishtiMap(before);
-      const afterAspects = drishtiMap(after);
-      for (const key of new Set([...beforeAspects.keys(), ...afterAspects.keys()])) {
-        const wasActive = beforeAspects.has(key);
-        if (wasActive === afterAspects.has(key)) continue;
-        const transition = refineBoolean(lowInstant, highInstant, wasActive, (result) => drishtiMap(result.snapshot.transitBodies[name]).has(key));
-        const refined = at(transition).snapshot.transitBodies[name];
-        const aspect = drishtiMap(refined).get(key) || beforeAspects.get(key) || afterAspects.get(key);
-        emit(wasActive ? 'transitDrishtiEnd' : 'transitDrishtiStart', name, transition, {
-          transitBody: name,
-          natalBody: aspect.natalBody,
-          transition: wasActive ? 'end' : 'start',
-          casterRashi: refined.transitRashi,
-          targetRashi: aspect.natalRashi || { rashiIndex: aspect.targetNatalRashiIndex },
-          targetHouseNumber: aspect.targetNatalHouseNumber,
-          drishtiOffset: aspect.rashiOffset,
-          aspectOrdinal: aspect.aspectNumber,
-          natalTargetRashi: aspect.targetNatalRashiIndex,
-          natalTargetHouseNumber: aspect.targetNatalHouseNumber,
-          providerMotion: refined.motion,
-          provenance: 'layer9-layer6-drishti-transition',
-        });
+      if (types.includes('transitDrishtiStart') || types.includes('transitDrishtiEnd')) {
+        const beforeAspects = drishtiMap(before);
+        const afterAspects = drishtiMap(after);
+        for (const key of new Set([...beforeAspects.keys(), ...afterAspects.keys()])) {
+          const wasActive = beforeAspects.has(key);
+          if (wasActive === afterAspects.has(key)) continue;
+          const transition = refineBoolean(lowInstant, highInstant, wasActive, (result) => drishtiMap(result.snapshot.transitBodies[name]).has(key));
+          const refined = at(transition).snapshot.transitBodies[name];
+          const aspect = drishtiMap(refined).get(key) || beforeAspects.get(key) || afterAspects.get(key);
+          emit(wasActive ? 'transitDrishtiEnd' : 'transitDrishtiStart', name, transition, {
+            transitBody: name,
+            natalBody: aspect.natalBody,
+            transition: wasActive ? 'end' : 'start',
+            casterRashi: refined.transitRashi,
+            targetRashi: aspect.natalRashi || { rashiIndex: aspect.targetNatalRashiIndex },
+            targetHouseNumber: aspect.targetNatalHouseNumber,
+            drishtiOffset: aspect.rashiOffset,
+            aspectOrdinal: aspect.aspectNumber,
+            natalTargetRashi: aspect.targetNatalRashiIndex,
+            natalTargetHouseNumber: aspect.targetNatalHouseNumber,
+            providerMotion: refined.motion,
+            provenance: 'layer9-layer6-drishti-transition',
+          });
+        }
       }
     }
   }
 
-  for (const name of selected) {
+  if (types.includes('retrogradeStation') || types.includes('directStation')) for (const name of selected) {
     let priorDirectionalMotion = null;
     let stationaryWindowEntry = null;
     for (let index = 1; index < samples.length; index += 1) {

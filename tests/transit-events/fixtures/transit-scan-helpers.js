@@ -29,9 +29,9 @@ function stationary(startInstant, endInstant, longitudeDegrees) {
   return { type: 'stationary', startInstant, endInstant, longitudeDegrees };
 }
 
-function createScan({ trajectories = {}, natalLongitudes = {}, eventTypes, startInstant = START, endInstant = END } = {}) {
+function createScan({ trajectories = {}, natalLongitudes = {}, eventTypes, startInstant = START, endInstant = END, bodies, options = {}, provider } = {}) {
   const natal = natalContext(natalLongitudes);
-  const astronomicalEngine = new AstronomicalEngine(new DeterministicTransitProvider({ trajectories }));
+  const astronomicalEngine = new AstronomicalEngine(provider || new DeterministicTransitProvider({ trajectories }));
   return scanTransitEvents({
     startInstant,
     endInstant,
@@ -40,6 +40,8 @@ function createScan({ trajectories = {}, natalLongitudes = {}, eventTypes, start
     astronomicalEngine,
     observer: OBSERVER,
     eventTypes,
+    ...(bodies === undefined ? {} : { bodies }),
+    options,
   });
 }
 

@@ -49,3 +49,23 @@ test('emits every retrograde Layer 9 Sade Sati phase transition with refined evi
     assert.equal(event.moonRelativeHouse, { rising: 12, peak: 1, setting: 2, none: 11 }[toPhase]);
   }
 });
+
+test('preserves a Saturn Sade Sati phase transition at the twenty-four-hour cadence', () => {
+  const startInstant = '2024-02-01T00:00:00.000Z';
+  const endInstant = '2024-02-11T00:00:00.000Z';
+  const input = {
+    trajectories: { Saturn: [linear(startInstant, '2024-02-12T00:00:00.000Z', 269.6, 0.1)] },
+    eventTypes: ['sadeSatiPhaseChange'],
+    bodies: ['Saturn'],
+    startInstant,
+    endInstant,
+  };
+  const baseline = createScan({ ...input, options: { coarseScanStepMilliseconds: 3600000 } });
+  const optimized = createScan({ ...input, options: { coarseScanStepMilliseconds: 86400000 } });
+  assert.equal(baseline.events.length, 1);
+  assert.equal(optimized.events.length, 1);
+  const { instant: baselineInstant, ...baselinePayload } = baseline.events[0];
+  const { instant: optimizedInstant, ...optimizedPayload } = optimized.events[0];
+  assert.deepEqual(optimizedPayload, baselinePayload);
+  assert.ok(Math.abs(Date.parse(optimizedInstant) - Date.parse(baselineInstant)) <= 1000);
+});
