@@ -10,6 +10,12 @@ Astronomical calculations use an explicit Layer 1 provider boundary. The default
 
 Run `npm run start:dev` with `NODE_ENV=development`. Required local configuration is `DEV_DATABASE_URL`, `DEV_SUPABASE_AUTH_ISSUER`, `DEV_SUPABASE_AUTH_JWKS_URL`, `DEV_SUPABASE_AUTH_AUDIENCE`, and a non-production 32-byte base64 `DEV_LOCAL_KMS_KEY_BASE64`. `DEV_HOST` defaults to `0.0.0.0`; `DEV_PORT` defaults to `3000`.
 
+### Development Career entitlement fixture
+
+For an authenticated development user to exercise the normal Career-reading entitlement and consumption flow, run `NODE_ENV=development DEV_AUTH_BEARER_TOKEN="Bearer <legitimate development access token>" npm run dev:grant-career-entitlement`. The command verifies the supplied Supabase principal, resolves that principal's application user, and creates or reuses one active `CAREER` entitlement through the existing repository contract. It accepts neither a user ID nor a product argument.
+
+This capability is only composed by the development runtime; it has no HTTP route and is not imported or registered by the production runtime. It is developer tooling, not payment simulation or proof of purchase, and must never be used for launch or production.
+
 This runtime preserves encrypted PostgreSQL persistence using the local development envelope key. It requires no AWS KMS, Swiss license, or OpenAI credentials merely to boot. It uses the provisional/reference Astronomy Engine provider and must never be used for commercial production.
 
 KundlInsights is a production-grade iOS and Android application for **Vedic / Jyotish astrology**.

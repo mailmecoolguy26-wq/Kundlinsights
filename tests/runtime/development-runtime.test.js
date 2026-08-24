@@ -24,7 +24,17 @@ test('uses a local authenticated envelope adapter without AWS KMS', async () => 
 
 test('boots health and readiness with local KMS and no AWS, OpenAI, or Swiss dependencies', async () => {
   const events = []; const api = { async close() { events.push('close'); }, async listen(options) { events.push(['listen', options]); }, async inject(url) { return { statusCode: 200, json: () => ({ status: url === '/health' ? 'ok' : 'ready' }) }; } }; class Pool { async query() { events.push('db'); } async end() { events.push('end'); } } class Kms { constructor() {} async validateStartupKey() { events.push('local-kms'); } }
-  const runtime = createDevelopmentRuntime({ env: env(), astronomicalEngine: {}, canonicalSiderealSunSampler: {}, dependencies: { Pool, DevelopmentLocalKms: Kms, createSupabaseAuthVerifier: () => ({}), createApiComposition: () => ({ api, services: {} }) } }); await runtime.initialize(); assert.equal((await runtime.api.inject('/health')).json().status, 'ok'); assert.equal((await runtime.api.inject('/ready')).json().status, 'ready'); await runtime.start(); await runtime.shutdown(); assert.deepEqual(events.slice(0, 4), ['db', 'local-kms', ['listen', { host: '0.0.0.0', port: 3000 }], 'close']);
+  class Fixture { constructor() {} }
+  const runtime = createDevelopmentRuntime({ env: env(), astronomicalEngine: {}, canonicalSiderealSunSampler: {}, dependencies: { Pool, DevelopmentLocalKms: Kms, DevelopmentCareerEntitlementFixture: Fixture, createSupabaseAuthVerifier: () => ({}), createApiComposition: () => ({ api, services: {} }) } }); await runtime.initialize(); assert.equal((await runtime.api.inject('/health')).json().status, 'ok'); assert.equal((await runtime.api.inject('/ready')).json().status, 'ready'); await runtime.start(); await runtime.shutdown(); assert.deepEqual(events.slice(0, 4), ['db', 'local-kms', ['listen', { host: '0.0.0.0', port: 3000 }], 'close']);
+});
+
+test('development runtime verifies a bearer credential before invoking its fixture capability', async () => {
+  const api = { async close() {}, async listen() {} }; const calls = [];
+  class Pool { async query() {} async end() {} } class Kms { async validateStartupKey() {} }
+  class Fixture { async ensureCareerEntitlementForAuthenticatedDevUser({ authenticatedPrincipal }) { calls.push(authenticatedPrincipal); return { created: true }; } }
+  const runtime = createDevelopmentRuntime({ env: env(), astronomicalEngine: {}, canonicalSiderealSunSampler: {}, dependencies: { Pool, DevelopmentLocalKms: Kms, DevelopmentCareerEntitlementFixture: Fixture, createSupabaseAuthVerifier: () => ({ verifyRequest: async ({ headers }) => { if (headers.authorization !== 'Bearer legitimate') { const error = new Error(); error.code = 'INVALID_AUTH_PRINCIPAL'; throw error; } return { provider: 'supabase', subject: 'subject-a', isAnonymous: false }; } }), createApiComposition: () => ({ api, services: { userResolver: async () => ({ id: 'user-a', status: 'active' }), transactionExecutor: {} } }) } });
+  await assert.rejects(runtime.grantCareerEntitlementForAuthenticatedPrincipal({ authorization: 'Bearer malformed' }), (error) => error.code === 'INVALID_AUTH_PRINCIPAL');
+  assert.deepEqual(await runtime.grantCareerEntitlementForAuthenticatedPrincipal({ authorization: 'Bearer legitimate' }), { created: true }); assert.deepEqual(calls, [{ provider: 'supabase', subject: 'subject-a', isAnonymous: false }]); await runtime.shutdown();
 });
 
 test('starts through the development bootstrap only', async () => {
