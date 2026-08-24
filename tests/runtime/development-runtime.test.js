@@ -33,6 +33,7 @@ test('development runtime verifies a bearer credential before invoking its fixtu
   class Pool { async query() {} async end() {} } class Kms { async validateStartupKey() {} }
   class Fixture { async ensureCareerEntitlementForAuthenticatedDevUser({ authenticatedPrincipal }) { calls.push(authenticatedPrincipal); return { created: true }; } }
   const runtime = createDevelopmentRuntime({ env: env(), astronomicalEngine: {}, canonicalSiderealSunSampler: {}, dependencies: { Pool, DevelopmentLocalKms: Kms, DevelopmentCareerEntitlementFixture: Fixture, createSupabaseAuthVerifier: () => ({ verifyRequest: async ({ headers }) => { if (headers.authorization !== 'Bearer legitimate') { const error = new Error(); error.code = 'INVALID_AUTH_PRINCIPAL'; throw error; } return { provider: 'supabase', subject: 'subject-a', isAnonymous: false }; } }), createApiComposition: () => ({ api, services: { userResolver: async () => ({ id: 'user-a', status: 'active' }), transactionExecutor: {} } }) } });
+  await assert.rejects(runtime.grantCareerEntitlementForAuthenticatedPrincipal({}), (error) => error.code === 'INVALID_AUTH_PRINCIPAL');
   await assert.rejects(runtime.grantCareerEntitlementForAuthenticatedPrincipal({ authorization: 'Bearer malformed' }), (error) => error.code === 'INVALID_AUTH_PRINCIPAL');
   assert.deepEqual(await runtime.grantCareerEntitlementForAuthenticatedPrincipal({ authorization: 'Bearer legitimate' }), { created: true }); assert.deepEqual(calls, [{ provider: 'supabase', subject: 'subject-a', isAnonymous: false }]); await runtime.shutdown();
 });
