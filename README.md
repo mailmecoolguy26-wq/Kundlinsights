@@ -18,6 +18,8 @@ This capability is only composed by the development runtime; it has no HTTP rout
 
 This runtime preserves encrypted PostgreSQL persistence using the local development envelope key. It requires no AWS KMS, Swiss license, or OpenAI credentials merely to boot. It uses the provisional/reference Astronomy Engine provider and must never be used for commercial production.
 
+To enable backend-authoritative development birth-place resolution, additionally provide `GOOGLE_MAPS_API_KEY` plus explicit `TIMEZONE_RUNTIME_MANIFEST_PATH` and `TIMEZONE_RUNTIME_BINARY_PATH`. Any partial configuration fails closed. Build the external artifacts from the approved TBB 2026c/1970 GeoJSON with `node scripts/build-timezone-runtime-artifact.js <source-json> <external-output-directory>`; this creates `tbb-2026c-1970.manifest.json` and `tbb-2026c-1970.bin`. These files and the Google key remain outside the repository.
+
 KundlInsights is a production-grade iOS and Android application for **Vedic / Jyotish astrology**.
 
 It is intentionally being built in layers, beginning with a deterministic astronomical calculation foundation and progressing through charting, dashas, transits, Ashtakavarga, event analysis, prediction, interpretation, mobile delivery, and subscriptions.
