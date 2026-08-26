@@ -11,15 +11,16 @@ const { DevelopmentCareerEntitlementFixture } = require('./development-career-en
 function createDevelopmentRuntime({ env = process.env, astronomicalEngine, canonicalSiderealSunSampler, idGenerator = crypto.randomUUID, clock = () => new Date().toISOString(), dependencies = {} } = {}) {
   const config = (dependencies.loadDevelopmentConfig || loadDevelopmentConfig)(env); if (!astronomicalEngine || !canonicalSiderealSunSampler) throw new TypeError('Development runtime requires astronomy dependencies.');
   const PoolClass = dependencies.Pool || Pool, KmsClass = dependencies.DevelopmentLocalKms || DevelopmentLocalKms, authFactory = dependencies.createSupabaseAuthVerifier || createSupabaseAuthVerifier, compositionFactory = dependencies.createApiComposition || createApiComposition;
-  const db = new PoolClass({ connectionString: config.databaseUrl }); const kms = new KmsClass(config.localKms); const authVerifier = authFactory(config.auth); let ready = false, initialized = false, shuttingDown = null;
-  const composition = compositionFactory({ db, authVerifier, kms, astronomicalEngine, canonicalSiderealSunSampler, idGenerator, clock, corsAllowlist: config.corsOrigins, isReady: () => ready, logger: false, bodyLimit: config.bodyLimitBytes }); const api = composition.api;
+  const db = new PoolClass({ connectionString: config.databaseUrl }); const kms = new KmsClass(config.localKms); const authVerifier = authFactory(config.auth); let ready = false, initialized = false, shuttingDown = null; let latestAuthenticatedDbDiagnostic = null;
+  const transactionDiagnosticObserver = (value) => { latestAuthenticatedDbDiagnostic = value; };
+  const composition = compositionFactory({ db, authVerifier, kms, astronomicalEngine, canonicalSiderealSunSampler, idGenerator, clock, corsAllowlist: config.corsOrigins, isReady: () => ready, logger: false, bodyLimit: config.bodyLimitBytes, transactionDiagnosticObserver }); const api = composition.api;
   const fixture = new (dependencies.DevelopmentCareerEntitlementFixture || DevelopmentCareerEntitlementFixture)({ authUserResolver: composition.services.userResolver, transactionExecutor: composition.services.transactionExecutor, idGenerator, clock });
   async function initialize() { if (initialized) return; try { await db.query('select 1'); await kms.validateStartupKey(); ready = true; initialized = true; } catch { ready = false; await Promise.allSettled([typeof db.end === 'function' ? db.end() : undefined]); const error = new Error('Development startup validation failed.'); error.code = 'DEVELOPMENT_STARTUP_FAILED'; throw error; } }
   async function start() { await initialize(); return api.listen({ host: config.host, port: config.port }); }
   function shutdown() { if (shuttingDown) return shuttingDown; shuttingDown = (async () => { ready = false; await Promise.resolve(api.close()); if (typeof db.end === 'function') await db.end(); })(); return shuttingDown; }
   function installSignalHandlers() { const handler = () => { shutdown().finally(() => { process.exitCode = 0; }); }; process.once('SIGTERM', handler); process.once('SIGINT', handler); return handler; }
   async function grantCareerEntitlementForAuthenticatedPrincipal({ authorization } = {}) { const principal = await authVerifier.verifyRequest({ headers: { authorization } }); return fixture.ensureCareerEntitlementForAuthenticatedDevUser({ authenticatedPrincipal: principal }); }
-  return Object.freeze({ config, api, services: composition.services, initialize, start, shutdown, installSignalHandlers, grantCareerEntitlementForAuthenticatedPrincipal, isReady: () => ready });
+  return Object.freeze({ config, api, services: composition.services, initialize, start, shutdown, installSignalHandlers, grantCareerEntitlementForAuthenticatedPrincipal, getLatestAuthenticatedDbDiagnostic: () => latestAuthenticatedDbDiagnostic, isReady: () => ready });
 }
 
 module.exports = { createDevelopmentRuntime };

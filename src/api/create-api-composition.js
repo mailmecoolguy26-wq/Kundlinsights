@@ -18,13 +18,13 @@ function req(value, name) {
   return value;
 }
 
-function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canonicalSiderealSunSampler, placeResolver = null, openai = null, idGenerator, clock, requiresEntitlement = () => true, corsAllowlist, isReady, logger, bodyLimit } = {}) {
+function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canonicalSiderealSunSampler, placeResolver = null, openai = null, idGenerator, clock, requiresEntitlement = () => true, corsAllowlist, isReady, logger, bodyLimit, transactionDiagnosticObserver } = {}) {
   const { createApi } = require('./index');
   req(db, 'DB'); req(authVerifier, 'AUTH_VERIFIER'); req(kms, 'KMS');
   req(astronomicalEngine, 'ASTRONOMICAL_ENGINE'); req(canonicalSiderealSunSampler, 'SUN_SAMPLER');
   req(idGenerator, 'ID_GENERATOR'); req(clock, 'CLOCK');
 
-  const tx = new PostgresApplicationTransactionExecutor({ db });
+  const tx = new PostgresApplicationTransactionExecutor({ db, diagnosticObserver: transactionDiagnosticObserver });
   const cryptoCoordinator = Object.freeze({
     current: async (principal, userId) => tx.execute({
       principal, role: 'app_crypto', operation: async ({ db: client }) => {
