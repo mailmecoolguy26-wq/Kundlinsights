@@ -89,7 +89,7 @@ function buildRuntimeArtifact({ sourcePath, outputDirectory }) {
       provider: 'timezone-boundary-builder', family: '1970', version: '2026c',
       sourceZipSha256: SOURCE_ZIP_SHA256, sourceGeometrySha256: SOURCE_GEOMETRY_SHA256,
     },
-    binary: { fileName: BINARY_FILE_NAME, byteLength, sha256: sha256(binary) },
+    binary: { fileName: BINARY_FILE_NAME, byteLength: binary.length, sha256: sha256(binary) },
     features,
   };
   fs.writeFileSync(path.join(outputDirectory, MANIFEST_FILE_NAME), `${JSON.stringify(manifest, null, 2)}\n`);
