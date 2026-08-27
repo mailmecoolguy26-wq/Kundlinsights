@@ -4,6 +4,7 @@ import '../../app/theme/app_theme.dart';
 import '../auth/auth_controller.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/app_card.dart';
+import '../../shared/widgets/app_page_scaffold.dart';
 import '../../shared/widgets/section_header.dart';
 import '../profiles/profile_controller.dart';
 
@@ -21,8 +22,8 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
-    return SafeArea(
-      child: ListView(
+    return AppPageScaffold(
+      body: ListView(
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
           SectionHeader(title: t.settings),

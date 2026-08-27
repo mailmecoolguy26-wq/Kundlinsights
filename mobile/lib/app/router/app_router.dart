@@ -305,20 +305,3 @@ class AppShell extends StatelessWidget {
     );
   }
 }
-
-class SecondaryPlaceholder extends StatelessWidget {
-  const SecondaryPlaceholder({super.key, required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(title)),
-    body: Center(
-      child: Text(
-        'This screen will be connected in a later milestone.',
-        style: Theme.of(context).textTheme.bodyLarge,
-      ),
-    ),
-  );
-}

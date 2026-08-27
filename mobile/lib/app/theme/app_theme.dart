@@ -91,12 +91,42 @@ abstract final class AppTheme {
         shape: const RoundedRectangleBorder(borderRadius: AppRadius.pill),
       ),
     ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        minimumSize: const Size.fromHeight(48),
+        shape: const RoundedRectangleBorder(borderRadius: AppRadius.pill),
+      ),
+    ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         minimumSize: const Size.fromHeight(48),
         shape: const RoundedRectangleBorder(borderRadius: AppRadius.pill),
       ),
     ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        shape: const RoundedRectangleBorder(borderRadius: AppRadius.pill),
+      ),
+    ),
+    appBarTheme: const AppBarTheme(
+      centerTitle: false,
+      backgroundColor: AppColors.ivory,
+      foregroundColor: AppColors.text,
+      elevation: 0,
+    ),
+    inputDecorationTheme: const InputDecorationTheme(
+      border: OutlineInputBorder(borderRadius: AppRadius.medium),
+      enabledBorder: OutlineInputBorder(borderRadius: AppRadius.medium),
+      focusedBorder: OutlineInputBorder(borderRadius: AppRadius.medium),
+    ),
+    dividerTheme: const DividerThemeData(color: Color(0x1A182033)),
+    dialogTheme: const DialogThemeData(
+      shape: RoundedRectangleBorder(borderRadius: AppRadius.large),
+    ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      shape: RoundedRectangleBorder(borderRadius: AppRadius.large),
+    ),
+    snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
     navigationBarTheme: const NavigationBarThemeData(height: 76),
   );
 }

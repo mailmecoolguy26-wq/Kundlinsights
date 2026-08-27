@@ -8,9 +8,13 @@ class EmptyState extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.body,
+    this.actionLabel,
+    this.onAction,
   });
   final IconData icon;
   final String title, body;
+  final String? actionLabel;
+  final VoidCallback? onAction;
   @override
   Widget build(BuildContext context) => Semantics(
     label: '$title. $body',
@@ -27,6 +31,10 @@ class EmptyState extends StatelessWidget {
               style: Theme.of(context).textTheme.headlineSmall,
               textAlign: TextAlign.center,
             ),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              FilledButton(onPressed: onAction, child: Text(actionLabel!)),
+            ],
             const SizedBox(height: AppSpacing.xs),
             Text(
               body,
@@ -41,19 +49,36 @@ class EmptyState extends StatelessWidget {
 }
 
 class LoadingState extends StatelessWidget {
-  const LoadingState({super.key});
+  const LoadingState({super.key, this.label});
+  final String? label;
   @override
-  Widget build(BuildContext context) =>
-      const Center(child: CircularProgressIndicator());
+  Widget build(BuildContext context) => Center(
+    child: Semantics(
+      label: label ?? 'Loading',
+      liveRegion: true,
+      child: const CircularProgressIndicator(),
+    ),
+  );
 }
 
 class ErrorState extends StatelessWidget {
-  const ErrorState({super.key, required this.message});
+  const ErrorState({
+    super.key,
+    required this.message,
+    this.title,
+    this.onRetry,
+    this.retryLabel = 'Retry',
+  });
   final String message;
+  final String? title;
+  final VoidCallback? onRetry;
+  final String retryLabel;
   @override
   Widget build(BuildContext context) => EmptyState(
     icon: Icons.error_outline,
-    title: 'Something went wrong',
+    title: title ?? 'Something went wrong',
     body: message,
+    actionLabel: onRetry == null ? null : retryLabel,
+    onAction: onRetry,
   );
 }

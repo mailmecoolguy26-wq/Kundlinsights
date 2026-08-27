@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/app_card.dart';
+import '../../shared/widgets/app_page_scaffold.dart';
 import '../../shared/widgets/premium_badge.dart';
 import '../../shared/widgets/section_header.dart';
 
@@ -13,8 +14,8 @@ class InsightsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = AppLocalizations.of(context)!;
-    return SafeArea(
-      child: ListView(
+    return AppPageScaffold(
+      body: ListView(
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
           SectionHeader(title: text.insights, subtitle: text.insightsBody),

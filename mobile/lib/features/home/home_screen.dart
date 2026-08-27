@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../app/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/app_card.dart';
+import '../../shared/widgets/app_page_scaffold.dart';
 import '../../shared/widgets/section_header.dart';
 import '../natal/natal_summary_controller.dart';
 import '../profiles/profile_controller.dart';
@@ -26,8 +27,8 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: Listenable.merge([natalController, vimshottariController]),
-    builder: (context, child) => SafeArea(
-      child: RefreshIndicator(
+    builder: (context, child) => AppPageScaffold(
+      body: RefreshIndicator(
         onRefresh: () async {
           await natalController.refresh();
           await vimshottariController.refreshCurrent();

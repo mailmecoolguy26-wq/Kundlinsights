@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/app_card.dart';
+import '../../shared/widgets/app_page_scaffold.dart';
 import '../../shared/widgets/section_header.dart';
 import '../natal/domain/natal_summary.dart';
 import '../natal/natal_summary_controller.dart';
@@ -40,8 +41,8 @@ class _KundliScreenState extends State<KundliScreen> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
-    return SafeArea(
-      child: Column(
+    return AppPageScaffold(
+      body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(

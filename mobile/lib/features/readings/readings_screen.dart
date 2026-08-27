@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../app/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/app_card.dart';
+import '../../shared/widgets/app_page_scaffold.dart';
 import '../../shared/widgets/states.dart';
 import 'domain/reading.dart';
 import 'reading_controller.dart';
@@ -59,27 +60,23 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
     ),
     builder: (context, child) {
       final t = AppLocalizations.of(context)!;
-      final screen = Scaffold(
-        appBar: AppBar(
-          title: Text(t.myReadings),
-          actions: [
-            Semantics(
-              label: t.refresh,
-              button: true,
-              child: IconButton(
-                icon: const Icon(Icons.refresh),
-                onPressed: widget.controller.refresh,
-              ),
+      final screen = AppPageScaffold(
+        title: t.myReadings,
+        actions: [
+          Semantics(
+            label: t.refresh,
+            button: true,
+            child: IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: widget.controller.refresh,
             ),
-          ],
-        ),
-        body: SafeArea(
-          child: RefreshIndicator(
-            onRefresh: widget.controller.refresh,
-            child: _ReadingList(
-              controller: widget.controller,
-              generation: widget.generation,
-            ),
+          ),
+        ],
+        body: RefreshIndicator(
+          onRefresh: widget.controller.refresh,
+          child: _ReadingList(
+            controller: widget.controller,
+            generation: widget.generation,
           ),
         ),
       );
@@ -113,12 +110,10 @@ class _ReadingList extends StatelessWidget {
         children: [
           if (generation != null) _GenerationCard(generation: generation!),
           const SizedBox(height: AppSpacing.xxl),
-          ErrorState(message: t.readingsUnavailable),
-          Center(
-            child: TextButton(
-              onPressed: controller.refresh,
-              child: Text(t.retry),
-            ),
+          ErrorState(
+            message: t.readingsUnavailable,
+            onRetry: controller.refresh,
+            retryLabel: t.retry,
           ),
         ],
       );

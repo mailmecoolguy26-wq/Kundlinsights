@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../l10n/app_localizations.dart';
 import 'router/app_router.dart';
@@ -16,56 +17,77 @@ import '../features/readings/reading_controller.dart';
 import '../features/readings/career_reading_generation_controller.dart';
 import '../features/career_events/career_event_controller.dart';
 
-class KundlInsightsApp extends ConsumerWidget {
+class KundlInsightsApp extends ConsumerStatefulWidget {
   const KundlInsightsApp({super.key, required this.authController});
   final AuthController authController;
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final profiles = ref.watch(profileControllerProvider(authController));
-    final natal = ref.watch(
+  ConsumerState<KundlInsightsApp> createState() => _KundlInsightsAppState();
+}
+
+class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp> {
+  late final GoRouter _router;
+
+  @override
+  void initState() {
+    super.initState();
+    final authController = widget.authController;
+    final profiles = ref.read(profileControllerProvider(authController));
+    final natal = ref.read(
       natalSummaryControllerProvider((authController, profiles)),
     );
-    final divisional = ref.watch(
+    final divisional = ref.read(
       divisionalChartControllerProvider((authController, profiles)),
     );
-    final vimshottari = ref.watch(
+    final vimshottari = ref.read(
       vimshottariControllerProvider((authController, profiles)),
     );
-    final transits = ref.watch(
+    final transits = ref.read(
       transitSnapshotControllerProvider((authController, profiles)),
     );
-    final ashtakavarga = ref.watch(
+    final ashtakavarga = ref.read(
       ashtakavargaControllerProvider((authController, profiles)),
     );
-    final readings = ref.watch(
+    final readings = ref.read(
       readingControllerProvider((authController, profiles)),
     );
-    final generation = ref.watch(
+    final generation = ref.read(
       careerReadingGenerationControllerProvider((
         authController,
         profiles,
         readings,
       )),
     );
-    final careerEvents = ref.watch(
+    final careerEvents = ref.read(
       careerEventControllerProvider((authController, profiles)),
     );
+    _router = createAppRouter(
+      authController,
+      profiles,
+      natal,
+      divisional,
+      vimshottari,
+      transits,
+      ashtakavarga,
+      readings,
+      generation,
+      careerEvents,
+    );
+  }
+
+  @override
+  void dispose() {
+    _router.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return MaterialApp.router(
       title: 'KundlInsights',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      routerConfig: createAppRouter(
-        authController,
-        profiles,
-        natal,
-        divisional,
-        vimshottari,
-        transits,
-        ashtakavarga,
-        readings,
-        generation,
-        careerEvents,
-      ),
+      routerConfig: _router,
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
