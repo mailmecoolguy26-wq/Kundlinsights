@@ -11,43 +11,56 @@ class BirthProfilesScreen extends StatelessWidget {
   const BirthProfilesScreen({super.key, required this.controller});
   final ProfileController controller;
   @override
-  Widget build(BuildContext context) {
-    final t = AppLocalizations.of(context)!;
-    if (controller.state == ProfileLoadState.loading) {
-      return const Scaffold(body: LoadingState());
-    }
-    if (controller.state == ProfileLoadState.error) {
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: controller,
+    builder: (context, child) {
+      final t = AppLocalizations.of(context)!;
+      if (controller.state == ProfileLoadState.loading) {
+        return const Scaffold(body: LoadingState());
+      }
+      if (controller.state == ProfileLoadState.error) {
+        return Scaffold(
+          appBar: AppBar(title: Text(t.birthProfiles)),
+          body: ErrorState(
+            message: t.profileRequestFailed,
+            onRetry: controller.load,
+            retryLabel: t.retry,
+          ),
+        );
+      }
       return Scaffold(
         appBar: AppBar(title: Text(t.birthProfiles)),
-        body: Center(
-          child: FilledButton(onPressed: controller.load, child: Text(t.retry)),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () => context.go('/profiles/add'),
+          icon: const Icon(Icons.add),
+          label: Text(t.addProfile),
         ),
-      );
-    }
-    return Scaffold(
-      appBar: AppBar(title: Text(t.birthProfiles)),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.go('/profiles/add'),
-        icon: const Icon(Icons.add),
-        label: Text(t.addProfile),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        children: controller.profiles
-            .map(
-              (profile) => _ProfileTile(
-                profile: profile,
-                active: controller.activeProfile?.id == profile.id,
-                onTap: () {
-                  controller.select(profile);
-                  context.go('/profiles/${profile.id}');
-                },
+        body: controller.profiles.isEmpty
+            ? EmptyState(
+                icon: Icons.person_outline,
+                title: t.noBirthProfilesTitle,
+                body: t.noBirthProfilesBody,
+                actionLabel: t.addProfile,
+                onAction: () => context.go('/profiles/add'),
+              )
+            : ListView(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                children: controller.profiles
+                    .map(
+                      (profile) => _ProfileTile(
+                        profile: profile,
+                        active: controller.activeProfile?.id == profile.id,
+                        onTap: () {
+                          controller.select(profile);
+                          context.go('/profiles/${profile.id}');
+                        },
+                      ),
+                    )
+                    .toList(),
               ),
-            )
-            .toList(),
-      ),
-    );
-  }
+      );
+    },
+  );
 }
 
 class ProfileDetailScreen extends StatelessWidget {
@@ -75,6 +88,8 @@ class ProfileDetailScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
+          Text(t.birthDetails, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: AppSpacing.sm),
           _ProfileTile(
             profile: profile,
             active: controller.activeProfile?.id == profile.id,
@@ -111,7 +126,9 @@ class _ProfileTile extends StatelessWidget {
     return Card(
       child: ListTile(
         title: Text(profile.label),
-        subtitle: Text(profile.birthData.localDate),
+        subtitle: Text(
+          '${profile.birthData.localDate} · ${profile.birthData.localTime}',
+        ),
         trailing: active
             ? Semantics(
                 label: t.activeProfileIndicator,

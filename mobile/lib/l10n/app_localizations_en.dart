@@ -246,6 +246,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get placeOfBirth => 'Place of birth';
 
   @override
+  String get selectedBirthplace => 'Selected birthplace';
+
+  @override
   String get selectDate => 'Select date';
 
   @override
@@ -309,6 +312,25 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get editDeleteUnavailable =>
       'Profile editing and deletion are not available yet.';
+
+  @override
+  String get noBirthProfilesTitle => 'No birth profile yet';
+
+  @override
+  String get noBirthProfilesBody => 'Create a birth profile to get started.';
+
+  @override
+  String get onboardingIntro =>
+      'Add your birth date, time, and place so KundlInsights can prepare your profile and personalized insights.';
+
+  @override
+  String get resolvingBirthDetails => 'Resolving birth details…';
+
+  @override
+  String get creatingProfile => 'Creating profile…';
+
+  @override
+  String get birthDetails => 'Birth details';
 
   @override
   String get natalSummary => 'Natal Summary';

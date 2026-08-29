@@ -538,6 +538,12 @@ abstract class AppLocalizations {
   /// **'Place of birth'**
   String get placeOfBirth;
 
+  /// No description provided for @selectedBirthplace.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected birthplace'**
+  String get selectedBirthplace;
+
   /// No description provided for @selectDate.
   ///
   /// In en, this message translates to:
@@ -657,6 +663,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Profile editing and deletion are not available yet.'**
   String get editDeleteUnavailable;
+
+  /// No description provided for @noBirthProfilesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No birth profile yet'**
+  String get noBirthProfilesTitle;
+
+  /// No description provided for @noBirthProfilesBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Create a birth profile to get started.'**
+  String get noBirthProfilesBody;
+
+  /// No description provided for @onboardingIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your birth date, time, and place so KundlInsights can prepare your profile and personalized insights.'**
+  String get onboardingIntro;
+
+  /// No description provided for @resolvingBirthDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolving birth details…'**
+  String get resolvingBirthDetails;
+
+  /// No description provided for @creatingProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Creating profile…'**
+  String get creatingProfile;
+
+  /// No description provided for @birthDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Birth details'**
+  String get birthDetails;
 
   /// No description provided for @natalSummary.
   ///
