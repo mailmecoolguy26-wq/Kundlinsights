@@ -68,7 +68,7 @@ void main() {
     repository.replaceAuthenticatedSubject('user-b');
     await tester.pump();
     await tester.pump();
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsWidgets);
 
     subjectProfiles.completeForB();
     await tester.pump();

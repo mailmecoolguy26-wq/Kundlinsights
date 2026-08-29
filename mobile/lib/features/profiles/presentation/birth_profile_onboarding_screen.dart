@@ -185,6 +185,7 @@ class _BirthProfileOnboardingScreenState
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.adding ? t.addProfile : t.createBirthProfile),
+        automaticallyImplyLeading: widget.adding,
       ),
       body: SafeArea(
         child: ListView(
@@ -195,6 +196,13 @@ class _BirthProfileOnboardingScreenState
               style: Theme.of(context).textTheme.labelLarge,
             ),
             const SizedBox(height: AppSpacing.md),
+            if (!widget.adding && _step == 0) ...[
+              Text(
+                'Add your birth date, time, and place so KundlInsights can prepare your profile and personalized insights.',
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+              const SizedBox(height: AppSpacing.lg),
+            ],
             _body(t),
             if (_error != null)
               Padding(

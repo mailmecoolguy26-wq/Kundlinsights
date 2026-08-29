@@ -26,6 +26,8 @@ import '../../features/transits/transit_snapshot_controller.dart';
 import '../../features/ashtakavarga/ashtakavarga_controller.dart';
 import '../../features/ashtakavarga/presentation/ashtakavarga_screen.dart';
 import '../../l10n/app_localizations.dart';
+import '../../shared/widgets/app_page_scaffold.dart';
+import '../../shared/widgets/states.dart';
 
 GoRouter createAppRouter(
   AuthController authController,
@@ -46,14 +48,16 @@ GoRouter createAppRouter(
     final location = state.matchedLocation;
     final authRoute = location == '/login' || location == '/signup';
     if (auth == AuthStatus.initializing || auth == AuthStatus.loading) {
-      return location == '/splash' ? null : '/splash';
+      return location == '/splash' || authRoute ? null : '/splash';
     }
     if (auth != AuthStatus.authenticated) {
       return authRoute ? null : '/login';
     }
-    if (profiles.state == ProfileLoadState.loading ||
-        profiles.state == ProfileLoadState.error) {
-      return null;
+    if (profiles.state == ProfileLoadState.loading) {
+      return location == '/profiles-loading' ? null : '/profiles-loading';
+    }
+    if (profiles.state == ProfileLoadState.error) {
+      return location == '/profiles-error' ? null : '/profiles-error';
     }
     if (profiles.isEmpty) {
       return location == '/onboarding' ? null : '/onboarding';
@@ -227,7 +231,7 @@ class _LoadingScreen extends StatelessWidget {
   const _LoadingScreen();
   @override
   Widget build(BuildContext context) =>
-      const Scaffold(body: Center(child: CircularProgressIndicator()));
+      const AppPageScaffold(body: LoadingState());
 }
 
 class _ProfileLoadError extends StatelessWidget {
@@ -236,9 +240,11 @@ class _ProfileLoadError extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
-    return Scaffold(
-      body: Center(
-        child: FilledButton(onPressed: onRetry, child: Text(t.retry)),
+    return AppPageScaffold(
+      body: ErrorState(
+        message: 'Your birth profiles are unavailable right now.',
+        onRetry: onRetry,
+        retryLabel: t.retry,
       ),
     );
   }
