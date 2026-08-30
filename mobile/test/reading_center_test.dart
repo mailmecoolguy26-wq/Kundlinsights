@@ -174,6 +174,76 @@ void main() {
     auth.dispose();
   });
 
+  test(
+    'rapid profile A to B to A keeps only the latest A list response',
+    () async {
+      final authSource = _AuthSource();
+      final auth = AuthController(authSource);
+      await auth.restore();
+      final profiles = ProfileController(_Profiles(authSource), auth);
+      await _settle();
+      final repository = _ReadingRepository(deferredListCalls: {1, 2, 3});
+      final controller = ReadingController(repository, auth, profiles);
+      await _settle();
+
+      profiles.select(profiles.profiles.last);
+      await _settle();
+      profiles.select(profiles.profiles.first);
+      await _settle();
+      repository.completeList(3, [_summary('profile-a')]);
+      await _settle();
+      expect(controller.readings.single.birthProfileId, 'profile-a');
+      repository.completeList(1, [_summary('profile-a')]);
+      repository.completeList(2, [_summary('profile-b')]);
+      await _settle();
+      expect(controller.readings.single.birthProfileId, 'profile-a');
+
+      controller.dispose();
+      profiles.dispose();
+      auth.dispose();
+    },
+  );
+
+  testWidgets(
+    'an open Profile A detail route cannot retain content after a user switch',
+    (tester) async {
+      final authSource = _AuthSource();
+      final auth = AuthController(authSource);
+      await auth.restore();
+      final profiles = ProfileController(_Profiles(authSource), auth);
+      await tester.pump();
+      final controller = ReadingController(
+        _ReadingRepository(),
+        auth,
+        profiles,
+      );
+      await controller.loadDetail('reading-a');
+      await tester.pumpWidget(
+        _localized(
+          ReadingDetailScreen(controller: controller, readingId: 'reading-a'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Stored text.'), findsOneWidget);
+
+      authSource.switchSubject('user-b');
+      await tester.pump();
+      expect(controller.detail, isNull);
+      expect(controller.detailState, ReadingDetailState.initial);
+      expect(find.text('Stored text.'), findsNothing);
+      expect(
+        find.text(
+          'This saved reading is unavailable right now. Please return to My Readings and try again.',
+        ),
+        findsOneWidget,
+      );
+
+      controller.dispose();
+      profiles.dispose();
+      auth.dispose();
+    },
+  );
+
   testWidgets('renders non-empty, empty, error, and stored detail content', (
     tester,
   ) async {

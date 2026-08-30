@@ -368,6 +368,61 @@ void main() {
     profiles.dispose();
     auth.dispose();
   });
+
+  test(
+    'rapid user A to B to A ignores the first A entitlement response',
+    () async {
+      final source = _Auth();
+      final auth = AuthController(source);
+      await auth.restore();
+      final profiles = ProfileController(_Profiles(auth: source), auth);
+      await Future<void>.delayed(Duration.zero);
+      final generation = _QueuedGeneration();
+      final readings = ReadingController(_Readings(), auth, profiles);
+      final controller = CareerReadingGenerationController(
+        generation,
+        auth,
+        profiles,
+        readings,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      source.switchSubject('user-b');
+      await Future<void>.delayed(Duration.zero);
+      source.switchSubject('user-a');
+      await Future<void>.delayed(Duration.zero);
+      generation.complete(2, const CareerEligibility(eligible: true));
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.eligibilityState, CareerEligibilityState.eligible);
+      generation.complete(0, const CareerEligibility(eligible: false));
+      generation.complete(1, const CareerEligibility(eligible: false));
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.eligibilityState, CareerEligibilityState.eligible);
+
+      controller.dispose();
+      readings.dispose();
+      profiles.dispose();
+      auth.dispose();
+    },
+  );
+}
+
+class _QueuedGeneration implements CareerReadingGenerationRepository {
+  final pending = <Completer<CareerEligibility>>[];
+  @override
+  Future<CareerEligibility> getCareerEligibility() {
+    final result = Completer<CareerEligibility>();
+    pending.add(result);
+    return result.future;
+  }
+
+  void complete(int index, CareerEligibility value) =>
+      pending[index].complete(value);
+  @override
+  Future<CreatedCareerReading> createCareerReading({
+    required String birthProfileId,
+    required String idempotencyKey,
+  }) => throw UnimplementedError();
 }
 
 class _Generation implements CareerReadingGenerationRepository {

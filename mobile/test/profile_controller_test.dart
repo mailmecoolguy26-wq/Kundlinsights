@@ -62,6 +62,32 @@ void main() {
     controller.dispose();
     auth.dispose();
   });
+
+  test(
+    'user switch to zero profiles clears the previous active profile',
+    () async {
+      final source = _Auth();
+      final auth = AuthController(source);
+      await auth.restore();
+      final repository = _Profiles();
+      final controller = ProfileController(repository, auth);
+      await controller.load();
+      controller.select(controller.profiles.last);
+      expect(controller.activeProfile!.id, 'b');
+
+      repository.currentSubject = 'zero-profiles';
+      source.swapTo('zero-profiles');
+      expect(controller.profiles, isEmpty);
+      expect(controller.activeProfile, isNull);
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.state, ProfileLoadState.ready);
+      expect(controller.profiles, isEmpty);
+      expect(controller.activeProfile, isNull);
+
+      controller.dispose();
+      auth.dispose();
+    },
+  );
 }
 
 class _Auth implements AuthRepository {
@@ -150,6 +176,7 @@ class _Profiles implements BirthProfileRepository {
       'user-a' => [_profile('a', 'A'), _profile('b', 'B')],
       'user-b' => [_profile('b-1', 'B')],
       'user-c' => [_profile('c-1', 'C')],
+      'zero-profiles' => const [],
       _ => const [],
     };
   }

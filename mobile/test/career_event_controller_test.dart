@@ -106,6 +106,33 @@ void main() {
     auth.dispose();
   });
 
+  test('rapid A to B to A loads ignore earlier A responses', () async {
+    final source = _Auth();
+    final auth = AuthController(source);
+    await auth.restore();
+    final profiles = ProfileController(_Profiles(source, two: true), auth);
+    await Future<void>.delayed(Duration.zero);
+    final repo = _SequencedEvents();
+    final controller = CareerEventController(repo, auth, profiles);
+    await Future<void>.delayed(Duration.zero);
+
+    profiles.select(profiles.profiles.last);
+    await Future<void>.delayed(Duration.zero);
+    profiles.select(profiles.profiles.first);
+    await Future<void>.delayed(Duration.zero);
+    repo.complete(2, [_event('profile-a', eventId: 'latest-a')]);
+    await Future<void>.delayed(Duration.zero);
+    expect(controller.events.single.careerEventId, 'latest-a');
+    repo.complete(0, [_event('profile-a', eventId: 'stale-a')]);
+    repo.complete(1, [_event('profile-b')]);
+    await Future<void>.delayed(Duration.zero);
+    expect(controller.events.single.careerEventId, 'latest-a');
+
+    controller.dispose();
+    profiles.dispose();
+    auth.dispose();
+  });
+
   test('create pending and failure preserve the loaded list', () async {
     final source = _Auth();
     final auth = AuthController(source);
@@ -189,6 +216,31 @@ class _Events implements CareerEventRepository {
   @override
   Future<CareerEvent> deleteCareerEvent(String _, String eventId) =>
       pendingMutation ? mutation.future : throw UnimplementedError();
+}
+
+class _SequencedEvents implements CareerEventRepository {
+  final pending = <Completer<List<CareerEvent>>>[];
+  @override
+  Future<List<CareerEvent>> listCareerEvents(String _) {
+    final result = Completer<List<CareerEvent>>();
+    pending.add(result);
+    return result.future;
+  }
+
+  void complete(int index, List<CareerEvent> value) =>
+      pending[index].complete(value);
+  @override
+  Future<CareerEvent> createCareerEvent(String _, CareerEventInput input) =>
+      throw UnimplementedError();
+  @override
+  Future<CareerEvent> updateCareerEvent(
+    String _,
+    String eventId,
+    CareerEventInput input,
+  ) => throw UnimplementedError();
+  @override
+  Future<CareerEvent> deleteCareerEvent(String _, String eventId) =>
+      throw UnimplementedError();
 }
 
 const _input = CareerEventInput(
