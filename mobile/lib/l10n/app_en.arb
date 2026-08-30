@@ -58,4 +58,22 @@
   "careerBreakthrough": "Career breakthrough",
   "careerSetback": "Career setback",
   "other": "Other"
+  ,"addCareerEvent": "Add career event"
+  ,"editCareerEvent": "Edit career event"
+  ,"deleteCareerEvent": "Delete career event?"
+  ,"exactDate": "Exact date"
+  ,"monthAndYear": "Month and year"
+  ,"yearOnly": "Year only"
+  ,"careerHistoryLoading": "Loading career history…"
+  ,"careerHistoryEmptyBody": "Add career milestones to build your career history for future calibration."
+  ,"creatingCareerEvent": "Adding career event…"
+  ,"savingCareerEvent": "Saving changes…"
+  ,"deletingCareerEvent": "Deleting career event…"
+  ,"careerEventInvalidDate": "Enter a valid historical date."
+  ,"careerProfileChanged": "Your active profile changed. This form can no longer be submitted."
+  ,"discardCareerChanges": "Discard changes?"
+  ,"discardCareerChangesBody": "Your unsaved changes will be lost."
+  ,"keepEditing": "Keep editing"
+  ,"discard": "Discard"
+  ,"dismiss": "Dismiss"
 }

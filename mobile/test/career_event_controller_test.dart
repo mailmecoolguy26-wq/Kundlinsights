@@ -105,6 +105,58 @@ void main() {
     profiles.dispose();
     auth.dispose();
   });
+
+  test('create pending and failure preserve the loaded list', () async {
+    final source = _Auth();
+    final auth = AuthController(source);
+    await auth.restore();
+    final profiles = ProfileController(_Profiles(source), auth);
+    await Future<void>.delayed(Duration.zero);
+    final repo = _Events(pendingMutation: true);
+    final controller = CareerEventController(repo, auth, profiles);
+    await Future<void>.delayed(Duration.zero);
+    final create = controller.create(_input);
+    expect(controller.mutationState, CareerEventMutationState.creating);
+    expect(controller.events, isNotEmpty);
+    repo.mutation.completeError(StateError('offline'));
+    expect(await create, isFalse);
+    expect(controller.state, CareerEventLoadState.loaded);
+    expect(controller.events, isNotEmpty);
+    expect(controller.mutationState, CareerEventMutationState.error);
+    controller.clearMutationError();
+    expect(controller.mutationState, CareerEventMutationState.idle);
+    controller.dispose();
+    profiles.dispose();
+    auth.dispose();
+  });
+
+  test('update and delete expose distinct pending states', () async {
+    final source = _Auth();
+    final auth = AuthController(source);
+    await auth.restore();
+    final profiles = ProfileController(_Profiles(source), auth);
+    await Future<void>.delayed(Duration.zero);
+    final updateRepo = _Events(pendingMutation: true);
+    final controller = CareerEventController(updateRepo, auth, profiles);
+    await Future<void>.delayed(Duration.zero);
+    final update = controller.update('year', _input);
+    expect(controller.mutationState, CareerEventMutationState.updating);
+    updateRepo.mutation.complete(_event('profile-a'));
+    expect(await update, isTrue);
+    expect(controller.mutationState, CareerEventMutationState.idle);
+    controller.dispose();
+    final deleteRepo = _Events(pendingMutation: true);
+    final deleting = CareerEventController(deleteRepo, auth, profiles);
+    await Future<void>.delayed(Duration.zero);
+    final delete = deleting.delete('year');
+    expect(deleting.mutationState, CareerEventMutationState.deleting);
+    deleteRepo.mutation.complete(_event('profile-a'));
+    expect(await delete, isTrue);
+    expect(deleting.mutationState, CareerEventMutationState.idle);
+    deleting.dispose();
+    profiles.dispose();
+    auth.dispose();
+  });
 }
 
 class _Events implements CareerEventRepository {
@@ -133,10 +185,10 @@ class _Events implements CareerEventRepository {
     String _,
     String eventId,
     CareerEventInput input,
-  ) => throw UnimplementedError();
+  ) => pendingMutation ? mutation.future : throw UnimplementedError();
   @override
   Future<CareerEvent> deleteCareerEvent(String _, String eventId) =>
-      throw UnimplementedError();
+      pendingMutation ? mutation.future : throw UnimplementedError();
 }
 
 const _input = CareerEventInput(

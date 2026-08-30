@@ -9,6 +9,8 @@ import 'domain/career_event_repository.dart';
 
 enum CareerEventLoadState { initial, loading, loaded, error }
 
+enum CareerEventMutationState { idle, creating, updating, deleting, error }
+
 class CareerEventController extends ChangeNotifier {
   CareerEventController(this.repository, this._auth, this._profiles) {
     _auth.addListener(_onScopeChanged);
@@ -25,13 +27,27 @@ class CareerEventController extends ChangeNotifier {
   String? _subject;
   String? _profileId;
   int _generation = 0;
-  bool _mutating = false;
+  CareerEventMutationState _mutationState = CareerEventMutationState.idle;
+  Object? _mutationError;
   bool _disposed = false;
 
   CareerEventLoadState get state => _state;
   List<CareerEvent> get events => _events;
   Object? get error => _error;
-  bool get isMutating => _mutating;
+  CareerEventMutationState get mutationState => _mutationState;
+  Object? get mutationError => _mutationError;
+  bool get isMutating =>
+      _mutationState == CareerEventMutationState.creating ||
+      _mutationState == CareerEventMutationState.updating ||
+      _mutationState == CareerEventMutationState.deleting;
+  int get scopeGeneration => _generation;
+
+  void clearMutationError() {
+    if (_mutationState != CareerEventMutationState.error) return;
+    _mutationState = CareerEventMutationState.idle;
+    _mutationError = null;
+    notifyListeners();
+  }
 
   void _onScopeChanged() {
     final subject = _auth.state.status == AuthStatus.authenticated
@@ -44,7 +60,8 @@ class CareerEventController extends ChangeNotifier {
     _profileId = profileId;
     _events = const [];
     _error = null;
-    _mutating = false;
+    _mutationState = CareerEventMutationState.idle;
+    _mutationError = null;
     if (subject == null || profileId == null) {
       _state = CareerEventLoadState.initial;
       notifyListeners();
@@ -84,42 +101,49 @@ class CareerEventController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> create(CareerEventInput input) =>
-      _mutate((profileId) => repository.createCareerEvent(profileId, input));
+  Future<bool> create(CareerEventInput input) => _mutate(
+    CareerEventMutationState.creating,
+    (profileId) => repository.createCareerEvent(profileId, input),
+  );
 
   Future<bool> update(String eventId, CareerEventInput input) => _mutate(
+    CareerEventMutationState.updating,
     (profileId) => repository.updateCareerEvent(profileId, eventId, input),
   );
 
-  Future<bool> delete(String eventId) =>
-      _mutate((profileId) => repository.deleteCareerEvent(profileId, eventId));
+  Future<bool> delete(String eventId) => _mutate(
+    CareerEventMutationState.deleting,
+    (profileId) => repository.deleteCareerEvent(profileId, eventId),
+  );
 
   Future<bool> _mutate(
+    CareerEventMutationState mutationState,
     Future<CareerEvent> Function(String profileId) operation,
   ) async {
     final subject = _subject;
     final profileId = _profileId;
-    if (subject == null || profileId == null || _mutating) return false;
+    if (subject == null || profileId == null || isMutating) return false;
     final generation = _generation;
-    _mutating = true;
-    _error = null;
+    _mutationState = mutationState;
+    _mutationError = null;
     notifyListeners();
     try {
       await operation(profileId);
       if (!_current(generation, subject, profileId)) return false;
-      _state = CareerEventLoadState.loading;
-      notifyListeners();
       await _load(subject, profileId, generation);
       return _current(generation, subject, profileId);
     } catch (error) {
       if (_current(generation, subject, profileId)) {
-        _error = error;
-        _state = CareerEventLoadState.error;
+        _mutationError = error;
+        _mutationState = CareerEventMutationState.error;
+        notifyListeners();
       }
       return false;
     } finally {
       if (_current(generation, subject, profileId)) {
-        _mutating = false;
+        if (_mutationState != CareerEventMutationState.error) {
+          _mutationState = CareerEventMutationState.idle;
+        }
         notifyListeners();
       }
     }

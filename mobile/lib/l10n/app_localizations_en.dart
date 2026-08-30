@@ -646,4 +646,60 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get other => 'Other';
+
+  @override
+  String get addCareerEvent => 'Add career event';
+
+  @override
+  String get editCareerEvent => 'Edit career event';
+
+  @override
+  String get deleteCareerEvent => 'Delete career event?';
+
+  @override
+  String get exactDate => 'Exact date';
+
+  @override
+  String get monthAndYear => 'Month and year';
+
+  @override
+  String get yearOnly => 'Year only';
+
+  @override
+  String get careerHistoryLoading => 'Loading career history…';
+
+  @override
+  String get careerHistoryEmptyBody =>
+      'Add career milestones to build your career history for future calibration.';
+
+  @override
+  String get creatingCareerEvent => 'Adding career event…';
+
+  @override
+  String get savingCareerEvent => 'Saving changes…';
+
+  @override
+  String get deletingCareerEvent => 'Deleting career event…';
+
+  @override
+  String get careerEventInvalidDate => 'Enter a valid historical date.';
+
+  @override
+  String get careerProfileChanged =>
+      'Your active profile changed. This form can no longer be submitted.';
+
+  @override
+  String get discardCareerChanges => 'Discard changes?';
+
+  @override
+  String get discardCareerChangesBody => 'Your unsaved changes will be lost.';
+
+  @override
+  String get keepEditing => 'Keep editing';
+
+  @override
+  String get discard => 'Discard';
+
+  @override
+  String get dismiss => 'Dismiss';
 }

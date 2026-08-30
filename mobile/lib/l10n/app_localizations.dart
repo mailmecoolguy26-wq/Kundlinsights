@@ -1299,6 +1299,114 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Other'**
   String get other;
+
+  /// No description provided for @addCareerEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Add career event'**
+  String get addCareerEvent;
+
+  /// No description provided for @editCareerEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit career event'**
+  String get editCareerEvent;
+
+  /// No description provided for @deleteCareerEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete career event?'**
+  String get deleteCareerEvent;
+
+  /// No description provided for @exactDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Exact date'**
+  String get exactDate;
+
+  /// No description provided for @monthAndYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Month and year'**
+  String get monthAndYear;
+
+  /// No description provided for @yearOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Year only'**
+  String get yearOnly;
+
+  /// No description provided for @careerHistoryLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading career history…'**
+  String get careerHistoryLoading;
+
+  /// No description provided for @careerHistoryEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Add career milestones to build your career history for future calibration.'**
+  String get careerHistoryEmptyBody;
+
+  /// No description provided for @creatingCareerEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Adding career event…'**
+  String get creatingCareerEvent;
+
+  /// No description provided for @savingCareerEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving changes…'**
+  String get savingCareerEvent;
+
+  /// No description provided for @deletingCareerEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting career event…'**
+  String get deletingCareerEvent;
+
+  /// No description provided for @careerEventInvalidDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid historical date.'**
+  String get careerEventInvalidDate;
+
+  /// No description provided for @careerProfileChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Your active profile changed. This form can no longer be submitted.'**
+  String get careerProfileChanged;
+
+  /// No description provided for @discardCareerChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard changes?'**
+  String get discardCareerChanges;
+
+  /// No description provided for @discardCareerChangesBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your unsaved changes will be lost.'**
+  String get discardCareerChangesBody;
+
+  /// No description provided for @keepEditing.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep editing'**
+  String get keepEditing;
+
+  /// No description provided for @discard.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get discard;
+
+  /// No description provided for @dismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss'**
+  String get dismiss;
 }
 
 class _AppLocalizationsDelegate
