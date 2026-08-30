@@ -52,7 +52,7 @@ void main() {
     addTearDown(harness.dispose);
 
     expect(
-      find.text('Career Reading is currently unavailable.'),
+      find.text("Career Reading isn't available for this profile right now."),
       findsOneWidget,
     );
     expect(
@@ -141,7 +141,7 @@ void main() {
     final ineligible = await _pumpReadingCenter(tester, eligible: false);
     addTearDown(ineligible.dispose);
     expect(
-      find.bySemanticsLabel('Career Reading is currently unavailable.'),
+      find.text("Career Reading isn't available for this profile right now."),
       findsOneWidget,
     );
     expect(find.bySemanticsLabel('Generate Career Reading'), findsNothing);

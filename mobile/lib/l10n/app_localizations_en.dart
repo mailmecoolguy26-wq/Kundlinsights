@@ -719,4 +719,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get viewCareerReading => 'View Career Reading';
+
+  @override
+  String get careerReadingProfileUnavailable =>
+      'Career Reading isn\'t available for this profile right now.';
 }

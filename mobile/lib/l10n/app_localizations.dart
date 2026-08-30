@@ -1437,6 +1437,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'View Career Reading'**
   String get viewCareerReading;
+
+  /// No description provided for @careerReadingProfileUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Career Reading isn\'t available for this profile right now.'**
+  String get careerReadingProfileUnavailable;
 }
 
 class _AppLocalizationsDelegate

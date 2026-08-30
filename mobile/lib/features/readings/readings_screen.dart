@@ -214,7 +214,20 @@ class _GenerationCard extends StatelessWidget {
       );
     }
     if (generation.eligibilityState == CareerEligibilityState.ineligible) {
-      return AppCard(child: Text(t.careerReadingUnavailable));
+      return AppCard(
+        child: Semantics(
+          container: true,
+          label: t.careerReadingProfileUnavailable,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.info_outline),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(child: Text(t.careerReadingProfileUnavailable)),
+            ],
+          ),
+        ),
+      );
     }
     if (generation.eligibilityState == CareerEligibilityState.error) {
       return AppCard(
