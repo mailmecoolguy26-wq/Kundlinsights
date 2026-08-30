@@ -702,4 +702,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dismiss => 'Dismiss';
+
+  @override
+  String get careerReadingEntryBody =>
+      'Your Career History milestones help personalize this backend-generated Career Reading.';
+
+  @override
+  String get careerGenerationFailed =>
+      'We could not prepare your Career Reading. Your Career History is still available.';
+
+  @override
+  String get tryAgain => 'Try again';
+
+  @override
+  String get careerReadingAvailable => 'Your Career Reading is ready.';
+
+  @override
+  String get viewCareerReading => 'View Career Reading';
 }

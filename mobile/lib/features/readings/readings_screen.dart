@@ -98,7 +98,11 @@ class _ReadingList extends StatelessWidget {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          if (generation != null) _GenerationCard(generation: generation!),
+          if (generation != null)
+            _GenerationCard(
+              generation: generation!,
+              existingReading: _careerReading(controller.readings),
+            ),
           const SizedBox(height: 240, child: LoadingState()),
         ],
       );
@@ -108,7 +112,11 @@ class _ReadingList extends StatelessWidget {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
-          if (generation != null) _GenerationCard(generation: generation!),
+          if (generation != null)
+            _GenerationCard(
+              generation: generation!,
+              existingReading: _careerReading(controller.readings),
+            ),
           const SizedBox(height: AppSpacing.xxl),
           ErrorState(
             message: t.readingsUnavailable,
@@ -125,7 +133,10 @@ class _ReadingList extends StatelessWidget {
           if (generation != null)
             Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
-              child: _GenerationCard(generation: generation!),
+              child: _GenerationCard(
+                generation: generation!,
+                existingReading: _careerReading(controller.readings),
+              ),
             ),
           SizedBox(
             height: 360,
@@ -144,7 +155,10 @@ class _ReadingList extends StatelessWidget {
       itemCount: controller.readings.length + (generation == null ? 0 : 1),
       separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
       itemBuilder: (context, index) => generation != null && index == 0
-          ? _GenerationCard(generation: generation!)
+          ? _GenerationCard(
+              generation: generation!,
+              existingReading: _careerReading(controller.readings),
+            )
           : _ReadingCard(
               reading:
                   controller.readings[index - (generation == null ? 0 : 1)],
@@ -153,12 +167,34 @@ class _ReadingList extends StatelessWidget {
   }
 }
 
+ReadingSummary? _careerReading(List<ReadingSummary> readings) =>
+    readings.where((reading) => reading.domain == 'CAREER').firstOrNull;
+
 class _GenerationCard extends StatelessWidget {
-  const _GenerationCard({required this.generation});
+  const _GenerationCard({required this.generation, this.existingReading});
   final CareerReadingGenerationController generation;
+  final ReadingSummary? existingReading;
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
+    if (existingReading != null) {
+      return AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(t.careerReadingAvailable),
+            const SizedBox(height: AppSpacing.sm),
+            FilledButton(
+              onPressed: () => context.pushNamed(
+                'reading-detail',
+                pathParameters: {'id': existingReading!.readingId},
+              ),
+              child: Text(t.viewCareerReading),
+            ),
+          ],
+        ),
+      );
+    }
     if (generation.eligibilityState == CareerEligibilityState.loading) {
       return AppCard(
         child: Semantics(
@@ -199,11 +235,36 @@ class _GenerationCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(t.careerReadingEntryBody),
+          const SizedBox(height: AppSpacing.sm),
           if (busy) ...[
-            Text(t.generatingCareerReading),
-            const SizedBox(height: AppSpacing.sm),
-            const LinearProgressIndicator(),
-          ] else
+            Semantics(
+              liveRegion: true,
+              label: t.generatingCareerReading,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(t.generatingCareerReading),
+                  const SizedBox(height: AppSpacing.sm),
+                  const LinearProgressIndicator(),
+                ],
+              ),
+            ),
+          ] else if (generation.generationState == CareerGenerationState.error)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(t.careerGenerationFailed),
+                const SizedBox(height: AppSpacing.sm),
+                FilledButton(
+                  onPressed: generation.canGenerate
+                      ? generation.generate
+                      : null,
+                  child: Text(t.tryAgain),
+                ),
+              ],
+            )
+          else
             FilledButton(
               onPressed: generation.canGenerate ? generation.generate : null,
               child: Text(t.generateCareerReading),

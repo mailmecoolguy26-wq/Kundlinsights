@@ -76,4 +76,9 @@
   ,"keepEditing": "Keep editing"
   ,"discard": "Discard"
   ,"dismiss": "Dismiss"
+  ,"careerReadingEntryBody": "Your Career History milestones help personalize this backend-generated Career Reading."
+  ,"careerGenerationFailed": "We could not prepare your Career Reading. Your Career History is still available."
+  ,"tryAgain": "Try again"
+  ,"careerReadingAvailable": "Your Career Reading is ready."
+  ,"viewCareerReading": "View Career Reading"
 }

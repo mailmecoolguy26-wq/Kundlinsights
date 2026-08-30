@@ -30,16 +30,18 @@ void main() {
     _expectNoPaymentUi();
   });
 
-  testWidgets('shows eligible generation alongside saved reading history', (
+  testWidgets('shows an existing Career reading instead of regeneration', (
     tester,
   ) async {
     final harness = await _pumpReadingCenter(tester, history: [_summary()]);
     addTearDown(harness.dispose);
 
     expect(
-      find.widgetWithText(FilledButton, 'Generate Career Reading'),
+      find.widgetWithText(FilledButton, 'View Career Reading'),
       findsOneWidget,
     );
+    expect(find.text('Your Career Reading is ready.'), findsOneWidget);
+    expect(find.text('Generate Career Reading'), findsNothing);
     expect(find.text('Career Reading'), findsWidgets);
   });
 
@@ -164,10 +166,7 @@ void main() {
       find.widgetWithText(FilledButton, 'Generate Career Reading'),
     );
     await tester.pump();
-    expect(
-      find.bySemanticsLabel('Generating your Career Reading…'),
-      findsOneWidget,
-    );
+    expect(find.text('Generating your Career Reading…'), findsOneWidget);
     expect(
       find.widgetWithText(FilledButton, 'Generate Career Reading'),
       findsNothing,

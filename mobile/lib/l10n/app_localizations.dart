@@ -1407,6 +1407,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Dismiss'**
   String get dismiss;
+
+  /// No description provided for @careerReadingEntryBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Career History milestones help personalize this backend-generated Career Reading.'**
+  String get careerReadingEntryBody;
+
+  /// No description provided for @careerGenerationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'We could not prepare your Career Reading. Your Career History is still available.'**
+  String get careerGenerationFailed;
+
+  /// No description provided for @tryAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get tryAgain;
+
+  /// No description provided for @careerReadingAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Career Reading is ready.'**
+  String get careerReadingAvailable;
+
+  /// No description provided for @viewCareerReading.
+  ///
+  /// In en, this message translates to:
+  /// **'View Career Reading'**
+  String get viewCareerReading;
 }
 
 class _AppLocalizationsDelegate
