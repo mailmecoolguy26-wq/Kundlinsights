@@ -338,15 +338,21 @@ class _ReadingDetailScreenState extends State<ReadingDetailScreen> {
       final t = AppLocalizations.of(context)!;
       return Scaffold(
         appBar: AppBar(title: Text(t.careerReading)),
-        body: SafeArea(child: _DetailBody(controller: widget.controller)),
+        body: SafeArea(
+          child: _DetailBody(
+            controller: widget.controller,
+            readingId: widget.readingId,
+          ),
+        ),
       );
     },
   );
 }
 
 class _DetailBody extends StatelessWidget {
-  const _DetailBody({required this.controller});
+  const _DetailBody({required this.controller, required this.readingId});
   final ReadingController controller;
+  final String readingId;
 
   @override
   Widget build(BuildContext context) {
@@ -356,26 +362,45 @@ class _DetailBody extends StatelessWidget {
     }
     final detail = controller.detail;
     if (controller.detailState != ReadingDetailState.loaded || detail == null) {
-      return ErrorState(message: t.readingUnavailable);
+      return ErrorState(
+        message: t.readingUnavailable,
+        onRetry: () => controller.loadDetail(readingId),
+        retryLabel: t.retry,
+      );
     }
     final date = DateFormat.yMMMd().add_jm().format(
       DateTime.parse(detail.createdAt).toLocal(),
     );
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.xxl,
+      ),
       children: [
-        Text(
-          t.careerReading,
-          style: Theme.of(context).textTheme.headlineMedium,
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  t.careerReading,
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text('${t.createdOn}: $date'),
+                const SizedBox(height: AppSpacing.lg),
+                _ReadingContentSections(content: detail.content),
+                if (detail.calibratedContent != null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  _ReadingContentSections(content: detail.calibratedContent!),
+                ],
+              ],
+            ),
+          ),
         ),
-        const SizedBox(height: AppSpacing.xs),
-        Text('${t.createdOn}: $date'),
-        const SizedBox(height: AppSpacing.lg),
-        _ReadingContentSections(content: detail.content),
-        if (detail.calibratedContent != null) ...[
-          const SizedBox(height: AppSpacing.md),
-          _ReadingContentSections(content: detail.calibratedContent!),
-        ],
       ],
     );
   }
@@ -418,7 +443,11 @@ class _StoredReadingItem extends StatelessWidget {
         children: [
           Text(item.headline, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: AppSpacing.xs),
-          Text(item.sentence),
+          Text(
+            item.sentence,
+            style: Theme.of(context).textTheme.bodyLarge
+                ?.copyWith(height: 1.45),
+          ),
           if (item.sourceTitle != null) ...[
             const SizedBox(height: AppSpacing.sm),
             Text(
