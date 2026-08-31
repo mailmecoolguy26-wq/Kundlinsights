@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kundlinsights_mobile/features/kundli/north_indian_chart.dart';
 import 'package:kundlinsights_mobile/features/natal/domain/natal_summary.dart';
+import 'package:kundlinsights_mobile/l10n/app_localizations.dart';
 
 void main() {
   test('maps every authoritative house to one unique fixed visual region', () {
@@ -39,6 +40,8 @@ void main() {
       NatalPosition? tappedPlanet;
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: SizedBox(
               width: 390,
@@ -84,6 +87,8 @@ void main() {
       for (final label in const ['D9', 'D10']) {
         await tester.pumpWidget(
           MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: Scaffold(
               body: SizedBox(
                 width: 390,

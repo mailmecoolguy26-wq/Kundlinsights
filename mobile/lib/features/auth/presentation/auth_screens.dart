@@ -165,8 +165,8 @@ Widget _emailField(
   textInputAction: TextInputAction.next,
   onFieldSubmitted: (_) => onSubmitted(),
   validator: (value) {
-    if (value == null || value.trim().isEmpty) return 'Enter your email.';
-    if (!_isValidEmail(value)) return 'Enter a valid email address.';
+    if (value == null || value.trim().isEmpty) return t.enterEmail;
+    if (!_isValidEmail(value)) return t.enterValidEmail;
     return null;
   },
 );
@@ -186,7 +186,7 @@ Widget _passwordField(
   decoration: InputDecoration(
     labelText: label ?? t.password,
     suffixIcon: IconButton(
-      tooltip: visible ? 'Hide password' : 'Show password',
+      tooltip: visible ? t.hidePassword : t.showPassword,
       onPressed: onVisibilityChanged,
       icon: Icon(
         visible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
@@ -201,13 +201,13 @@ Widget _passwordField(
   onFieldSubmitted: (_) => onSubmitted?.call(),
   validator: (value) {
     if (value == null || value.isEmpty) {
-      return label == null ? 'Enter your password.' : 'Confirm your password.';
+      return label == null ? t.enterPassword : t.confirmPasswordRequired;
     }
     if (confirmationOf == null && value.length < 8) {
-      return 'Use at least 8 characters.';
+      return t.passwordMinimumLength;
     }
     if (confirmationOf != null && value != confirmationOf.text) {
-      return 'Passwords do not match.';
+      return t.passwordsDoNotMatch;
     }
     return null;
   },

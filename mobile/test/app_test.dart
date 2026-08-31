@@ -213,6 +213,24 @@ void main() {
     expect(find.text('Welcome back'), findsOneWidget);
   });
 
+  testWidgets(
+    'Profile keeps only working profile management and sign out actions',
+    (tester) async {
+      await tester.pumpWidget(_app(controller, profiles));
+      await controller.restore();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Profile').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Birth Profiles'), findsOneWidget);
+      expect(find.text('Sign out'), findsOneWidget);
+      expect(find.text('Language'), findsNothing);
+      expect(find.text('Privacy'), findsNothing);
+      expect(find.text('Terms'), findsNothing);
+      expect(find.byIcon(Icons.chevron_right), findsOneWidget);
+    },
+  );
+
   testWidgets('Home shows factual current Dasha with a timeline CTA', (
     tester,
   ) async {

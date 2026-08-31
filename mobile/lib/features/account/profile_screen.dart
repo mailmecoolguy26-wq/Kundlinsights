@@ -43,19 +43,6 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
             ),
-            for (final label in [t.language, t.privacy, t.terms])
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: AppCard(
-                  child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(label),
-                    subtitle: Text(t.unavailable),
-                    trailing: const Icon(Icons.chevron_right),
-                    enabled: false,
-                  ),
-                ),
-              ),
             const SizedBox(height: AppSpacing.md),
             if (authController.signOutError != null)
               Semantics(
@@ -81,7 +68,7 @@ class ProfileScreen extends StatelessWidget {
                     )
                   : const Icon(Icons.logout),
               label: Text(
-                authController.isSigningOut ? 'Signing out…' : t.signOut,
+                authController.isSigningOut ? t.signingOut : t.signOut,
               ),
             ),
           ],

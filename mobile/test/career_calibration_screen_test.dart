@@ -20,6 +20,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('No career history added'), findsOneWidget);
     expect(find.text('Add career event'), findsWidgets);
+    expect(find.text('Career History'), findsOneWidget);
+    expect(find.text('Career Calibration'), findsNothing);
     scope.dispose();
   });
 }

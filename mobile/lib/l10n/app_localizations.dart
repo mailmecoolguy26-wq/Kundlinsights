@@ -448,6 +448,12 @@ abstract class AppLocalizations {
   /// **'Sign out'**
   String get signOut;
 
+  /// No description provided for @signingOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Signing out…'**
+  String get signingOut;
+
   /// No description provided for @email.
   ///
   /// In en, this message translates to:
@@ -489,6 +495,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unable to complete that request. Please try again.'**
   String get authRequestFailed;
+
+  /// No description provided for @enterEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your email.'**
+  String get enterEmail;
+
+  /// No description provided for @enterValidEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid email address.'**
+  String get enterValidEmail;
+
+  /// No description provided for @enterPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your password.'**
+  String get enterPassword;
+
+  /// No description provided for @confirmPasswordRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm your password.'**
+  String get confirmPasswordRequired;
+
+  /// No description provided for @passwordMinimumLength.
+  ///
+  /// In en, this message translates to:
+  /// **'Use at least 8 characters.'**
+  String get passwordMinimumLength;
+
+  /// No description provided for @passwordsDoNotMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Passwords do not match.'**
+  String get passwordsDoNotMatch;
+
+  /// No description provided for @showPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Show password'**
+  String get showPassword;
+
+  /// No description provided for @hidePassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide password'**
+  String get hidePassword;
 
   /// No description provided for @createBirthProfile.
   ///
@@ -1111,13 +1165,13 @@ abstract class AppLocalizations {
   /// No description provided for @careerCalibration.
   ///
   /// In en, this message translates to:
-  /// **'Career Calibration'**
+  /// **'Career History'**
   String get careerCalibration;
 
   /// No description provided for @careerCalibrationIntro.
   ///
   /// In en, this message translates to:
-  /// **'Add career milestones to help personalize future career readings. You can enter an exact date, month, or year.'**
+  /// **'Add career milestones to help personalize future Career Readings. You can enter an exact date, month, or year.'**
   String get careerCalibrationIntro;
 
   /// No description provided for @addMilestone.
@@ -1189,13 +1243,13 @@ abstract class AppLocalizations {
   /// No description provided for @addAnotherMilestone.
   ///
   /// In en, this message translates to:
-  /// **'Add another milestone to enable historical comparison.'**
+  /// **'Add another milestone to build your Career History.'**
   String get addAnotherMilestone;
 
   /// No description provided for @careerHistoryReady.
   ///
   /// In en, this message translates to:
-  /// **'Enough history added to personalize your career analysis.'**
+  /// **'Your Career History is ready for future Career Readings.'**
   String get careerHistoryReady;
 
   /// No description provided for @careerEventsUnavailable.
@@ -1213,7 +1267,7 @@ abstract class AppLocalizations {
   /// No description provided for @deleteCareerMilestoneBody.
   ///
   /// In en, this message translates to:
-  /// **'It will be removed from your career calibration history.'**
+  /// **'It will be removed from your Career History.'**
   String get deleteCareerMilestoneBody;
 
   /// No description provided for @delete.
@@ -1345,7 +1399,7 @@ abstract class AppLocalizations {
   /// No description provided for @careerHistoryEmptyBody.
   ///
   /// In en, this message translates to:
-  /// **'Add career milestones to build your career history for future calibration.'**
+  /// **'Add career milestones to build your Career History for future Career Readings.'**
   String get careerHistoryEmptyBody;
 
   /// No description provided for @creatingCareerEvent.
@@ -1443,6 +1497,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Career Reading isn\'t available for this profile right now.'**
   String get careerReadingProfileUnavailable;
+
+  /// No description provided for @somethingWentWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong'**
+  String get somethingWentWrong;
+
+  /// No description provided for @premium.
+  ///
+  /// In en, this message translates to:
+  /// **'Premium'**
+  String get premium;
+
+  /// No description provided for @northIndianChartSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'North Indian {chartLabel} chart. {summary}'**
+  String northIndianChartSummary(Object chartLabel, Object summary);
+
+  /// No description provided for @northIndianHouseSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'House {house}, {sign}, {planets}'**
+  String northIndianHouseSemantics(Object house, Object sign, Object planets);
+
+  /// No description provided for @northIndianHouseSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'House {house}, {sign}'**
+  String northIndianHouseSummary(Object house, Object sign);
+
+  /// No description provided for @retrogradeAbbreviation.
+  ///
+  /// In en, this message translates to:
+  /// **'(R)'**
+  String get retrogradeAbbreviation;
+
+  /// No description provided for @lagna.
+  ///
+  /// In en, this message translates to:
+  /// **'Lagna'**
+  String get lagna;
 }
 
 class _AppLocalizationsDelegate

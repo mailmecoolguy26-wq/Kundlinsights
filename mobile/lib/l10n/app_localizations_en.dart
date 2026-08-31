@@ -199,6 +199,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get signOut => 'Sign out';
 
   @override
+  String get signingOut => 'Signing out…';
+
+  @override
   String get email => 'Email';
 
   @override
@@ -220,6 +223,30 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get authRequestFailed =>
       'Unable to complete that request. Please try again.';
+
+  @override
+  String get enterEmail => 'Enter your email.';
+
+  @override
+  String get enterValidEmail => 'Enter a valid email address.';
+
+  @override
+  String get enterPassword => 'Enter your password.';
+
+  @override
+  String get confirmPasswordRequired => 'Confirm your password.';
+
+  @override
+  String get passwordMinimumLength => 'Use at least 8 characters.';
+
+  @override
+  String get passwordsDoNotMatch => 'Passwords do not match.';
+
+  @override
+  String get showPassword => 'Show password';
+
+  @override
+  String get hidePassword => 'Hide password';
 
   @override
   String get createBirthProfile => 'Create birth profile';
@@ -545,11 +572,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'Your Ashtakavarga data is unavailable right now. Please try again.';
 
   @override
-  String get careerCalibration => 'Career Calibration';
+  String get careerCalibration => 'Career History';
 
   @override
   String get careerCalibrationIntro =>
-      'Add career milestones to help personalize future career readings. You can enter an exact date, month, or year.';
+      'Add career milestones to help personalize future Career Readings. You can enter an exact date, month, or year.';
 
   @override
   String get addMilestone => 'Add milestone';
@@ -586,11 +613,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get addAnotherMilestone =>
-      'Add another milestone to enable historical comparison.';
+      'Add another milestone to build your Career History.';
 
   @override
   String get careerHistoryReady =>
-      'Enough history added to personalize your career analysis.';
+      'Your Career History is ready for future Career Readings.';
 
   @override
   String get careerEventsUnavailable =>
@@ -601,7 +628,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get deleteCareerMilestoneBody =>
-      'It will be removed from your career calibration history.';
+      'It will be removed from your Career History.';
 
   @override
   String get delete => 'Delete';
@@ -670,7 +697,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get careerHistoryEmptyBody =>
-      'Add career milestones to build your career history for future calibration.';
+      'Add career milestones to build your Career History for future Career Readings.';
 
   @override
   String get creatingCareerEvent => 'Adding career event…';
@@ -723,4 +750,31 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get careerReadingProfileUnavailable =>
       'Career Reading isn\'t available for this profile right now.';
+
+  @override
+  String get somethingWentWrong => 'Something went wrong';
+
+  @override
+  String get premium => 'Premium';
+
+  @override
+  String northIndianChartSummary(Object chartLabel, Object summary) {
+    return 'North Indian $chartLabel chart. $summary';
+  }
+
+  @override
+  String northIndianHouseSemantics(Object house, Object sign, Object planets) {
+    return 'House $house, $sign, $planets';
+  }
+
+  @override
+  String northIndianHouseSummary(Object house, Object sign) {
+    return 'House $house, $sign';
+  }
+
+  @override
+  String get retrogradeAbbreviation => '(R)';
+
+  @override
+  String get lagna => 'Lagna';
 }

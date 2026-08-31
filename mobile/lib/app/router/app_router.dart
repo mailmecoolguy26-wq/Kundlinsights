@@ -242,7 +242,7 @@ class _ProfileLoadError extends StatelessWidget {
     final t = AppLocalizations.of(context)!;
     return AppPageScaffold(
       body: ErrorState(
-        message: 'Your birth profiles are unavailable right now.',
+        message: t.profileRequestFailed,
         onRetry: onRetry,
         retryLabel: t.retry,
       ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app/theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 import '../natal/domain/natal_summary.dart';
 
 /// Presentation-only placement of an already-authoritative D1 house.
@@ -158,11 +159,17 @@ class NorthIndianFixedHouseChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final summary = houses
-        .map((house) => 'House ${house.house}, ${house.sign.englishName}')
+        .map(
+          (house) => t.northIndianHouseSummary(
+            house.house.toString(),
+            house.sign.englishName,
+          ),
+        )
         .join('; ');
     return Semantics(
-      label: 'North Indian $chartLabel chart. $summary',
+      label: t.northIndianChartSummary(chartLabel, summary),
       child: AspectRatio(
         aspectRatio: 1,
         child: LayoutBuilder(
@@ -211,10 +218,11 @@ class _HouseRegion extends StatelessWidget {
   Widget build(BuildContext context) {
     final region = NorthIndianChartLayout.regionForHouse(house.house);
     final planets = house.planets.isEmpty
-        ? 'No planets'
+        ? AppLocalizations.of(context)!.noPlanets
         : house.planets
               .map(
-                (planet) => '${planet.body}${planet.retrograde ? ' (R)' : ''}',
+                (planet) =>
+                    '${planet.body}${planet.retrograde ? ' ${AppLocalizations.of(context)!.retrogradeAbbreviation}' : ''}',
               )
               .join(', ');
     return Positioned(
@@ -224,7 +232,11 @@ class _HouseRegion extends StatelessWidget {
       height: region.height * size,
       child: Semantics(
         button: true,
-        label: 'House ${house.house}, ${house.sign.englishName}, $planets',
+        label: AppLocalizations.of(context)!.northIndianHouseSemantics(
+          house.house.toString(),
+          house.sign.englishName,
+          planets,
+        ),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
@@ -242,7 +254,7 @@ class _HouseRegion extends StatelessWidget {
                   ),
                   if (house.house == 1)
                     Text(
-                      'Lagna',
+                      AppLocalizations.of(context)!.lagna,
                       style: AppTypography.caption.copyWith(
                         color: AppColors.saffron,
                         fontWeight: FontWeight.w700,

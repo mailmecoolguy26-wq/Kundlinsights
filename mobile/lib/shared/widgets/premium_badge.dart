@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app/theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 
 class PremiumBadge extends StatelessWidget {
   const PremiumBadge({super.key});
@@ -14,6 +15,9 @@ class PremiumBadge extends StatelessWidget {
       color: AppColors.gold,
       borderRadius: AppRadius.pill,
     ),
-    child: Text('Premium', style: Theme.of(context).textTheme.bodySmall),
+    child: Text(
+      AppLocalizations.of(context)!.premium,
+      style: Theme.of(context).textTheme.bodySmall,
+    ),
   );
 }

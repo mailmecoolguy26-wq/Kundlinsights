@@ -169,21 +169,16 @@ void main() {
     scope.dispose();
   });
 
-  testWidgets('profile detail renders the birth date', (tester) async {
+  testWidgets('profile detail formats the authoritative birth date and time', (
+    tester,
+  ) async {
     final scope = await _detailScope(
       tester,
       _profile('detail-id', 'Detail', '1992-11-26', '13:40:00'),
     );
-    expect(find.text('1992-11-26 · 13:40:00'), findsOneWidget);
-    scope.dispose();
-  });
-
-  testWidgets('profile detail renders the birth time', (tester) async {
-    final scope = await _detailScope(
-      tester,
-      _profile('detail-id', 'Detail', '1992-11-26', '13:40:00'),
-    );
-    expect(find.text('1992-11-26 · 13:40:00'), findsOneWidget);
+    expect(find.textContaining('Nov'), findsOneWidget);
+    expect(find.textContaining('1:40'), findsOneWidget);
+    expect(find.text('1992-11-26 · 13:40:00'), findsNothing);
     scope.dispose();
   });
 

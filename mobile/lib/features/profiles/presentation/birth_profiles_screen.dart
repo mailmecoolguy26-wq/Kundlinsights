@@ -94,6 +94,7 @@ class ProfileDetailScreen extends StatelessWidget {
             profile: profile,
             active: controller.activeProfile?.id == profile.id,
             onTap: () => controller.select(profile),
+            formattedBirthDetails: true,
           ),
           const SizedBox(height: AppSpacing.md),
           Card(
@@ -116,19 +117,19 @@ class _ProfileTile extends StatelessWidget {
     required this.profile,
     required this.active,
     required this.onTap,
+    this.formattedBirthDetails = false,
   });
   final BirthProfile profile;
   final bool active;
   final VoidCallback onTap;
+  final bool formattedBirthDetails;
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
     return Card(
       child: ListTile(
         title: Text(profile.label),
-        subtitle: Text(
-          '${profile.birthData.localDate} · ${profile.birthData.localTime}',
-        ),
+        subtitle: Text(_birthDetails(context, profile, formattedBirthDetails)),
         trailing: active
             ? Semantics(
                 label: t.activeProfileIndicator,
@@ -138,5 +139,23 @@ class _ProfileTile extends StatelessWidget {
         onTap: onTap,
       ),
     );
+  }
+
+  String _birthDetails(
+    BuildContext context,
+    BirthProfile profile,
+    bool formatted,
+  ) {
+    final date = profile.birthData.localDate;
+    final time = profile.birthData.localTime;
+    if (!formatted) return '$date · $time';
+    final parsedDate = DateTime.tryParse(date);
+    final parts = time.split(':');
+    final hour = parts.isNotEmpty ? int.tryParse(parts[0]) : null;
+    final minute = parts.length > 1 ? int.tryParse(parts[1]) : null;
+    if (parsedDate == null || hour == null || minute == null) {
+      return '$date · $time';
+    }
+    return '${MaterialLocalizations.of(context).formatMediumDate(parsedDate)} · ${MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay(hour: hour, minute: minute))}';
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app/theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 
 class EmptyState extends StatelessWidget {
   const EmptyState({
@@ -54,7 +55,7 @@ class LoadingState extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
     child: Semantics(
-      label: label ?? 'Loading',
+      label: label ?? AppLocalizations.of(context)!.loading,
       liveRegion: true,
       child: const CircularProgressIndicator(),
     ),
@@ -67,18 +68,21 @@ class ErrorState extends StatelessWidget {
     required this.message,
     this.title,
     this.onRetry,
-    this.retryLabel = 'Retry',
+    this.retryLabel,
   });
   final String message;
   final String? title;
   final VoidCallback? onRetry;
-  final String retryLabel;
+  final String? retryLabel;
   @override
-  Widget build(BuildContext context) => EmptyState(
-    icon: Icons.error_outline,
-    title: title ?? 'Something went wrong',
-    body: message,
-    actionLabel: onRetry == null ? null : retryLabel,
-    onAction: onRetry,
-  );
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    return EmptyState(
+      icon: Icons.error_outline,
+      title: title ?? t.somethingWentWrong,
+      body: message,
+      actionLabel: onRetry == null ? null : retryLabel ?? t.retry,
+      onAction: onRetry,
+    );
+  }
 }

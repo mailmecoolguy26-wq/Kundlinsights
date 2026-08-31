@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kundlinsights_mobile/l10n/app_localizations.dart';
 import 'package:kundlinsights_mobile/shared/widgets/states.dart';
 
 void main() {
-  Widget frame(Widget child) => MaterialApp(home: Scaffold(body: child));
+  Widget frame(Widget child) => MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: Scaffold(body: child),
+  );
 
   testWidgets('shared loading and empty states render accessible copy', (
     tester,
