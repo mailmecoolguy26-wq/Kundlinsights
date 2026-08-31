@@ -140,8 +140,9 @@ class CareerCalibrationScreen extends StatelessWidget {
                         final success = await controller.delete(
                           event.careerEventId,
                         );
-                        if (success && dialogContext.mounted)
+                        if (success && dialogContext.mounted) {
                           Navigator.pop(dialogContext);
+                        }
                       },
                 child: Text(pending ? t.deletingCareerEvent : t.delete),
               ),
@@ -218,10 +219,12 @@ class _EventTile extends StatelessWidget {
 }
 
 String _errorText(AppLocalizations t, Object? error) {
-  if (error is ApiFailure && error.code == 'CAREER_EVENT_DATE_IN_FUTURE')
+  if (error is ApiFailure && error.code == 'CAREER_EVENT_DATE_IN_FUTURE') {
     return t.careerEventFuture;
-  if (error is ApiFailure && error.kind == ApiFailureKind.validation)
+  }
+  if (error is ApiFailure && error.kind == ApiFailureKind.validation) {
     return t.invalidCareerEvent;
+  }
   return t.careerEventsUnavailable;
 }
 
@@ -277,6 +280,7 @@ class _CareerEventFormScreenState extends State<CareerEventFormScreen> {
   late final _FormSnapshot _initial;
   late final int _scopeGeneration;
   bool _scopeChanged = false;
+  bool _allowPop = false;
   String? _dateError;
 
   @override
@@ -300,8 +304,9 @@ class _CareerEventFormScreenState extends State<CareerEventFormScreen> {
   void _onControllerChanged() {
     if (mounted &&
         widget.controller.scopeGeneration != _scopeGeneration &&
-        !_scopeChanged)
+        !_scopeChanged) {
       setState(() => _scopeChanged = true);
+    }
   }
 
   _FormSnapshot get _snapshot => _FormSnapshot(
@@ -330,8 +335,14 @@ class _CareerEventFormScreenState extends State<CareerEventFormScreen> {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
     final pending = widget.controller.isMutating;
-    return WillPopScope(
-      onWillPop: _confirmDiscard,
+    return PopScope<void>(
+      canPop: _allowPop,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop || !await _confirmDiscard()) return;
+        if (!mounted) return;
+        setState(() => _allowPop = true);
+        Navigator.of(this.context).pop();
+      },
       child: Scaffold(
         appBar: AppBar(
           title: Text(
@@ -492,16 +503,19 @@ class _CareerEventFormScreenState extends State<CareerEventFormScreen> {
     final year = int.tryParse(_year.text),
         month = int.tryParse(_month.text),
         day = int.tryParse(_day.text);
-    if (year == null || year < 1 || year > 9999)
+    if (year == null || year < 1 || year > 9999) {
       return t.careerEventInvalidDate;
+    }
     if (_precision != CareerEventDatePrecision.year &&
-        (month == null || month < 1 || month > 12))
+        (month == null || month < 1 || month > 12)) {
       return t.careerEventInvalidDate;
+    }
     if (_precision == CareerEventDatePrecision.day) {
       if (day == null || day < 1 || day > 31) return t.careerEventInvalidDate;
       final date = DateTime.utc(year, month!, day);
-      if (date.year != year || date.month != month || date.day != day)
+      if (date.year != year || date.month != month || date.day != day) {
         return t.careerEventInvalidDate;
+      }
     }
     final candidate = _precision == CareerEventDatePrecision.year
         ? [year]

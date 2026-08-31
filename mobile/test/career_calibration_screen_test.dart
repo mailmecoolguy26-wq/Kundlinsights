@@ -24,6 +24,46 @@ void main() {
     expect(find.text('Career Calibration'), findsNothing);
     scope.dispose();
   });
+
+  testWidgets('dirty form confirms app-bar back and allows discard', (
+    tester,
+  ) async {
+    final scope = await _scope(events: const []);
+    await tester.pumpWidget(_app(scope.controller));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Add career event').first);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField).first, '2020');
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Discard changes?'), findsOneWidget);
+    await tester.tap(find.text('Keep editing'));
+    await tester.pumpAndSettle();
+    expect(find.byType(CareerEventFormScreen), findsOneWidget);
+
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Discard'));
+    await tester.pumpAndSettle();
+    expect(find.text('Career History'), findsOneWidget);
+    scope.dispose();
+  });
+
+  testWidgets('unchanged form exits through system back', (tester) async {
+    final scope = await _scope(events: const []);
+    await tester.pumpWidget(_app(scope.controller));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Add career event').first);
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Career History'), findsOneWidget);
+    scope.dispose();
+  });
 }
 
 Widget _app(CareerEventController controller) => MaterialApp(
