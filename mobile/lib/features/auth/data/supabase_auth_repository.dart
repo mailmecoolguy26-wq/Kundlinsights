@@ -46,7 +46,7 @@ class SupabaseAuthRepository implements AuthRepository {
   SupabaseAuthRepository.withSource(this._source) {
     _subscription = _source.events.listen((event) {
       _handleEvent(event);
-    });
+    }, onError: _handleStreamError);
   }
 
   final SupabaseAuthSource _source;
@@ -89,6 +89,12 @@ class SupabaseAuthRepository implements AuthRepository {
       case SupabaseAuthEventType.other:
         return;
     }
+  }
+
+  void _handleStreamError(Object _, StackTrace stackTrace) {
+    if (!_recoveringStoredSession) return;
+    _recoveringStoredSession = false;
+    _states.add(const AuthSnapshot(AuthStatus.unauthenticated));
   }
 
   @override

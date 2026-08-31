@@ -41,6 +41,24 @@ void main() {
   });
 
   test(
+    'post-bootstrap stream errors do not sign out a valid session',
+    () async {
+      final source = _Source(authenticated: true);
+      final repository = SupabaseAuthRepository.withSource(source);
+      final controller = AuthController(repository);
+
+      await controller.restore();
+      source.emitRecoveryError();
+      await _flushEvents();
+
+      expect(controller.state.status, AuthStatus.authenticated);
+      controller.dispose();
+      await source.dispose();
+      repository.dispose();
+    },
+  );
+
+  test(
     'stale session must not publish authenticated before signed out',
     () async {
       final source = _Source(authenticated: true, requiresRecovery: true);
@@ -60,6 +78,25 @@ void main() {
       repository.dispose();
     },
   );
+
+  test('stale session recovery stream error settles unauthenticated', () async {
+    final source = _Source(authenticated: true, requiresRecovery: true);
+    final repository = SupabaseAuthRepository.withSource(source);
+    final controller = AuthController(repository);
+    final states = <AuthStatus>[];
+    controller.addListener(() => states.add(controller.state.status));
+
+    await controller.restore();
+    source.emit(SupabaseAuthEventType.initialSession, authenticated: true);
+    source.emitRecoveryError();
+    await _flushEvents();
+
+    expect(states, [AuthStatus.initializing, AuthStatus.unauthenticated]);
+    expect(controller.state.status, AuthStatus.unauthenticated);
+    controller.dispose();
+    await source.dispose();
+    repository.dispose();
+  });
 
   test('stored session can recover through signed in', () async {
     final source = _Source(authenticated: true, requiresRecovery: true);
@@ -103,6 +140,8 @@ class _Source implements SupabaseAuthSource {
     this.authenticated = authenticated;
     _events.add(SupabaseAuthEvent(type, _snapshot()));
   }
+
+  void emitRecoveryError() => _events.addError(StateError('recovery failed'));
 
   AuthSnapshot _snapshot() => AuthSnapshot(
     authenticated ? AuthStatus.authenticated : AuthStatus.unauthenticated,
