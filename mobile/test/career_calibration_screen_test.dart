@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:kundlinsights_mobile/features/auth/auth_controller.dart';
 import 'package:kundlinsights_mobile/features/auth/domain/auth_repository.dart';
 import 'package:kundlinsights_mobile/features/career_events/career_event_controller.dart';
@@ -19,9 +20,77 @@ void main() {
     await tester.pumpWidget(_app(scope.controller));
     await tester.pumpAndSettle();
     expect(find.text('No career history added'), findsOneWidget);
-    expect(find.text('Add career event'), findsWidgets);
+    expect(find.text('Add career event'), findsOneWidget);
     expect(find.text('Career History'), findsOneWidget);
     expect(find.text('Career Calibration'), findsNothing);
+    scope.dispose();
+  });
+
+  testWidgets('Career History back button returns to the pushed screen', (
+    tester,
+  ) async {
+    final scope = await _scope(events: const []);
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: FilledButton(
+              onPressed: () => Navigator.of(context).push<void>(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      CareerCalibrationScreen(controller: scope.controller),
+                ),
+              ),
+              child: const Text('Open Career History'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open Career History'));
+    await tester.pumpAndSettle();
+    expect(find.byType(BackButton), findsOneWidget);
+
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    expect(find.text('Open Career History'), findsOneWidget);
+    scope.dispose();
+  });
+
+  testWidgets('Career History back button falls back to Profile when direct', (
+    tester,
+  ) async {
+    final scope = await _scope(events: const []);
+    final router = GoRouter(
+      initialLocation: '/career',
+      routes: [
+        GoRoute(
+          path: '/career',
+          builder: (_, _) =>
+              CareerCalibrationScreen(controller: scope.controller),
+        ),
+        GoRoute(
+          path: '/profile',
+          builder: (_, _) => const Scaffold(body: Text('Profile parent')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      MaterialApp.router(
+        routerConfig: router,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    expect(find.text('Profile parent'), findsOneWidget);
     scope.dispose();
   });
 

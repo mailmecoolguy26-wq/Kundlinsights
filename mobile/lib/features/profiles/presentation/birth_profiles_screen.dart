@@ -20,7 +20,10 @@ class BirthProfilesScreen extends StatelessWidget {
       }
       if (controller.state == ProfileLoadState.error) {
         return Scaffold(
-          appBar: AppBar(title: Text(t.birthProfiles)),
+          appBar: AppBar(
+            leading: BackButton(onPressed: () => _goBack(context)),
+            title: Text(t.birthProfiles),
+          ),
           body: ErrorState(
             message: t.profileRequestFailed,
             onRetry: controller.load,
@@ -29,7 +32,10 @@ class BirthProfilesScreen extends StatelessWidget {
         );
       }
       return Scaffold(
-        appBar: AppBar(title: Text(t.birthProfiles)),
+        appBar: AppBar(
+          leading: BackButton(onPressed: () => _goBack(context)),
+          title: Text(t.birthProfiles),
+        ),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: () => context.go('/profiles/add'),
           icon: const Icon(Icons.add),
@@ -61,6 +67,14 @@ class BirthProfilesScreen extends StatelessWidget {
       );
     },
   );
+
+  void _goBack(BuildContext context) {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+      return;
+    }
+    context.go('/profile');
+  }
 }
 
 class ProfileDetailScreen extends StatelessWidget {
@@ -101,7 +115,7 @@ class ProfileDetailScreen extends StatelessWidget {
             child: ListTile(
               title: Text(t.careerCalibration),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.go('/career-calibration'),
+              onTap: () => context.push('/career-calibration'),
             ),
           ),
           const SizedBox(height: AppSpacing.md),

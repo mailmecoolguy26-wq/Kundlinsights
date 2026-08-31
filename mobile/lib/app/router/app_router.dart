@@ -62,7 +62,10 @@ GoRouter createAppRouter(
     if (profiles.isEmpty) {
       return location == '/onboarding' ? null : '/onboarding';
     }
-    if (location == '/splash' || authRoute || location == '/onboarding') {
+    if (location == '/splash' ||
+        location == '/profiles-loading' ||
+        authRoute ||
+        location == '/onboarding') {
       return '/home';
     }
     return null;

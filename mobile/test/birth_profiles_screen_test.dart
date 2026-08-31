@@ -12,6 +12,49 @@ import 'package:kundlinsights_mobile/features/profiles/profile_controller.dart';
 import 'package:kundlinsights_mobile/l10n/app_localizations.dart';
 
 void main() {
+  testWidgets('Birth Profiles back button returns to its pushed parent', (
+    tester,
+  ) async {
+    final auth = AuthController(_Auth());
+    final controller = ProfileController(_Profiles(), auth);
+    await auth.restore();
+    final router = GoRouter(
+      initialLocation: '/profile',
+      routes: [
+        GoRoute(
+          path: '/profile',
+          builder: (context, state) => Scaffold(
+            body: FilledButton(
+              onPressed: () => context.push('/profiles'),
+              child: const Text('Open Birth Profiles'),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/profiles',
+          builder: (_, state) => BirthProfilesScreen(controller: controller),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      MaterialApp.router(
+        routerConfig: router,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+      ),
+    );
+    await tester.tap(find.text('Open Birth Profiles'));
+    await tester.pumpAndSettle();
+    expect(find.byType(BackButton), findsOneWidget);
+
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    expect(find.text('Open Birth Profiles'), findsOneWidget);
+    controller.dispose();
+    auth.dispose();
+  });
+
   testWidgets('zero profiles renders an empty state with an add-profile CTA', (
     tester,
   ) async {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/errors/api_failure.dart';
 import '../../../l10n/app_localizations.dart';
@@ -16,8 +17,13 @@ class CareerCalibrationScreen extends StatelessWidget {
     return ListenableBuilder(
       listenable: controller,
       builder: (context, _) => Scaffold(
-        appBar: AppBar(title: Text(t.careerCalibration)),
-        floatingActionButton: controller.state == CareerEventLoadState.loaded
+        appBar: AppBar(
+          leading: BackButton(onPressed: () => _goBack(context)),
+          title: Text(t.careerCalibration),
+        ),
+        floatingActionButton:
+            controller.state == CareerEventLoadState.loaded &&
+                controller.events.isNotEmpty
             ? FloatingActionButton.extended(
                 onPressed: controller.isMutating
                     ? null
@@ -29,6 +35,14 @@ class CareerCalibrationScreen extends StatelessWidget {
         body: _body(context),
       ),
     );
+  }
+
+  void _goBack(BuildContext context) {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+      return;
+    }
+    context.go('/profile');
   }
 
   Widget _body(BuildContext context) {

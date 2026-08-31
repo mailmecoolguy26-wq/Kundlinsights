@@ -6,7 +6,7 @@ import '../auth/domain/auth_repository.dart';
 import 'domain/birth_profile.dart';
 import 'domain/birth_profile_repository.dart';
 
-enum ProfileLoadState { loading, ready, error }
+enum ProfileLoadState { loading, refreshing, ready, error }
 
 class ProfileController extends ChangeNotifier {
   ProfileController(this.repository, this._auth) {
@@ -33,12 +33,20 @@ class ProfileController extends ChangeNotifier {
       return;
     }
     _subject = subject;
-    await _loadForSubject(subject);
+    await _loadForSubject(
+      subject,
+      refreshing: _state == ProfileLoadState.ready,
+    );
   }
 
-  Future<void> _loadForSubject(String subject) async {
+  Future<void> _loadForSubject(
+    String subject, {
+    bool refreshing = false,
+  }) async {
     final generation = ++_loadGeneration;
-    _state = ProfileLoadState.loading;
+    _state = refreshing
+        ? ProfileLoadState.refreshing
+        : ProfileLoadState.loading;
     notifyListeners();
     try {
       final next = await repository.list();
@@ -95,20 +103,23 @@ class ProfileController extends ChangeNotifier {
     final subject = snapshot.subject;
     if (snapshot.status == AuthStatus.authenticated && subject != null) {
       if (_subject == subject) return;
-      _clearForIdentityChange();
+      final refreshing = _state == ProfileLoadState.ready;
+      _clearForIdentityChange(refreshing: refreshing);
       _subject = subject;
-      _loadForSubject(subject);
+      _loadForSubject(subject, refreshing: refreshing);
       return;
     }
     _clearForIdentityChange();
   }
 
-  void _clearForIdentityChange() {
+  void _clearForIdentityChange({bool refreshing = false}) {
     _loadGeneration++;
     _subject = null;
     _profiles = const [];
     _activeProfile = null;
-    _state = ProfileLoadState.loading;
+    _state = refreshing
+        ? ProfileLoadState.refreshing
+        : ProfileLoadState.loading;
     notifyListeners();
   }
 

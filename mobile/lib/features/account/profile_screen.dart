@@ -39,7 +39,7 @@ class ProfileScreen extends StatelessWidget {
                     profileController.activeProfile?.label ?? t.unavailable,
                   ),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => context.go('/profiles'),
+                  onTap: () => context.push('/profiles'),
                 ),
               ),
             ),

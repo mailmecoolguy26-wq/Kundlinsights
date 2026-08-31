@@ -28,7 +28,7 @@ void main() {
     repository.currentSubject = 'user-b';
     repository.holdNextLoad = true;
     authRepository.swapTo('user-b');
-    expect(controller.state, ProfileLoadState.loading);
+    expect(controller.state, ProfileLoadState.refreshing);
     expect(controller.profiles, isEmpty);
     expect(controller.activeProfile, isNull);
     repository.completePendingLoad();

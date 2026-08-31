@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:kundlinsights_mobile/app/app.dart';
 import 'package:kundlinsights_mobile/features/auth/auth_controller.dart';
 import 'package:kundlinsights_mobile/features/auth/domain/auth_repository.dart';
@@ -21,6 +22,7 @@ import 'package:kundlinsights_mobile/features/vimshottari/vimshottari_controller
 import 'package:kundlinsights_mobile/features/ashtakavarga/domain/ashtakavarga.dart';
 import 'package:kundlinsights_mobile/features/ashtakavarga/domain/ashtakavarga_repository.dart';
 import 'package:kundlinsights_mobile/features/ashtakavarga/ashtakavarga_controller.dart';
+import 'package:kundlinsights_mobile/shared/widgets/states.dart';
 
 import 'ashtakavarga_fixture.dart';
 
@@ -45,6 +47,27 @@ void main() {
     expect(find.text('Home'), findsWidgets);
   });
 
+  testWidgets('ready profiles leave the profiles-loading route for Home', (
+    tester,
+  ) async {
+    final delayedProfiles = _DelayedProfiles();
+    await tester.pumpWidget(_app(controller, delayedProfiles));
+    await controller.restore();
+    await tester.pump();
+
+    final router = GoRouter.of(tester.element(find.byType(LoadingState)));
+    expect(
+      router.routerDelegate.currentConfiguration.uri.path,
+      '/profiles-loading',
+    );
+
+    delayedProfiles.complete();
+    await tester.pumpAndSettle();
+
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/home');
+    expect(find.text('Welcome to KundlInsights'), findsOneWidget);
+  });
+
   testWidgets(
     'authenticated users with no profiles are redirected to onboarding',
     (tester) async {
@@ -63,17 +86,20 @@ void main() {
     await controller.restore();
     await tester.pumpAndSettle();
     expect(find.text('A profile'), findsOneWidget);
+    final router = GoRouter.of(tester.element(find.text('A profile')));
 
     subjectProfiles.holdNextLoad = true;
     repository.replaceAuthenticatedSubject('user-b');
     await tester.pump();
     await tester.pump();
     expect(find.byType(CircularProgressIndicator), findsWidgets);
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/home');
 
     subjectProfiles.completeForB();
     await tester.pump();
     await tester.pump();
     expect(find.text('B profile'), findsOneWidget);
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/home');
   });
 
   testWidgets('switches all primary tabs', (tester) async {
@@ -549,4 +575,13 @@ class _SubjectProfiles extends _Profiles {
       'timezone': 'Asia/Kolkata',
     }),
   );
+}
+
+class _DelayedProfiles extends _Profiles {
+  final _result = Completer<List<BirthProfile>>();
+
+  @override
+  Future<List<BirthProfile>> list() => _result.future;
+
+  void complete() => _result.complete([profile]);
 }
