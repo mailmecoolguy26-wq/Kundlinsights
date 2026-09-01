@@ -17,6 +17,8 @@ import '../../features/profiles/profile_controller.dart';
 import '../../features/readings/readings_screen.dart';
 import '../../features/readings/reading_controller.dart';
 import '../../features/readings/career_reading_generation_controller.dart';
+import '../../features/payments/career_premium_product_controller.dart';
+import '../../features/payments/career_premium_purchase_controller.dart';
 import '../../features/career_events/career_event_controller.dart';
 import '../../features/career_events/presentation/career_calibration_screen.dart';
 import '../../features/vimshottari/presentation/vimshottari_timeline_screen.dart';
@@ -39,6 +41,8 @@ GoRouter createAppRouter(
   AshtakavargaController ashtakavarga,
   ReadingController readings,
   CareerReadingGenerationController generation,
+  CareerPremiumProductController premiumProduct,
+  CareerPremiumPurchaseController premiumPurchase,
   CareerEventController careerEvents,
 ) => GoRouter(
   initialLocation: '/splash',
@@ -198,8 +202,12 @@ GoRouter createAppRouter(
             GoRoute(
               path: '/readings',
               name: 'readings',
-              builder: (context, state) =>
-                  ReadingsScreen(controller: readings, generation: generation),
+              builder: (context, state) => ReadingsScreen(
+                controller: readings,
+                generation: generation,
+                premiumProduct: premiumProduct,
+                premiumPurchase: premiumPurchase,
+              ),
               routes: [
                 GoRoute(
                   path: 'detail/:id',

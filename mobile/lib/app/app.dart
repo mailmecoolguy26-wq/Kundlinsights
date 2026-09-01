@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../l10n/app_localizations.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
+import '../core/config/app_config.dart';
 import '../features/auth/auth_controller.dart';
 import '../features/profiles/profile_controller.dart';
 import '../features/natal/natal_summary_controller.dart';
@@ -16,6 +17,8 @@ import '../features/ashtakavarga/ashtakavarga_controller.dart';
 import '../features/readings/reading_controller.dart';
 import '../features/readings/career_reading_generation_controller.dart';
 import '../features/career_events/career_event_controller.dart';
+import '../features/payments/career_premium_product_controller.dart';
+import '../features/payments/career_premium_purchase_controller.dart';
 
 class KundlInsightsApp extends ConsumerStatefulWidget {
   const KundlInsightsApp({super.key, required this.authController});
@@ -61,6 +64,14 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp> {
     final careerEvents = ref.read(
       careerEventControllerProvider((authController, profiles)),
     );
+    final premiumProduct = ref.read(careerPremiumProductControllerProvider);
+    final premiumPurchase = ref.read(
+      careerPremiumPurchaseControllerProvider((
+        premiumProduct,
+        generation,
+        AppConfig.fromEnvironment()?.applePaymentEnvironment,
+      )),
+    );
     _router = createAppRouter(
       authController,
       profiles,
@@ -71,6 +82,8 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp> {
       ashtakavarga,
       readings,
       generation,
+      premiumProduct,
+      premiumPurchase,
       careerEvents,
     );
   }

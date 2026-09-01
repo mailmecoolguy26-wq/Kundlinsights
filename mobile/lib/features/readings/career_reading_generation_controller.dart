@@ -32,12 +32,17 @@ class CareerReadingGenerationController extends ChangeNotifier {
   final String Function() _idempotencyKey;
   CareerEligibilityState _eligibilityState = CareerEligibilityState.initial;
   CareerGenerationState _generationState = CareerGenerationState.idle;
-  String? _subject, _profileId, _attemptKey, _createdReadingId;
+  String? _subject,
+      _profileId,
+      _attemptKey,
+      _createdReadingId,
+      _eligibilityMode;
   int _generation = 0;
   bool _disposed = false;
   CareerEligibilityState get eligibilityState => _eligibilityState;
   CareerGenerationState get generationState => _generationState;
   String? get createdReadingId => _createdReadingId;
+  String? get eligibilityMode => _eligibilityMode;
   bool get canGenerate =>
       _eligibilityState == CareerEligibilityState.eligible &&
       _generationState != CareerGenerationState.generating;
@@ -53,6 +58,7 @@ class CareerReadingGenerationController extends ChangeNotifier {
     _profileId = profile;
     _attemptKey = null;
     _createdReadingId = null;
+    _eligibilityMode = null;
     _generationState = CareerGenerationState.idle;
     if (subject == null || profile == null) {
       _eligibilityState = CareerEligibilityState.initial;
@@ -84,9 +90,11 @@ class CareerReadingGenerationController extends ChangeNotifier {
       _eligibilityState = value.eligible
           ? CareerEligibilityState.eligible
           : CareerEligibilityState.ineligible;
+      _eligibilityMode = value.mode;
     } catch (_) {
       if (!_current(generation, subject, profile)) return;
       _eligibilityState = CareerEligibilityState.error;
+      _eligibilityMode = null;
     }
     notifyListeners();
   }

@@ -10,11 +10,22 @@ import '../../shared/widgets/states.dart';
 import 'domain/reading.dart';
 import 'reading_controller.dart';
 import 'career_reading_generation_controller.dart';
+import '../payments/career_premium_product_controller.dart';
+import '../payments/career_premium_purchase_controller.dart';
+import '../payments/presentation/career_premium_paywall.dart';
 
 class ReadingsScreen extends StatefulWidget {
-  const ReadingsScreen({super.key, required this.controller, this.generation});
+  const ReadingsScreen({
+    super.key,
+    required this.controller,
+    this.generation,
+    this.premiumProduct,
+    this.premiumPurchase,
+  });
   final ReadingController controller;
   final CareerReadingGenerationController? generation;
+  final CareerPremiumProductController? premiumProduct;
+  final CareerPremiumPurchaseController? premiumPurchase;
 
   @override
   State<ReadingsScreen> createState() => _ReadingsScreenState();
@@ -77,6 +88,8 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
           child: _ReadingList(
             controller: widget.controller,
             generation: widget.generation,
+            premiumProduct: widget.premiumProduct,
+            premiumPurchase: widget.premiumPurchase,
           ),
         ),
       );
@@ -86,9 +99,16 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
 }
 
 class _ReadingList extends StatelessWidget {
-  const _ReadingList({required this.controller, this.generation});
+  const _ReadingList({
+    required this.controller,
+    this.generation,
+    this.premiumProduct,
+    this.premiumPurchase,
+  });
   final ReadingController controller;
   final CareerReadingGenerationController? generation;
+  final CareerPremiumProductController? premiumProduct;
+  final CareerPremiumPurchaseController? premiumPurchase;
 
   @override
   Widget build(BuildContext context) {
@@ -102,6 +122,8 @@ class _ReadingList extends StatelessWidget {
             _GenerationCard(
               generation: generation!,
               existingReading: _careerReading(controller.readings),
+              premiumProduct: premiumProduct,
+              premiumPurchase: premiumPurchase,
             ),
           const SizedBox(height: 240, child: LoadingState()),
         ],
@@ -116,6 +138,8 @@ class _ReadingList extends StatelessWidget {
             _GenerationCard(
               generation: generation!,
               existingReading: _careerReading(controller.readings),
+              premiumProduct: premiumProduct,
+              premiumPurchase: premiumPurchase,
             ),
           const SizedBox(height: AppSpacing.xxl),
           ErrorState(
@@ -136,6 +160,8 @@ class _ReadingList extends StatelessWidget {
               child: _GenerationCard(
                 generation: generation!,
                 existingReading: _careerReading(controller.readings),
+                premiumProduct: premiumProduct,
+                premiumPurchase: premiumPurchase,
               ),
             ),
           SizedBox(
@@ -158,6 +184,8 @@ class _ReadingList extends StatelessWidget {
           ? _GenerationCard(
               generation: generation!,
               existingReading: _careerReading(controller.readings),
+              premiumProduct: premiumProduct,
+              premiumPurchase: premiumPurchase,
             )
           : _ReadingCard(
               reading:
@@ -171,9 +199,16 @@ ReadingSummary? _careerReading(List<ReadingSummary> readings) =>
     readings.where((reading) => reading.domain == 'CAREER').firstOrNull;
 
 class _GenerationCard extends StatelessWidget {
-  const _GenerationCard({required this.generation, this.existingReading});
+  const _GenerationCard({
+    required this.generation,
+    this.existingReading,
+    this.premiumProduct,
+    this.premiumPurchase,
+  });
   final CareerReadingGenerationController generation;
   final ReadingSummary? existingReading;
+  final CareerPremiumProductController? premiumProduct;
+  final CareerPremiumPurchaseController? premiumPurchase;
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
@@ -214,6 +249,16 @@ class _GenerationCard extends StatelessWidget {
       );
     }
     if (generation.eligibilityState == CareerEligibilityState.ineligible) {
+      if (premiumProduct != null) {
+        return CareerPremiumPaywall(
+          productController: premiumProduct!,
+          hasAccess: false,
+          entitlementMode: generation.eligibilityMode,
+          purchaseController: premiumPurchase,
+          onSubscribePressed: premiumPurchase?.startPurchase ?? () {},
+          onContinuePressed: () {},
+        );
+      }
       return AppCard(
         child: Semantics(
           container: true,
@@ -248,6 +293,13 @@ class _GenerationCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (generation.eligibilityState == CareerEligibilityState.eligible)
+            const Text(
+              'Career Premium Active',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+          if (generation.eligibilityState == CareerEligibilityState.eligible)
+            const SizedBox(height: AppSpacing.xs),
           Text(t.careerReadingEntryBody),
           const SizedBox(height: AppSpacing.sm),
           if (busy) ...[

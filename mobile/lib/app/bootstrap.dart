@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/config/app_config.dart';
@@ -39,6 +40,8 @@ import '../features/readings/career_reading_generation_controller.dart';
 import '../features/career_events/data/career_event_api_repository.dart';
 import '../features/career_events/domain/career_event_repository.dart';
 import '../features/career_events/career_event_controller.dart';
+import '../features/payments/data/apple_store_purchase_service.dart';
+import '../features/payments/data/payment_api_client.dart';
 import 'app.dart';
 
 Future<void> bootstrap() async {
@@ -54,6 +57,12 @@ Future<void> bootstrap() async {
   final ReadingRepository readingRepository;
   final CareerReadingGenerationRepository generationRepository;
   final CareerEventRepository careerEventRepository;
+  final PaymentApiClient paymentApi;
+  final storePurchaseService = AppleStorePurchaseService(
+    client: InAppPurchaseStorePurchaseClient(InAppPurchase.instance),
+    careerPremiumAnnualAppleProductId:
+        config?.careerPremiumAnnualAppleProductId,
+  );
   if (config == null) {
     repository = _UnavailableAuthRepository();
     profileRepository = const UnavailableBirthProfileRepository();
@@ -65,6 +74,7 @@ Future<void> bootstrap() async {
     readingRepository = const UnavailableReadingRepository();
     generationRepository = _UnavailableGenerationRepository();
     careerEventRepository = const UnavailableCareerEventRepository();
+    paymentApi = const UnavailablePaymentApiClient();
   } else {
     await Supabase.initialize(
       url: config.supabaseUrl,
@@ -84,6 +94,7 @@ Future<void> bootstrap() async {
     readingRepository = ReadingApiRepository(apiClient);
     generationRepository = CareerReadingGenerationApiRepository(apiClient);
     careerEventRepository = CareerEventApiRepository(apiClient);
+    paymentApi = AuthenticatedPaymentApiClient(apiClient);
   }
   final controller = AuthController(repository);
   await controller.restore();
@@ -110,6 +121,10 @@ Future<void> bootstrap() async {
           generationRepository,
         ),
         careerEventRepositoryProvider.overrideWithValue(careerEventRepository),
+        appleStorePurchaseServiceProvider.overrideWithValue(
+          storePurchaseService,
+        ),
+        paymentApiClientProvider.overrideWithValue(paymentApi),
       ],
       child: KundlInsightsApp(authController: controller),
     ),
