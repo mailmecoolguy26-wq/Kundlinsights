@@ -15,7 +15,7 @@ function pool() {
     },
     release() {},
   };
-  return { async connect() { return client; } };
+  return { async connect() { return client; }, async query(sql, values) { return client.query(sql, values); } };
 }
 
 function input(apple = null) {
