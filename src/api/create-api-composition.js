@@ -9,7 +9,7 @@ const { VimshottariService } = require('../application/vimshottari');
 const { TransitSnapshotService } = require('../application/transit-snapshot');
 const { AshtakavargaService } = require('../application/ashtakavarga');
 const { CareerEventService, CareerEventAstrologyService, CareerPatternComparisonService, CareerFutureRecurrenceService, CareerReadingContextBuilder } = require('../application/career-events');
-const { PostgresUserRepository, PostgresBirthProfileRepository, PostgresReadingRepository, PostgresEntitlementRepository, PostgresCareerEventRepository } = require('../persistence');
+const { PostgresUserRepository, PostgresBirthProfileRepository, PostgresReadingRepository, PostgresEntitlementRepository, PostgresCareerEventRepository, PostgresSubscriptionRepository } = require('../persistence');
 const { PostgresUserKeyEnvelopeStore, UserDekProvider, BirthProfilePayloadCodec, ReadingPayloadCodec } = require('../security/crypto');
 const { resolveOrProvisionAppUser } = require('../security/auth');
 
@@ -52,6 +52,7 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
       birthProfiles: new PostgresBirthProfileRepository({ db: client, birthProfilePayloadCodec: birthCodec }),
       readings: new PostgresReadingRepository({ db: client, readingPayloadCodec: readingCodec }),
       entitlements: new PostgresEntitlementRepository({ db: client }),
+      subscriptions: new PostgresSubscriptionRepository({ db: client }),
       careerEvents: new PostgresCareerEventRepository({ db: client }),
       envelopes,
       deks,

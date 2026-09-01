@@ -7,7 +7,7 @@ function dtoProfile(p) { return { id: p.id, displayLabel: p.displayLabel, birthD
 function dtoReading(r) { return { readingId: r.readingId, domain: r.domain || r.record && r.record.domain, engineProfileId: r.engineProfileId || r.record && r.record.engineProfileId, createdAt: r.createdAt || r.record && r.record.createdAt, status: r.status }; }
 function dtoReadingSummary(reading) { return { readingId: reading.readingId, birthProfileId: reading.birthProfileId, domain: reading.domain, status: reading.status, createdAt: reading.createdAt, readingInstant: reading.readingInstant, locale: reading.locale }; }
 function dtoReadingDetail(reading) { return { ...dtoReadingSummary(reading), content: reading.content === undefined ? null : reading.content, ...(reading.calibratedContent === undefined ? {} : { calibratedContent: reading.calibratedContent }) }; }
-function createApi({ authVerifier, userResolver, birthProfileService, careerEventService = null, careerEventAstrologyService = null, natalSummaryService = null, divisionalChartService = null, vimshottariService = null, transitSnapshotService = null, ashtakavargaService = null, secureReadingService, placeResolutionService = null, entitlementService, requestIdGenerator = crypto.randomUUID, corsAllowlist = [], isReady = () => true, logger = false, bodyLimit = 16 * 1024 } = {}) {
+function createApi({ authVerifier, userResolver, birthProfileService, careerEventService = null, careerEventAstrologyService = null, natalSummaryService = null, divisionalChartService = null, vimshottariService = null, transitSnapshotService = null, ashtakavargaService = null, secureReadingService, purchaseService = null, placeResolutionService = null, entitlementService, requestIdGenerator = crypto.randomUUID, corsAllowlist = [], isReady = () => true, logger = false, bodyLimit = 16 * 1024 } = {}) {
   required(authVerifier, 'AUTH_VERIFIER'); if (typeof authVerifier.verifyRequest !== 'function') throw new TypeError('INVALID_AUTH_VERIFIER'); required(userResolver, 'USER_RESOLVER'); required(birthProfileService, 'BIRTH_PROFILE_SERVICE'); required(secureReadingService, 'SECURE_READING_SERVICE');
   if (!Array.isArray(corsAllowlist) || !corsAllowlist.every((origin) => typeof origin === 'string' && origin.startsWith('https://') && !origin.includes('*')) || typeof isReady !== 'function' || !Number.isInteger(bodyLimit) || bodyLimit < 1024 || bodyLimit > 16 * 1024) throw new TypeError('INVALID_API_RUNTIME_OPTIONS');
   const app = Fastify({ logger, bodyLimit, requestIdHeader: 'x-request-id', genReqId: () => requestIdGenerator() });
@@ -20,6 +20,11 @@ function createApi({ authVerifier, userResolver, birthProfileService, careerEven
     if (typeof secureReadingService.getReadingEntitlementStatus !== 'function') throw new TypeError('INVALID_SECURE_READING_SERVICE');
     return { entitlements: await secureReadingService.getReadingEntitlementStatus({ principal: request.principal }), requestId: request.id };
   });
+  if (purchaseService) {
+    app.post('/v1/purchases/verify', async (request) => ({ ...await purchaseService.verify({ principal: request.principal, body: request.body || {} }), requestId: request.id }));
+    app.post('/v1/purchases/restore', async (request) => ({ ...await purchaseService.restore({ principal: request.principal, body: request.body || {} }), requestId: request.id }));
+    app.get('/v1/me/purchases', async (request) => ({ purchases: await purchaseService.list({ principal: request.principal }), requestId: request.id }));
+  }
   if (placeResolutionService) {
     if (typeof placeResolutionService.search !== 'function' || typeof placeResolutionService.resolveBirthTime !== 'function') throw new TypeError('INVALID_PLACE_RESOLUTION_SERVICE');
     app.get('/v1/places/search', async (request) => ({ results: await placeResolutionService.search({ query: request.query && request.query.q }), requestId: request.id }));

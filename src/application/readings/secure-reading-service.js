@@ -3,6 +3,7 @@
 const { verifiedPrincipal } = require('../../security/auth');
 const { repositoryError, immutableCopy, requiredString } = require('../../persistence/contracts');
 const { ReadingPayloadCodec } = require('../../security/crypto');
+const { CareerAccessResolver } = require('./career-access-resolver');
 
 function fail(code) { throw repositoryError(code); }
 function requiredFunction(value, code) { if (typeof value !== 'function') fail(code); return value; }
@@ -37,15 +38,11 @@ function calibratedContent(record) {
   return { domain: record.domain, locale: record.input.locale, sections };
 }
 function publicReadingDetail(item) { const calibrated = calibratedContent(item.record); return immutableCopy({ ...publicReadingSummary(item), content: item.record.renderedReading, ...(calibrated ? { calibratedContent: calibrated } : {}) }); }
-async function eligibleEntitlement(repositories, userId, domain, evaluationTime) {
-  const active = await repositories.entitlements.listActiveEntitlementsForUser(userId, evaluationTime);
-  return active.find((item) => item.productKey === domain) || null;
-}
 function scopedKeyProvider(key) { return Object.freeze({ current: async () => ({ keyVersion: key.keyVersion, dek: Buffer.from(key.dek) }), forVersion: async () => ({ keyVersion: key.keyVersion, dek: Buffer.from(key.dek) }) }); }
 function rawRecord(raw, record) { return { readingId: raw.readingId, userId: raw.userId, birthProfileId: raw.birthProfileId, status: raw.status, archivedAt: raw.archivedAt, idempotencyKey: raw.idempotencyKey, record }; }
 
 class SecureReadingService {
-  constructor({ authUserResolver, transactionExecutor, repositories, secureBirthProfileLoader, readingCryptoCoordinator, readingGenerator, readingRecordFactory, replayReading, requiresEntitlement, idGenerator, clock } = {}) {
+  constructor({ authUserResolver, transactionExecutor, repositories, secureBirthProfileLoader, readingCryptoCoordinator, readingGenerator, readingRecordFactory, replayReading, requiresEntitlement, careerAccessResolver = new CareerAccessResolver(), idGenerator, clock } = {}) {
     this.authUserResolver = requiredFunction(authUserResolver, 'INVALID_AUTH_USER_RESOLVER');
     this.transactions = transactionExecutor && typeof transactionExecutor.execute === 'function' ? transactionExecutor : fail('INVALID_APPLICATION_TRANSACTION_EXECUTOR');
     this.repositories = requiredFunction(repositories, 'INVALID_APPLICATION_REPOSITORIES');
@@ -57,6 +54,7 @@ class SecureReadingService {
     this.readingRecordFactory = requiredFunction(readingRecordFactory, 'INVALID_READING_RECORD_FACTORY');
     this.replayReading = requiredFunction(replayReading, 'INVALID_REPLAY_READING');
     this.requiresEntitlement = requiredFunction(requiresEntitlement, 'INVALID_ENTITLEMENT_POLICY');
+    this.careerAccessResolver = careerAccessResolver && typeof careerAccessResolver.resolve === 'function' ? careerAccessResolver : fail('INVALID_CAREER_ACCESS_RESOLVER');
     this.idGenerator = requiredFunction(idGenerator, 'INVALID_READING_ID');
     this.clock = requiredFunction(clock, 'INVALID_APPLICATION_CLOCK');
   }
@@ -95,8 +93,8 @@ class SecureReadingService {
     } catch (error) { safeError(error, 'NOT_FOUND_OR_FORBIDDEN'); }
     if (this.requiresEntitlement({ domain: readingDomain })) {
       try {
-        const entitlement = await this.execute(verified, 'app_runtime', async (context) => eligibleEntitlement(this.repo(context), user.id, readingDomain, this.clock()));
-        if (!entitlement) fail('ENTITLEMENT_EXHAUSTED');
+        const access = await this.execute(verified, 'app_runtime', async (context) => this.careerAccessResolver.resolve({ repositories: this.repo(context), userId: user.id, at: this.clock() }));
+        if (!access.eligible) fail('ENTITLEMENT_EXHAUSTED');
       } catch (error) { safeError(error, 'ENTITLEMENT_EXHAUSTED'); }
     }
     let generated;
@@ -115,14 +113,14 @@ class SecureReadingService {
           ? await repos.readings.getEncryptedReadingRecordByIdempotencyKey(user.id, key)
           : await repos.readings.getReadingRecordByIdempotencyKey(user.id, key);
         if (winner) return { kind: 'existing', value: winner };
-        let entitlement = null;
+        let access = null;
         if (this.requiresEntitlement({ domain: readingDomain })) {
-          entitlement = await eligibleEntitlement(repos, user.id, readingDomain, this.clock());
-          if (!entitlement) fail('ENTITLEMENT_EXHAUSTED');
+          access = await this.careerAccessResolver.resolve({ repositories: repos, userId: user.id, at: this.clock() });
+          if (!access.eligible) fail('ENTITLEMENT_EXHAUSTED');
         }
-        if (entitlement) {
+        if (access && access.consuming) {
           if (typeof context.setRole === 'function') await context.setRole('app_worker');
-          await repos.entitlements.consumeEntitlement(entitlement.id, this.clock());
+          await repos.entitlements.consumeEntitlement(access.sourceId, this.clock());
           if (typeof context.setRole === 'function') await context.setRole('app_runtime');
         }
         let inserted;
@@ -144,8 +142,8 @@ class SecureReadingService {
     const domain = 'CAREER';
     if (!this.requiresEntitlement({ domain })) return immutableCopy({ career: { eligible: true } });
     try {
-      const entitlement = await this.execute(verified, 'app_runtime', async (context) => eligibleEntitlement(this.repo(context), user.id, domain, this.clock()));
-      return immutableCopy({ career: { eligible: entitlement !== null } });
+      const access = await this.execute(verified, 'app_runtime', async (context) => this.careerAccessResolver.resolve({ repositories: this.repo(context), userId: user.id, at: this.clock() }));
+      return immutableCopy({ career: { eligible: access.eligible } });
     } catch (error) { safeError(error, 'ENTITLEMENT_STATUS_FAILED'); }
   }
   async getSecureReading({ principal: principalInput, readingId } = {}) {

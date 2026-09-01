@@ -13,9 +13,12 @@ function record(readingId, createdAt = T0, profile = 'kundlinsights-vedic-engine
 function throwsCode(fn, code) { assert.throws(fn, (error) => error && error.code === code); }
 
 test('declares the narrow storage-agnostic repository contracts', () => {
-  assert.deepEqual(Object.keys(REPOSITORY_CONTRACTS), ['UserRepository', 'BirthProfileRepository', 'ReadingRepository', 'EntitlementRepository', 'PaymentRepository']);
+  assert.deepEqual(Object.keys(REPOSITORY_CONTRACTS), ['UserRepository', 'BirthProfileRepository', 'ReadingRepository', 'EntitlementRepository', 'PaymentRepository', 'PurchaseRepository', 'SubscriptionRepository', 'PaymentEventRepository']);
   assert.equal(REPOSITORY_CONTRACTS.UserRepository.includes('getUserByAuthSubject'), true);
   assert.equal(REPOSITORY_CONTRACTS.ReadingRepository.includes('updateReadingRecord'), false);
+  assert.equal(REPOSITORY_CONTRACTS.PurchaseRepository.includes('findByProviderTransaction'), true);
+  assert.equal(REPOSITORY_CONTRACTS.SubscriptionRepository.includes('upsertVerifiedState'), true);
+  assert.equal(REPOSITORY_CONTRACTS.PaymentEventRepository.includes('markProcessed'), true);
   assert.equal(Object.isFrozen(REPOSITORY_CONTRACTS), true);
 });
 

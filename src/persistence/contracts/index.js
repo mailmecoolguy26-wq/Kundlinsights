@@ -9,6 +9,9 @@ const REPOSITORY_CONTRACTS = freeze({
   ReadingRepository: freeze(['insertReadingRecord', 'getReadingRecord', 'getReadingRecordByIdempotencyKey', 'listReadingRecordsForUser', 'listReadingRecordsForBirthProfile', 'archiveReadingRecord']),
   EntitlementRepository: freeze(['createEntitlement', 'getEntitlement', 'listActiveEntitlementsForUser', 'consumeEntitlement']),
   PaymentRepository: freeze(['insertPaymentTransaction', 'getPaymentTransaction', 'findByProviderTransactionId']),
+  PurchaseRepository: freeze(['findByProviderTransaction', 'insert', 'listForUser']),
+  SubscriptionRepository: freeze(['findByProviderOriginalTransaction', 'findUsableCandidatesForUser', 'upsertVerifiedState', 'listForUser']),
+  PaymentEventRepository: freeze(['findByProviderEventId', 'insertReceived', 'markProcessed', 'markFailed']),
 });
 
 function repositoryError(code) { const error = new RangeError(code); error.code = code; return error; }
