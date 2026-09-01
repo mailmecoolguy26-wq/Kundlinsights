@@ -127,7 +127,7 @@ void main() {
     await tester.tap(find.text('Kundli').last);
     await tester.pumpAndSettle();
     expect(find.text('Lagna'), findsOneWidget);
-    expect(find.text('1 · 11'), findsOneWidget);
+    expect(find.text('11'), findsNWidgets(12));
     await tester.scrollUntilVisible(find.text('Accessible house list'), 240);
     expect(find.text('Accessible house list'), findsOneWidget);
     expect(find.bySemanticsLabel(RegExp('House 12, Aquarius')), findsWidgets);
@@ -142,7 +142,7 @@ void main() {
     await tester.tap(find.text('Kundli').last);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Su (R)'));
+    await tester.tap(find.text('Suᴿ 20°', findRichText: true));
     await tester.pumpAndSettle();
 
     expect(find.text('Sun'), findsOneWidget);

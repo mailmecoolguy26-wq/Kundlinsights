@@ -34,7 +34,7 @@ void main() {
   });
 
   testWidgets(
-    'renders all houses, Lagna, retrograde markers, and tap actions',
+    'renders sign-only labels, Lagna, retrograde markers, and tap actions',
     (tester) async {
       D1ChartHouse? tappedHouse;
       NatalPosition? tappedPlanet;
@@ -56,14 +56,25 @@ void main() {
       );
 
       expect(find.text('Lagna'), findsOneWidget);
-      expect(find.text('Sa (R)'), findsOneWidget);
-      for (var house = 1; house <= 12; house++) {
-        expect(find.text('$house · $house'), findsOneWidget);
+      expect(find.text('Saᴿ 0°', findRichText: true), findsOneWidget);
+      expect(find.text('1 · 1'), findsNothing);
+      for (var sign = 1; sign <= 12; sign++) {
+        expect(find.text('$sign'), findsOneWidget);
       }
 
-      await tester.tap(find.text('1 · 1'));
+      final firstHouse = find.byType(InkWell).first;
+      final firstHouseBounds = tester.getRect(firstHouse);
+      await tester.tapAt(
+        Offset(firstHouseBounds.right - 2, firstHouseBounds.top + 2),
+      );
+      await tester.pump();
       expect(tappedHouse?.house, 1);
-      await tester.tap(find.text('Sa (R)'));
+      await tester.tap(
+        find
+            .descendant(of: firstHouse, matching: find.byType(GestureDetector))
+            .last,
+      );
+      await tester.pump();
       expect(tappedPlanet?.body, 'Saturn');
     },
   );
@@ -106,14 +117,71 @@ void main() {
           find.bySemanticsLabel(RegExp('North Indian $label chart')),
           findsOneWidget,
         );
-        expect(find.text('7 · 7'), findsOneWidget);
-        await tester.tap(find.text('7 · 7'));
+        expect(find.text('7'), findsOneWidget);
+        expect(find.text('7 · 7'), findsNothing);
+        final seventhHouse = find.byType(InkWell).at(6);
+        final seventhHouseBounds = tester.getRect(seventhHouse);
+        await tester.tapAt(
+          Offset(seventhHouseBounds.right - 2, seventhHouseBounds.top + 2),
+        );
+        await tester.pump();
         expect(tappedHouse?.house, 7);
-        await tester.tap(find.text('Su'));
+        await tester.tap(
+          find
+              .descendant(
+                of: seventhHouse,
+                matching: find.byType(GestureDetector),
+              )
+              .last,
+        );
+        await tester.pump();
         expect(tappedPlanet?.body, 'Sun');
       }
     },
   );
+
+  testWidgets('keeps a five-planet house within a small iPhone chart', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: SizedBox(
+            width: 320,
+            child: NorthIndianFixedHouseChart(
+              chartLabel: 'D1',
+              houses: List.generate(
+                12,
+                (index) => FixedChartHouse(
+                  house: index + 1,
+                  sign: ChartSign(
+                    rashiIndex: index + 1,
+                    englishName: 'Sign ${index + 1}',
+                  ),
+                  planets: index == 0
+                      ? const [
+                          ChartPlanet(body: 'Sun'),
+                          ChartPlanet(body: 'Moon'),
+                          ChartPlanet(body: 'Mars'),
+                          ChartPlanet(body: 'Mercury', retrograde: true),
+                          ChartPlanet(body: 'Jupiter'),
+                        ]
+                      : const [],
+                ),
+              ),
+              onHouseTap: (_) {},
+              onPlanetTap: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Meᴿ', findRichText: true), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 NatalSummary _summary() {

@@ -110,7 +110,12 @@ List<FixedChartHouse> _chartHouses(DivisionalChart chart) => chart.houses
         ),
         planets: chart.planets
             .where((planet) => planet.house == house.house)
-            .map((planet) => ChartPlanet(body: planet.body))
+            .map(
+              (planet) => ChartPlanet(
+                body: planet.body,
+                degreeWithinSign: planet.degreeWithinSign,
+              ),
+            )
             .toList(growable: false),
       ),
     )

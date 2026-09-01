@@ -31,10 +31,15 @@ class ChartSign {
 }
 
 class ChartPlanet {
-  const ChartPlanet({required this.body, this.retrograde = false});
+  const ChartPlanet({
+    required this.body,
+    this.retrograde = false,
+    this.degreeWithinSign,
+  });
 
   final String body;
   final bool retrograde;
+  final double? degreeWithinSign;
 }
 
 class FixedChartHouse {
@@ -125,6 +130,7 @@ class NorthIndianKundliChart extends StatelessWidget {
                   (planet) => ChartPlanet(
                     body: planet.body,
                     retrograde: planet.retrograde,
+                    degreeWithinSign: planet.degreeWithinSign,
                   ),
                 )
                 .toList(growable: false),
@@ -247,8 +253,11 @@ class _HouseRegion extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${house.house} · ${house.sign.rashiIndex}',
-                    style: AppTypography.caption.copyWith(fontSize: 10),
+                    house.sign.rashiIndex.toString(),
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.secondaryText,
+                      fontSize: 10,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -260,21 +269,47 @@ class _HouseRegion extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
+                  const SizedBox(height: 1),
                   Wrap(
                     spacing: AppSpacing.xxs,
-                    runSpacing: 0,
+                    runSpacing: 2,
                     children: house.planets
                         .map(
                           (planet) => GestureDetector(
                             behavior: HitTestBehavior.opaque,
                             onTap: () => onPlanetTap(planet),
-                            child: Padding(
-                              padding: const EdgeInsets.only(top: 2),
-                              child: Text(
-                                '${_abbreviation(planet.body)}${planet.retrograde ? ' (R)' : ''}',
-                                style: AppTypography.caption.copyWith(
-                                  fontSize: 10,
-                                  color: AppColors.midnight,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.xxs,
+                                vertical: 0,
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: AppRadius.small,
+                                color: AppColors.ivory.withValues(alpha: .72),
+                              ),
+                              child: RichText(
+                                text: TextSpan(
+                                  style: AppTypography.caption.copyWith(
+                                    fontSize: 10,
+                                    color: AppColors.midnight,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  children: [
+                                    TextSpan(
+                                      text:
+                                          '${_abbreviation(planet.body)}${planet.retrograde ? 'ᴿ' : ''}',
+                                    ),
+                                    if (planet.degreeWithinSign != null)
+                                      TextSpan(
+                                        text:
+                                            ' ${planet.degreeWithinSign!.toStringAsFixed(0)}°',
+                                        style: AppTypography.caption.copyWith(
+                                          fontSize: 8,
+                                          color: AppColors.secondaryText,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ),
                             ),
@@ -311,7 +346,7 @@ class _NorthIndianChartPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = AppColors.navy
-      ..strokeWidth = 1.5
+      ..strokeWidth = 1
       ..style = PaintingStyle.stroke;
     final centre = Offset(size.width / 2, size.height / 2);
 
