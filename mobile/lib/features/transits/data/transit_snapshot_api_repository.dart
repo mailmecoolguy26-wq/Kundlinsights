@@ -12,7 +12,7 @@ class TransitSnapshotApiRepository implements TransitSnapshotRepository {
   }) async {
     final response = await _client.get<Map<String, dynamic>>(
       '/v1/birth-profiles/$birthProfileId/transits',
-      queryParameters: {'at': atUtc.toUtc().toIso8601String()},
+      queryParameters: {'at': _utcMilliseconds(atUtc)},
     );
     final data = response.data;
     if (data == null || data['transitSnapshot'] is! Map<String, dynamic>) {
@@ -23,3 +23,8 @@ class TransitSnapshotApiRepository implements TransitSnapshotRepository {
     );
   }
 }
+
+String _utcMilliseconds(DateTime value) => DateTime.fromMillisecondsSinceEpoch(
+  value.toUtc().millisecondsSinceEpoch,
+  isUtc: true,
+).toIso8601String();

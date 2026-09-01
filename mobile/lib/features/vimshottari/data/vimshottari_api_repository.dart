@@ -51,4 +51,7 @@ class VimshottariApiRepository implements VimshottariRepository {
   }
 }
 
-String _utc(DateTime value) => value.toUtc().toIso8601String();
+String _utc(DateTime value) => DateTime.fromMillisecondsSinceEpoch(
+  value.toUtc().millisecondsSinceEpoch,
+  isUtc: true,
+).toIso8601String();

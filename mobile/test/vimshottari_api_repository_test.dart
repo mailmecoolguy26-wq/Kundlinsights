@@ -42,6 +42,31 @@ void main() {
     },
   );
 
+  test('serializes current instants as canonical UTC milliseconds', () async {
+    final adapter = _Adapter([
+      _json(200, {'vimshottari': _current('profile-a')}),
+    ]);
+    final repository = VimshottariApiRepository(_client(config, adapter));
+
+    await repository.getCurrent(
+      birthProfileId: 'profile-a',
+      atUtc: DateTime.utc(2026, 9, 1, 12, 34, 56, 123, 456),
+    );
+
+    expect(
+      adapter.requests.single.path,
+      '/v1/birth-profiles/profile-a/vimshottari',
+    );
+    expect(
+      adapter.requests.single.queryParameters['at'],
+      '2026-09-01T12:34:56.123Z',
+    );
+    expect(
+      adapter.requests.single.queryParameters['at'],
+      isNot(contains('.123456Z')),
+    );
+  });
+
   test(
     'preserves flat chronological MD AD PD timelines and parent context',
     () async {
