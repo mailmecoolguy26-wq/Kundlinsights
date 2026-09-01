@@ -67,15 +67,20 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
   CareerPremiumRestoreState _restoreState = CareerPremiumRestoreState.idle;
   final List<StorePurchaseUpdate> _restorePurchases = [];
   StorePurchaseUpdate? _verifiedPurchasePendingCompletion;
+  StorePurchaseUpdate? _verificationRetryPurchase;
   String? _processingEvidence;
   bool _disposed = false;
 
   CareerPremiumPurchaseState get state => _state;
   CareerPremiumRestoreState get restoreState => _restoreState;
   bool get canStart =>
-      _state == CareerPremiumPurchaseState.idle ||
-      _state == CareerPremiumPurchaseState.canceled ||
-      _state == CareerPremiumPurchaseState.error;
+      _verificationRetryPurchase == null &&
+      (_state == CareerPremiumPurchaseState.idle ||
+          _state == CareerPremiumPurchaseState.canceled ||
+          _state == CareerPremiumPurchaseState.error);
+  bool get canRetryVerification =>
+      _state == CareerPremiumPurchaseState.error &&
+      _verificationRetryPurchase != null;
 
   Future<void> startPurchase() async {
     if (!canStart ||
@@ -103,8 +108,25 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
   }
 
   Future<void> retryEntitlementRefresh() async {
-    if (_state != CareerPremiumPurchaseState.refreshFailed) return;
+    if (_state != CareerPremiumPurchaseState.refreshFailed ||
+        _restoreState == CareerPremiumRestoreState.restoring ||
+        _restoreState == CareerPremiumRestoreState.verifying) {
+      return;
+    }
     await _refreshEntitlementAfterVerification();
+  }
+
+  Future<void> retryVerification() async {
+    final purchase = _verificationRetryPurchase;
+    final product = productController.product;
+    if (!canRetryVerification ||
+        purchase == null ||
+        product == null ||
+        _restoreState == CareerPremiumRestoreState.restoring ||
+        _restoreState == CareerPremiumRestoreState.verifying) {
+      return;
+    }
+    await _verifyPurchase(purchase, product);
   }
 
   Future<void> restorePurchases() async {
@@ -149,7 +171,7 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
           CareerEligibilityState.eligible) {
         for (final purchase in _restorePurchases) {
           if (purchase.pendingCompletePurchase) {
-            await service.completePurchase(purchase);
+            await service.completePurchaseOnce(purchase);
           }
         }
         _restoreState = CareerPremiumRestoreState.success;
@@ -167,6 +189,7 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
   Future<void> _onPurchaseUpdate(StorePurchaseUpdate purchase) async {
     final product = productController.product;
     if (product == null || purchase.productId != product.storeProductId) return;
+    if (service.wasCompleted(purchase)) return;
     if (purchase.status == StorePurchaseStatus.restored &&
         _restoreState == CareerPremiumRestoreState.restoring) {
       _restorePurchases.add(purchase);
@@ -198,6 +221,7 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
       return;
     }
     _processingEvidence = evidence;
+    _verificationRetryPurchase = purchase;
     _setState(CareerPremiumPurchaseState.verifying);
     try {
       await paymentApi.verifyApplePurchase(
@@ -230,9 +254,10 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
       }
       final purchase = _verifiedPurchasePendingCompletion;
       if (purchase?.pendingCompletePurchase ?? false) {
-        await service.completePurchase(purchase!);
+        await service.completePurchaseOnce(purchase!);
       }
       _verifiedPurchasePendingCompletion = null;
+      _verificationRetryPurchase = null;
       _setState(CareerPremiumPurchaseState.success);
     } catch (_) {
       _setState(CareerPremiumPurchaseState.refreshFailed);

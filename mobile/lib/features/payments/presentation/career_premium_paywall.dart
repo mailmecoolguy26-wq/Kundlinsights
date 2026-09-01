@@ -192,8 +192,18 @@ class _ProductAction extends StatelessWidget {
       );
     }
     if (purchaseState == CareerPremiumPurchaseState.error) {
-      return const Text(
-        'Your purchase could not be verified yet. Please try again.',
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Your purchase could not be verified yet. Please try again.',
+          ),
+          if (purchaseController?.canRetryVerification ?? false)
+            TextButton(
+              onPressed: purchaseController!.retryVerification,
+              child: const Text('Retry verification'),
+            ),
+        ],
       );
     }
     switch (controller.state) {

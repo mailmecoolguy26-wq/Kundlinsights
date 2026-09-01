@@ -45,7 +45,7 @@ void main() {
     h.store.finishRestore();
     await restore;
     expect(h.api.restoreEvidence, ['one', 'two']);
-    expect(h.store.completed, 3);
+    expect(h.store.completed, 2);
     expect(h.controller.restoreState, CareerPremiumRestoreState.success);
     h.dispose();
   });

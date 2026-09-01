@@ -154,13 +154,14 @@ class CareerPremiumProductLoadResult {
 }
 
 class AppleStorePurchaseService {
-  const AppleStorePurchaseService({
+  AppleStorePurchaseService({
     required this.client,
     required this.careerPremiumAnnualAppleProductId,
   });
 
   final StorePurchaseClient client;
   final String? careerPremiumAnnualAppleProductId;
+  final Set<String> _completedEvidence = {};
 
   Future<CareerPremiumProductLoadResult> loadCareerPremiumProduct() async {
     final productId = careerPremiumAnnualAppleProductId;
@@ -212,8 +213,15 @@ class AppleStorePurchaseService {
     return client.buyNonConsumable(expectedProductId);
   }
 
-  Future<void> completePurchase(StorePurchaseUpdate purchase) =>
-      client.completePurchase(purchase);
+  bool wasCompleted(StorePurchaseUpdate purchase) =>
+      _completedEvidence.contains(purchase.serverVerificationData);
+
+  Future<void> completePurchaseOnce(StorePurchaseUpdate purchase) async {
+    final evidence = purchase.serverVerificationData;
+    if (evidence.isEmpty || _completedEvidence.contains(evidence)) return;
+    await client.completePurchase(purchase);
+    _completedEvidence.add(evidence);
+  }
 
   Future<void> restorePurchases() => client.restorePurchases();
 }
