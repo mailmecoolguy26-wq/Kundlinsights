@@ -18,6 +18,7 @@
   "license": "UNLICENSED",
   "type": "commonjs",
   "dependencies": {
+    "@apple/app-store-server-library": "^3.1.0",
     "@aws-sdk/client-kms": "3.879.0",
     "@fastify/cors": "11.3.0",
     "astronomy-engine": "2.1.17",

@@ -7,7 +7,8 @@ const PurchaseProvider = freeze(['APPLE', 'GOOGLE', 'WEB']);
 const PurchaseEnvironment = freeze(['SANDBOX', 'PRODUCTION']);
 const PurchaseStatus = freeze(['VERIFIED', 'PENDING', 'REVOKED', 'REFUNDED', 'FAILED']);
 const SubscriptionStatus = freeze(['ACTIVE', 'GRACE_PERIOD', 'CANCELED', 'EXPIRED', 'REVOKED', 'REFUNDED']);
-const PRODUCT_CATALOG = freeze([{ logicalSku: 'career_premium_annual', name: 'KundliInsights Career Premium', displayPrice: '₹599/year', scope: 'USER', kind: 'ANNUAL_SUBSCRIPTION', providerProductIds: freeze({ APPLE: null, GOOGLE: null, WEB: null }) }]);
+function createProductCatalog({ appleCareerPremiumAnnualProductId = null } = {}) { return freeze([{ logicalSku: 'career_premium_annual', name: 'KundliInsights Career Premium', displayPrice: '₹599/year', scope: 'USER', kind: 'ANNUAL_SUBSCRIPTION', providerProductIds: freeze({ APPLE: appleCareerPremiumAnnualProductId, GOOGLE: null, WEB: null }) }]); }
+const PRODUCT_CATALOG = createProductCatalog();
 function enumValue(value, values, code) { if (!values.includes(value)) fail(code); return value; }
 function nullableString(value, code) { return value == null ? null : requiredString(value, code); }
 function nullableTime(value, code) { return value == null ? null : canonicalTime(value, code); }
@@ -20,4 +21,4 @@ function getProduct(logicalSku) { const product = PRODUCT_CATALOG.find((value) =
 function getProductByProviderProductId(provider, providerProductId) { enumValue(provider, PurchaseProvider, 'INVALID_PURCHASE_PROVIDER'); const product = PRODUCT_CATALOG.find((value) => value.providerProductIds[provider] === providerProductId); return product || null; }
 const PurchaseVerifierContract = freeze({ verify: 'verify({ provider, environment, evidence, authenticatedUser }) => normalized verified purchase' });
 const SubscriptionReconcilerContract = freeze({ reconcile: 'reconcile({ verifiedPurchase, existingSubscription, event }) => normalized subscription state' });
-module.exports = { PurchaseProvider, PurchaseEnvironment, PurchaseStatus, SubscriptionStatus, PRODUCT_CATALOG, getProduct, getProductByProviderProductId, purchaseRecord, subscriptionRecord, paymentEvent, PurchaseVerifierContract, SubscriptionReconcilerContract };
+module.exports = { PurchaseProvider, PurchaseEnvironment, PurchaseStatus, SubscriptionStatus, PRODUCT_CATALOG, createProductCatalog, getProduct, getProductByProviderProductId, purchaseRecord, subscriptionRecord, paymentEvent, PurchaseVerifierContract, SubscriptionReconcilerContract };

@@ -1,0 +1,9 @@
+'use strict';
+const { SignedDataVerifier, Environment } = require('@apple/app-store-server-library');
+function fail(code) { const error = new Error(code); error.code = code; throw error; }
+class AppleSignedDataVerifierFactory {
+  constructor({ rootCertificateProvider, bundleId, appAppleId = null, onlineChecks = false, SignedDataVerifierClass = SignedDataVerifier } = {}) { this.roots = rootCertificateProvider; this.bundleId = bundleId; this.appAppleId = appAppleId; this.onlineChecks = onlineChecks; this.Verifier = SignedDataVerifierClass; }
+  create(environment) { if (!this.bundleId) fail('APPLE_CONFIG_MISSING'); const roots = this.roots && this.roots.load(); if (!Array.isArray(roots) || !roots.length) fail('APPLE_ROOT_CERTIFICATES_MISSING'); if (!['SANDBOX','PRODUCTION'].includes(environment)) fail('APPLE_ENVIRONMENT_INVALID'); if (environment === 'PRODUCTION' && !this.appAppleId) fail('APPLE_APP_ID_MISSING'); return new this.Verifier(roots, this.onlineChecks, environment === 'SANDBOX' ? Environment.SANDBOX : Environment.PRODUCTION, this.bundleId, this.appAppleId); }
+}
+class AppleSignedDataVerifier { constructor({ factory } = {}) { this.factory = factory; } async verifyAndDecodeTransaction({ signedTransaction, environment } = {}) { if (typeof signedTransaction !== 'string' || !signedTransaction) fail('APPLE_JWS_MALFORMED'); try { return await this.factory.create(environment).verifyAndDecodeTransaction(signedTransaction); } catch (error) { if (error && error.code && error.code.startsWith('APPLE_')) throw error; fail('APPLE_JWS_VERIFICATION_FAILED'); } } }
+module.exports = { AppleSignedDataVerifierFactory, AppleSignedDataVerifier };

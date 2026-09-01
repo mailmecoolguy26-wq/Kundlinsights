@@ -21,7 +21,7 @@ function loadProductionConfig(env = process.env) {
   return Object.freeze({
     nodeEnv: 'production', host: env.HOST, port: integer(env.PORT, 3000, 1, 65535), databaseUrl: databaseUrl(env.DATABASE_URL),
     db: Object.freeze({ ssl: Object.freeze({ rejectUnauthorized: true }), max: integer(env.DB_POOL_MAX, 10, 1, 50), connectionTimeoutMillis: integer(env.DB_CONNECTION_TIMEOUT_MS, 5000, 100, 60000), idleTimeoutMillis: integer(env.DB_IDLE_TIMEOUT_MS, 30000, 1000, 300000) }),
-    auth: Object.freeze({ issuer, jwksUri, audience: env.SUPABASE_AUTH_AUDIENCE, allowedAlgorithms: algorithms(env.SUPABASE_AUTH_ALLOWED_ALGORITHMS) }),
+    auth: Object.freeze({ issuer, jwksUri, audience: env.SUPABASE_AUTH_AUDIENCE, allowedAlgorithms: algorithms(env.SUPABASE_AUTH_ALLOWED_ALGORITHMS) }), apple: Object.freeze({ bundleId: text(env.APPLE_BUNDLE_ID) ? env.APPLE_BUNDLE_ID : null, careerPremiumAnnualProductId: text(env.APPLE_CAREER_PREMIUM_ANNUAL_PRODUCT_ID) ? env.APPLE_CAREER_PREMIUM_ANNUAL_PRODUCT_ID : null }),
     aws: (() => { const kmsKeyArn = awsArn(env.KUNDLINSIGHTS_KMS_KEY_ARN); return Object.freeze({ region: awsRegion(env.AWS_REGION), kmsKeyArn, historicalKmsKeyArns: historicalArns(env.KUNDLINSIGHTS_HISTORICAL_KMS_KEY_ARNS, kmsKeyArn) }); })(),
     google: Object.freeze({ mapsApiKey: text(env.GOOGLE_MAPS_API_KEY) ? env.GOOGLE_MAPS_API_KEY : invalid(), timeoutMilliseconds: integer(env.GOOGLE_GEOCODING_TIMEOUT_MS, 5000, 100, 15000) }),
     openai: Object.freeze({ apiKey: text(env.OPENAI_API_KEY) ? env.OPENAI_API_KEY : invalid(), careerModel: text(env.OPENAI_CAREER_MODEL) ? env.OPENAI_CAREER_MODEL : invalid(), timeoutMilliseconds: integer(env.OPENAI_CAREER_TIMEOUT_MS, 15000, 100, 30000) }),
