@@ -159,6 +159,10 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
         _state == CareerPremiumPurchaseState.verifying) {
       return;
     }
+    if (platform == CareerPremiumStorePlatform.googlePlay) {
+      await _restoreGooglePurchases();
+      return;
+    }
     if (applePaymentEnvironment == null) {
       _restoreState = CareerPremiumRestoreState.error;
       notifyListeners();
@@ -242,6 +246,11 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
       return;
     }
     if (google.wasCompleted(purchase)) return;
+    if (purchase.status == StorePurchaseStatus.restored &&
+        _restoreState == CareerPremiumRestoreState.restoring) {
+      _restorePurchases.add(purchase);
+      return;
+    }
     switch (purchase.status) {
       case StorePurchaseStatus.pending:
         _setState(CareerPremiumPurchaseState.pending);
@@ -253,6 +262,57 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
         return;
       case StorePurchaseStatus.purchased:
         await _verifyGooglePurchase(purchase, product);
+    }
+  }
+
+  Future<void> _restoreGooglePurchases() async {
+    final google = googlePurchaseService;
+    final product = productController.product;
+    if (google == null || product == null) {
+      _restoreState = CareerPremiumRestoreState.error;
+      notifyListeners();
+      return;
+    }
+    _restorePurchases.clear();
+    _restoreState = CareerPremiumRestoreState.restoring;
+    notifyListeners();
+    try {
+      await google.restorePurchases();
+      await Future<void>.delayed(Duration.zero);
+      final evidence = _restorePurchases
+          .map((purchase) => purchase.serverVerificationData)
+          .where((value) => value.isNotEmpty)
+          .toSet()
+          .toList(growable: false);
+      if (evidence.isEmpty) {
+        _restoreState = CareerPremiumRestoreState.notFound;
+        return;
+      }
+      _restoreState = CareerPremiumRestoreState.verifying;
+      notifyListeners();
+      for (final purchaseToken in evidence) {
+        await paymentApi.verifyGooglePurchase(
+          productId: product.storeProductId,
+          purchaseToken: purchaseToken,
+        );
+      }
+      await entitlementRefresher.refreshEligibility();
+      if (entitlementRefresher.eligibilityState ==
+          CareerEligibilityState.eligible) {
+        for (final purchase in _restorePurchases) {
+          if (purchase.pendingCompletePurchase) {
+            await google.completePurchaseOnce(purchase);
+          }
+        }
+        _restoreState = CareerPremiumRestoreState.success;
+      } else {
+        _restoreState = CareerPremiumRestoreState.notFound;
+      }
+    } catch (_) {
+      _restoreState = CareerPremiumRestoreState.error;
+    } finally {
+      _restorePurchases.clear();
+      notifyListeners();
     }
   }
 

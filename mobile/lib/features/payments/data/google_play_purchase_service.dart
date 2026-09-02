@@ -40,6 +40,8 @@ class GooglePlayPurchaseService implements CareerPremiumProductLoader {
     return client.buyNonConsumable(productId);
   }
 
+  Future<void> restorePurchases() => client.restorePurchases();
+
   @override
   Future<CareerPremiumProductLoadResult> loadCareerPremiumProduct() async {
     final productId = careerPremiumAnnualGoogleProductId;

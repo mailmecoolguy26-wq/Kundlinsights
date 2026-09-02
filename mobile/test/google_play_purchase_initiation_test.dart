@@ -91,7 +91,8 @@ void main() {
     await harness.controller.startPurchase();
 
     expect(harness.googleStore.started, isEmpty);
-    expect(harness.appleStore.restoreCalls, 1);
+    expect(harness.googleStore.restoreCalls, 1);
+    expect(harness.appleStore.restoreCalls, 0);
     restore.complete();
     await restoring;
     harness.dispose();
@@ -140,6 +141,7 @@ class _Harness {
     final googleStore = _Store(
       available: googleAvailable,
       products: const [_googleProduct],
+      restoreCompleter: restoreCompleter,
     );
     final productController = CareerPremiumProductController(
       platform == CareerPremiumStorePlatform.googlePlay
