@@ -12,6 +12,10 @@ abstract interface class PaymentApiClient {
     required String environment,
     required List<String> signedTransactions,
   });
+  Future<void> verifyGooglePurchase({
+    required String productId,
+    required String purchaseToken,
+  });
 }
 
 class AuthenticatedPaymentApiClient implements PaymentApiClient {
@@ -49,6 +53,22 @@ class AuthenticatedPaymentApiClient implements PaymentApiClient {
       },
     );
   }
+
+  @override
+  Future<void> verifyGooglePurchase({
+    required String productId,
+    required String purchaseToken,
+  }) async {
+    await _client.post<Map<String, dynamic>>(
+      '/v1/purchases/verify',
+      data: {
+        'provider': 'GOOGLE',
+        'environment': 'PRODUCTION',
+        'productId': productId,
+        'evidence': {'purchaseToken': purchaseToken},
+      },
+    );
+  }
 }
 
 class UnavailablePaymentApiClient implements PaymentApiClient {
@@ -65,6 +85,12 @@ class UnavailablePaymentApiClient implements PaymentApiClient {
   Future<void> restoreApplePurchases({
     required String environment,
     required List<String> signedTransactions,
+  }) => Future.error(StateError('Payment configuration is unavailable.'));
+
+  @override
+  Future<void> verifyGooglePurchase({
+    required String productId,
+    required String purchaseToken,
   }) => Future.error(StateError('Payment configuration is unavailable.'));
 }
 

@@ -237,6 +237,12 @@ class _Api implements PaymentApiClient {
     if (fails) throw StateError('rejected');
     calls.add(signedTransactions);
   }
+
+  @override
+  Future<void> verifyGooglePurchase({
+    required String productId,
+    required String purchaseToken,
+  }) async {}
 }
 
 class _Entitlement implements CareerPremiumEntitlementRefresher {

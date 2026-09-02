@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -18,6 +19,7 @@ import '../features/readings/reading_controller.dart';
 import '../features/readings/career_reading_generation_controller.dart';
 import '../features/career_events/career_event_controller.dart';
 import '../features/payments/career_premium_product_controller.dart';
+import '../features/payments/data/career_premium_product_loader.dart';
 import '../features/payments/career_premium_purchase_controller.dart';
 
 class KundlInsightsApp extends ConsumerStatefulWidget {
@@ -70,6 +72,9 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp> {
         premiumProduct,
         generation,
         AppConfig.fromEnvironment()?.applePaymentEnvironment,
+        defaultTargetPlatform == TargetPlatform.android
+            ? CareerPremiumStorePlatform.googlePlay
+            : CareerPremiumStorePlatform.apple,
       )),
     );
     _router = createAppRouter(

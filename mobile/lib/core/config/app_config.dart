@@ -4,6 +4,7 @@ class AppConfig {
     required this.supabaseAnonKey,
     required this.apiBaseUrl,
     this.careerPremiumAnnualAppleProductId,
+    this.careerPremiumAnnualGoogleProductId,
     this.applePaymentEnvironment,
   });
 
@@ -11,6 +12,7 @@ class AppConfig {
   final String supabaseAnonKey;
   final String apiBaseUrl;
   final String? careerPremiumAnnualAppleProductId;
+  final String? careerPremiumAnnualGoogleProductId;
   final String? applePaymentEnvironment;
 
   /// Test-only construction; production configuration is build-time only.
@@ -19,6 +21,7 @@ class AppConfig {
     required this.supabaseAnonKey,
     required this.apiBaseUrl,
     this.careerPremiumAnnualAppleProductId,
+    this.careerPremiumAnnualGoogleProductId,
     this.applePaymentEnvironment,
   });
 
@@ -28,6 +31,9 @@ class AppConfig {
     const api = String.fromEnvironment('API_BASE_URL');
     const appleProductId = String.fromEnvironment(
       'APPLE_CAREER_PREMIUM_ANNUAL_PRODUCT_ID',
+    );
+    const googleProductId = String.fromEnvironment(
+      'GOOGLE_CAREER_PREMIUM_ANNUAL_PRODUCT_ID',
     );
     const applePaymentEnvironment = String.fromEnvironment(
       'APPLE_PAYMENT_ENVIRONMENT',
@@ -50,6 +56,9 @@ class AppConfig {
       careerPremiumAnnualAppleProductId: appleProductId.isEmpty
           ? null
           : appleProductId,
+      careerPremiumAnnualGoogleProductId: googleProductId.isEmpty
+          ? null
+          : googleProductId,
       applePaymentEnvironment:
           applePaymentEnvironment == 'SANDBOX' ||
               applePaymentEnvironment == 'PRODUCTION'

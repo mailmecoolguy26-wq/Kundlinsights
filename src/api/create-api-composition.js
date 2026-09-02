@@ -18,6 +18,8 @@ const { ApplePurchaseVerifier } = require('../payment/apple/apple-purchase-verif
 const { AppleNotificationVerifier } = require('../payment/apple/apple-notification-verifier');
 const { AppleNotificationService } = require('../payment/apple/apple-notification-service');
 const { AppleSubscriptionLifecycleReconciler } = require('../payment/apple/apple-subscription-lifecycle-reconciler');
+const { GooglePurchaseVerifier } = require('../payment/google/google-purchase-verifier');
+const { GooglePlayApiClient } = require('../payment/google/google-play-api-client');
 const { PostgresUserKeyEnvelopeStore, UserDekProvider, BirthProfilePayloadCodec, ReadingPayloadCodec } = require('../security/crypto');
 const { resolveOrProvisionAppUser } = require('../security/auth');
 
@@ -26,7 +28,7 @@ function req(value, name) {
   return value;
 }
 
-function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canonicalSiderealSunSampler, placeResolver = null, openai = null, apple = null, idGenerator, clock, requiresEntitlement = () => true, corsAllowlist, isReady, logger, bodyLimit, transactionDiagnosticObserver } = {}) {
+function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canonicalSiderealSunSampler, placeResolver = null, openai = null, apple = null, google = null, idGenerator, clock, requiresEntitlement = () => true, corsAllowlist, isReady, logger, bodyLimit, transactionDiagnosticObserver } = {}) {
   const { createApi } = require('./index');
   req(db, 'DB'); req(authVerifier, 'AUTH_VERIFIER'); req(kms, 'KMS');
   req(astronomicalEngine, 'ASTRONOMICAL_ENGINE'); req(canonicalSiderealSunSampler, 'SUN_SAMPLER');
@@ -105,7 +107,12 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
     : null;
   const appleProvider = appleSignedDataVerifier ? new ApplePurchaseVerifier({ signedDataVerifier: appleSignedDataVerifier, bundleId: apple.bundleId, appleProductId: apple.careerPremiumAnnualProductId, clock: () => Date.parse(clock()) }) : null;
   const appleNotificationService = appleSignedDataVerifier ? new AppleNotificationService({ notificationVerifier: new AppleNotificationVerifier({ signedDataVerifier: appleSignedDataVerifier, bundleId: apple.bundleId, appleProductId: apple.careerPremiumAnnualProductId }), paymentEvents: new PostgresPaymentEventRepository({ db }), lifecycleReconciler: new AppleSubscriptionLifecycleReconciler({ repositories, unitOfWork: paymentUnitOfWork, idGenerator, clock }), idGenerator, clock }) : null;
-  const purchaseProviderRegistry = new PurchaseProviderRegistry(appleProvider ? { APPLE: appleProvider } : {});
+  const googleProvider = google && typeof google.packageName === 'string' && google.packageName && typeof google.careerPremiumAnnualProductId === 'string' && google.careerPremiumAnnualProductId && google.apiClient
+    ? new GooglePurchaseVerifier({ apiClient: google.apiClient, packageName: google.packageName, googleProductId: google.careerPremiumAnnualProductId, clock: () => Date.parse(clock()) })
+    : google && typeof google.packageName === 'string' && google.packageName && typeof google.careerPremiumAnnualProductId === 'string' && google.careerPremiumAnnualProductId && google.serviceAccount
+      ? new GooglePurchaseVerifier({ apiClient: new GooglePlayApiClient({ serviceAccount: google.serviceAccount }), packageName: google.packageName, googleProductId: google.careerPremiumAnnualProductId, clock: () => Date.parse(clock()) })
+      : null;
+  const purchaseProviderRegistry = new PurchaseProviderRegistry({ ...(appleProvider ? { APPLE: appleProvider } : {}), ...(googleProvider ? { GOOGLE: googleProvider } : {}) });
   const purchaseService = new PurchaseVerificationService({ authUserResolver: userResolver, repositories, unitOfWork: paymentUnitOfWork, registry: purchaseProviderRegistry, careerAccessResolver: new CareerAccessResolver(), idGenerator, clock });
   const { PlaceResolutionService } = require('./place-resolution-service');
   const placeResolutionService = placeResolver ? new PlaceResolutionService({ birthPlaceResolver: placeResolver }) : null;

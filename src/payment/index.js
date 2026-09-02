@@ -7,7 +7,7 @@ const PurchaseProvider = freeze(['APPLE', 'GOOGLE', 'WEB']);
 const PurchaseEnvironment = freeze(['SANDBOX', 'PRODUCTION']);
 const PurchaseStatus = freeze(['VERIFIED', 'PENDING', 'REVOKED', 'REFUNDED', 'FAILED']);
 const SubscriptionStatus = freeze(['ACTIVE', 'GRACE_PERIOD', 'CANCELED', 'EXPIRED', 'REVOKED', 'REFUNDED']);
-function createProductCatalog({ appleCareerPremiumAnnualProductId = null } = {}) { return freeze([{ logicalSku: 'career_premium_annual', name: 'KundliInsights Career Premium', displayPrice: '₹599/year', scope: 'USER', kind: 'ANNUAL_SUBSCRIPTION', providerProductIds: freeze({ APPLE: appleCareerPremiumAnnualProductId, GOOGLE: null, WEB: null }) }]); }
+function createProductCatalog({ appleCareerPremiumAnnualProductId = null, googleCareerPremiumAnnualProductId = null } = {}) { return freeze([{ logicalSku: 'career_premium_annual', name: 'KundliInsights Career Premium', displayPrice: '₹599/year', scope: 'USER', kind: 'ANNUAL_SUBSCRIPTION', providerProductIds: freeze({ APPLE: appleCareerPremiumAnnualProductId, GOOGLE: googleCareerPremiumAnnualProductId, WEB: null }) }]); }
 const PRODUCT_CATALOG = createProductCatalog();
 function enumValue(value, values, code) { if (!values.includes(value)) fail(code); return value; }
 function nullableString(value, code) { return value == null ? null : requiredString(value, code); }

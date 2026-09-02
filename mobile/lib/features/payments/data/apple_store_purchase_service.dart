@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
+import 'career_premium_product_loader.dart';
 import '../domain/career_premium_product.dart';
 
 const careerPremiumAnnualLogicalSku = 'career_premium_annual';
@@ -140,20 +141,7 @@ class InAppPurchaseStorePurchaseClient implements StorePurchaseClient {
   }
 }
 
-class CareerPremiumProductLoadResult {
-  const CareerPremiumProductLoadResult._(this.state, {this.product});
-  const CareerPremiumProductLoadResult.available(CareerPremiumProduct product)
-    : this._(CareerPremiumProductLoadState.available, product: product);
-  const CareerPremiumProductLoadResult.unavailable()
-    : this._(CareerPremiumProductLoadState.unavailable);
-  const CareerPremiumProductLoadResult.error()
-    : this._(CareerPremiumProductLoadState.error);
-
-  final CareerPremiumProductLoadState state;
-  final CareerPremiumProduct? product;
-}
-
-class AppleStorePurchaseService {
+class AppleStorePurchaseService implements CareerPremiumProductLoader {
   AppleStorePurchaseService({
     required this.client,
     required this.careerPremiumAnnualAppleProductId,
@@ -163,6 +151,7 @@ class AppleStorePurchaseService {
   final String? careerPremiumAnnualAppleProductId;
   final Set<String> _completedEvidence = {};
 
+  @override
   Future<CareerPremiumProductLoadResult> loadCareerPremiumProduct() async {
     final productId = careerPremiumAnnualAppleProductId;
     if (productId == null || productId.isEmpty) {

@@ -24,4 +24,20 @@ void main() {
       isFalse,
     );
   });
+
+  test(
+    'retains optional Apple and Google subscription product configuration',
+    () {
+      const config = AppConfig.test(
+        supabaseUrl: 'https://example.supabase.co',
+        supabaseAnonKey: 'test-key',
+        apiBaseUrl: 'https://api.example.test',
+        careerPremiumAnnualAppleProductId: 'apple.annual',
+        careerPremiumAnnualGoogleProductId: 'google.annual',
+      );
+
+      expect(config.careerPremiumAnnualAppleProductId, 'apple.annual');
+      expect(config.careerPremiumAnnualGoogleProductId, 'google.annual');
+    },
+  );
 }

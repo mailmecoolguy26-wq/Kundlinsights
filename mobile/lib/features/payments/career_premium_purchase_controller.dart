@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../readings/career_reading_generation_controller.dart';
 import 'career_premium_product_controller.dart';
 import 'data/apple_store_purchase_service.dart';
+import 'data/career_premium_product_loader.dart';
+import 'data/google_play_purchase_service.dart';
 import 'data/payment_api_client.dart';
 import 'domain/career_premium_product.dart';
 
@@ -53,8 +55,14 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
     required this.productController,
     required this.entitlementRefresher,
     required this.applePaymentEnvironment,
+    this.googlePurchaseService,
+    this.platform = CareerPremiumStorePlatform.apple,
   }) {
-    _subscription = service.purchaseUpdates.listen(_onPurchaseUpdate);
+    _subscription =
+        (platform == CareerPremiumStorePlatform.googlePlay
+                ? googlePurchaseService?.purchaseUpdates ?? const Stream.empty()
+                : service.purchaseUpdates)
+            .listen(_onPurchaseUpdate);
   }
 
   final AppleStorePurchaseService service;
@@ -62,6 +70,8 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
   final CareerPremiumProductController productController;
   final CareerPremiumEntitlementRefresher entitlementRefresher;
   final String? applePaymentEnvironment;
+  final GooglePlayPurchaseService? googlePurchaseService;
+  final CareerPremiumStorePlatform platform;
   late final StreamSubscription<StorePurchaseUpdate> _subscription;
   CareerPremiumPurchaseState _state = CareerPremiumPurchaseState.idle;
   CareerPremiumRestoreState _restoreState = CareerPremiumRestoreState.idle;
@@ -93,13 +103,19 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
     }
     final product = productController.product;
     final environment = applePaymentEnvironment;
-    if (product == null || environment == null) {
+    if (product == null ||
+        (platform == CareerPremiumStorePlatform.apple && environment == null) ||
+        (platform == CareerPremiumStorePlatform.googlePlay &&
+            googlePurchaseService == null)) {
       _setState(CareerPremiumPurchaseState.error);
       return;
     }
     _setState(CareerPremiumPurchaseState.purchasing);
     try {
-      if (!await service.startCareerPremiumPurchase(product)) {
+      final started = platform == CareerPremiumStorePlatform.googlePlay
+          ? await googlePurchaseService!.startCareerPremiumPurchase(product)
+          : await service.startCareerPremiumPurchase(product);
+      if (!started) {
         _setState(CareerPremiumPurchaseState.error);
       }
     } catch (_) {
@@ -126,7 +142,11 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
         _restoreState == CareerPremiumRestoreState.verifying) {
       return;
     }
-    await _verifyPurchase(purchase, product);
+    if (platform == CareerPremiumStorePlatform.googlePlay) {
+      await _verifyGooglePurchase(purchase, product);
+    } else {
+      await _verifyPurchase(purchase, product);
+    }
   }
 
   Future<void> restorePurchases() async {
@@ -187,6 +207,10 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
   }
 
   Future<void> _onPurchaseUpdate(StorePurchaseUpdate purchase) async {
+    if (platform == CareerPremiumStorePlatform.googlePlay) {
+      await _onGooglePurchaseUpdate(purchase);
+      return;
+    }
     final product = productController.product;
     if (product == null || purchase.productId != product.storeProductId) return;
     if (service.wasCompleted(purchase)) return;
@@ -205,6 +229,30 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
       case StorePurchaseStatus.purchased:
       case StorePurchaseStatus.restored:
         await _verifyPurchase(purchase, product);
+    }
+  }
+
+  Future<void> _onGooglePurchaseUpdate(StorePurchaseUpdate purchase) async {
+    final product = productController.product;
+    final google = googlePurchaseService;
+    if (product == null ||
+        google == null ||
+        !google.isConfiguredProductId(purchase.productId) ||
+        purchase.productId != product.storeProductId) {
+      return;
+    }
+    if (google.wasCompleted(purchase)) return;
+    switch (purchase.status) {
+      case StorePurchaseStatus.pending:
+        _setState(CareerPremiumPurchaseState.pending);
+      case StorePurchaseStatus.canceled:
+        _setState(CareerPremiumPurchaseState.canceled);
+      case StorePurchaseStatus.error:
+        _setState(CareerPremiumPurchaseState.error);
+      case StorePurchaseStatus.restored:
+        return;
+      case StorePurchaseStatus.purchased:
+        await _verifyGooglePurchase(purchase, product);
     }
   }
 
@@ -238,6 +286,33 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
     }
   }
 
+  Future<void> _verifyGooglePurchase(
+    StorePurchaseUpdate purchase,
+    CareerPremiumProduct product,
+  ) async {
+    final purchaseToken = purchase.serverVerificationData;
+    if (purchaseToken.isEmpty) {
+      _setState(CareerPremiumPurchaseState.error);
+      return;
+    }
+    if (_processingEvidence == purchaseToken) return;
+    _processingEvidence = purchaseToken;
+    _verificationRetryPurchase = purchase;
+    _setState(CareerPremiumPurchaseState.verifying);
+    try {
+      await paymentApi.verifyGooglePurchase(
+        productId: product.storeProductId,
+        purchaseToken: purchaseToken,
+      );
+      _verifiedPurchasePendingCompletion = purchase;
+      await _refreshEntitlementAfterVerification();
+    } catch (_) {
+      _setState(CareerPremiumPurchaseState.error);
+    } finally {
+      _processingEvidence = null;
+    }
+  }
+
   Future<void> _refreshEntitlementAfterVerification() async {
     _setState(CareerPremiumPurchaseState.verifying);
     try {
@@ -253,8 +328,12 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
         return;
       }
       final purchase = _verifiedPurchasePendingCompletion;
-      if (purchase?.pendingCompletePurchase ?? false) {
-        await service.completePurchaseOnce(purchase!);
+      if (purchase?.pendingCompletePurchase == true) {
+        if (platform == CareerPremiumStorePlatform.googlePlay) {
+          await googlePurchaseService!.completePurchaseOnce(purchase!);
+        } else {
+          await service.completePurchaseOnce(purchase!);
+        }
       }
       _verifiedPurchasePendingCompletion = null;
       _verificationRetryPurchase = null;
@@ -285,6 +364,7 @@ final careerPremiumPurchaseControllerProvider =
         CareerPremiumProductController,
         CareerReadingGenerationController,
         String?,
+        CareerPremiumStorePlatform,
       )
     >((ref, scope) {
       final controller = CareerPremiumPurchaseController(
@@ -293,6 +373,8 @@ final careerPremiumPurchaseControllerProvider =
         productController: scope.$1,
         entitlementRefresher: CareerReadingEntitlementRefresher(scope.$2),
         applePaymentEnvironment: scope.$3,
+        googlePurchaseService: ref.watch(googlePlayPurchaseServiceProvider),
+        platform: scope.$4,
       );
       ref.onDispose(controller.dispose);
       return controller;

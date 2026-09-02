@@ -2,11 +2,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'data/apple_store_purchase_service.dart';
+import 'data/career_premium_product_loader.dart';
 import 'domain/career_premium_product.dart';
 
 class CareerPremiumProductController extends ChangeNotifier {
   CareerPremiumProductController(this._service);
-  final AppleStorePurchaseService _service;
+  final CareerPremiumProductLoader _service;
 
   CareerPremiumProductLoadState _state = CareerPremiumProductLoadState.idle;
   CareerPremiumProduct? _product;
@@ -28,8 +29,12 @@ class CareerPremiumProductController extends ChangeNotifier {
 final careerPremiumProductControllerProvider =
     Provider<CareerPremiumProductController>((ref) {
       final controller = CareerPremiumProductController(
-        ref.watch(appleStorePurchaseServiceProvider),
+        ref.watch(careerPremiumProductLoaderProvider),
       );
       ref.onDispose(controller.dispose);
       return controller;
     });
+
+final careerPremiumProductLoaderProvider = Provider<CareerPremiumProductLoader>(
+  (ref) => ref.watch(appleStorePurchaseServiceProvider),
+);

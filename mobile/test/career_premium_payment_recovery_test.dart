@@ -291,6 +291,12 @@ class _Api implements PaymentApiClient {
     required String environment,
     required List<String> signedTransactions,
   }) async => restoreCalls.add(signedTransactions);
+
+  @override
+  Future<void> verifyGooglePurchase({
+    required String productId,
+    required String purchaseToken,
+  }) async {}
 }
 
 class _Entitlement implements CareerPremiumEntitlementRefresher {

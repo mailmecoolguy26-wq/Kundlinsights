@@ -439,6 +439,12 @@ class _PaywallApi implements PaymentApiClient {
     if (fails) throw StateError('synthetic restore failure');
     if (pending) await restore.future;
   }
+
+  @override
+  Future<void> verifyGooglePurchase({
+    required String productId,
+    required String purchaseToken,
+  }) async {}
 }
 
 class _PaywallEntitlement implements CareerPremiumEntitlementRefresher {

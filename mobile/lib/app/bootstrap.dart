@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -41,6 +42,9 @@ import '../features/career_events/data/career_event_api_repository.dart';
 import '../features/career_events/domain/career_event_repository.dart';
 import '../features/career_events/career_event_controller.dart';
 import '../features/payments/data/apple_store_purchase_service.dart';
+import '../features/payments/data/google_play_purchase_service.dart';
+import '../features/payments/data/career_premium_product_loader.dart';
+import '../features/payments/career_premium_product_controller.dart';
 import '../features/payments/data/payment_api_client.dart';
 import 'app.dart';
 
@@ -62,6 +66,18 @@ Future<void> bootstrap() async {
     client: InAppPurchaseStorePurchaseClient(InAppPurchase.instance),
     careerPremiumAnnualAppleProductId:
         config?.careerPremiumAnnualAppleProductId,
+  );
+  final googlePlayPurchaseService = GooglePlayPurchaseService(
+    client: InAppPurchaseStorePurchaseClient(InAppPurchase.instance),
+    careerPremiumAnnualGoogleProductId:
+        config?.careerPremiumAnnualGoogleProductId,
+  );
+  final premiumProductLoader = selectCareerPremiumProductLoader(
+    platform: defaultTargetPlatform == TargetPlatform.android
+        ? CareerPremiumStorePlatform.googlePlay
+        : CareerPremiumStorePlatform.apple,
+    apple: storePurchaseService,
+    googlePlay: googlePlayPurchaseService,
   );
   if (config == null) {
     repository = _UnavailableAuthRepository();
@@ -123,6 +139,12 @@ Future<void> bootstrap() async {
         careerEventRepositoryProvider.overrideWithValue(careerEventRepository),
         appleStorePurchaseServiceProvider.overrideWithValue(
           storePurchaseService,
+        ),
+        googlePlayPurchaseServiceProvider.overrideWithValue(
+          googlePlayPurchaseService,
+        ),
+        careerPremiumProductLoaderProvider.overrideWithValue(
+          premiumProductLoader,
         ),
         paymentApiClientProvider.overrideWithValue(paymentApi),
       ],
