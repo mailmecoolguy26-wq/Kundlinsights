@@ -20,6 +20,10 @@ const { AppleNotificationService } = require('../payment/apple/apple-notificatio
 const { AppleSubscriptionLifecycleReconciler } = require('../payment/apple/apple-subscription-lifecycle-reconciler');
 const { GooglePurchaseVerifier } = require('../payment/google/google-purchase-verifier');
 const { GooglePlayApiClient } = require('../payment/google/google-play-api-client');
+const { createGooglePubSubAuthVerifier } = require('../payment/google/google-pubsub-auth-verifier');
+const { decodeGoogleRtdn } = require('../payment/google/google-rtdn-decoder');
+const { GoogleRtdnService } = require('../payment/google/google-rtdn-service');
+const { GoogleSubscriptionLifecycleReconciler, normalizeGoogleSubscription } = require('../payment/google/google-subscription-lifecycle-reconciler');
 const { PostgresUserKeyEnvelopeStore, UserDekProvider, BirthProfilePayloadCodec, ReadingPayloadCodec } = require('../security/crypto');
 const { resolveOrProvisionAppUser } = require('../security/auth');
 
@@ -112,11 +116,25 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
     : google && typeof google.packageName === 'string' && google.packageName && typeof google.careerPremiumAnnualProductId === 'string' && google.careerPremiumAnnualProductId && google.serviceAccount
       ? new GooglePurchaseVerifier({ apiClient: new GooglePlayApiClient({ serviceAccount: google.serviceAccount }), packageName: google.packageName, googleProductId: google.careerPremiumAnnualProductId, clock: () => Date.parse(clock()) })
       : null;
+  const googleApiClient = googleProvider && google && google.apiClient ? google.apiClient : googleProvider && google && google.serviceAccount ? new GooglePlayApiClient({ serviceAccount: google.serviceAccount }) : null;
+  const googleRtdnService = googleApiClient && google && google.rtdn && typeof google.rtdn.audience === 'string' && typeof google.rtdn.allowedServiceAccountEmail === 'string'
+    ? new GoogleRtdnService({
+      pubsubAuthVerifier: google.rtdn.authVerifier || createGooglePubSubAuthVerifier({ audience: google.rtdn.audience, allowedServiceAccountEmail: google.rtdn.allowedServiceAccountEmail }),
+      decoder: decodeGoogleRtdn,
+      apiClient: googleApiClient,
+      packageName: google.packageName,
+      googleProductId: google.careerPremiumAnnualProductId,
+      paymentEvents: new PostgresPaymentEventRepository({ db }),
+      lifecycleReconciler: Object.assign(new GoogleSubscriptionLifecycleReconciler({ repositories, unitOfWork: paymentUnitOfWork, idGenerator, clock }), { normalize: (input) => normalizeGoogleSubscription({ ...input, packageName: google.packageName, googleProductId: google.careerPremiumAnnualProductId }) }),
+      idGenerator,
+      clock,
+    })
+    : null;
   const purchaseProviderRegistry = new PurchaseProviderRegistry({ ...(appleProvider ? { APPLE: appleProvider } : {}), ...(googleProvider ? { GOOGLE: googleProvider } : {}) });
   const purchaseService = new PurchaseVerificationService({ authUserResolver: userResolver, repositories, unitOfWork: paymentUnitOfWork, registry: purchaseProviderRegistry, careerAccessResolver: new CareerAccessResolver(), idGenerator, clock });
   const { PlaceResolutionService } = require('./place-resolution-service');
   const placeResolutionService = placeResolver ? new PlaceResolutionService({ birthPlaceResolver: placeResolver }) : null;
-  const api = createApi({ authVerifier, userResolver: { resolve: userResolver }, birthProfileService, careerEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, ashtakavargaService, secureReadingService, purchaseService, appleNotificationService, placeResolutionService, requestIdGenerator: idGenerator, corsAllowlist, isReady, logger, bodyLimit });
+  const api = createApi({ authVerifier, userResolver: { resolve: userResolver }, birthProfileService, careerEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, ashtakavargaService, secureReadingService, purchaseService, appleNotificationService, googleRtdnService, placeResolutionService, requestIdGenerator: idGenerator, corsAllowlist, isReady, logger, bodyLimit });
   api.apiRuntime = { astronomicalEngine, canonicalSiderealSunSampler };
   return Object.freeze({ api, services: Object.freeze({ birthProfileService, careerEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, secureReadingService, userResolver, transactionExecutor: tx }) });
 }
