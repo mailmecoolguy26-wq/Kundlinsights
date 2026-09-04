@@ -1,24 +1,26 @@
 'use strict';
 const test = require('node:test'); const assert = require('node:assert/strict');
-const { InMemoryUserRepository, InMemoryBirthProfileRepository, InMemoryReadingRepository, InMemoryEntitlementRepository } = require('../../src/persistence');
+const { InMemoryUserRepository, InMemoryBirthProfileRepository, InMemoryReadingRepository, InMemoryEntitlementRepository, InMemoryProfileEntitlementRepository, InMemorySubscriptionRepository } = require('../../src/persistence');
+const { CAREER_PROFILE_UNLOCK_SKU } = require('../../src/payment');
 const { SecureReadingService, CalibratedCareerReadingGenerator } = require('../../src/application/readings');
 const T0 = '2026-08-13T00:00:00.000Z';
 const principal = (subject, extra = {}) => ({ provider: 'supabase', subject, isAnonymous: false, ...extra });
 const birthData = Object.freeze({ localDate: '1990-11-26', localTime: '13:40:00', timezone: 'Asia/Kolkata', utc: '1990-11-26T08:10:00.000Z', latitude: 17.385, longitude: 78.4867, timezoneProvenance: { provider: 'test', datasetVersion: '2026c', datasetChecksum: 'test' } });
 function record({ readingId, createdAt, input, result }) { return { schemaVersion: 'kundlinsights-reading-record-v1', readingId, domain: result.domain, createdAt, engineProfileId: 'kundlinsights-vedic-engine-profile-v2', input, provenance: { timezone: { datasetVersion: '2026c' }, dasha: { dashaRulesetId: 'vimshottari-longitude-proportional-solar-return-v1' } }, reading: result.reading || { result: result.value }, renderedReading: null, integrity: { calculation: { algorithm: 'sha256', digest: 'a'.repeat(64) }, output: { algorithm: 'sha256', digest: 'b'.repeat(64) }, rendered: null } }; }
-function setup({ entitlement = 1, generatorFails = false, insertFails = false, secureBirthProfileLoader = null, requiresEntitlement = () => true, readingGenerator: injectedGenerator = null } = {}) {
-  const users = new InMemoryUserRepository(); const profiles = new InMemoryBirthProfileRepository(); const readings = new InMemoryReadingRepository(); const entitlements = new InMemoryEntitlementRepository();
+function setup({ entitlement = 1, generatorFails = false, insertFails = false, secureBirthProfileLoader = null, requiresEntitlement = () => true, readingGenerator: injectedGenerator = null, profileUnlock = false } = {}) {
+  const users = new InMemoryUserRepository(); const profiles = new InMemoryBirthProfileRepository(); const readings = new InMemoryReadingRepository(); const entitlements = new InMemoryEntitlementRepository(); const profileEntitlements = new InMemoryProfileEntitlementRepository(); const subscriptions = new InMemorySubscriptionRepository();
   users.createUser({ id: 'user-a', authSubject: 'subject-a', status: 'active', createdAt: T0 }); users.createUser({ id: 'user-b', authSubject: 'subject-b', status: 'active', createdAt: T0 });
-  profiles.createBirthProfile({ id: 'profile-a', userId: 'user-a', birthData, createdAt: T0 }); profiles.createBirthProfile({ id: 'profile-b', userId: 'user-b', birthData, createdAt: T0 });
+  profiles.createBirthProfile({ id: 'profile-a', userId: 'user-a', birthData, createdAt: T0 }); profiles.createBirthProfile({ id: 'profile-a2', userId: 'user-a', birthData, createdAt: T0 }); profiles.createBirthProfile({ id: 'profile-b', userId: 'user-b', birthData, createdAt: T0 });
   entitlements.createEntitlement({ id: 'ent-a', userId: 'user-a', productKey: 'CAREER', status: 'active', quantity: entitlement, validFrom: T0, createdAt: T0 });
+  if (profileUnlock) profileEntitlements.create({ id: 'unlock-a', userId: 'user-a', birthProfileId: 'profile-a', logicalSku: CAREER_PROFILE_UNLOCK_SKU, purchaseRecordId: 'purchase-a', unlockedAt: T0, createdAt: T0 });
   const originalInsert = readings.insertReadingRecord.bind(readings); if (insertFails) readings.insertReadingRecord = () => { const error = new Error(); error.code = 'INSERT_FAILED'; throw error; };
   let next = 0; let generatorCalls = 0; const service = new SecureReadingService({
     authUserResolver: async (p) => users.getUserByAuthSubject(p.subject), transactionExecutor: { execute: async ({ role, operation }) => { const readingSnapshot = new Map(readings.readings); const entitlementSnapshot = new Map(entitlements.entitlements); try { return await operation({ setRole: async () => {}, role }); } catch (error) { readings.readings = readingSnapshot; entitlements.entitlements = entitlementSnapshot; throw error; } } },
-    repositories: () => ({ birthProfiles: profiles, readings, entitlements }), secureBirthProfileLoader,
+    repositories: () => ({ birthProfiles: profiles, readings, entitlements, profileEntitlements, subscriptions }), secureBirthProfileLoader,
     readingGenerator: injectedGenerator || { generate: async ({ birthProfile, domain }) => { generatorCalls += 1; if (generatorFails) throw new Error('bad'); return { input: { birth: { ...birthProfile.birthData, placeResolution: { resolutionVersion: 'test', timezoneResolver: birthProfile.birthData.timezoneProvenance }, display: null }, readingInstant: T0, transitScanRange: null, locale: 'en-IN' }, result: { domain, value: 'generated' } }; } },
     readingRecordFactory: record, replayReading: async ({ record: value }) => ({ result: { domain: value.domain } }), requiresEntitlement, idGenerator: () => `reading-${++next}-abcdefgh`, clock: () => T0,
   });
-  return { service, readings, entitlements, originalInsert, generatorCalls: () => generatorCalls };
+  return { service, readings, entitlements, subscriptions, originalInsert, generatorCalls: () => generatorCalls };
 }
 function rejects(promise, code) { return assert.rejects(promise, (error) => error && error.code === code); }
 
@@ -34,6 +36,13 @@ test('SEC-P6 blocks anonymous, disabled/wrong-owner, exhausted, generation-faile
   const exhausted = setup({ entitlement: 0 }); await rejects(exhausted.service.generateSecureReading(request), 'ENTITLEMENT_EXHAUSTED'); assert.equal(exhausted.entitlements.getEntitlement('ent-a').quantity, 0); assert.equal(exhausted.generatorCalls(), 0);
   const generation = setup({ generatorFails: true }); await rejects(generation.service.generateSecureReading(request), 'READING_GENERATION_FAILED'); assert.equal(generation.entitlements.getEntitlement('ent-a').quantity, 1);
   const persistence = setup({ insertFails: true }); await rejects(persistence.service.generateSecureReading(request), 'READING_PERSISTENCE_FAILED'); assert.equal(persistence.entitlements.getEntitlement('ent-a').quantity, 1);
+});
+test('Career generation uses a profile unlock without consuming credit and isolates sibling profiles', async () => {
+  const fixture = setup({ entitlement: 1, profileUnlock: true }); const request = { principal: principal('subject-a'), domain: 'CAREER', readingInstant: T0, locale: 'en-IN' };
+  await fixture.service.generateSecureReading({ ...request, birthProfileId: 'profile-a', idempotencyKey: 'profile-unlock-a' });
+  assert.equal(fixture.entitlements.getEntitlement('ent-a').quantity, 1);
+  const isolated = setup({ entitlement: 0, profileUnlock: true });
+  await rejects(isolated.service.generateSecureReading({ ...request, birthProfileId: 'profile-a2', idempotencyKey: 'profile-unlock-a2' }), 'ENTITLEMENT_EXHAUSTED');
 });
 test('SEC-P6 secure fetch/replay returns only owned decrypted readings and never ciphertext/key metadata', async () => {
   const { service } = setup(); const made = await service.generateSecureReading({ principal: principal('subject-a'), birthProfileId: 'profile-a', domain: 'CAREER', idempotencyKey: 'request-c', readingInstant: T0, locale: 'en-IN' });
@@ -76,20 +85,17 @@ for (const [level, eventReferences] of [['NONE', []], ['LIMITED', [{ eventId: 'e
   const generator = new CalibratedCareerReadingGenerator({ baseGenerator: { generate: async ({ birthProfile, domain }) => { calls.base++; return { input: { birth: { ...birthProfile.birthData, placeResolution: { resolutionVersion: 'test', timezoneResolver: birthProfile.birthData.timezoneProvenance }, display: null }, readingInstant: T0, transitScanRange: null, locale: 'en-IN' }, result: { domain, value: 'current-natal-dasha-gochar', reading: { currentContext: true }, provenance: { engineProfileId: 'kundlinsights-vedic-engine-profile-v2' } } }; } }, careerReadingContextBuilder: { build: async () => { calls.builder++; return context; } }, careerReadingInterpreter: { interpretContext: async (value) => { calls.interpreter++; assert.equal(value, context); return { schemaVersion: 'career-reading-interpretation-schema-v1', calibrationSummary: { calibrationLevel: level }, recurringHistoricalEvidence: [], upcomingRecurrenceWindows: [], disclosure: { hasProvisionalEvidence: false } }; } } });
   const fixture = setup({ readingGenerator: generator }); const result = await fixture.service.generateSecureReading({ principal: principal('subject-a'), birthProfileId: 'profile-a', domain: 'CAREER', idempotencyKey: `p6d-${level}`, readingInstant: T0, locale: 'en-IN' }); assert.ok(result.readingId); assert.deepEqual(calls, { base: 1, builder: 1, interpreter: 1 }); assert.equal(fixture.readings.listReadingRecordsForUser('user-a').length, 1); assert.equal(fixture.entitlements.getEntitlement('ent-a').quantity, 0); const persisted = fixture.readings.listReadingRecordsForUser('user-a')[0].record; assert.equal(persisted.reading.calibrationInterpretation.calibrationSummary.calibrationLevel, level); assert.deepEqual(persisted.reading.calibrationInterpretation.recurringHistoricalEvidence, []); assert.deepEqual(persisted.reading.calibrationInterpretation.upcomingRecurrenceWindows, []); if (level === 'LIMITED') assert.deepEqual(context.eventReferences[0].eventDate, { precision: 'MONTH', year: 2021, month: 4 });
 });
-test('API-P5C3 status reuses the create-reading entitlement selection authority without consuming or reserving a grant', async () => {
-  const { service, entitlements } = setup(); const originalConsume = entitlements.consumeEntitlement.bind(entitlements); let consumes = 0;
+test('Profile-scoped status returns PROFILE_UNLOCK before credit without consuming credit and isolates sibling profiles', async () => {
+  const { service, entitlements } = setup({ profileUnlock: true }); const originalConsume = entitlements.consumeEntitlement.bind(entitlements); let consumes = 0;
   entitlements.consumeEntitlement = (...args) => { consumes += 1; return originalConsume(...args); };
-  assert.deepEqual(await service.getReadingEntitlementStatus({ principal: principal('subject-a') }), { career: { eligible: true } });
+  assert.deepEqual(await service.getReadingEntitlementStatus({ principal: principal('subject-a'), birthProfileId: 'profile-a' }), { career: { eligible: true, mode: 'PROFILE_UNLOCK', consuming: false } });
   assert.equal(entitlements.getEntitlement('ent-a').quantity, 1); assert.equal(consumes, 0);
-  await service.generateSecureReading({ principal: principal('subject-a'), birthProfileId: 'profile-a', domain: 'CAREER', idempotencyKey: 'status-consistency', readingInstant: T0, locale: 'en-IN' });
-  assert.equal(consumes, 1); assert.deepEqual(await service.getReadingEntitlementStatus({ principal: principal('subject-a') }), { career: { eligible: false } });
+  assert.deepEqual(await service.getReadingEntitlementStatus({ principal: principal('subject-a'), birthProfileId: 'profile-a2' }), { career: { eligible: true, mode: 'CREDIT', consuming: true } });
+  assert.equal(entitlements.getEntitlement('ent-a').quantity, 1); assert.equal(consumes, 0);
 });
-test('API-P5C3 status excludes consumed, expired, and other-user grants while accepting multiple valid CAREER grants', async () => {
-  const exhausted = setup({ entitlement: 0 });
-  exhausted.entitlements.createEntitlement({ id: 'expired', userId: 'user-a', productKey: 'CAREER', status: 'active', quantity: 3, validFrom: '2026-08-12T00:00:00.000Z', validUntil: T0 });
-  exhausted.entitlements.createEntitlement({ id: 'other-user', userId: 'user-b', productKey: 'CAREER', status: 'active', quantity: 3, validFrom: T0 });
-  assert.deepEqual(await exhausted.service.getReadingEntitlementStatus({ principal: principal('subject-a') }), { career: { eligible: false } });
-  assert.deepEqual(await exhausted.service.getReadingEntitlementStatus({ principal: principal('subject-b') }), { career: { eligible: true } });
-  exhausted.entitlements.createEntitlement({ id: 'second-valid', userId: 'user-a', productKey: 'CAREER', status: 'active', quantity: 2, validFrom: T0 });
-  assert.deepEqual(await exhausted.service.getReadingEntitlementStatus({ principal: principal('subject-a') }), { career: { eligible: true } });
+test('Profile-scoped status ignores legacy subscriptions and blocks cross-user profiles', async () => {
+  const fixture = setup({ entitlement: 0 });
+  for (const status of ['ACTIVE', 'CANCELED']) fixture.subscriptions.upsertVerifiedState({ id: `sub-${status}`, userId: 'user-a', provider: 'APPLE', environment: 'SANDBOX', productId: 'career_premium_annual', originalTransactionId: `original-${status}`, status, validFrom: T0, validUntil: '2027-08-13T00:00:00.000Z', createdAt: T0 });
+  assert.deepEqual(await fixture.service.getReadingEntitlementStatus({ principal: principal('subject-a'), birthProfileId: 'profile-a2' }), { career: { eligible: false, mode: 'NONE', consuming: false } });
+  await rejects(fixture.service.getReadingEntitlementStatus({ principal: principal('subject-a'), birthProfileId: 'profile-b' }), 'NOT_FOUND_OR_FORBIDDEN');
 });

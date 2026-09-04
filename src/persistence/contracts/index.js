@@ -9,8 +9,9 @@ const REPOSITORY_CONTRACTS = freeze({
   ReadingRepository: freeze(['insertReadingRecord', 'getReadingRecord', 'getReadingRecordByIdempotencyKey', 'listReadingRecordsForUser', 'listReadingRecordsForBirthProfile', 'archiveReadingRecord']),
   EntitlementRepository: freeze(['createEntitlement', 'getEntitlement', 'listActiveEntitlementsForUser', 'consumeEntitlement']),
   PaymentRepository: freeze(['insertPaymentTransaction', 'getPaymentTransaction', 'findByProviderTransactionId']),
-  PurchaseRepository: freeze(['findByProviderTransaction', 'insert', 'listForUser']),
+  PurchaseRepository: freeze(['findById', 'findByProviderTransaction', 'insert', 'listForUser']),
   SubscriptionRepository: freeze(['findByProviderOriginalTransaction', 'findUsableCandidatesForUser', 'upsertVerifiedState', 'listForUser']),
+  ProfileEntitlementRepository: freeze(['findForProfile', 'findByPurchaseRecordId', 'create']),
   PaymentEventRepository: freeze(['findByProviderEventId', 'insertReceived', 'markProcessed', 'markFailed']),
 });
 

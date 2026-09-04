@@ -54,7 +54,7 @@ class SecureReadingService {
     this.readingRecordFactory = requiredFunction(readingRecordFactory, 'INVALID_READING_RECORD_FACTORY');
     this.replayReading = requiredFunction(replayReading, 'INVALID_REPLAY_READING');
     this.requiresEntitlement = requiredFunction(requiresEntitlement, 'INVALID_ENTITLEMENT_POLICY');
-    this.careerAccessResolver = careerAccessResolver && typeof careerAccessResolver.resolve === 'function' ? careerAccessResolver : fail('INVALID_CAREER_ACCESS_RESOLVER');
+    this.careerAccessResolver = careerAccessResolver && typeof careerAccessResolver.resolve === 'function' && typeof careerAccessResolver.resolveForProfile === 'function' ? careerAccessResolver : fail('INVALID_CAREER_ACCESS_RESOLVER');
     this.idGenerator = requiredFunction(idGenerator, 'INVALID_READING_ID');
     this.clock = requiredFunction(clock, 'INVALID_APPLICATION_CLOCK');
   }
@@ -93,7 +93,7 @@ class SecureReadingService {
     } catch (error) { safeError(error, 'NOT_FOUND_OR_FORBIDDEN'); }
     if (this.requiresEntitlement({ domain: readingDomain })) {
       try {
-        const access = await this.execute(verified, 'app_runtime', async (context) => this.careerAccessResolver.resolve({ repositories: this.repo(context), userId: user.id, at: this.clock() }));
+        const access = await this.execute(verified, 'app_runtime', async (context) => this.careerAccessResolver.resolveForProfile({ repositories: this.repo(context), userId: user.id, birthProfileId: profileId, at: this.clock() }));
         if (!access.eligible) fail('ENTITLEMENT_EXHAUSTED');
       } catch (error) { safeError(error, 'ENTITLEMENT_EXHAUSTED'); }
     }
@@ -115,7 +115,7 @@ class SecureReadingService {
         if (winner) return { kind: 'existing', value: winner };
         let access = null;
         if (this.requiresEntitlement({ domain: readingDomain })) {
-          access = await this.careerAccessResolver.resolve({ repositories: repos, userId: user.id, at: this.clock() });
+          access = await this.careerAccessResolver.resolveForProfile({ repositories: repos, userId: user.id, birthProfileId: profile.id, at: this.clock() });
           if (!access.eligible) fail('ENTITLEMENT_EXHAUSTED');
         }
         if (access && access.consuming) {
@@ -137,13 +137,14 @@ class SecureReadingService {
       safeError(error, 'READING_PERSISTENCE_FAILED');
     }
   }
-  async getReadingEntitlementStatus({ principal: principalInput } = {}) {
+  async getReadingEntitlementStatus({ principal: principalInput, birthProfileId } = {}) {
     const { verified, user } = await this.resolve(principalInput);
+    requiredString(birthProfileId, 'INVALID_BIRTH_PROFILE_ID');
     const domain = 'CAREER';
     if (!this.requiresEntitlement({ domain })) return immutableCopy({ career: { eligible: true } });
     try {
-      const access = await this.execute(verified, 'app_runtime', async (context) => this.careerAccessResolver.resolve({ repositories: this.repo(context), userId: user.id, at: this.clock() }));
-      return immutableCopy({ career: { eligible: access.eligible } });
+      const access = await this.execute(verified, 'app_runtime', async (context) => this.careerAccessResolver.resolveForProfile({ repositories: this.repo(context), userId: user.id, birthProfileId, at: this.clock() }));
+      return immutableCopy({ career: { eligible: access.eligible, mode: access.mode, consuming: access.consuming } });
     } catch (error) { safeError(error, 'ENTITLEMENT_STATUS_FAILED'); }
   }
   async getSecureReading({ principal: principalInput, readingId } = {}) {

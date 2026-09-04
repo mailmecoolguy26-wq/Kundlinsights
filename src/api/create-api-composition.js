@@ -9,7 +9,7 @@ const { VimshottariService } = require('../application/vimshottari');
 const { TransitSnapshotService } = require('../application/transit-snapshot');
 const { AshtakavargaService } = require('../application/ashtakavarga');
 const { CareerEventService, CareerEventAstrologyService, CareerPatternComparisonService, CareerFutureRecurrenceService, CareerReadingContextBuilder } = require('../application/career-events');
-const { PostgresUserRepository, PostgresBirthProfileRepository, PostgresReadingRepository, PostgresEntitlementRepository, PostgresCareerEventRepository, PostgresPurchaseRepository, PostgresSubscriptionRepository, PostgresPaymentEventRepository } = require('../persistence');
+const { PostgresUserRepository, PostgresBirthProfileRepository, PostgresReadingRepository, PostgresEntitlementRepository, PostgresCareerEventRepository, PostgresPurchaseRepository, PostgresSubscriptionRepository, PostgresProfileEntitlementRepository, PostgresPaymentEventRepository } = require('../persistence');
 const { PostgresPaymentUnitOfWork } = require('../payment/unit-of-work');
 const { PurchaseProviderRegistry, PurchaseVerificationService } = require('../payment/purchase-services');
 const { CareerAccessResolver } = require('../application/readings');
@@ -68,6 +68,7 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
       entitlements: new PostgresEntitlementRepository({ db: client }),
       purchases: new PostgresPurchaseRepository({ db: client }),
       subscriptions: new PostgresSubscriptionRepository({ db: client }),
+      profileEntitlements: new PostgresProfileEntitlementRepository({ db: client }),
       careerEvents: new PostgresCareerEventRepository({ db: client }),
       envelopes,
       deks,
@@ -105,7 +106,7 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   const readingGenerator = new CalibratedCareerReadingGenerator({ baseGenerator: baseReadingGenerator, careerReadingContextBuilder, careerReadingInterpreter });
   const { createReadingRecord, replayPersistedReading } = require('../readings');
   const secureReadingService = new SecureReadingService({ authUserResolver: userResolver, transactionExecutor: tx, repositories, secureBirthProfileLoader: birthProfileService, readingCryptoCoordinator: cryptoCoordinator, readingGenerator, readingRecordFactory: createReadingRecord, replayReading: replayPersistedReading, requiresEntitlement, idGenerator, clock });
-  const paymentUnitOfWork = new PostgresPaymentUnitOfWork({ pool: db });
+  const paymentUnitOfWork = new PostgresPaymentUnitOfWork({ pool: db, birthProfileRepositoryFactory: (client) => repositories({ db: client }).birthProfiles });
   const appleSignedDataVerifier = apple && typeof apple.bundleId === 'string' && apple.bundleId && typeof apple.careerPremiumAnnualProductId === 'string' && apple.careerPremiumAnnualProductId && apple.rootCertificateProvider && typeof apple.rootCertificateProvider.load === 'function' && typeof apple.appAppleId === 'string' && apple.appAppleId
     ? new AppleSignedDataVerifier({ factory: new AppleSignedDataVerifierFactory({ rootCertificateProvider: apple.rootCertificateProvider, bundleId: apple.bundleId, appAppleId: apple.appAppleId, onlineChecks: apple.onlineChecks === true }) })
     : null;

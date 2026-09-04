@@ -1,0 +1,5 @@
+create table app.profile_entitlements (id text primary key check (id <> ''), user_id text not null references app.users(id) on delete restrict, birth_profile_id text not null references app.birth_profiles(id) on delete restrict, logical_sku text not null check (logical_sku <> ''), purchase_record_id text not null references app.purchase_records(id) on delete restrict, unlocked_at timestamptz not null, created_at timestamptz not null, updated_at timestamptz not null, unique (user_id, birth_profile_id, logical_sku), unique (purchase_record_id));
+alter table app.profile_entitlements enable row level security; alter table app.profile_entitlements force row level security;
+create policy app_runtime_select_own_profile_entitlements on app.profile_entitlements for select to app_runtime using (user_id = (select security.current_app_user_id()));
+create policy app_worker_manage_profile_entitlements on app.profile_entitlements for all to app_worker using (true) with check (true);
+grant select on app.profile_entitlements to app_runtime; grant select, insert, update on app.profile_entitlements to app_worker;

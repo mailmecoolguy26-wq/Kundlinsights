@@ -3,7 +3,7 @@
 const { READING_RECORD_SCHEMA_VERSION } = require('../../readings');
 const { freeze } = require('../../synthesis/evidence-node');
 const { fail, requiredString, canonicalTime, immutableCopy, compareCreatedAscending } = require('../contracts');
-const { purchaseRecord, subscriptionRecord, paymentEvent } = require('../../payment');
+const { purchaseRecord, subscriptionRecord, profileEntitlement, paymentEvent } = require('../../payment');
 
 function status(value, code = 'INVALID_STATUS') { return requiredString(value, code); }
 function nullableUtc(value, code) { return value === null || value === undefined ? null : canonicalTime(value, code); }
@@ -70,6 +70,7 @@ class InMemoryPaymentRepository {
 
 class InMemoryPurchaseRepository {
   constructor() { this.records = new Map(); this.byProviderTransaction = new Map(); }
+  findById(id) { const item = this.records.get(requiredString(id, 'INVALID_PURCHASE_ID')); return item ? copyResult(item) : null; }
   findByProviderTransaction({ provider, environment, providerTransactionId } = {}) { const id = this.byProviderTransaction.get(`${requiredString(provider, 'INVALID_PURCHASE_PROVIDER')}\u0000${requiredString(environment, 'INVALID_PURCHASE_ENVIRONMENT')}\u0000${requiredString(providerTransactionId, 'INVALID_PROVIDER_TRANSACTION_ID')}`); return id ? copyResult(this.records.get(id)) : null; }
   insert(input = {}) { const item = purchaseRecord(input); const prior = this.findByProviderTransaction(item); if (prior) { if (prior.userId !== item.userId) fail('PURCHASE_OWNERSHIP_CONFLICT'); return prior; } if (this.records.has(item.id)) fail('DUPLICATE_PURCHASE_ID'); this.records.set(item.id, item); this.byProviderTransaction.set(`${item.provider}\u0000${item.environment}\u0000${item.providerTransactionId}`, item.id); return copyResult(item); }
   listForUser(userId) { requiredString(userId, 'INVALID_USER_ID'); return freeze([...this.records.values()].filter((value) => value.userId === userId).sort((a, b) => Date.parse(b.purchasedAt) - Date.parse(a.purchasedAt) || a.id.localeCompare(b.id)).map(copyResult)); }
@@ -81,6 +82,12 @@ class InMemorySubscriptionRepository {
   findUsableCandidatesForUser(userId, evaluationTime) { const at = Date.parse(canonicalTime(evaluationTime, 'INVALID_EVALUATION_TIME')); requiredString(userId, 'INVALID_USER_ID'); return freeze([...this.records.values()].filter((value) => value.userId === userId && ['ACTIVE', 'GRACE_PERIOD', 'CANCELED'].includes(value.status) && Date.parse(value.validFrom) <= at && at < Date.parse(value.validUntil)).map(copyResult)); }
   listForUser(userId) { requiredString(userId, 'INVALID_USER_ID'); return freeze([...this.records.values()].filter((value) => value.userId === userId).sort((a, b) => Date.parse(b.validUntil) - Date.parse(a.validUntil) || a.id.localeCompare(b.id)).map(copyResult)); }
 }
+class InMemoryProfileEntitlementRepository {
+  constructor() { this.records = new Map(); this.byProfile = new Map(); this.byPurchase = new Map(); }
+  findForProfile({ userId, birthProfileId, logicalSku } = {}) { const id = this.byProfile.get(`${requiredString(userId, 'INVALID_USER_ID')}\u0000${requiredString(birthProfileId, 'INVALID_BIRTH_PROFILE_ID')}\u0000${requiredString(logicalSku, 'INVALID_PRODUCT_ID')}`); return id ? copyResult(this.records.get(id)) : null; }
+  findByPurchaseRecordId(purchaseRecordId) { const id = this.byPurchase.get(requiredString(purchaseRecordId, 'INVALID_PURCHASE_ID')); return id ? copyResult(this.records.get(id)) : null; }
+  create(input = {}) { const item = profileEntitlement(input); const existing = this.findForProfile(item); if (existing) { if (existing.purchaseRecordId === item.purchaseRecordId) return existing; fail('DUPLICATE_PROFILE_ENTITLEMENT'); } if (this.findByPurchaseRecordId(item.purchaseRecordId)) fail('PURCHASE_ALREADY_ASSIGNED'); this.records.set(item.id, item); this.byProfile.set(`${item.userId}\u0000${item.birthProfileId}\u0000${item.logicalSku}`, item.id); this.byPurchase.set(item.purchaseRecordId, item.id); return copyResult(item); }
+}
 class InMemoryPaymentEventRepository {
   constructor() { this.records = new Map(); this.byProviderEvent = new Map(); }
   findByProviderEventId({ provider, environment, providerEventId } = {}) { const id = this.byProviderEvent.get(`${requiredString(provider, 'INVALID_PURCHASE_PROVIDER')}\u0000${requiredString(environment, 'INVALID_PURCHASE_ENVIRONMENT')}\u0000${requiredString(providerEventId, 'INVALID_PROVIDER_EVENT_ID')}`); return id ? copyResult(this.records.get(id)) : null; }
@@ -89,4 +96,4 @@ class InMemoryPaymentEventRepository {
   markFailed(id, { processedAt, failureCode } = {}) { const prior = this.records.get(requiredString(id, 'INVALID_PAYMENT_EVENT_ID')); if (!prior) fail('PAYMENT_EVENT_NOT_FOUND'); const next = immutableCopy({ ...prior, processingStatus: 'FAILED', processedAt: canonicalTime(processedAt, 'INVALID_EVENT_TIMESTAMP'), failureCode: requiredString(failureCode, 'INVALID_EVENT_FAILURE_CODE') }); this.records.set(id, next); return copyResult(next); }
 }
 
-module.exports = { InMemoryUserRepository, InMemoryBirthProfileRepository, InMemoryReadingRepository, InMemoryEntitlementRepository, InMemoryPaymentRepository, InMemoryPurchaseRepository, InMemorySubscriptionRepository, InMemoryPaymentEventRepository };
+module.exports = { InMemoryUserRepository, InMemoryBirthProfileRepository, InMemoryReadingRepository, InMemoryEntitlementRepository, InMemoryPaymentRepository, InMemoryPurchaseRepository, InMemorySubscriptionRepository, InMemoryProfileEntitlementRepository, InMemoryPaymentEventRepository };

@@ -18,7 +18,7 @@ function createApi({ authVerifier, userResolver, birthProfileService, careerEven
   app.get('/v1/me', async (request) => { const user = await userResolver.resolve(request.principal); return { user: { id: user.id, status: user.status }, requestId: request.id }; });
   app.get('/v1/me/entitlements', async (request) => {
     if (typeof secureReadingService.getReadingEntitlementStatus !== 'function') throw new TypeError('INVALID_SECURE_READING_SERVICE');
-    return { entitlements: await secureReadingService.getReadingEntitlementStatus({ principal: request.principal }), requestId: request.id };
+    return { entitlements: await secureReadingService.getReadingEntitlementStatus({ principal: request.principal, birthProfileId: id(request.query && request.query.birthProfileId, 'BIRTH_PROFILE_ID') }), requestId: request.id };
   });
   if (purchaseService) {
     app.post('/v1/purchases/verify', async (request) => ({ ...await purchaseService.verify({ principal: request.principal, body: request.body || {} }), requestId: request.id }));

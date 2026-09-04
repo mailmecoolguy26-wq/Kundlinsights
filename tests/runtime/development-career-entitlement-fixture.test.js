@@ -44,7 +44,7 @@ test('fixture grant satisfies normal Career reading consumption and same-key rep
     readingRecordFactory: ({ readingId, createdAt, input, result }) => ({ schemaVersion: 'kundlinsights-reading-record-v1', readingId, domain: result.domain, createdAt, engineProfileId: 'kundlinsights-vedic-engine-profile-v2', input, provenance: {}, reading: {}, renderedReading: null, integrity: { calculation: { algorithm: 'sha256', digest: 'a'.repeat(64) }, output: { algorithm: 'sha256', digest: 'b'.repeat(64) }, rendered: null } }),
     replayReading: async () => ({}), requiresEntitlement: () => true, idGenerator: () => 'reading-a', clock: () => T0,
   });
-  assert.deepEqual(await service.getReadingEntitlementStatus({ principal: principal('subject-a') }), { career: { eligible: true } });
+  assert.deepEqual(await service.getReadingEntitlementStatus({ principal: principal('subject-a'), birthProfileId: 'profile-a' }), { career: { eligible: true, mode: 'CREDIT', consuming: true } });
   const request = { principal: principal('subject-a'), birthProfileId: 'profile-a', domain: 'CAREER', idempotencyKey: 'dev-fixture-reading' };
   const first = await service.generateSecureReading(request); const replay = await service.generateSecureReading(request);
   assert.equal(first.readingId, replay.readingId); assert.equal(readings.listReadingRecordsForUser('user-a').length, 1);

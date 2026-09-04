@@ -3,8 +3,8 @@
 const { fail, requiredString, canonicalTime, immutableCopy } = require('../contracts');
 const { freeze } = require('../../synthesis/evidence-node');
 const { mapPostgresError } = require('./postgres-errors');
-const { profileFingerprint, userFromRow, birthProfileFromRow, encryptedBirthProfileFromRow, paymentFromRow, purchaseFromRow, subscriptionFromRow, paymentEventFromRow, entitlementFromRow, careerEventFromRow, readingFromRow, encryptedReadingFromRow, encodedBirthPayload, encodedReadingPayload } = require('./postgres-mappers');
-const { purchaseRecord, subscriptionRecord, paymentEvent } = require('../../payment');
+const { profileFingerprint, userFromRow, birthProfileFromRow, encryptedBirthProfileFromRow, paymentFromRow, purchaseFromRow, subscriptionFromRow, paymentEventFromRow, profileEntitlementFromRow, entitlementFromRow, careerEventFromRow, readingFromRow, encryptedReadingFromRow, encodedBirthPayload, encodedReadingPayload } = require('./postgres-mappers');
+const { purchaseRecord, subscriptionRecord, profileEntitlement, paymentEvent } = require('../../payment');
 
 const USER_COLUMNS = 'id, auth_subject, status, created_at, updated_at, deleted_at';
 const BIRTH_COLUMNS = 'id, user_id, display_label, birth_payload_ciphertext, birth_payload_encryption_version, birth_payload_key_version, birth_payload_algorithm, birth_payload_nonce, status, created_at, updated_at, archived_at';
@@ -93,6 +93,7 @@ class PostgresPaymentRepository {
 }
 
 class PostgresPurchaseRepository {
+  async findById(id) { return execute(async () => { const result = await this.db.query(`select ${PURCHASE_COLUMNS} from app.purchase_records where id=$1`, [requiredString(id, 'INVALID_PURCHASE_ID')]); return result.rows.length ? purchaseFromRow(result.rows[0]) : null; }, 'FIND_PURCHASE_FAILED'); }
   constructor({ db } = {}) { this.db = dbBoundary(db); }
   withClient(db) { return new PostgresPurchaseRepository({ db }); }
   async findByProviderTransaction({ provider, environment, providerTransactionId } = {}) { return execute(async () => { const result = await this.db.query(`select ${PURCHASE_COLUMNS} from app.purchase_records where provider=$1 and environment=$2 and provider_transaction_id=$3`, [requiredString(provider, 'INVALID_PURCHASE_PROVIDER'), requiredString(environment, 'INVALID_PURCHASE_ENVIRONMENT'), requiredString(providerTransactionId, 'INVALID_PROVIDER_TRANSACTION_ID')]); return result.rows.length ? purchaseFromRow(result.rows[0]) : null; }, 'FIND_PURCHASE_FAILED'); }
@@ -108,6 +109,13 @@ class PostgresSubscriptionRepository {
   async upsertVerifiedState(input = {}) { const item = subscriptionRecord(input); return execute(async () => { const existing = await this.findByProviderOriginalTransaction(item); if (existing && existing.userId !== item.userId) fail('PURCHASE_OWNERSHIP_CONFLICT'); if (existing && existing.providerEventTime && item.providerEventTime && Date.parse(item.providerEventTime) < Date.parse(existing.providerEventTime)) return existing; if (existing) return subscriptionFromRow((await this.db.query(`update app.subscription_records set status=$2,valid_from=$3,valid_until=$4,auto_renew_enabled=$5,grace_until=$6,canceled_at=$7,revoked_at=$8,refunded_at=$9,latest_purchase_record_id=$10,provider_event_time=$11,provider_event_version=$12,updated_at=$13 where id=$1 returning ${SUBSCRIPTION_COLUMNS}`, [existing.id,item.status,item.validFrom,item.validUntil,item.autoRenewEnabled,item.graceUntil,item.canceledAt,item.revokedAt,item.refundedAt,item.latestPurchaseRecordId,item.providerEventTime,item.providerEventVersion,item.updatedAt])).rows[0]); return subscriptionFromRow((await this.db.query(`insert into app.subscription_records (${SUBSCRIPTION_COLUMNS}) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) returning ${SUBSCRIPTION_COLUMNS}`, [item.id,item.userId,item.provider,item.environment,item.productId,item.originalTransactionId,item.status,item.validFrom,item.validUntil,item.autoRenewEnabled,item.graceUntil,item.canceledAt,item.revokedAt,item.refundedAt,item.latestPurchaseRecordId,item.providerEventTime,item.providerEventVersion,item.createdAt,item.updatedAt])).rows[0]); }, 'UPSERT_SUBSCRIPTION_FAILED'); }
   async listForUser(userId) { return execute(async () => freeze((await this.db.query(`select ${SUBSCRIPTION_COLUMNS} from app.subscription_records where user_id=$1 order by valid_until desc,id asc`, [requiredString(userId, 'INVALID_USER_ID')])).rows.map(subscriptionFromRow)), 'LIST_SUBSCRIPTIONS_FAILED'); }
 }
+class PostgresProfileEntitlementRepository {
+  constructor({ db } = {}) { this.db = db; }
+  withClient(db) { return new PostgresProfileEntitlementRepository({ db }); }
+  async findForProfile({ userId, birthProfileId, logicalSku } = {}) { return execute(async () => { const result = await this.db.query('select id,user_id,birth_profile_id,logical_sku,purchase_record_id,unlocked_at,created_at,updated_at from app.profile_entitlements where user_id=$1 and birth_profile_id=$2 and logical_sku=$3', [requiredString(userId,'INVALID_USER_ID'),requiredString(birthProfileId,'INVALID_BIRTH_PROFILE_ID'),requiredString(logicalSku,'INVALID_PRODUCT_ID')]); return result.rows.length ? profileEntitlementFromRow(result.rows[0]) : null; }, 'FIND_PROFILE_ENTITLEMENT_FAILED'); }
+  async findByPurchaseRecordId(purchaseRecordId) { return execute(async () => { const result = await this.db.query('select id,user_id,birth_profile_id,logical_sku,purchase_record_id,unlocked_at,created_at,updated_at from app.profile_entitlements where purchase_record_id=$1', [requiredString(purchaseRecordId,'INVALID_PURCHASE_ID')]); return result.rows.length ? profileEntitlementFromRow(result.rows[0]) : null; }, 'FIND_PROFILE_ENTITLEMENT_FAILED'); }
+  async create(input = {}) { const item = profileEntitlement(input); return execute(async () => profileEntitlementFromRow((await this.db.query('insert into app.profile_entitlements (id,user_id,birth_profile_id,logical_sku,purchase_record_id,unlocked_at,created_at,updated_at) values ($1,$2,$3,$4,$5,$6,$7,$8) returning id,user_id,birth_profile_id,logical_sku,purchase_record_id,unlocked_at,created_at,updated_at', [item.id,item.userId,item.birthProfileId,item.logicalSku,item.purchaseRecordId,item.unlockedAt,item.createdAt,item.updatedAt])).rows[0]), 'CREATE_PROFILE_ENTITLEMENT_FAILED'); }
+}
 
 class PostgresPaymentEventRepository {
   constructor({ db } = {}) { this.db = dbBoundary(db); }
@@ -118,4 +126,4 @@ class PostgresPaymentEventRepository {
   async markFailed(id, { processedAt, failureCode } = {}) { return execute(async () => paymentEventFromRow(await queryOne(this.db, `update app.payment_events set processing_status='FAILED',processed_at=$2,failure_code=$3 where id=$1 returning ${EVENT_COLUMNS}`, [requiredString(id, 'INVALID_PAYMENT_EVENT_ID'), canonicalTime(processedAt, 'INVALID_EVENT_TIMESTAMP'), requiredString(failureCode, 'INVALID_EVENT_FAILURE_CODE')], 'PAYMENT_EVENT_NOT_FOUND')), 'UPDATE_PAYMENT_EVENT_FAILED'); }
 }
 
-module.exports = { PostgresUserRepository, PostgresBirthProfileRepository, PostgresReadingRepository, PostgresEntitlementRepository, PostgresCareerEventRepository, PostgresPaymentRepository, PostgresPurchaseRepository, PostgresSubscriptionRepository, PostgresPaymentEventRepository, profileFingerprint, mapPostgresError };
+module.exports = { PostgresUserRepository, PostgresBirthProfileRepository, PostgresReadingRepository, PostgresEntitlementRepository, PostgresCareerEventRepository, PostgresPaymentRepository, PostgresPurchaseRepository, PostgresSubscriptionRepository, PostgresProfileEntitlementRepository, PostgresPaymentEventRepository, profileFingerprint, mapPostgresError };
