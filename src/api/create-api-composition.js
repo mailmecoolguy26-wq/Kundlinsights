@@ -12,6 +12,7 @@ const { CareerEventService, CareerEventAstrologyService, CareerPatternComparison
 const { PostgresUserRepository, PostgresBirthProfileRepository, PostgresReadingRepository, PostgresEntitlementRepository, PostgresCareerEventRepository, PostgresPurchaseRepository, PostgresSubscriptionRepository, PostgresProfileEntitlementRepository, PostgresPaymentEventRepository } = require('../persistence');
 const { PostgresPaymentUnitOfWork } = require('../payment/unit-of-work');
 const { PurchaseProviderRegistry, PurchaseVerificationService } = require('../payment/purchase-services');
+const { ProfileUnlockAssignmentService } = require('../payment/profile-unlock-assignment-service');
 const { CareerAccessResolver } = require('../application/readings');
 const { AppleSignedDataVerifierFactory, AppleSignedDataVerifier } = require('../payment/apple/apple-signed-data-verifier');
 const { ApplePurchaseVerifier } = require('../payment/apple/apple-purchase-verifier');
@@ -132,7 +133,8 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
     })
     : null;
   const purchaseProviderRegistry = new PurchaseProviderRegistry({ ...(appleProvider ? { APPLE: appleProvider } : {}), ...(googleProvider ? { GOOGLE: googleProvider } : {}) });
-  const purchaseService = new PurchaseVerificationService({ authUserResolver: userResolver, repositories, unitOfWork: paymentUnitOfWork, registry: purchaseProviderRegistry, careerAccessResolver: new CareerAccessResolver(), idGenerator, clock });
+  const profileUnlockAssignmentService = new ProfileUnlockAssignmentService({ unitOfWork: paymentUnitOfWork, idGenerator, clock });
+  const purchaseService = new PurchaseVerificationService({ authUserResolver: userResolver, repositories, unitOfWork: paymentUnitOfWork, registry: purchaseProviderRegistry, careerAccessResolver: new CareerAccessResolver(), profileUnlockAssignmentService, idGenerator, clock });
   const { PlaceResolutionService } = require('./place-resolution-service');
   const placeResolutionService = placeResolver ? new PlaceResolutionService({ birthPlaceResolver: placeResolver }) : null;
   const api = createApi({ authVerifier, userResolver: { resolve: userResolver }, birthProfileService, careerEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, ashtakavargaService, secureReadingService, purchaseService, appleNotificationService, googleRtdnService, placeResolutionService, requestIdGenerator: idGenerator, corsAllowlist, isReady, logger, bodyLimit });
