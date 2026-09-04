@@ -294,6 +294,81 @@ void main() {
   );
 
   test(
+    'profile-specific entitlement status is refetched on profile switch',
+    () async {
+      final auth = AuthController(_Auth());
+      await auth.restore();
+      final profiles = ProfileController(_Profiles(twoProfiles: true), auth);
+      await Future<void>.delayed(Duration.zero);
+      final generation = _ProfileEligibility({
+        'profile-a': const CareerEligibility(
+          eligible: true,
+          mode: 'PROFILE_UNLOCK',
+        ),
+        'profile-b': const CareerEligibility(eligible: false, mode: 'NONE'),
+      });
+      final readings = ReadingController(_Readings(), auth, profiles);
+      final controller = CareerReadingGenerationController(
+        generation,
+        auth,
+        profiles,
+        readings,
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.eligibilityState, CareerEligibilityState.eligible);
+      expect(controller.eligibilityMode, 'PROFILE_UNLOCK');
+      profiles.select(profiles.profiles.last);
+      expect(controller.eligibilityState, CareerEligibilityState.loading);
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.eligibilityState, CareerEligibilityState.ineligible);
+      expect(controller.eligibilityMode, 'NONE');
+      expect(generation.profileIds, ['profile-a', 'profile-b']);
+      controller.dispose();
+      readings.dispose();
+      profiles.dispose();
+      auth.dispose();
+    },
+  );
+
+  test(
+    'profile switch keeps credit access scoped to the selected profile',
+    () async {
+      final auth = AuthController(_Auth());
+      await auth.restore();
+      final profiles = ProfileController(_Profiles(twoProfiles: true), auth);
+      await Future<void>.delayed(Duration.zero);
+      final generation = _ProfileEligibility({
+        'profile-a': const CareerEligibility(
+          eligible: true,
+          mode: 'PROFILE_UNLOCK',
+        ),
+        'profile-b': const CareerEligibility(
+          eligible: true,
+          mode: 'CREDIT',
+          consuming: true,
+        ),
+      });
+      final readings = ReadingController(_Readings(), auth, profiles);
+      final controller = CareerReadingGenerationController(
+        generation,
+        auth,
+        profiles,
+        readings,
+      );
+      await Future<void>.delayed(Duration.zero);
+      profiles.select(profiles.profiles.last);
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.eligibilityState, CareerEligibilityState.eligible);
+      expect(controller.eligibilityMode, 'CREDIT');
+      expect(generation.profileIds, ['profile-a', 'profile-b']);
+      controller.dispose();
+      readings.dispose();
+      profiles.dispose();
+      auth.dispose();
+    },
+  );
+
+  test(
     'logout clears P12 state and blocks a stale entitlement response',
     () async {
       final source = _Auth();
@@ -410,7 +485,9 @@ void main() {
 class _QueuedGeneration implements CareerReadingGenerationRepository {
   final pending = <Completer<CareerEligibility>>[];
   @override
-  Future<CareerEligibility> getCareerEligibility() {
+  Future<CareerEligibility> getCareerEligibility({
+    required String birthProfileId,
+  }) {
     final result = Completer<CareerEligibility>();
     pending.add(result);
     return result.future;
@@ -418,6 +495,25 @@ class _QueuedGeneration implements CareerReadingGenerationRepository {
 
   void complete(int index, CareerEligibility value) =>
       pending[index].complete(value);
+  @override
+  Future<CreatedCareerReading> createCareerReading({
+    required String birthProfileId,
+    required String idempotencyKey,
+  }) => throw UnimplementedError();
+}
+
+class _ProfileEligibility implements CareerReadingGenerationRepository {
+  _ProfileEligibility(this.values);
+  final Map<String, CareerEligibility> values;
+  final profileIds = <String>[];
+  @override
+  Future<CareerEligibility> getCareerEligibility({
+    required String birthProfileId,
+  }) async {
+    profileIds.add(birthProfileId);
+    return values[birthProfileId]!;
+  }
+
   @override
   Future<CreatedCareerReading> createCareerReading({
     required String birthProfileId,
@@ -449,7 +545,9 @@ class _Generation implements CareerReadingGenerationRepository {
   final createWait = Completer<CreatedCareerReading>();
   int creates = 0;
   @override
-  Future<CareerEligibility> getCareerEligibility() {
+  Future<CareerEligibility> getCareerEligibility({
+    required String birthProfileId,
+  }) {
     gets++;
     return pending ||
             ((staleUserEntitlement || staleProfileEntitlement) && gets == 1) ||

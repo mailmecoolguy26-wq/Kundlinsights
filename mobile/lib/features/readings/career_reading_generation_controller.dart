@@ -85,7 +85,9 @@ class CareerReadingGenerationController extends ChangeNotifier {
     int generation,
   ) async {
     try {
-      final value = await repository.getCareerEligibility();
+      final value = await repository.getCareerEligibility(
+        birthProfileId: profile,
+      );
       if (!_current(generation, subject, profile)) return;
       _eligibilityState = value.eligible
           ? CareerEligibilityState.eligible

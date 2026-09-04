@@ -6,9 +6,12 @@ class CareerReadingGenerationApiRepository
   const CareerReadingGenerationApiRepository(this._client);
   final ApiClient _client;
   @override
-  Future<CareerEligibility> getCareerEligibility() async {
+  Future<CareerEligibility> getCareerEligibility({
+    required String birthProfileId,
+  }) async {
     final response = await _client.get<Map<String, dynamic>>(
       '/v1/me/entitlements',
+      queryParameters: {'birthProfileId': birthProfileId},
     );
     final data = response.data;
     if (data is! Map<String, dynamic>) {

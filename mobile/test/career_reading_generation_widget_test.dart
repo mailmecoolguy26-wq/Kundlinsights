@@ -252,7 +252,9 @@ class _GenerationRepository implements CareerReadingGenerationRepository {
   final create = Completer<CreatedCareerReading>();
   int createCalls = 0;
   @override
-  Future<CareerEligibility> getCareerEligibility() {
+  Future<CareerEligibility> getCareerEligibility({
+    required String birthProfileId,
+  }) {
     if (entitlementPending) return entitlement.future;
     if (entitlementFailure) {
       return Future<CareerEligibility>.error(

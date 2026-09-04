@@ -145,8 +145,9 @@ class _SuccessGenerationRepository
   int createCalls = 0;
   String? birthProfileId;
   @override
-  Future<CareerEligibility> getCareerEligibility() =>
-      Future.value(const CareerEligibility(eligible: true));
+  Future<CareerEligibility> getCareerEligibility({
+    required String birthProfileId,
+  }) => Future.value(const CareerEligibility(eligible: true));
   @override
   Future<CreatedCareerReading> createCareerReading({
     required String birthProfileId,

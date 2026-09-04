@@ -156,8 +156,9 @@ Future<void> bootstrap() async {
 class _UnavailableGenerationRepository
     implements CareerReadingGenerationRepository {
   @override
-  Future<CareerEligibility> getCareerEligibility() =>
-      Future.error(StateError('Configuration is required.'));
+  Future<CareerEligibility> getCareerEligibility({
+    required String birthProfileId,
+  }) => Future.error(StateError('Configuration is required.'));
   @override
   Future<CreatedCareerReading> createCareerReading({
     required String birthProfileId,

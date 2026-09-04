@@ -1,7 +1,12 @@
 class CareerEligibility {
-  const CareerEligibility({required this.eligible, this.mode});
+  const CareerEligibility({
+    required this.eligible,
+    this.mode,
+    this.consuming = false,
+  });
   final bool eligible;
   final String? mode;
+  final bool consuming;
   factory CareerEligibility.fromJson(Map<String, dynamic> json) {
     final entitlements = json['entitlements'];
     final career = entitlements is Map<String, dynamic>
@@ -15,7 +20,17 @@ class CareerEligibility {
     if (mode != null && mode is! String) {
       throw const FormatException('Malformed entitlement status.');
     }
-    return CareerEligibility(eligible: eligible, mode: mode as String?);
+    final consuming = career is Map<String, dynamic>
+        ? career['consuming']
+        : null;
+    if (consuming != null && consuming is! bool) {
+      throw const FormatException('Malformed entitlement status.');
+    }
+    return CareerEligibility(
+      eligible: eligible,
+      mode: mode as String?,
+      consuming: consuming as bool? ?? false,
+    );
   }
 }
 
@@ -33,7 +48,9 @@ class CreatedCareerReading {
 }
 
 abstract interface class CareerReadingGenerationRepository {
-  Future<CareerEligibility> getCareerEligibility();
+  Future<CareerEligibility> getCareerEligibility({
+    required String birthProfileId,
+  });
   Future<CreatedCareerReading> createCareerReading({
     required String birthProfileId,
     required String idempotencyKey,
@@ -44,8 +61,9 @@ class UnavailableCareerReadingGenerationRepository
     implements CareerReadingGenerationRepository {
   const UnavailableCareerReadingGenerationRepository();
   @override
-  Future<CareerEligibility> getCareerEligibility() =>
-      Future.error(StateError('Configuration is required.'));
+  Future<CareerEligibility> getCareerEligibility({
+    required String birthProfileId,
+  }) => Future.error(StateError('Configuration is required.'));
   @override
   Future<CreatedCareerReading> createCareerReading({
     required String birthProfileId,

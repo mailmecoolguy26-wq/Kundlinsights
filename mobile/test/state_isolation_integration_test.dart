@@ -218,8 +218,9 @@ class _Generation implements CareerReadingGenerationRepository {
   _Generation({this.eligible = false});
   final bool eligible;
   @override
-  Future<CareerEligibility> getCareerEligibility() async =>
-      CareerEligibility(eligible: eligible);
+  Future<CareerEligibility> getCareerEligibility({
+    required String birthProfileId,
+  }) async => CareerEligibility(eligible: eligible);
   @override
   Future<CreatedCareerReading> createCareerReading({
     required String birthProfileId,
