@@ -53,6 +53,7 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
 
   @override
   Widget build(BuildContext context) {
+    final usesRazorpay = widget.razorpayController != null;
     if (widget.hasAccess) {
       return AppCard(
         child: Column(
@@ -104,19 +105,21 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
               onRazorpayRecover: widget.onRazorpayRecover,
               onRazorpayReset: widget.onRazorpayReset,
             ),
-            if (widget.purchaseController != null)
+            if (widget.purchaseController != null && !usesRazorpay)
               TextButton(
                 onPressed: _restoreEnabled(widget.purchaseController!)
                     ? widget.purchaseController!.restorePurchases
                     : null,
                 child: const Text('Restore Purchases'),
               ),
-            const SizedBox(height: AppSpacing.sm),
-            const Text(
-              'Annual subscription. Payment is managed through your Apple ID '
-              'and renews automatically unless canceled in Apple account settings.',
-              style: TextStyle(fontSize: 12),
-            ),
+            if (!usesRazorpay) ...[
+              const SizedBox(height: AppSpacing.sm),
+              const Text(
+                'Annual subscription. Payment is managed through your Apple ID '
+                'and renews automatically unless canceled in Apple account settings.',
+                style: TextStyle(fontSize: 12),
+              ),
+            ],
           ],
         ),
       ),
@@ -483,10 +486,7 @@ class _RazorpayIdle extends StatelessWidget {
         'UPI · PhonePe · Google Pay · Paytm · Cards',
         style: TextStyle(fontSize: 12),
       ),
-      const Text(
-        'Restore Purchase · Terms · Privacy · Secure payment',
-        style: TextStyle(fontSize: 12),
-      ),
+      const Text('Terms · Privacy · Secure payment', style: TextStyle(fontSize: 12)),
     ],
   );
 }

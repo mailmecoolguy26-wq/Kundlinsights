@@ -38,7 +38,7 @@ test('development runtime verifies a bearer credential before invoking its fixtu
   assert.deepEqual(await runtime.grantCareerEntitlementForAuthenticatedPrincipal({ authorization: 'Bearer legitimate' }), { created: true }); assert.deepEqual(calls, [{ provider: 'supabase', subject: 'subject-a', isAnonymous: false }]); await runtime.shutdown();
 });
 
-test('development runtime retains sanitized authenticated database diagnostics only through its internal observer', async () => {
+test('development runtime supplies sanitized diagnostics only through its internal observers', async () => {
   const api = { async close() {}, async listen() {} }; let observer;
   class Pool { async query() {} async end() {} } class Kms { async validateStartupKey() {} } class Fixture { constructor() {} }
   const runtime = createDevelopmentRuntime({ env: env(), astronomicalEngine: {}, canonicalSiderealSunSampler: {}, dependencies: { Pool, DevelopmentLocalKms: Kms, DevelopmentCareerEntitlementFixture: Fixture, createSupabaseAuthVerifier: () => ({}), createApiComposition: (args) => { observer = args.transactionDiagnosticObserver; return { api, services: {} }; } } });
