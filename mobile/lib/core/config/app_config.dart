@@ -5,7 +5,10 @@ class AppConfig {
     required this.apiBaseUrl,
     this.careerPremiumAnnualAppleProductId,
     this.careerPremiumAnnualGoogleProductId,
+    this.careerProfileUnlockGoogleProductId,
     this.applePaymentEnvironment,
+    this.razorpayKeyId,
+    this.razorpayCareerPremiumEnabled = false,
   });
 
   final String supabaseUrl;
@@ -13,7 +16,15 @@ class AppConfig {
   final String apiBaseUrl;
   final String? careerPremiumAnnualAppleProductId;
   final String? careerPremiumAnnualGoogleProductId;
+  final String? careerProfileUnlockGoogleProductId;
   final String? applePaymentEnvironment;
+  final String? razorpayKeyId;
+  final bool razorpayCareerPremiumEnabled;
+
+  /// Razorpay is opt-in: both the public checkout key and feature policy are
+  /// required. Apple and Google selection remain independent of this policy.
+  bool get isRazorpayCareerPremiumEligible =>
+      razorpayKeyId != null && razorpayCareerPremiumEnabled;
 
   /// Test-only construction; production configuration is build-time only.
   const AppConfig.test({
@@ -22,7 +33,10 @@ class AppConfig {
     required this.apiBaseUrl,
     this.careerPremiumAnnualAppleProductId,
     this.careerPremiumAnnualGoogleProductId,
+    this.careerProfileUnlockGoogleProductId,
     this.applePaymentEnvironment,
+    this.razorpayKeyId,
+    this.razorpayCareerPremiumEnabled = false,
   });
 
   static AppConfig? fromEnvironment() {
@@ -35,8 +49,15 @@ class AppConfig {
     const googleProductId = String.fromEnvironment(
       'GOOGLE_CAREER_PREMIUM_ANNUAL_PRODUCT_ID',
     );
+    const googleProfileUnlockProductId = String.fromEnvironment(
+      'GOOGLE_CAREER_PROFILE_UNLOCK_PRODUCT_ID',
+    );
     const applePaymentEnvironment = String.fromEnvironment(
       'APPLE_PAYMENT_ENVIRONMENT',
+    );
+    const razorpayKeyId = String.fromEnvironment('RAZORPAY_KEY_ID');
+    const razorpayCareerPremiumEnabled = bool.fromEnvironment(
+      'RAZORPAY_CAREER_PREMIUM_ENABLED',
     );
     if (url.isEmpty || key.isEmpty || api.isEmpty) return null;
     final supabase = Uri.tryParse(url);
@@ -59,11 +80,16 @@ class AppConfig {
       careerPremiumAnnualGoogleProductId: googleProductId.isEmpty
           ? null
           : googleProductId,
+      careerProfileUnlockGoogleProductId: googleProfileUnlockProductId.isEmpty
+          ? null
+          : googleProfileUnlockProductId,
       applePaymentEnvironment:
           applePaymentEnvironment == 'SANDBOX' ||
               applePaymentEnvironment == 'PRODUCTION'
           ? applePaymentEnvironment
           : null,
+      razorpayKeyId: razorpayKeyId.isEmpty ? null : razorpayKeyId,
+      razorpayCareerPremiumEnabled: razorpayCareerPremiumEnabled,
     );
   }
 

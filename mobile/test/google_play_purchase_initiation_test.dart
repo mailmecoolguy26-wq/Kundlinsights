@@ -251,7 +251,7 @@ class _Store implements StorePurchaseClient {
   }
 }
 
-class _Api implements PaymentApiClient {
+class _Api extends PaymentApiClient {
   int verifyCalls = 0;
 
   @override
@@ -273,6 +273,7 @@ class _Api implements PaymentApiClient {
   Future<void> verifyGooglePurchase({
     required String productId,
     required String purchaseToken,
+    String? birthProfileId,
   }) async {
     verifyCalls++;
   }

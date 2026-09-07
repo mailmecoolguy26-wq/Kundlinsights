@@ -8,6 +8,10 @@ import 'package:kundlinsights_mobile/features/auth/domain/auth_repository.dart';
 import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile.dart';
 import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile_repository.dart';
 import 'package:kundlinsights_mobile/features/profiles/profile_controller.dart';
+import 'package:kundlinsights_mobile/features/payments/career_premium_purchase_controller.dart';
+import 'package:kundlinsights_mobile/features/payments/data/payment_api_client.dart';
+import 'package:kundlinsights_mobile/features/payments/data/razorpay_purchase_service.dart';
+import 'package:kundlinsights_mobile/features/payments/razorpay_career_premium_controller.dart';
 import 'package:kundlinsights_mobile/features/readings/career_reading_generation_controller.dart';
 import 'package:kundlinsights_mobile/features/readings/domain/career_reading_generation.dart';
 import 'package:kundlinsights_mobile/features/readings/domain/reading.dart';
@@ -173,6 +177,76 @@ void main() {
     );
     semantics.dispose();
   });
+
+  testWidgets('hydrates Razorpay once per active profile scope', (
+    tester,
+  ) async {
+    final api = _HydrationApi();
+    final razorpay = _razorpay(api);
+    final harness = await _pumpReadingCenter(
+      tester,
+      profiles: [_Profiles.profileA, _Profiles.profileB],
+      razorpay: razorpay,
+    );
+    addTearDown(harness.dispose);
+
+    expect(api.profileLookups, ['profile-a']);
+    await tester.pump();
+    expect(api.profileLookups, ['profile-a']);
+
+    harness.profiles.select(_Profiles.profileB);
+    await tester.pump();
+    await tester.pump();
+    expect(api.profileLookups, ['profile-a', 'profile-b']);
+
+    harness.profiles.select(_Profiles.profileA);
+    await tester.pump();
+    await tester.pump();
+    expect(api.profileLookups, ['profile-a', 'profile-b', 'profile-a']);
+  });
+
+  testWidgets('does not hydrate a null active profile', (tester) async {
+    final api = _HydrationApi();
+    final harness = await _pumpReadingCenter(
+      tester,
+      profiles: const [],
+      razorpay: _razorpay(api),
+    );
+    addTearDown(harness.dispose);
+
+    await tester.pump();
+    expect(api.profileLookups, isEmpty);
+  });
+
+  testWidgets('in-flight Profile A hydration cannot affect Profile B state', (
+    tester,
+  ) async {
+    final pendingA = Completer<Map<String, dynamic>>();
+    final api = _HydrationApi()..pending['profile-a'] = pendingA;
+    final razorpay = _razorpay(api);
+    final harness = await _pumpReadingCenter(
+      tester,
+      profiles: [_Profiles.profileA, _Profiles.profileB],
+      razorpay: razorpay,
+    );
+    addTearDown(harness.dispose);
+
+    harness.profiles.select(_Profiles.profileB);
+    await tester.pump();
+    await tester.pump();
+    expect(api.profileLookups, ['profile-a', 'profile-b']);
+
+    pendingA.complete(const {
+      'order': {'providerOrderId': 'order-a'},
+    });
+    await tester.pump();
+    await tester.pump();
+    expect(
+      razorpay.stateFor('profile-a'),
+      RazorpayCareerPremiumState.paymentStatusUnknown,
+    );
+    expect(razorpay.stateFor('profile-b'), RazorpayCareerPremiumState.idle);
+  });
 }
 
 Future<_Harness> _pumpReadingCenter(
@@ -182,12 +256,18 @@ Future<_Harness> _pumpReadingCenter(
   bool entitlementFailure = false,
   bool createPending = false,
   List<ReadingSummary> history = const [],
+  List<BirthProfile>? profiles,
+  RazorpayCareerPremiumController? razorpay,
 }) async {
   final auth = AuthController(_Auth());
   await auth.restore();
-  final profiles = ProfileController(_Profiles(), auth);
+  final profileController = ProfileController(_Profiles(profiles), auth);
   await tester.pump();
-  final readings = ReadingController(_Readings(history), auth, profiles);
+  final readings = ReadingController(
+    _Readings(history),
+    auth,
+    profileController,
+  );
   final generationRepository = _GenerationRepository(
     eligible: eligible,
     entitlementPending: entitlementPending,
@@ -197,7 +277,7 @@ Future<_Harness> _pumpReadingCenter(
   final generation = CareerReadingGenerationController(
     generationRepository,
     auth,
-    profiles,
+    profileController,
     readings,
   );
   await tester.pumpWidget(
@@ -205,11 +285,22 @@ Future<_Harness> _pumpReadingCenter(
       theme: AppTheme.light,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      home: ReadingsScreen(controller: readings, generation: generation),
+      home: ReadingsScreen(
+        controller: readings,
+        generation: generation,
+        razorpayPremium: razorpay,
+      ),
     ),
   );
   await tester.pump();
-  return _Harness(auth, profiles, readings, generation, generationRepository);
+  return _Harness(
+    auth,
+    profileController,
+    readings,
+    generation,
+    generationRepository,
+    razorpay,
+  );
 }
 
 void _expectNoPaymentUi() {
@@ -226,17 +317,20 @@ class _Harness {
     this.readings,
     this.generation,
     this.generationRepository,
+    this.razorpay,
   );
   final AuthController auth;
   final ProfileController profiles;
   final ReadingController readings;
   final CareerReadingGenerationController generation;
   final _GenerationRepository generationRepository;
+  final RazorpayCareerPremiumController? razorpay;
   void dispose() {
     generation.dispose();
     readings.dispose();
     profiles.dispose();
     auth.dispose();
+    razorpay?.dispose();
   }
 }
 
@@ -312,11 +406,20 @@ class _Auth implements AuthRepository {
 }
 
 class _Profiles implements BirthProfileRepository {
+  _Profiles([List<BirthProfile>? profiles]) : _items = profiles ?? [profileA];
+
+  final List<BirthProfile> _items;
   @override
-  Future<List<BirthProfile>> list() async => [_profile];
-  static final _profile = BirthProfile(
+  Future<List<BirthProfile>> list() async => _items;
+  static final profileA = BirthProfile(
     id: 'profile-a',
     displayLabel: 'Profile A',
+    status: 'active',
+    birthData: ResolvedBirthData(const {'timezone': 'UTC'}),
+  );
+  static final profileB = BirthProfile(
+    id: 'profile-b',
+    displayLabel: 'Profile B',
     status: 'active',
     birthData: ResolvedBirthData(const {'timezone': 'UTC'}),
   );
@@ -335,6 +438,69 @@ class _Profiles implements BirthProfileRepository {
   }) => throw UnimplementedError();
   @override
   Future<List<PlaceCandidate>> searchPlaces(String query) async => const [];
+}
+
+RazorpayCareerPremiumController _razorpay(_HydrationApi api) =>
+    RazorpayCareerPremiumController(
+      api: api,
+      checkout: _NoopCheckout(),
+      entitlements: _IneligibleEntitlements(),
+    );
+
+class _HydrationApi extends PaymentApiClient {
+  final List<String> profileLookups = [];
+  final Map<String, Completer<Map<String, dynamic>>> pending = {};
+
+  @override
+  Future<void> verifyApplePurchase({
+    required String environment,
+    required String productId,
+    required String evidence,
+  }) async {}
+
+  @override
+  Future<void> restoreApplePurchases({
+    required String environment,
+    required List<String> signedTransactions,
+  }) async {}
+
+  @override
+  Future<void> verifyGooglePurchase({
+    required String productId,
+    required String purchaseToken,
+    String? birthProfileId,
+  }) async {}
+
+  @override
+  Future<Map<String, dynamic>> getLatestUnresolvedRazorpayOrder({
+    required String birthProfileId,
+  }) {
+    profileLookups.add(birthProfileId);
+    return pending[birthProfileId]?.future ??
+        Future.value(const {'order': null});
+  }
+}
+
+class _NoopCheckout implements RazorpayCheckout {
+  @override
+  Future<RazorpayPaymentEvidence> open({
+    required String keyId,
+    required String orderId,
+    required int amountMinor,
+    required String currency,
+  }) => throw UnimplementedError();
+
+  @override
+  void dispose() {}
+}
+
+class _IneligibleEntitlements implements CareerPremiumEntitlementRefresher {
+  @override
+  CareerEligibilityState get eligibilityState =>
+      CareerEligibilityState.ineligible;
+
+  @override
+  Future<void> refreshEligibility() async {}
 }
 
 ReadingSummary _summary() => ReadingSummary.fromJson({

@@ -13,6 +13,7 @@ const REPOSITORY_CONTRACTS = freeze({
   SubscriptionRepository: freeze(['findByProviderOriginalTransaction', 'findUsableCandidatesForUser', 'upsertVerifiedState', 'listForUser']),
   ProfileEntitlementRepository: freeze(['findForProfile', 'findByPurchaseRecordId', 'create']),
   PaymentEventRepository: freeze(['findByProviderEventId', 'insertReceived', 'markProcessed', 'markFailed']),
+  ProviderPaymentOrderRepository: freeze(['create', 'findByProviderOrderId', 'findByProviderPaymentId', 'findLatestUnresolvedForProfile', 'markPaid', 'markFinalized', 'markFailed']),
 });
 
 function repositoryError(code) { const error = new RangeError(code); error.code = code; return error; }

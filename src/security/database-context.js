@@ -6,6 +6,7 @@ function fail(code) { throw repositoryError(code); }
 function validSubject(subject) { if (typeof subject !== 'string' || !subject || subject.trim() !== subject) fail('INVALID_AUTH_SUBJECT_CONTEXT'); return subject; }
 function diagnostic(observer, stage, error) {
   if (typeof observer !== 'function') return;
+  const applicationErrorCode = error && typeof error.code === 'string' && /^[A-Z][A-Z0-9_]{1,127}$/.test(error.code) ? error.code : null;
   const postgres = error && typeof error === 'object' ? {
     ...(typeof error.code === 'string' && /^[0-9A-Z]{1,12}$/.test(error.code) ? { code: error.code } : {}),
     ...(typeof error.severity === 'string' && error.severity.length <= 64 ? { severity: error.severity } : {}),
@@ -14,7 +15,7 @@ function diagnostic(observer, stage, error) {
     ...(typeof error.schema === 'string' && error.schema.length <= 128 ? { schema: error.schema } : {}),
     ...(typeof error.table === 'string' && error.table.length <= 128 ? { table: error.table } : {}),
   } : {};
-  try { observer(Object.freeze({ stage, safeErrorClass: postgres.code ? `POSTGRES_${postgres.code}` : 'NON_POSTGRES_DATABASE_ERROR', ...(Object.keys(postgres).length ? { postgres: Object.freeze(postgres) } : {}) })); } catch {}
+  try { observer(Object.freeze({ stage, safeErrorClass: postgres.code ? `POSTGRES_${postgres.code}` : 'NON_POSTGRES_DATABASE_ERROR', ...(applicationErrorCode ? { applicationErrorCode } : {}), ...(Object.keys(postgres).length ? { postgres: Object.freeze(postgres) } : {}) })); } catch {}
 }
 function safeError(error) {
   if (error && error.code && /^[A-Z_]+$/.test(error.code)) throw error;

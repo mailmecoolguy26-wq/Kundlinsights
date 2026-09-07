@@ -4,7 +4,7 @@ abstract interface class CareerPremiumProductLoader {
   Future<CareerPremiumProductLoadResult> loadCareerPremiumProduct();
 }
 
-enum CareerPremiumStorePlatform { apple, googlePlay }
+enum CareerPremiumStorePlatform { apple, googlePlay, razorpay }
 
 CareerPremiumProductLoader selectCareerPremiumProductLoader({
   required CareerPremiumStorePlatform platform,

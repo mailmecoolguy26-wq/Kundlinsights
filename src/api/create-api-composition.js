@@ -9,7 +9,7 @@ const { VimshottariService } = require('../application/vimshottari');
 const { TransitSnapshotService } = require('../application/transit-snapshot');
 const { AshtakavargaService } = require('../application/ashtakavarga');
 const { CareerEventService, CareerEventAstrologyService, CareerPatternComparisonService, CareerFutureRecurrenceService, CareerReadingContextBuilder } = require('../application/career-events');
-const { PostgresUserRepository, PostgresBirthProfileRepository, PostgresReadingRepository, PostgresEntitlementRepository, PostgresCareerEventRepository, PostgresPurchaseRepository, PostgresSubscriptionRepository, PostgresProfileEntitlementRepository, PostgresPaymentEventRepository } = require('../persistence');
+const { PostgresUserRepository, PostgresBirthProfileRepository, PostgresReadingRepository, PostgresEntitlementRepository, PostgresCareerEventRepository, PostgresPurchaseRepository, PostgresSubscriptionRepository, PostgresProfileEntitlementRepository, PostgresPaymentEventRepository, PostgresProviderPaymentOrderRepository } = require('../persistence');
 const { PostgresPaymentUnitOfWork } = require('../payment/unit-of-work');
 const { PurchaseProviderRegistry, PurchaseVerificationService } = require('../payment/purchase-services');
 const { ProfileUnlockAssignmentService } = require('../payment/profile-unlock-assignment-service');
@@ -25,6 +25,9 @@ const { createGooglePubSubAuthVerifier } = require('../payment/google/google-pub
 const { decodeGoogleRtdn } = require('../payment/google/google-rtdn-decoder');
 const { GoogleRtdnService } = require('../payment/google/google-rtdn-service');
 const { GoogleSubscriptionLifecycleReconciler, normalizeGoogleSubscription } = require('../payment/google/google-subscription-lifecycle-reconciler');
+const { RazorpayPaymentService } = require('../payment/razorpay/razorpay-payment-service');
+const { RazorpayApiClient } = require('../payment/razorpay/razorpay-api-client');
+const { createRazorpayProductCatalog } = require('../payment/razorpay/razorpay-product-catalog');
 const { PostgresUserKeyEnvelopeStore, UserDekProvider, BirthProfilePayloadCodec, ReadingPayloadCodec } = require('../security/crypto');
 const { resolveOrProvisionAppUser } = require('../security/auth');
 
@@ -33,7 +36,7 @@ function req(value, name) {
   return value;
 }
 
-function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canonicalSiderealSunSampler, placeResolver = null, openai = null, apple = null, google = null, idGenerator, clock, requiresEntitlement = () => true, corsAllowlist, isReady, logger, bodyLimit, transactionDiagnosticObserver } = {}) {
+function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canonicalSiderealSunSampler, placeResolver = null, openai = null, apple = null, google = null, razorpay = null, idGenerator, clock, requiresEntitlement = () => true, corsAllowlist, isReady, logger, bodyLimit, transactionDiagnosticObserver } = {}) {
   const { createApi } = require('./index');
   req(db, 'DB'); req(authVerifier, 'AUTH_VERIFIER'); req(kms, 'KMS');
   req(astronomicalEngine, 'ASTRONOMICAL_ENGINE'); req(canonicalSiderealSunSampler, 'SUN_SAMPLER');
@@ -57,9 +60,9 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
       principal, role: 'app_crypto', operation: async ({ db: client }) => new UserDekProvider({ kms, envelopeStore: new PostgresUserKeyEnvelopeStore({ db: client }), idGenerator, now: clock }).forVersion({ userId, keyVersion }),
     }),
   });
-  const repositories = ({ db: client } = { db }) => {
+  const repositories = ({ db: client, principal } = { db }) => {
     const envelopes = new PostgresUserKeyEnvelopeStore({ db: client });
-    const deks = new UserDekProvider({ kms, envelopeStore: envelopes, idGenerator, now: clock });
+    const deks = principal ? { current: (userId) => cryptoCoordinator.current(principal, userId), forVersion: ({ userId, keyVersion }) => cryptoCoordinator.forVersion(principal, userId, keyVersion) } : new UserDekProvider({ kms, envelopeStore: envelopes, idGenerator, now: clock });
     const birthCodec = new BirthProfilePayloadCodec({ userDekProvider: deks });
     const readingCodec = new ReadingPayloadCodec({ userDekProvider: deks });
     return {
@@ -70,6 +73,7 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
       purchases: new PostgresPurchaseRepository({ db: client }),
       subscriptions: new PostgresSubscriptionRepository({ db: client }),
       profileEntitlements: new PostgresProfileEntitlementRepository({ db: client }),
+      providerPaymentOrders: new PostgresProviderPaymentOrderRepository({ db: client }),
       careerEvents: new PostgresCareerEventRepository({ db: client }),
       envelopes,
       deks,
@@ -113,13 +117,13 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
     : null;
   const appleProvider = appleSignedDataVerifier ? new ApplePurchaseVerifier({ signedDataVerifier: appleSignedDataVerifier, bundleId: apple.bundleId, appleProductId: apple.careerPremiumAnnualProductId, clock: () => Date.parse(clock()) }) : null;
   const appleNotificationService = appleSignedDataVerifier ? new AppleNotificationService({ notificationVerifier: new AppleNotificationVerifier({ signedDataVerifier: appleSignedDataVerifier, bundleId: apple.bundleId, appleProductId: apple.careerPremiumAnnualProductId }), paymentEvents: new PostgresPaymentEventRepository({ db }), lifecycleReconciler: new AppleSubscriptionLifecycleReconciler({ repositories, unitOfWork: paymentUnitOfWork, idGenerator, clock }), idGenerator, clock }) : null;
-  const googleProvider = google && typeof google.packageName === 'string' && google.packageName && typeof google.careerPremiumAnnualProductId === 'string' && google.careerPremiumAnnualProductId && google.apiClient
-    ? new GooglePurchaseVerifier({ apiClient: google.apiClient, packageName: google.packageName, googleProductId: google.careerPremiumAnnualProductId, clock: () => Date.parse(clock()) })
-    : google && typeof google.packageName === 'string' && google.packageName && typeof google.careerPremiumAnnualProductId === 'string' && google.careerPremiumAnnualProductId && google.serviceAccount
-      ? new GooglePurchaseVerifier({ apiClient: new GooglePlayApiClient({ serviceAccount: google.serviceAccount }), packageName: google.packageName, googleProductId: google.careerPremiumAnnualProductId, clock: () => Date.parse(clock()) })
+  const googleProvider = google && typeof google.packageName === 'string' && google.packageName && (google.careerPremiumAnnualProductId || google.careerProfileUnlockProductId) && google.apiClient
+    ? new GooglePurchaseVerifier({ apiClient: google.apiClient, packageName: google.packageName, googleProductId: google.careerPremiumAnnualProductId, googleProfileUnlockProductId: google.careerProfileUnlockProductId, clock: () => Date.parse(clock()) })
+    : google && typeof google.packageName === 'string' && google.packageName && (google.careerPremiumAnnualProductId || google.careerProfileUnlockProductId) && google.serviceAccount
+      ? new GooglePurchaseVerifier({ apiClient: new GooglePlayApiClient({ serviceAccount: google.serviceAccount }), packageName: google.packageName, googleProductId: google.careerPremiumAnnualProductId, googleProfileUnlockProductId: google.careerProfileUnlockProductId, clock: () => Date.parse(clock()) })
       : null;
   const googleApiClient = googleProvider && google && google.apiClient ? google.apiClient : googleProvider && google && google.serviceAccount ? new GooglePlayApiClient({ serviceAccount: google.serviceAccount }) : null;
-  const googleRtdnService = googleApiClient && google && google.rtdn && typeof google.rtdn.audience === 'string' && typeof google.rtdn.allowedServiceAccountEmail === 'string'
+  const googleRtdnService = googleApiClient && google && google.careerPremiumAnnualProductId && google.rtdn && typeof google.rtdn.audience === 'string' && typeof google.rtdn.allowedServiceAccountEmail === 'string'
     ? new GoogleRtdnService({
       pubsubAuthVerifier: google.rtdn.authVerifier || createGooglePubSubAuthVerifier({ audience: google.rtdn.audience, allowedServiceAccountEmail: google.rtdn.allowedServiceAccountEmail }),
       decoder: decodeGoogleRtdn,
@@ -135,9 +139,10 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   const purchaseProviderRegistry = new PurchaseProviderRegistry({ ...(appleProvider ? { APPLE: appleProvider } : {}), ...(googleProvider ? { GOOGLE: googleProvider } : {}) });
   const profileUnlockAssignmentService = new ProfileUnlockAssignmentService({ unitOfWork: paymentUnitOfWork, idGenerator, clock });
   const purchaseService = new PurchaseVerificationService({ authUserResolver: userResolver, repositories, unitOfWork: paymentUnitOfWork, registry: purchaseProviderRegistry, careerAccessResolver: new CareerAccessResolver(), profileUnlockAssignmentService, idGenerator, clock });
+  const razorpayPaymentService = razorpay ? new RazorpayPaymentService({ authUserResolver: userResolver, birthProfileRepository: repositories().birthProfiles, providerOrders: repositories().providerPaymentOrders, razorpayClient: razorpay.apiClient || new RazorpayApiClient({ keyId: razorpay.keyId, keySecret: razorpay.keySecret }), productCatalog: createRazorpayProductCatalog(razorpay.products), purchaseService, unitOfWork: paymentUnitOfWork, idGenerator, clock, keyId: razorpay.keyId, keySecret: razorpay.keySecret, webhookSecret: razorpay.webhookSecret }) : null;
   const { PlaceResolutionService } = require('./place-resolution-service');
   const placeResolutionService = placeResolver ? new PlaceResolutionService({ birthPlaceResolver: placeResolver }) : null;
-  const api = createApi({ authVerifier, userResolver: { resolve: userResolver }, birthProfileService, careerEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, ashtakavargaService, secureReadingService, purchaseService, appleNotificationService, googleRtdnService, placeResolutionService, requestIdGenerator: idGenerator, corsAllowlist, isReady, logger, bodyLimit });
+  const api = createApi({ authVerifier, userResolver: { resolve: userResolver }, birthProfileService, careerEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, ashtakavargaService, secureReadingService, purchaseService, razorpayPaymentService, appleNotificationService, googleRtdnService, placeResolutionService, requestIdGenerator: idGenerator, corsAllowlist, isReady, logger, bodyLimit });
   api.apiRuntime = { astronomicalEngine, canonicalSiderealSunSampler };
   return Object.freeze({ api, services: Object.freeze({ birthProfileService, careerEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, secureReadingService, userResolver, transactionExecutor: tx }) });
 }

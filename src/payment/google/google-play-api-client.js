@@ -18,6 +18,15 @@ class GooglePlayApiClient {
     });
     return response.data;
   }
+
+  async getProductPurchase({ packageName, productId, purchaseToken }) {
+    const response = await this.publisher.purchases.products.get({
+      packageName,
+      productId,
+      token: purchaseToken,
+    });
+    return response.data;
+  }
 }
 
 module.exports = { GooglePlayApiClient };

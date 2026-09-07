@@ -3,7 +3,7 @@
 const { freeze } = require('../synthesis/evidence-node');
 const { requiredString, canonicalTime, immutableCopy, fail } = require('../persistence/contracts');
 
-const PurchaseProvider = freeze(['APPLE', 'GOOGLE', 'WEB']);
+const PurchaseProvider = freeze(['APPLE', 'GOOGLE', 'RAZORPAY', 'WEB']);
 const PurchaseEnvironment = freeze(['SANDBOX', 'PRODUCTION']);
 const PurchaseStatus = freeze(['VERIFIED', 'PENDING', 'REVOKED', 'REFUNDED', 'FAILED']);
 const SubscriptionStatus = freeze(['ACTIVE', 'GRACE_PERIOD', 'CANCELED', 'EXPIRED', 'REVOKED', 'REFUNDED']);

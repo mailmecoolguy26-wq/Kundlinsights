@@ -6,6 +6,8 @@ import 'package:kundlinsights_mobile/features/payments/career_premium_product_co
 import 'package:kundlinsights_mobile/features/payments/career_premium_purchase_controller.dart';
 import 'package:kundlinsights_mobile/features/payments/data/apple_store_purchase_service.dart';
 import 'package:kundlinsights_mobile/features/payments/data/payment_api_client.dart';
+import 'package:kundlinsights_mobile/features/payments/data/razorpay_purchase_service.dart';
+import 'package:kundlinsights_mobile/features/payments/razorpay_career_premium_controller.dart';
 import 'package:kundlinsights_mobile/features/readings/career_reading_generation_controller.dart';
 import 'package:kundlinsights_mobile/features/payments/presentation/career_premium_paywall.dart';
 
@@ -274,6 +276,63 @@ void main() {
     expect(find.textContaining('synthetic restore failure'), findsNothing);
     h.dispose();
   });
+
+  testWidgets(
+    'Razorpay idle renders its locked pricing rather than store price',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 1000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final product = _controller();
+      final razorpay = _razorpayController();
+      await tester.pumpWidget(
+        _app(
+          CareerPremiumPaywall(
+            productController: product,
+            razorpayController: razorpay,
+            hasAccess: false,
+            entitlementMode: 'NONE',
+            onSubscribePressed: () {},
+            onContinuePressed: () {},
+          ),
+        ),
+      );
+
+      expect(find.textContaining('₹499 / year'), findsOneWidget);
+      expect(find.textContaining('+ GST @ 18%'), findsOneWidget);
+      expect(find.textContaining('Total payable: ₹588.82'), findsOneWidget);
+      expect(find.text('Unlock Career Premium — ₹588.82'), findsOneWidget);
+      expect(find.textContaining(r'$7.99'), findsNothing);
+      razorpay.dispose();
+      product.dispose();
+    },
+  );
+
+  testWidgets('Razorpay unknown state has recovery but no retry action', (
+    tester,
+  ) async {
+    final product = _controller();
+    final razorpay = _razorpayController(verifyFails: true);
+    await razorpay.start(birthProfileId: 'profile-a');
+    await tester.pumpWidget(
+      _app(
+        CareerPremiumPaywall(
+          productController: product,
+          razorpayController: razorpay,
+          razorpayState: RazorpayCareerPremiumState.paymentStatusUnknown,
+          hasAccess: false,
+          entitlementMode: 'NONE',
+          onSubscribePressed: () {},
+          onContinuePressed: () {},
+        ),
+      ),
+    );
+
+    expect(find.text('Check Payment Status'), findsOneWidget);
+    expect(find.text('Try Again'), findsNothing);
+    expect(find.text('Unlock Career Premium — ₹588.82'), findsNothing);
+    razorpay.dispose();
+    product.dispose();
+  });
 }
 
 Widget _app(Widget child) => MaterialApp(home: Scaffold(body: child));
@@ -418,6 +477,86 @@ class _PaywallStore extends _StoreClient {
   }
 }
 
+RazorpayCareerPremiumController _razorpayController({
+  bool verifyFails = false,
+}) => RazorpayCareerPremiumController(
+  api: _RazorpayApi(verifyFails),
+  checkout: _RazorpayCheckout(),
+  entitlements: _RazorpayEntitlements(),
+);
+
+class _RazorpayApi extends PaymentApiClient {
+  _RazorpayApi(this.verifyFails);
+
+  final bool verifyFails;
+
+  @override
+  Future<void> verifyApplePurchase({
+    required String environment,
+    required String productId,
+    required String evidence,
+  }) async {}
+
+  @override
+  Future<void> restoreApplePurchases({
+    required String environment,
+    required List<String> signedTransactions,
+  }) async {}
+
+  @override
+  Future<void> verifyGooglePurchase({
+    required String productId,
+    required String purchaseToken,
+    String? birthProfileId,
+  }) async {}
+
+  @override
+  Future<Map<String, dynamic>> createRazorpayOrder({
+    required String logicalSku,
+    String? birthProfileId,
+  }) async => const {
+    'orderId': 'order_1',
+    'keyId': 'rzp_test_public',
+    'amountMinor': 58882,
+    'currency': 'INR',
+  };
+
+  @override
+  Future<void> verifyRazorpayPayment({
+    required String razorpayOrderId,
+    required String razorpayPaymentId,
+    required String razorpaySignature,
+  }) async {
+    if (verifyFails) throw StateError('synthetic verification failure');
+  }
+}
+
+class _RazorpayCheckout implements RazorpayCheckout {
+  @override
+  Future<RazorpayPaymentEvidence> open({
+    required String keyId,
+    required String orderId,
+    required int amountMinor,
+    required String currency,
+  }) async => const RazorpayPaymentEvidence(
+    orderId: 'order_1',
+    paymentId: 'payment_1',
+    signature: 'signature_1',
+  );
+
+  @override
+  void dispose() {}
+}
+
+class _RazorpayEntitlements implements CareerPremiumEntitlementRefresher {
+  @override
+  CareerEligibilityState get eligibilityState =>
+      CareerEligibilityState.ineligible;
+
+  @override
+  Future<void> refreshEligibility() async {}
+}
+
 class _PaywallApi implements PaymentApiClient {
   _PaywallApi({required this.fails, required this.pending});
   final bool fails, pending;
@@ -444,7 +583,30 @@ class _PaywallApi implements PaymentApiClient {
   Future<void> verifyGooglePurchase({
     required String productId,
     required String purchaseToken,
+    String? birthProfileId,
   }) async {}
+
+  @override
+  Future<Map<String, dynamic>> createRazorpayOrder({
+    required String logicalSku,
+    String? birthProfileId,
+  }) async => const {};
+
+  @override
+  Future<void> verifyRazorpayPayment({
+    required String razorpayOrderId,
+    required String razorpayPaymentId,
+    required String razorpaySignature,
+  }) async {}
+
+  @override
+  Future<Map<String, dynamic>> getRazorpayOrderStatus(String orderId) async =>
+      const {};
+
+  @override
+  Future<Map<String, dynamic>> getLatestUnresolvedRazorpayOrder({
+    required String birthProfileId,
+  }) async => const {'order': null};
 }
 
 class _PaywallEntitlement implements CareerPremiumEntitlementRefresher {

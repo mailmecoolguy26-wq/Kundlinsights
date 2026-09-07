@@ -1,0 +1,6 @@
+'use strict';
+const test = require('node:test'); const assert = require('node:assert/strict');
+const { InMemoryProviderPaymentOrderRepository } = require('../../src/persistence');
+const now = '2026-09-07T00:00:00.000Z';
+function put(r, id, extra = {}) { return r.create({ id, userId: 'u', birthProfileId: 'p', provider: 'RAZORPAY', logicalSku: 'career_premium_annual', providerOrderId: `o-${id}`, amountMinor: 58882, currency: 'INR', createdAt: now, ...extra }); }
+test('finds only newest unresolved profile-scoped Razorpay order', () => { const r=new InMemoryProviderPaymentOrderRepository(); put(r,'old'); put(r,'new',{createdAt:'2026-09-08T00:00:00.000Z'}); put(r,'final',{status:'FINALIZED',createdAt:'2026-09-09T00:00:00.000Z'}); put(r,'failed',{status:'FAILED',createdAt:'2026-09-10T00:00:00.000Z'}); put(r,'other-profile',{birthProfileId:'p2',createdAt:'2026-09-11T00:00:00.000Z'}); put(r,'null',{birthProfileId:null,createdAt:'2026-09-12T00:00:00.000Z'}); put(r,'other-user',{userId:'u2',createdAt:'2026-09-13T00:00:00.000Z'}); put(r,'other-sku',{logicalSku:'other',createdAt:'2026-09-14T00:00:00.000Z'}); assert.equal(r.findLatestUnresolvedForProfile({userId:'u',birthProfileId:'p',logicalSku:'career_premium_annual'}).id,'new'); assert.equal(r.findLatestUnresolvedForProfile({userId:'u',birthProfileId:'missing',logicalSku:'career_premium_annual'}),null); });

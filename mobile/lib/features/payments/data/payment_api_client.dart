@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_client.dart';
 
-abstract interface class PaymentApiClient {
+abstract class PaymentApiClient {
   Future<void> verifyApplePurchase({
     required String environment,
     required String productId,
@@ -15,7 +15,30 @@ abstract interface class PaymentApiClient {
   Future<void> verifyGooglePurchase({
     required String productId,
     required String purchaseToken,
+    String? birthProfileId,
   });
+  Future<Map<String, dynamic>> createRazorpayOrder({
+    required String logicalSku,
+    String? birthProfileId,
+  }) => Future.error(
+    StateError('Razorpay payment configuration is unavailable.'),
+  );
+  Future<void> verifyRazorpayPayment({
+    required String razorpayOrderId,
+    required String razorpayPaymentId,
+    required String razorpaySignature,
+  }) => Future.error(
+    StateError('Razorpay payment configuration is unavailable.'),
+  );
+  Future<Map<String, dynamic>> getRazorpayOrderStatus(String orderId) =>
+      Future.error(
+        StateError('Razorpay payment configuration is unavailable.'),
+      );
+  Future<Map<String, dynamic>> getLatestUnresolvedRazorpayOrder({
+    required String birthProfileId,
+  }) => Future.error(
+    StateError('Razorpay payment configuration is unavailable.'),
+  );
 }
 
 class AuthenticatedPaymentApiClient implements PaymentApiClient {
@@ -58,6 +81,7 @@ class AuthenticatedPaymentApiClient implements PaymentApiClient {
   Future<void> verifyGooglePurchase({
     required String productId,
     required String purchaseToken,
+    String? birthProfileId,
   }) async {
     await _client.post<Map<String, dynamic>>(
       '/v1/purchases/verify',
@@ -65,10 +89,61 @@ class AuthenticatedPaymentApiClient implements PaymentApiClient {
         'provider': 'GOOGLE',
         'environment': 'PRODUCTION',
         'productId': productId,
+        if (birthProfileId != null && birthProfileId.isNotEmpty)
+          'birthProfileId': birthProfileId,
         'evidence': {'purchaseToken': purchaseToken},
       },
     );
   }
+
+  @override
+  Future<Map<String, dynamic>> createRazorpayOrder({
+    required String logicalSku,
+    String? birthProfileId,
+  }) async {
+    final response = await _client.post<Map<String, dynamic>>(
+      '/v1/payments/razorpay/orders',
+      data: {
+        'logicalSku': logicalSku,
+        if (birthProfileId?.isNotEmpty ?? false)
+          'birthProfileId': birthProfileId,
+      },
+    );
+    return response.data ?? const {};
+  }
+
+  @override
+  Future<void> verifyRazorpayPayment({
+    required String razorpayOrderId,
+    required String razorpayPaymentId,
+    required String razorpaySignature,
+  }) async {
+    await _client.post<Map<String, dynamic>>(
+      '/v1/payments/razorpay/verify',
+      data: {
+        'razorpayOrderId': razorpayOrderId,
+        'razorpayPaymentId': razorpayPaymentId,
+        'razorpaySignature': razorpaySignature,
+      },
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> getRazorpayOrderStatus(String orderId) async =>
+      (await _client.get<Map<String, dynamic>>(
+        '/v1/payments/razorpay/orders/$orderId',
+      )).data ??
+      const {};
+
+  @override
+  Future<Map<String, dynamic>> getLatestUnresolvedRazorpayOrder({
+    required String birthProfileId,
+  }) async =>
+      (await _client.get<Map<String, dynamic>>(
+        '/v1/payments/razorpay/unresolved-order',
+        queryParameters: {'birthProfileId': birthProfileId},
+      )).data ??
+      const {};
 }
 
 class UnavailablePaymentApiClient implements PaymentApiClient {
@@ -91,6 +166,25 @@ class UnavailablePaymentApiClient implements PaymentApiClient {
   Future<void> verifyGooglePurchase({
     required String productId,
     required String purchaseToken,
+    String? birthProfileId,
+  }) => Future.error(StateError('Payment configuration is unavailable.'));
+  @override
+  Future<Map<String, dynamic>> createRazorpayOrder({
+    required String logicalSku,
+    String? birthProfileId,
+  }) => Future.error(StateError('Payment configuration is unavailable.'));
+  @override
+  Future<void> verifyRazorpayPayment({
+    required String razorpayOrderId,
+    required String razorpayPaymentId,
+    required String razorpaySignature,
+  }) => Future.error(StateError('Payment configuration is unavailable.'));
+  @override
+  Future<Map<String, dynamic>> getRazorpayOrderStatus(String orderId) =>
+      Future.error(StateError('Payment configuration is unavailable.'));
+  @override
+  Future<Map<String, dynamic>> getLatestUnresolvedRazorpayOrder({
+    required String birthProfileId,
   }) => Future.error(StateError('Payment configuration is unavailable.'));
 }
 

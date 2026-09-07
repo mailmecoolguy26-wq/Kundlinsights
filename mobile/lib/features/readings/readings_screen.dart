@@ -12,6 +12,7 @@ import 'reading_controller.dart';
 import 'career_reading_generation_controller.dart';
 import '../payments/career_premium_product_controller.dart';
 import '../payments/career_premium_purchase_controller.dart';
+import '../payments/razorpay_career_premium_controller.dart';
 import '../payments/presentation/career_premium_paywall.dart';
 
 class ReadingsScreen extends StatefulWidget {
@@ -21,11 +22,13 @@ class ReadingsScreen extends StatefulWidget {
     this.generation,
     this.premiumProduct,
     this.premiumPurchase,
+    this.razorpayPremium,
   });
   final ReadingController controller;
   final CareerReadingGenerationController? generation;
   final CareerPremiumProductController? premiumProduct;
   final CareerPremiumPurchaseController? premiumPurchase;
+  final RazorpayCareerPremiumController? razorpayPremium;
 
   @override
   State<ReadingsScreen> createState() => _ReadingsScreenState();
@@ -33,11 +36,16 @@ class ReadingsScreen extends StatefulWidget {
 
 class _ReadingsScreenState extends State<ReadingsScreen> {
   String? _navigatedReadingId;
+  String? _lastHydratedProfileId;
+  final Set<String> _hydratingProfileIds = {};
 
   @override
   void initState() {
     super.initState();
     widget.generation?.addListener(_onGenerationChanged);
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _maybeHydrateRazorpay(),
+    );
   }
 
   @override
@@ -47,6 +55,7 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
   }
 
   void _onGenerationChanged() {
+    _maybeHydrateRazorpay();
     final generation = widget.generation;
     final id = generation?.createdReadingId;
     if (generation?.generationState != CareerGenerationState.success ||
@@ -62,12 +71,37 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
     });
   }
 
+  void _maybeHydrateRazorpay() {
+    if (!mounted) return;
+    final profileId = widget.generation?.activeBirthProfileId?.trim();
+    final razorpay = widget.razorpayPremium;
+    if (profileId == null ||
+        profileId.isEmpty ||
+        razorpay == null ||
+        _lastHydratedProfileId == profileId ||
+        _hydratingProfileIds.contains(profileId)) {
+      return;
+    }
+    _lastHydratedProfileId = profileId;
+    _hydratingProfileIds.add(profileId);
+    razorpay.hydrate(birthProfileId: profileId).whenComplete(() {
+      _hydratingProfileIds.remove(profileId);
+    });
+  }
+
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: Listenable.merge(
       widget.generation == null
-          ? [widget.controller]
-          : [widget.controller, widget.generation!],
+          ? [
+              widget.controller,
+              if (widget.razorpayPremium != null) widget.razorpayPremium!,
+            ]
+          : [
+              widget.controller,
+              widget.generation!,
+              if (widget.razorpayPremium != null) widget.razorpayPremium!,
+            ],
     ),
     builder: (context, child) {
       final t = AppLocalizations.of(context)!;
@@ -90,6 +124,7 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
             generation: widget.generation,
             premiumProduct: widget.premiumProduct,
             premiumPurchase: widget.premiumPurchase,
+            razorpayPremium: widget.razorpayPremium,
           ),
         ),
       );
@@ -104,11 +139,13 @@ class _ReadingList extends StatelessWidget {
     this.generation,
     this.premiumProduct,
     this.premiumPurchase,
+    this.razorpayPremium,
   });
   final ReadingController controller;
   final CareerReadingGenerationController? generation;
   final CareerPremiumProductController? premiumProduct;
   final CareerPremiumPurchaseController? premiumPurchase;
+  final RazorpayCareerPremiumController? razorpayPremium;
 
   @override
   Widget build(BuildContext context) {
@@ -124,6 +161,7 @@ class _ReadingList extends StatelessWidget {
               existingReading: _careerReading(controller.readings),
               premiumProduct: premiumProduct,
               premiumPurchase: premiumPurchase,
+              razorpayPremium: razorpayPremium,
             ),
           const SizedBox(height: 240, child: LoadingState()),
         ],
@@ -162,6 +200,7 @@ class _ReadingList extends StatelessWidget {
                 existingReading: _careerReading(controller.readings),
                 premiumProduct: premiumProduct,
                 premiumPurchase: premiumPurchase,
+                razorpayPremium: razorpayPremium,
               ),
             ),
           SizedBox(
@@ -204,11 +243,13 @@ class _GenerationCard extends StatelessWidget {
     this.existingReading,
     this.premiumProduct,
     this.premiumPurchase,
+    this.razorpayPremium,
   });
   final CareerReadingGenerationController generation;
   final ReadingSummary? existingReading;
   final CareerPremiumProductController? premiumProduct;
   final CareerPremiumPurchaseController? premiumPurchase;
+  final RazorpayCareerPremiumController? razorpayPremium;
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
@@ -255,8 +296,28 @@ class _GenerationCard extends StatelessWidget {
           hasAccess: false,
           entitlementMode: generation.eligibilityMode,
           purchaseController: premiumPurchase,
+          razorpayController: razorpayPremium,
+          razorpayState: generation.activeBirthProfileId == null
+              ? null
+              : razorpayPremium?.stateFor(generation.activeBirthProfileId!),
+          onRazorpayStart: generation.activeBirthProfileId == null
+              ? null
+              : () => razorpayPremium?.start(
+                  birthProfileId: generation.activeBirthProfileId!,
+                ),
+          onRazorpayRecover: generation.activeBirthProfileId == null
+              ? null
+              : () => razorpayPremium?.recover(
+                  birthProfileId: generation.activeBirthProfileId!,
+                ),
+          onRazorpayReset: generation.activeBirthProfileId == null
+              ? null
+              : () => razorpayPremium?.returnToPaywall(
+                  birthProfileId: generation.activeBirthProfileId!,
+                ),
           onSubscribePressed: premiumPurchase?.startPurchase ?? () {},
-          onContinuePressed: () {},
+          onContinuePressed: generation.generate,
+          onBackHomePressed: () => context.go('/home'),
         );
       }
       return AppCard(

@@ -21,6 +21,9 @@ import '../features/career_events/career_event_controller.dart';
 import '../features/payments/career_premium_product_controller.dart';
 import '../features/payments/data/career_premium_product_loader.dart';
 import '../features/payments/career_premium_purchase_controller.dart';
+import '../features/payments/razorpay_career_premium_controller.dart';
+import '../features/payments/data/razorpay_purchase_service.dart';
+import '../features/payments/data/payment_api_client.dart';
 
 class KundlInsightsApp extends ConsumerStatefulWidget {
   const KundlInsightsApp({super.key, required this.authController});
@@ -32,6 +35,7 @@ class KundlInsightsApp extends ConsumerStatefulWidget {
 
 class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp> {
   late final GoRouter _router;
+  RazorpayCareerPremiumController? _razorpayPremium;
 
   @override
   void initState() {
@@ -77,6 +81,14 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp> {
             : CareerPremiumStorePlatform.apple,
       )),
     );
+    final config = AppConfig.fromEnvironment();
+    final razorpayPremium = config?.isRazorpayCareerPremiumEligible != true
+        ? null
+        : _razorpayPremium = RazorpayCareerPremiumController(
+            api: ref.read(paymentApiClientProvider),
+            checkout: RazorpayPurchaseService(),
+            entitlements: CareerReadingEntitlementRefresher(generation),
+          );
     _router = createAppRouter(
       authController,
       profiles,
@@ -90,11 +102,13 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp> {
       premiumProduct,
       premiumPurchase,
       careerEvents,
+      razorpayPremium: razorpayPremium,
     );
   }
 
   @override
   void dispose() {
+    _razorpayPremium?.dispose();
     _router.dispose();
     super.dispose();
   }

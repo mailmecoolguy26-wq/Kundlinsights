@@ -10,7 +10,7 @@ class PostgresApplicationTransactionExecutor {
     if (!principal || typeof principal.subject !== 'string' || typeof role !== 'string' || typeof operation !== 'function') fail('INVALID_APPLICATION_TRANSACTION');
     return runWithAuthenticatedDbContext({ db: this.db, authSubject: principal.subject, diagnosticObserver: this.diagnosticObserver, operation: async (client, transaction) => {
       const setRole = async (nextRole) => { if (nextRole !== 'app_runtime' && nextRole !== 'app_worker' && nextRole !== 'app_crypto') fail('INVALID_APPLICATION_ROLE'); transaction.setStage('ROLE_SWITCH_FAILED'); await client.query(`set local role ${nextRole}`); transaction.setStage('REPOSITORY_OPERATION_FAILED'); };
-      await setRole(role); return operation({ db: client, setRole });
+      await setRole(role); return operation({ db: client, setRole, principal });
     } });
   }
 }

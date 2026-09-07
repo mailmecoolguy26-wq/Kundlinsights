@@ -57,7 +57,9 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
     required this.applePaymentEnvironment,
     this.googlePurchaseService,
     this.platform = CareerPremiumStorePlatform.apple,
+    String? Function()? activeBirthProfileId,
   }) {
+    _activeBirthProfileId = activeBirthProfileId ?? (() => null);
     _subscription =
         (platform == CareerPremiumStorePlatform.googlePlay
                 ? googlePurchaseService?.purchaseUpdates ?? const Stream.empty()
@@ -72,6 +74,7 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
   final String? applePaymentEnvironment;
   final GooglePlayPurchaseService? googlePurchaseService;
   final CareerPremiumStorePlatform platform;
+  late final String? Function() _activeBirthProfileId;
   late final StreamSubscription<StorePurchaseUpdate> _subscription;
   CareerPremiumPurchaseState _state = CareerPremiumPurchaseState.idle;
   CareerPremiumRestoreState _restoreState = CareerPremiumRestoreState.idle;
@@ -79,6 +82,8 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
   StorePurchaseUpdate? _verifiedPurchasePendingCompletion;
   StorePurchaseUpdate? _verificationRetryPurchase;
   String? _processingEvidence;
+  String? _pendingGooglePurchaseTarget;
+  final Map<String, String> _googlePurchaseTargets = {};
   bool _disposed = false;
 
   CareerPremiumPurchaseState get state => _state;
@@ -112,10 +117,20 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
     }
     _setState(CareerPremiumPurchaseState.purchasing);
     try {
+      if (platform == CareerPremiumStorePlatform.googlePlay &&
+          product.logicalSku == careerProfileUnlockLogicalSku) {
+        final target = _activeBirthProfileId();
+        if (target == null || target.isEmpty) {
+          _setState(CareerPremiumPurchaseState.error);
+          return;
+        }
+        _pendingGooglePurchaseTarget = target;
+      }
       final started = platform == CareerPremiumStorePlatform.googlePlay
           ? await googlePurchaseService!.startCareerPremiumPurchase(product)
           : await service.startCareerPremiumPurchase(product);
       if (!started) {
+        _pendingGooglePurchaseTarget = null;
         _setState(CareerPremiumPurchaseState.error);
       }
     } catch (_) {
@@ -261,6 +276,18 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
       case StorePurchaseStatus.restored:
         return;
       case StorePurchaseStatus.purchased:
+        if (product.logicalSku == careerProfileUnlockLogicalSku) {
+          final target = _pendingGooglePurchaseTarget;
+          if (target == null || target.isEmpty) {
+            _setState(CareerPremiumPurchaseState.error);
+            return;
+          }
+          _googlePurchaseTargets.putIfAbsent(
+            purchase.serverVerificationData,
+            () => target,
+          );
+          _pendingGooglePurchaseTarget = null;
+        }
         await _verifyGooglePurchase(purchase, product);
     }
   }
@@ -351,7 +378,10 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
     CareerPremiumProduct product,
   ) async {
     final purchaseToken = purchase.serverVerificationData;
-    if (purchaseToken.isEmpty) {
+    final target = _googlePurchaseTargets[purchaseToken];
+    if (purchaseToken.isEmpty ||
+        (product.logicalSku == careerProfileUnlockLogicalSku &&
+            target == null)) {
       _setState(CareerPremiumPurchaseState.error);
       return;
     }
@@ -363,6 +393,7 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
       await paymentApi.verifyGooglePurchase(
         productId: product.storeProductId,
         purchaseToken: purchaseToken,
+        birthProfileId: target,
       );
       _verifiedPurchasePendingCompletion = purchase;
       await _refreshEntitlementAfterVerification();
@@ -389,7 +420,11 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
       }
       final purchase = _verifiedPurchasePendingCompletion;
       if (purchase?.pendingCompletePurchase == true) {
-        if (platform == CareerPremiumStorePlatform.googlePlay) {
+        if (platform == CareerPremiumStorePlatform.googlePlay &&
+            productController.product?.logicalSku ==
+                careerProfileUnlockLogicalSku) {
+          await googlePurchaseService!.consumePurchaseOnce(purchase!);
+        } else if (platform == CareerPremiumStorePlatform.googlePlay) {
           await googlePurchaseService!.completePurchaseOnce(purchase!);
         } else {
           await service.completePurchaseOnce(purchase!);
@@ -397,6 +432,9 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
       }
       _verifiedPurchasePendingCompletion = null;
       _verificationRetryPurchase = null;
+      if (purchase != null) {
+        _googlePurchaseTargets.remove(purchase.serverVerificationData);
+      }
       _setState(CareerPremiumPurchaseState.success);
     } catch (_) {
       _setState(CareerPremiumPurchaseState.refreshFailed);
@@ -435,6 +473,7 @@ final careerPremiumPurchaseControllerProvider =
         applePaymentEnvironment: scope.$3,
         googlePurchaseService: ref.watch(googlePlayPurchaseServiceProvider),
         platform: scope.$4,
+        activeBirthProfileId: () => scope.$2.activeBirthProfileId,
       );
       ref.onDispose(controller.dispose);
       return controller;

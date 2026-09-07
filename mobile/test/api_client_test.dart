@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kundlinsights_mobile/core/api/api_client.dart';
 import 'package:kundlinsights_mobile/core/config/app_config.dart';
 import 'package:kundlinsights_mobile/core/errors/api_failure.dart';
+import 'package:kundlinsights_mobile/features/payments/data/payment_api_client.dart';
 
 void main() {
   const config = AppConfig.test(
@@ -92,6 +93,72 @@ void main() {
     expect(tokens.refreshes, 1);
     expect(tokens.invalidated, 1);
   });
+
+  test(
+    'gets the latest unresolved Razorpay order for the exact profile',
+    () async {
+      final adapter = _QueueAdapter([
+        _json(
+          200,
+          '{"order":{"providerOrderId":"order-1","status":"CREATED",'
+          '"logicalSku":"career_premium_annual","finalized":false}}',
+        ),
+      ]);
+      final api = AuthenticatedPaymentApiClient(
+        ApiClient(
+          config: config,
+          tokens: _Tokens(),
+          dio: Dio()..httpClientAdapter = adapter,
+        ),
+      );
+
+      final result = await api.getLatestUnresolvedRazorpayOrder(
+        birthProfileId: 'profile-id',
+      );
+
+      expect(
+        adapter.requests.single.path,
+        '/v1/payments/razorpay/unresolved-order',
+      );
+      expect(adapter.requests.single.queryParameters, {
+        'birthProfileId': 'profile-id',
+      });
+      expect(result['order'], {
+        'providerOrderId': 'order-1',
+        'status': 'CREATED',
+        'logicalSku': 'career_premium_annual',
+        'finalized': false,
+      });
+    },
+  );
+
+  test('keeps an empty unresolved Razorpay order response intact', () async {
+    final api = AuthenticatedPaymentApiClient(
+      ApiClient(
+        config: config,
+        tokens: _Tokens(),
+        dio: Dio()
+          ..httpClientAdapter = _QueueAdapter([_json(200, '{"order":null}')]),
+      ),
+    );
+
+    expect(
+      await api.getLatestUnresolvedRazorpayOrder(birthProfileId: 'profile-id'),
+      {'order': null},
+    );
+  });
+
+  test(
+    'unavailable payments fail consistently for unresolved Razorpay lookup',
+    () {
+      expect(
+        () => UnavailablePaymentApiClient().getLatestUnresolvedRazorpayOrder(
+          birthProfileId: 'profile-id',
+        ),
+        throwsA(isA<StateError>()),
+      );
+    },
+  );
 }
 
 ResponseBody _json(int status, String body) => ResponseBody.fromString(

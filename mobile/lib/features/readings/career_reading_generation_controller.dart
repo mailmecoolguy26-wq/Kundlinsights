@@ -43,6 +43,7 @@ class CareerReadingGenerationController extends ChangeNotifier {
   CareerGenerationState get generationState => _generationState;
   String? get createdReadingId => _createdReadingId;
   String? get eligibilityMode => _eligibilityMode;
+  String? get activeBirthProfileId => _profileId;
   bool get canGenerate =>
       _eligibilityState == CareerEligibilityState.eligible &&
       _generationState != CareerGenerationState.generating;

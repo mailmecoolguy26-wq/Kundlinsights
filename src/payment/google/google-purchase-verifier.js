@@ -26,18 +26,21 @@ function expiry(subscription) {
 }
 
 class GooglePurchaseVerifier {
-  constructor({ apiClient, packageName, googleProductId, clock = () => Date.now() } = {}) {
+  constructor({ apiClient, packageName, googleProductId, googleProfileUnlockProductId = null, clock = () => Date.now() } = {}) {
     this.apiClient = apiClient;
     this.packageName = packageName;
     this.googleProductId = googleProductId;
+    this.googleProfileUnlockProductId = googleProfileUnlockProductId;
     this.clock = clock;
   }
 
   async verify({ evidence, environment, productId: clientProductId } = {}) {
     if (!evidence || typeof evidence.purchaseToken !== 'string' || !evidence.purchaseToken) fail('PURCHASE_EVIDENCE_INVALID');
-    if (!this.apiClient || !this.packageName || !this.googleProductId) fail('PURCHASE_PROVIDER_UNSUPPORTED');
-    if (clientProductId && clientProductId !== this.googleProductId) fail('PURCHASE_PRODUCT_UNSUPPORTED');
-    if (evidence.productId != null && evidence.productId !== this.googleProductId) fail('PURCHASE_PRODUCT_UNSUPPORTED');
+    if (!this.apiClient || !this.packageName || (!this.googleProductId && !this.googleProfileUnlockProductId)) fail('PURCHASE_PROVIDER_UNSUPPORTED');
+    const requestedProductId = clientProductId || evidence.productId;
+    if (![this.googleProductId, this.googleProfileUnlockProductId].includes(requestedProductId)) fail('PURCHASE_PRODUCT_UNSUPPORTED');
+    if (evidence.productId != null && evidence.productId !== requestedProductId) fail('PURCHASE_PRODUCT_UNSUPPORTED');
+    if (requestedProductId === this.googleProfileUnlockProductId) return this._verifyProfileUnlock({ evidence, environment, productId: requestedProductId });
     let verified;
     try { verified = await this.apiClient.getSubscription({ packageName: this.packageName, purchaseToken: evidence.purchaseToken }); }
     catch (error) { if (error && error.code === 'PURCHASE_PRODUCT_UNSUPPORTED') throw error; fail('PURCHASE_EVIDENCE_INVALID'); }
@@ -55,6 +58,18 @@ class GooglePurchaseVerifier {
       purchasedAt, validFrom: purchasedAt, validUntil, status: normalizedStatus,
       providerEventTime: validUntil,
     };
+  }
+
+  async _verifyProfileUnlock({ evidence, environment, productId }) {
+    let verified;
+    try { verified = await this.apiClient.getProductPurchase({ packageName: this.packageName, productId, purchaseToken: evidence.purchaseToken }); }
+    catch { fail('PURCHASE_EVIDENCE_INVALID'); }
+    if (!verified || (verified.packageName && verified.packageName !== this.packageName)) fail('PURCHASE_EVIDENCE_INVALID');
+    if (verified.productId && verified.productId !== productId) fail('PURCHASE_PRODUCT_UNSUPPORTED');
+    if (verified.purchaseState !== 0 || typeof verified.orderId !== 'string' || !verified.orderId) fail('PURCHASE_EVIDENCE_INVALID');
+    const rawPurchaseTime = verified.purchaseTimeMillis;
+    if (!(typeof rawPurchaseTime === 'string' || typeof rawPurchaseTime === 'number') || !Number.isFinite(Number(rawPurchaseTime))) fail('PURCHASE_EVIDENCE_INVALID');
+    return { provider: 'GOOGLE', environment, productId: 'career_profile_unlock', providerProductId: productId, providerTransactionId: verified.orderId, originalTransactionId: null, purchasedAt: new Date(Number(rawPurchaseTime)).toISOString(), validFrom: null, validUntil: null, status: 'ACTIVE', providerEventTime: null };
   }
 
   async restore() { fail('PURCHASE_PROVIDER_UNSUPPORTED'); }

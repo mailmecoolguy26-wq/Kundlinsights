@@ -285,7 +285,7 @@ class _Store implements StorePurchaseClient {
   }
 }
 
-class _Api implements PaymentApiClient {
+class _Api extends PaymentApiClient {
   _Api(this.verifyFailures);
 
   int verifyFailures;
@@ -308,6 +308,7 @@ class _Api implements PaymentApiClient {
   Future<void> verifyGooglePurchase({
     required String productId,
     required String purchaseToken,
+    String? birthProfileId,
   }) async {
     tokens.add(purchaseToken);
     if (verifyFailures > 0) {

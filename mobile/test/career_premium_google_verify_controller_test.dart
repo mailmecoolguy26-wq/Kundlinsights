@@ -249,7 +249,7 @@ class _Store implements StorePurchaseClient {
   Future<void> restorePurchases() async {}
 }
 
-class _Api implements PaymentApiClient {
+class _Api extends PaymentApiClient {
   _Api({required this.fails, required this.gate});
 
   final bool fails;
@@ -276,6 +276,7 @@ class _Api implements PaymentApiClient {
   Future<void> verifyGooglePurchase({
     required String productId,
     required String purchaseToken,
+    String? birthProfileId,
   }) async {
     googleCalls.add((productId, purchaseToken));
     if (fails) throw StateError('synthetic ownership conflict');

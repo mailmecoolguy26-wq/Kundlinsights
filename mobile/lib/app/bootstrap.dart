@@ -71,6 +71,8 @@ Future<void> bootstrap() async {
     client: InAppPurchaseStorePurchaseClient(InAppPurchase.instance),
     careerPremiumAnnualGoogleProductId:
         config?.careerPremiumAnnualGoogleProductId,
+    careerProfileUnlockGoogleProductId:
+        config?.careerProfileUnlockGoogleProductId,
   );
   final premiumProductLoader = selectCareerPremiumProductLoader(
     platform: defaultTargetPlatform == TargetPlatform.android

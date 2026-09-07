@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 
 import 'career_premium_product_loader.dart';
 import '../domain/career_premium_product.dart';
@@ -126,6 +127,25 @@ class InAppPurchaseStorePurchaseClient implements StorePurchaseClient {
     return _purchase.buyNonConsumable(
       purchaseParam: PurchaseParam(productDetails: product),
     );
+  }
+
+  Future<bool> buyConsumable(String productId) async {
+    final product = _products[productId];
+    if (product == null) return false;
+    return _purchase.buyConsumable(
+      purchaseParam: PurchaseParam(productDetails: product),
+      autoConsume: false,
+    );
+  }
+
+  Future<void> consumePurchase(StorePurchaseUpdate purchase) async {
+    final nativePurchase = purchase.nativePurchase;
+    if (nativePurchase is! PurchaseDetails) {
+      throw StateError('Invalid Google Play purchase.');
+    }
+    await _purchase
+        .getPlatformAddition<InAppPurchaseAndroidPlatformAddition>()
+        .consumePurchase(nativePurchase);
   }
 
   @override

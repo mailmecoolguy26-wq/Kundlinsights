@@ -4,20 +4,25 @@ import '../domain/career_premium_product.dart';
 import 'apple_store_purchase_service.dart';
 import 'career_premium_product_loader.dart';
 
+const careerProfileUnlockLogicalSku = 'career_profile_unlock';
+
 class GooglePlayPurchaseService implements CareerPremiumProductLoader {
   GooglePlayPurchaseService({
     required this.client,
     required this.careerPremiumAnnualGoogleProductId,
+    this.careerProfileUnlockGoogleProductId,
   });
 
   final StorePurchaseClient client;
   final String? careerPremiumAnnualGoogleProductId;
+  final String? careerProfileUnlockGoogleProductId;
   final Set<String> _completedEvidence = {};
 
   Stream<StorePurchaseUpdate> get purchaseUpdates => client.purchaseUpdates;
 
   bool isConfiguredProductId(String productId) =>
-      productId == careerPremiumAnnualGoogleProductId;
+      productId == careerPremiumAnnualGoogleProductId ||
+      productId == careerProfileUnlockGoogleProductId;
 
   bool wasCompleted(StorePurchaseUpdate purchase) =>
       _completedEvidence.contains(purchase.serverVerificationData);
@@ -29,13 +34,28 @@ class GooglePlayPurchaseService implements CareerPremiumProductLoader {
     _completedEvidence.add(evidence);
   }
 
+  Future<void> consumePurchaseOnce(StorePurchaseUpdate purchase) async {
+    final evidence = purchase.serverVerificationData;
+    if (evidence.isEmpty || _completedEvidence.contains(evidence)) return;
+    await (client as dynamic).consumePurchase(purchase);
+    _completedEvidence.add(evidence);
+  }
+
   Future<bool> startCareerPremiumPurchase(CareerPremiumProduct product) async {
-    final productId = careerPremiumAnnualGoogleProductId;
+    final productId = product.logicalSku == careerProfileUnlockLogicalSku
+        ? careerProfileUnlockGoogleProductId
+        : careerPremiumAnnualGoogleProductId;
     if (productId == null ||
         productId.isEmpty ||
-        product.logicalSku != careerPremiumAnnualLogicalSku ||
+        !{
+          careerProfileUnlockLogicalSku,
+          careerPremiumAnnualLogicalSku,
+        }.contains(product.logicalSku) ||
         product.storeProductId != productId) {
       return false;
+    }
+    if (product.logicalSku == careerProfileUnlockLogicalSku) {
+      return (client as dynamic).buyConsumable(productId) as Future<bool>;
     }
     return client.buyNonConsumable(productId);
   }
@@ -44,7 +64,9 @@ class GooglePlayPurchaseService implements CareerPremiumProductLoader {
 
   @override
   Future<CareerPremiumProductLoadResult> loadCareerPremiumProduct() async {
-    final productId = careerPremiumAnnualGoogleProductId;
+    final productId =
+        careerProfileUnlockGoogleProductId ??
+        careerPremiumAnnualGoogleProductId;
     if (productId == null || productId.isEmpty) {
       return const CareerPremiumProductLoadResult.unavailable();
     }
@@ -66,7 +88,9 @@ class GooglePlayPurchaseService implements CareerPremiumProductLoader {
       final product = matches.single;
       return CareerPremiumProductLoadResult.available(
         CareerPremiumProduct(
-          logicalSku: careerPremiumAnnualLogicalSku,
+          logicalSku: productId == careerProfileUnlockGoogleProductId
+              ? careerProfileUnlockLogicalSku
+              : careerPremiumAnnualLogicalSku,
           storeProductId: product.id,
           title: product.title,
           description: product.description,
