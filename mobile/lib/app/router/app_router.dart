@@ -28,6 +28,8 @@ import '../../features/transits/presentation/current_transits_screen.dart';
 import '../../features/transits/transit_snapshot_controller.dart';
 import '../../features/ashtakavarga/ashtakavarga_controller.dart';
 import '../../features/ashtakavarga/presentation/ashtakavarga_screen.dart';
+import '../../features/splash/splash_launch_gate.dart';
+import '../../features/splash/presentation/stitch_splash_screen.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/app_page_scaffold.dart';
 import '../../shared/widgets/states.dart';
@@ -46,13 +48,24 @@ GoRouter createAppRouter(
   CareerPremiumPurchaseController premiumPurchase,
   CareerEventController careerEvents, {
   RazorpayCareerPremiumController? razorpayPremium,
+  required SplashLaunchGate splashLaunchGate,
 }) => GoRouter(
   initialLocation: '/splash',
-  refreshListenable: Listenable.merge([authController, profiles]),
+  refreshListenable: Listenable.merge([
+    authController,
+    profiles,
+    splashLaunchGate,
+  ]),
   redirect: (context, state) {
     final auth = authController.state.status;
     final location = state.matchedLocation;
-    final authRoute = location == '/login' || location == '/signup';
+    final authRoute =
+        location == '/login' ||
+        location == '/signup' ||
+        location == '/verify-otp';
+    if (!splashLaunchGate.isOpen) {
+      return location == '/splash' ? null : '/splash';
+    }
     if (auth == AuthStatus.initializing || auth == AuthStatus.loading) {
       return location == '/splash' || authRoute ? null : '/splash';
     }
@@ -95,7 +108,7 @@ GoRouter createAppRouter(
     ),
     GoRoute(
       path: '/splash',
-      builder: (context, state) => const _LoadingScreen(),
+      builder: (context, state) => const StitchSplashScreen(),
     ),
     GoRoute(
       path: '/vimshottari',
@@ -116,6 +129,13 @@ GoRouter createAppRouter(
     GoRoute(
       path: '/login',
       builder: (context, state) => LoginScreen(controller: authController),
+    ),
+    GoRoute(
+      path: '/verify-otp',
+      builder: (context, state) => VerifyOtpScreen(
+        controller: authController,
+        phoneNumber: state.uri.queryParameters['phone'],
+      ),
     ),
     GoRoute(
       path: '/signup',

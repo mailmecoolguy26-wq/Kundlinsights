@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 
 import 'domain/auth_repository.dart';
 
+enum PhoneOtpState { phoneEntry, requesting, sent, verifying }
+
 class AuthController extends ChangeNotifier {
   AuthController(this.repo)
     : _state = const AuthSnapshot(AuthStatus.initializing) {
@@ -16,6 +18,10 @@ class AuthController extends ChangeNotifier {
   final AuthRepository repo;
   AuthSnapshot _state;
   AuthSnapshot get state => _state;
+  PhoneOtpState _phoneOtpState = PhoneOtpState.phoneEntry;
+  PhoneOtpState get phoneOtpState => _phoneOtpState;
+  bool get isRequestingPhoneOtp => _phoneOtpState == PhoneOtpState.requesting;
+  bool get isVerifyingPhoneOtp => _phoneOtpState == PhoneOtpState.verifying;
   String? _signOutError;
   bool _isSigningOut = false;
   String? get signOutError => _signOutError;
@@ -31,6 +37,54 @@ class AuthController extends ChangeNotifier {
       _run(() => repo.signIn(email: email, password: password));
   Future<void> signup(String email, String password) =>
       _run(() => repo.signUp(email: email, password: password));
+
+  Future<void> requestPhoneOtp(String phoneNumber) async {
+    if (isRequestingPhoneOtp || isVerifyingPhoneOtp) return;
+    _phoneOtpState = PhoneOtpState.requesting;
+    _state = const AuthSnapshot(AuthStatus.loading);
+    notifyListeners();
+    try {
+      final phoneOtpRepository = _phoneOtpRepository();
+      await phoneOtpRepository.requestPhoneOtp(phoneNumber: phoneNumber);
+      _phoneOtpState = PhoneOtpState.sent;
+      _state = const AuthSnapshot(AuthStatus.unauthenticated);
+    } catch (error) {
+      _phoneOtpState = PhoneOtpState.phoneEntry;
+      _state = AuthSnapshot(AuthStatus.error, message: _safeMessage(error));
+    }
+    notifyListeners();
+  }
+
+  Future<void> verifyPhoneOtp({
+    required String phoneNumber,
+    required String otp,
+  }) async {
+    if (isRequestingPhoneOtp || isVerifyingPhoneOtp) return;
+    _phoneOtpState = PhoneOtpState.verifying;
+    _state = const AuthSnapshot(AuthStatus.loading);
+    notifyListeners();
+    try {
+      final phoneOtpRepository = _phoneOtpRepository();
+      await phoneOtpRepository.verifyPhoneOtp(
+        phoneNumber: phoneNumber,
+        otp: otp,
+      );
+      _state = await repo.restore();
+      _phoneOtpState = PhoneOtpState.phoneEntry;
+    } catch (error) {
+      _phoneOtpState = PhoneOtpState.sent;
+      _state = AuthSnapshot(AuthStatus.error, message: _safeMessage(error));
+    }
+    notifyListeners();
+  }
+
+  PhoneOtpAuthRepository _phoneOtpRepository() {
+    if (repo case final PhoneOtpAuthRepository phoneOtpRepository) {
+      return phoneOtpRepository;
+    }
+    throw StateError('Phone OTP authentication is unavailable.');
+  }
+
   Future<void> logout() async {
     if (_isSigningOut) return;
     _isSigningOut = true;
@@ -75,6 +129,14 @@ class AuthController extends ChangeNotifier {
     }
     if (value.contains('timeout')) {
       return 'The request timed out. Please try again.';
+    }
+    if (value.contains('rate') || value.contains('too many')) {
+      return 'Please wait a moment before requesting another OTP.';
+    }
+    if (value.contains('otp') ||
+        value.contains('token') ||
+        value.contains('expired')) {
+      return 'That OTP is invalid or has expired. Please try again.';
     }
     if (value.contains('socket') ||
         value.contains('network') ||

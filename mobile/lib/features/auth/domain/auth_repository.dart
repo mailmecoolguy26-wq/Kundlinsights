@@ -21,3 +21,13 @@ abstract interface class AuthRepository {
   Future<String?> accessToken();
   Future<String?> refreshAccessToken();
 }
+
+/// Phone OTP is an explicit optional capability while email/password remains
+/// available for existing authenticated-session compatibility.
+abstract interface class PhoneOtpAuthRepository {
+  Future<void> requestPhoneOtp({required String phoneNumber});
+  Future<void> verifyPhoneOtp({
+    required String phoneNumber,
+    required String otp,
+  });
+}

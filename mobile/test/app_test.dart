@@ -22,6 +22,8 @@ import 'package:kundlinsights_mobile/features/vimshottari/vimshottari_controller
 import 'package:kundlinsights_mobile/features/ashtakavarga/domain/ashtakavarga.dart';
 import 'package:kundlinsights_mobile/features/ashtakavarga/domain/ashtakavarga_repository.dart';
 import 'package:kundlinsights_mobile/features/ashtakavarga/ashtakavarga_controller.dart';
+import 'package:kundlinsights_mobile/features/splash/presentation/stitch_splash_screen.dart';
+import 'package:kundlinsights_mobile/features/splash/splash_launch_gate.dart';
 import 'package:kundlinsights_mobile/shared/widgets/states.dart';
 
 import 'ashtakavarga_fixture.dart';
@@ -47,12 +49,96 @@ void main() {
     expect(find.text('Home'), findsWidgets);
   });
 
+  testWidgets('cold launch keeps ready profiles on splash before Home', (
+    tester,
+  ) async {
+    final gate = SplashLaunchGate(
+      minimumDuration: const Duration(milliseconds: 1300),
+    );
+    await tester.pumpWidget(_app(controller, profiles, splashLaunchGate: gate));
+    await controller.restore();
+    await tester.pump();
+
+    expect(find.byType(StitchSplashScreen), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 1300));
+    await tester.pumpAndSettle();
+    expect(find.text('Welcome to KundlInsights'), findsOneWidget);
+  });
+
+  testWidgets(
+    'cold launch keeps an unauthenticated user on splash before login',
+    (tester) async {
+      repository.authenticated = false;
+      final gate = SplashLaunchGate(
+        minimumDuration: const Duration(milliseconds: 1300),
+      );
+      await tester.pumpWidget(
+        _app(controller, profiles, splashLaunchGate: gate),
+      );
+      await controller.restore();
+      await tester.pump();
+
+      expect(find.byType(StitchSplashScreen), findsOneWidget);
+
+      await tester.pump(const Duration(milliseconds: 1300));
+      await tester.pumpAndSettle();
+      expect(find.text('MOBILE NUMBER'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'cold launch keeps an empty profile account on splash before onboarding',
+    (tester) async {
+      final gate = SplashLaunchGate(
+        minimumDuration: const Duration(milliseconds: 1300),
+      );
+      await tester.pumpWidget(
+        _app(controller, _Profiles(empty: true), splashLaunchGate: gate),
+      );
+      await controller.restore();
+      await tester.pump();
+
+      expect(find.byType(StitchSplashScreen), findsOneWidget);
+
+      await tester.pump(const Duration(milliseconds: 1300));
+      await tester.pumpAndSettle();
+      expect(find.text('Create birth profile'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'a completed launch gate does not replay splash on router refresh',
+    (tester) async {
+      final gate = SplashLaunchGate(
+        minimumDuration: const Duration(milliseconds: 1300),
+      );
+      await tester.pumpWidget(
+        _app(controller, profiles, splashLaunchGate: gate),
+      );
+      await controller.restore();
+      await tester.pump(const Duration(milliseconds: 1300));
+      await tester.pumpAndSettle();
+
+      final home = find.text('Welcome to KundlInsights');
+      final router = GoRouter.of(tester.element(home));
+      expect(router.routerDelegate.currentConfiguration.uri.path, '/home');
+
+      await controller.restore();
+      await tester.pump();
+      await tester.pump();
+      expect(find.byType(StitchSplashScreen), findsNothing);
+      expect(router.routerDelegate.currentConfiguration.uri.path, '/home');
+    },
+  );
+
   testWidgets('ready profiles leave the profiles-loading route for Home', (
     tester,
   ) async {
     final delayedProfiles = _DelayedProfiles();
     await tester.pumpWidget(_app(controller, delayedProfiles));
     await controller.restore();
+    await tester.pump();
     await tester.pump();
 
     final router = GoRouter.of(tester.element(find.byType(LoadingState)));
@@ -209,21 +295,24 @@ void main() {
     await tester.pumpWidget(_app(controller, profiles));
     await controller.restore();
     await tester.pumpAndSettle();
-    expect(find.text('Welcome back'), findsOneWidget);
-    expect(find.text('Sign in'), findsOneWidget);
+    expect(find.text('MOBILE NUMBER'), findsOneWidget);
+    expect(find.text('CONTINUE'), findsOneWidget);
   });
 
-  testWidgets('sign-up navigation is available to unauthenticated users', (
-    tester,
-  ) async {
-    repository.authenticated = false;
-    await tester.pumpWidget(_app(controller, profiles));
-    await controller.restore();
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Create an account'));
-    await tester.pumpAndSettle();
-    expect(find.text('Create your account'), findsOneWidget);
-  });
+  testWidgets(
+    'mobile-number login remains available to unauthenticated users',
+    (tester) async {
+      repository.authenticated = false;
+      await tester.pumpWidget(_app(controller, profiles));
+      await controller.restore();
+      await tester.pumpAndSettle();
+      expect(find.text('SACRED VEDIC ASTROLOGY'), findsOneWidget);
+      expect(
+        find.textContaining('Enter your mobile number to begin your'),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('logout returns an authenticated session to sign in', (
     tester,
@@ -236,7 +325,7 @@ void main() {
     await tester.scrollUntilVisible(find.text('Sign out'), 200);
     await tester.tap(find.text('Sign out'));
     await tester.pumpAndSettle();
-    expect(find.text('Welcome back'), findsOneWidget);
+    expect(find.text('MOBILE NUMBER'), findsOneWidget);
   });
 
   testWidgets(
@@ -308,6 +397,7 @@ Widget _app(
   DivisionalChartRepository? charts,
   VimshottariRepository? vimshottari,
   AshtakavargaRepository? ashtakavarga,
+  SplashLaunchGate? splashLaunchGate,
 }) => ProviderScope(
   overrides: [
     birthProfileRepositoryProvider.overrideWithValue(profiles),
@@ -322,7 +412,11 @@ Widget _app(
       ashtakavarga ?? _Ashtakavarga(),
     ),
   ],
-  child: KundlInsightsApp(authController: controller),
+  child: KundlInsightsApp(
+    authController: controller,
+    splashLaunchGate:
+        splashLaunchGate ?? SplashLaunchGate(minimumDuration: Duration.zero),
+  ),
 );
 
 class _Ashtakavarga implements AshtakavargaRepository {
@@ -503,7 +597,7 @@ class _Profiles implements BirthProfileRepository {
   Future<List<PlaceCandidate>> searchPlaces(String query) async => const [];
 }
 
-class _FakeAuthRepository implements AuthRepository {
+class _FakeAuthRepository implements AuthRepository, PhoneOtpAuthRepository {
   _FakeAuthRepository({required this.authenticated});
 
   bool authenticated;
@@ -537,6 +631,18 @@ class _FakeAuthRepository implements AuthRepository {
     authenticated = true;
     _states.add(AuthSnapshot(AuthStatus.authenticated, subject: subject));
     return true;
+  }
+
+  @override
+  Future<void> requestPhoneOtp({required String phoneNumber}) async {}
+
+  @override
+  Future<void> verifyPhoneOtp({
+    required String phoneNumber,
+    required String otp,
+  }) async {
+    authenticated = true;
+    _states.add(AuthSnapshot(AuthStatus.authenticated, subject: subject));
   }
 
   @override

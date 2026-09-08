@@ -24,10 +24,16 @@ import '../features/payments/career_premium_purchase_controller.dart';
 import '../features/payments/razorpay_career_premium_controller.dart';
 import '../features/payments/data/razorpay_purchase_service.dart';
 import '../features/payments/data/payment_api_client.dart';
+import '../features/splash/splash_launch_gate.dart';
 
 class KundlInsightsApp extends ConsumerStatefulWidget {
-  const KundlInsightsApp({super.key, required this.authController});
+  const KundlInsightsApp({
+    super.key,
+    required this.authController,
+    this.splashLaunchGate,
+  });
   final AuthController authController;
+  final SplashLaunchGate? splashLaunchGate;
 
   @override
   ConsumerState<KundlInsightsApp> createState() => _KundlInsightsAppState();
@@ -35,11 +41,13 @@ class KundlInsightsApp extends ConsumerStatefulWidget {
 
 class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp> {
   late final GoRouter _router;
+  late final SplashLaunchGate _splashLaunchGate;
   RazorpayCareerPremiumController? _razorpayPremium;
 
   @override
   void initState() {
     super.initState();
+    _splashLaunchGate = widget.splashLaunchGate ?? SplashLaunchGate();
     final authController = widget.authController;
     final profiles = ref.read(profileControllerProvider(authController));
     final natal = ref.read(
@@ -103,6 +111,7 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp> {
       premiumPurchase,
       careerEvents,
       razorpayPremium: razorpayPremium,
+      splashLaunchGate: _splashLaunchGate,
     );
   }
 
@@ -110,6 +119,7 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp> {
   void dispose() {
     _razorpayPremium?.dispose();
     _router.dispose();
+    _splashLaunchGate.dispose();
     super.dispose();
   }
 

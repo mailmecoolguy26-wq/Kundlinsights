@@ -34,12 +34,17 @@ abstract interface class SupabaseAuthSource {
   Stream<SupabaseAuthEvent> get events;
   Future<void> signIn({required String email, required String password});
   Future<bool> signUp({required String email, required String password});
+  Future<void> requestPhoneOtp({required String phoneNumber});
+  Future<void> verifyPhoneOtp({
+    required String phoneNumber,
+    required String otp,
+  });
   Future<void> signOut();
   Future<String?> accessToken();
   Future<String?> refreshAccessToken();
 }
 
-class SupabaseAuthRepository implements AuthRepository {
+class SupabaseAuthRepository implements AuthRepository, PhoneOtpAuthRepository {
   SupabaseAuthRepository(SupabaseClient client)
     : this.withSource(_SupabaseAuthSource(client));
 
@@ -107,6 +112,16 @@ class SupabaseAuthRepository implements AuthRepository {
       _source.signUp(email: email, password: password);
 
   @override
+  Future<void> requestPhoneOtp({required String phoneNumber}) =>
+      _source.requestPhoneOtp(phoneNumber: phoneNumber);
+
+  @override
+  Future<void> verifyPhoneOtp({
+    required String phoneNumber,
+    required String otp,
+  }) => _source.verifyPhoneOtp(phoneNumber: phoneNumber, otp: otp);
+
+  @override
   Future<void> signOut() => _source.signOut();
 
   @override
@@ -165,6 +180,17 @@ class _SupabaseAuthSource implements SupabaseAuthSource {
     final result = await _client.auth.signUp(email: email, password: password);
     return result.session != null;
   }
+
+  @override
+  Future<void> requestPhoneOtp({required String phoneNumber}) =>
+      _client.auth.signInWithOtp(phone: phoneNumber);
+
+  @override
+  Future<void> verifyPhoneOtp({
+    required String phoneNumber,
+    required String otp,
+  }) =>
+      _client.auth.verifyOTP(phone: phoneNumber, token: otp, type: OtpType.sms);
 
   @override
   Future<void> signOut() => _client.auth.signOut();

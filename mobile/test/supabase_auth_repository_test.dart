@@ -115,6 +115,22 @@ void main() {
     await source.dispose();
     repository.dispose();
   });
+
+  test('phone OTP calls delegate through the Supabase auth source', () async {
+    final source = _Source(authenticated: false);
+    final repository = SupabaseAuthRepository.withSource(source);
+
+    await repository.requestPhoneOtp(phoneNumber: '+919876543210');
+    await repository.verifyPhoneOtp(
+      phoneNumber: '+919876543210',
+      otp: '123456',
+    );
+
+    expect(source.requestedPhones, ['+919876543210']);
+    expect(source.verifiedOtps, [('+919876543210', '123456')]);
+    await source.dispose();
+    repository.dispose();
+  });
 }
 
 Future<void> _flushEvents() => Future<void>.delayed(Duration.zero);
@@ -125,6 +141,8 @@ class _Source implements SupabaseAuthSource {
   final _events = StreamController<SupabaseAuthEvent>.broadcast(sync: true);
   bool authenticated;
   final bool requiresRecovery;
+  final requestedPhones = <String>[];
+  final verifiedOtps = <(String, String)>[];
 
   @override
   SupabaseAuthBootstrapSnapshot get bootstrapSnapshot =>
@@ -156,6 +174,20 @@ class _Source implements SupabaseAuthSource {
 
   @override
   Future<void> signIn({required String email, required String password}) async {
+    authenticated = true;
+  }
+
+  @override
+  Future<void> requestPhoneOtp({required String phoneNumber}) async {
+    requestedPhones.add(phoneNumber);
+  }
+
+  @override
+  Future<void> verifyPhoneOtp({
+    required String phoneNumber,
+    required String otp,
+  }) async {
+    verifiedOtps.add((phoneNumber, otp));
     authenticated = true;
   }
 
