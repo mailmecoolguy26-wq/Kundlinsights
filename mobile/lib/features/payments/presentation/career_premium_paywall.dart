@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../shared/widgets/app_card.dart';
 import '../career_premium_product_controller.dart';
+import '../../readings/career_reading_generation_controller.dart';
 import '../career_premium_purchase_controller.dart';
 import '../razorpay_career_premium_controller.dart';
 import '../domain/career_premium_product.dart';
@@ -25,6 +26,7 @@ class CareerPremiumPaywall extends StatefulWidget {
     this.dedicatedRazorpaySurface = false,
     this.activeProfileLabel,
     this.razorpayProfileId,
+    this.generationController,
   });
 
   final CareerPremiumProductController productController;
@@ -42,6 +44,7 @@ class CareerPremiumPaywall extends StatefulWidget {
   final bool dedicatedRazorpaySurface;
   final String? activeProfileLabel;
   final String? razorpayProfileId;
+  final CareerReadingGenerationController? generationController;
 
   @override
   State<CareerPremiumPaywall> createState() => _CareerPremiumPaywallState();
@@ -87,7 +90,11 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
                 ),
                 const SizedBox(height: 28),
                 ListenableBuilder(
-                  listenable: widget.razorpayController!,
+                  listenable: Listenable.merge([
+                    widget.razorpayController!,
+                    if (widget.generationController != null)
+                      widget.generationController!,
+                  ]),
                   builder: (context, child) => _ProductAction(
                     controller: widget.productController,
                     onSubscribePressed: widget.onSubscribePressed,
@@ -103,6 +110,8 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
                           ),
                     onRazorpayRecover: widget.onRazorpayRecover,
                     onRazorpayReset: widget.onRazorpayReset,
+                    generationState:
+                        widget.generationController?.generationState,
                   ),
                 ),
               ],
@@ -243,6 +252,7 @@ class _ProductAction extends StatelessWidget {
     this.razorpayState,
     this.onRazorpayRecover,
     this.onRazorpayReset,
+    this.generationState,
   });
   final CareerPremiumProductController controller;
   final VoidCallback onSubscribePressed;
@@ -254,9 +264,13 @@ class _ProductAction extends StatelessWidget {
   final RazorpayCareerPremiumState? razorpayState;
   final VoidCallback? onRazorpayRecover;
   final VoidCallback? onRazorpayReset;
+  final CareerGenerationState? generationState;
 
   @override
   Widget build(BuildContext context) {
+    if (generationState == CareerGenerationState.generating) {
+      return const _CareerCalibrationProcessing();
+    }
     final razorpay = razorpayController;
     final razorpayState = this.razorpayState;
     if (razorpay != null &&
@@ -422,6 +436,90 @@ class _ProductAction extends StatelessWidget {
         );
     }
   }
+}
+
+class _CareerCalibrationProcessing extends StatelessWidget {
+  const _CareerCalibrationProcessing();
+  @override
+  Widget build(BuildContext context) => const Column(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+      Text(
+        'CALIBRATION',
+        style: TextStyle(color: Color(0xFFF4BF50), fontWeight: FontWeight.w800),
+      ),
+      SizedBox(height: 4),
+      Text(
+        'Career Calibration',
+        style: TextStyle(color: Color(0xFFFAF7F2), fontSize: 22),
+      ),
+      SizedBox(height: 28),
+      Icon(Icons.autorenew, color: Color(0xFFC5A059), size: 52),
+      SizedBox(height: 20),
+      Text(
+        'Calibrating your career timeline',
+        style: TextStyle(
+          color: Color(0xFFFAF7F2),
+          fontSize: 27,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      SizedBox(height: 8),
+      Text(
+        'We’re comparing your past career events with your birth chart and timing patterns.',
+        textAlign: TextAlign.center,
+        style: TextStyle(color: Color(0xFF9E9AA9)),
+      ),
+      SizedBox(height: 20),
+      _CalibrationStage(
+        'Matching career events',
+        'Cross-referencing your submitted career milestones',
+        'COMPLETED',
+      ),
+      _CalibrationStage(
+        'Analyzing timing patterns',
+        'Comparing the timing of your major career milestones',
+        'ACTIVE',
+      ),
+      _CalibrationStage(
+        'Personalizing career forecast',
+        'Building your calibrated career timeline and forecast',
+        'PENDING',
+      ),
+    ],
+  );
+}
+
+class _CalibrationStage extends StatelessWidget {
+  const _CalibrationStage(this.title, this.body, this.status);
+  final String title;
+  final String body;
+  final String status;
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    margin: const EdgeInsets.only(bottom: 8),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: const Color(0xFF181335),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: const Color(0xFFC5A059)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          status,
+          style: const TextStyle(color: Color(0xFFF4BF50), fontSize: 10),
+        ),
+        Text(title, style: const TextStyle(color: Color(0xFFFAF7F2))),
+        Text(
+          body,
+          style: const TextStyle(color: Color(0xFF9E9AA9), fontSize: 12),
+        ),
+      ],
+    ),
+  );
 }
 
 class _RazorpayProcessing extends StatelessWidget {

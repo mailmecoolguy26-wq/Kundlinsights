@@ -182,6 +182,7 @@ GoRouter createAppRouter(
           dedicatedRazorpaySurface: true,
           activeProfileLabel: profiles.activeProfile?.label,
           razorpayProfileId: profileId,
+          generationController: generation,
           productController: premiumProduct,
           hasAccess: false,
           purchaseController: premiumPurchase,
