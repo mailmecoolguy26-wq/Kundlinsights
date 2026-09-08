@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/errors/api_failure.dart';
 import '../../../l10n/app_localizations.dart';
@@ -13,26 +14,19 @@ class CareerCalibrationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = AppLocalizations.of(context)!;
     return ListenableBuilder(
       listenable: controller,
       builder: (context, _) => Scaffold(
-        appBar: AppBar(
-          leading: BackButton(onPressed: () => _goBack(context)),
-          title: Text(t.careerCalibration),
+        backgroundColor: _CalibrationColors.background,
+        body: SafeArea(
+          child: Column(
+            children: [
+              _CalibrationTopBar(onExit: () => _goBack(context)),
+              const _ProgressHeader(),
+              Expanded(child: _body(context)),
+            ],
+          ),
         ),
-        floatingActionButton:
-            controller.state == CareerEventLoadState.loaded &&
-                controller.events.isNotEmpty
-            ? FloatingActionButton.extended(
-                onPressed: controller.isMutating
-                    ? null
-                    : () => _openForm(context),
-                icon: const Icon(Icons.add),
-                label: Text(t.addCareerEvent),
-              )
-            : null,
-        body: _body(context),
       ),
     );
   }
@@ -59,15 +53,13 @@ class CareerCalibrationScreen extends StatelessWidget {
       );
     }
     if (controller.events.isEmpty) {
-      return EmptyState(
-        icon: Icons.work_outline,
-        title: t.noCareerHistory,
-        body: t.careerHistoryEmptyBody,
-        actionLabel: t.addCareerEvent,
-        onAction: controller.isMutating ? null : () => _openForm(context),
+      return _CalibrationIntro(
+        busy: controller.isMutating,
+        onStart: () => _openForm(context),
       );
     }
-    return Column(
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
       children: [
         if (controller.mutationState == CareerEventMutationState.error)
           MaterialBanner(
@@ -79,24 +71,41 @@ class CareerCalibrationScreen extends StatelessWidget {
               ),
             ],
           ),
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Text(t.careerCalibrationIntro),
-              const SizedBox(height: 16),
-              _Readiness(count: controller.events.length),
-              const SizedBox(height: 16),
-              ...controller.events.map(
-                (event) => _EventTile(
-                  event: event,
-                  busy: controller.isMutating,
-                  onEdit: () => _openForm(context, event: event),
-                  onDelete: () => _confirmDelete(context, event),
-                ),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Your Career Events',
+                style: _calibrationHeading(fontSize: 31),
               ),
-            ],
+            ),
+            _SavedEventBadge(count: controller.events.length),
+          ],
+        ),
+        const SizedBox(height: 9),
+        Text(
+          'Review or add the events used for your personalized career timing.',
+          style: GoogleFonts.inter(
+            color: _CalibrationColors.slate,
+            fontSize: 13,
+            height: 1.45,
           ),
+        ),
+        const SizedBox(height: 12),
+        ...controller.events.map(
+          (event) => _EventTile(
+            event: event,
+            busy: controller.isMutating,
+            onEdit: () => _openForm(context, event: event),
+            onDelete: () => _confirmDelete(context, event),
+          ),
+        ),
+        const SizedBox(height: 14),
+        _GoldAction(
+          key: const ValueKey('add-career-event'),
+          label: 'ADD CAREER EVENT  →',
+          enabled: !controller.isMutating,
+          onPressed: () => _openForm(context),
         ),
       ],
     );
@@ -168,24 +177,378 @@ class CareerCalibrationScreen extends StatelessWidget {
   }
 }
 
-class _Readiness extends StatelessWidget {
-  const _Readiness({required this.count});
-  final int count;
+abstract final class _CalibrationColors {
+  static const background = Color(0xFF0B071B);
+  static const abyss = Color(0xFF120D29);
+  static const violet = Color(0xFF181335);
+  static const gold = Color(0xFFC5A059);
+  static const champagne = Color(0xFFF4BF50);
+  static const alabaster = Color(0xFFFAF7F2);
+  static const slate = Color(0xFF9E9AA9);
+  static const mutedError = Color(0xFFC88989);
+}
+
+class _CalibrationTopBar extends StatelessWidget {
+  const _CalibrationTopBar({required this.onExit});
+  final VoidCallback onExit;
+
   @override
-  Widget build(BuildContext context) {
-    final t = AppLocalizations.of(context)!;
-    return Semantics(
-      liveRegion: true,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text(
-            count == 1 ? t.addAnotherMilestone : t.careerHistoryReady,
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+    child: Row(
+      children: [
+        Container(
+          decoration: const BoxDecoration(
+            color: _CalibrationColors.violet,
+            shape: BoxShape.circle,
+          ),
+          child: BackButton(
+            onPressed: onExit,
+            color: _CalibrationColors.alabaster,
           ),
         ),
+        const Spacer(),
+        Column(
+          children: [
+            Text(
+              'CALIBRATION',
+              style: _calibrationLabel(color: _CalibrationColors.champagne),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Career Calibration',
+              style: _calibrationHeading(fontSize: 23),
+            ),
+          ],
+        ),
+        const Spacer(),
+        IconButton(
+          key: const ValueKey('calibration-close'),
+          onPressed: onExit,
+          icon: const Icon(Icons.close, color: _CalibrationColors.alabaster),
+          style: IconButton.styleFrom(
+            backgroundColor: _CalibrationColors.violet,
+          ),
+        ),
+        const SizedBox(width: 4),
+        const CircleAvatar(
+          radius: 15,
+          backgroundColor: _CalibrationColors.abyss,
+          child: Icon(
+            Icons.person_outline,
+            size: 17,
+            color: _CalibrationColors.gold,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _ProgressHeader extends StatelessWidget {
+  const _ProgressHeader();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.fromLTRB(20, 11, 20, 13),
+    decoration: const BoxDecoration(
+      border: Border(
+        bottom: BorderSide(color: _CalibrationColors.gold, width: .7),
       ),
+    ),
+    child: Column(
+      children: [
+        Row(
+          children: [
+            Text(
+              '●  CAREER CALIBRATION',
+              style: _calibrationLabel(color: _CalibrationColors.champagne),
+            ),
+            const Spacer(),
+            Text(
+              'Step 1 of 1',
+              style: GoogleFonts.inter(
+                color: _CalibrationColors.slate,
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 9),
+        Container(
+          height: 3,
+          decoration: BoxDecoration(
+            color: _CalibrationColors.gold,
+            borderRadius: BorderRadius.circular(99),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _CalibrationIntro extends StatelessWidget {
+  const _CalibrationIntro({required this.busy, required this.onStart});
+  final bool busy;
+  final VoidCallback onStart;
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.fromLTRB(20, 30, 20, 28),
+    children: [
+      Text(
+        'Help us learn from your career journey',
+        style: _calibrationHeading(fontSize: 36),
+      ),
+      const SizedBox(height: 13),
+      Text(
+        'Add a few important career events from your past. We’ll use them to better calibrate your chart and personalize your upcoming career windows.',
+        style: GoogleFonts.inter(
+          color: _CalibrationColors.slate,
+          fontSize: 13,
+          height: 1.55,
+        ),
+      ),
+      const SizedBox(height: 28),
+      const _ExplainerCard(),
+      const SizedBox(height: 15),
+      const _TrustCard(),
+      const SizedBox(height: 28),
+      _GoldAction(
+        key: const ValueKey('start-calibration'),
+        label: 'START CALIBRATION  →',
+        enabled: !busy,
+        onPressed: onStart,
+      ),
+      const SizedBox(height: 11),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.schedule_outlined,
+            color: _CalibrationColors.gold,
+            size: 14,
+          ),
+          const SizedBox(width: 7),
+          Text(
+            'Takes about 2 minutes',
+            style: GoogleFonts.inter(
+              color: _CalibrationColors.slate,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    ],
+  );
+}
+
+class _ExplainerCard extends StatelessWidget {
+  const _ExplainerCard();
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(15),
+    decoration: BoxDecoration(
+      color: _CalibrationColors.abyss,
+      borderRadius: BorderRadius.circular(18),
+    ),
+    child: Column(
+      children: [
+        const _ExplainerRow(
+          icon: Icons.auto_awesome_outlined,
+          label: 'Your Birth Chart',
+        ),
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 7),
+          child: Icon(Icons.add, color: _CalibrationColors.champagne, size: 18),
+        ),
+        const _ExplainerRow(
+          icon: Icons.work_outline,
+          label: 'Your Career History',
+        ),
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 7),
+          child: Icon(
+            Icons.arrow_downward,
+            color: _CalibrationColors.champagne,
+            size: 18,
+          ),
+        ),
+        const _ExplainerRow(
+          icon: Icons.timelapse_outlined,
+          label: 'Personalized Career Timing',
+          highlighted: true,
+        ),
+      ],
+    ),
+  );
+}
+
+class _ExplainerRow extends StatelessWidget {
+  const _ExplainerRow({
+    required this.icon,
+    required this.label,
+    this.highlighted = false,
+  });
+  final IconData icon;
+  final String label;
+  final bool highlighted;
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+    decoration: BoxDecoration(
+      color: _CalibrationColors.violet,
+      borderRadius: BorderRadius.circular(12),
+      border: highlighted
+          ? Border.all(color: _CalibrationColors.gold.withValues(alpha: .7))
+          : null,
+    ),
+    child: Row(
+      children: [
+        Icon(icon, color: _CalibrationColors.gold, size: 18),
+        const SizedBox(width: 10),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            color: _CalibrationColors.alabaster,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _TrustCard extends StatelessWidget {
+  const _TrustCard();
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: _CalibrationColors.violet,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: _CalibrationColors.gold.withValues(alpha: .18)),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(
+          Icons.verified_user_outlined,
+          color: _CalibrationColors.gold,
+          size: 20,
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Effortless Calibration',
+                style: GoogleFonts.inter(
+                  color: _CalibrationColors.alabaster,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                'Add the important events you remember. Year or month precision is supported when an exact date is unavailable.',
+                style: GoogleFonts.inter(
+                  color: _CalibrationColors.slate,
+                  fontSize: 11,
+                  height: 1.45,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _GoldAction extends StatelessWidget {
+  const _GoldAction({
+    super.key,
+    required this.label,
+    required this.enabled,
+    required this.onPressed,
+  });
+  final String label;
+  final bool enabled;
+  final VoidCallback onPressed;
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: 53,
+    child: FilledButton(
+      onPressed: enabled ? onPressed : null,
+      style: FilledButton.styleFrom(
+        backgroundColor: _CalibrationColors.gold,
+        disabledBackgroundColor: _CalibrationColors.gold.withValues(alpha: .3),
+        foregroundColor: _CalibrationColors.abyss,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      ),
+      child: Text(
+        label,
+        style: _calibrationLabel(color: _CalibrationColors.abyss),
+      ),
+    ),
+  );
+}
+
+TextStyle _calibrationLabel({Color color = _CalibrationColors.alabaster}) =>
+    GoogleFonts.inter(
+      color: color,
+      fontSize: 9,
+      letterSpacing: 1.1,
+      fontWeight: FontWeight.w700,
     );
-  }
+TextStyle _calibrationHeading({double fontSize = 30}) => GoogleFonts.ebGaramond(
+  color: _CalibrationColors.alabaster,
+  fontSize: fontSize,
+  height: .98,
+  fontWeight: FontWeight.w500,
+);
+
+class _SavedEventBadge extends StatelessWidget {
+  const _SavedEventBadge({required this.count});
+  final int count;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    label: '$count career events saved',
+    child: Container(
+      key: const ValueKey('saved-event-count'),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: _CalibrationColors.violet,
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(
+          color: _CalibrationColors.gold.withValues(alpha: .35),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.check_circle_outline,
+            color: _CalibrationColors.gold,
+            size: 13,
+          ),
+          const SizedBox(width: 5),
+          Text(
+            '$count ${count == 1 ? 'event' : 'events'} saved',
+            style: GoogleFonts.inter(
+              color: _CalibrationColors.champagne,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _EventTile extends StatelessWidget {
@@ -201,36 +564,142 @@ class _EventTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
-    return Card(
-      child: ListTile(
-        title: Text(_eventTypeLabel(t, event.eventType)),
-        subtitle: Text(
-          [
-            _dateLabel(context, event.eventDate),
-            if (event.title?.isNotEmpty == true) event.title!,
-            if (event.notes?.isNotEmpty == true) event.notes!,
-          ].join('\n'),
+    return Container(
+      key: ValueKey('career-event-${event.careerEventId}'),
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: _CalibrationColors.abyss,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _CalibrationColors.gold.withValues(alpha: .2),
         ),
-        isThreeLine:
-            event.title?.isNotEmpty == true || event.notes?.isNotEmpty == true,
-        trailing: Wrap(
-          children: [
-            IconButton(
-              tooltip: t.editCareerEvent,
-              onPressed: busy ? null : onEdit,
-              icon: const Icon(Icons.edit),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 76,
+            decoration: const BoxDecoration(
+              color: _CalibrationColors.gold,
+              borderRadius: BorderRadius.horizontal(left: Radius.circular(16)),
             ),
-            IconButton(
-              tooltip: t.deleteCareerEvent,
-              onPressed: busy ? null : onDelete,
-              icon: const Icon(Icons.delete),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: const BoxDecoration(
+                      color: _CalibrationColors.violet,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _eventIcon(event.eventType),
+                      color: _CalibrationColors.gold,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _eventTypeLabel(t, event.eventType),
+                          style: GoogleFonts.inter(
+                            color: _CalibrationColors.alabaster,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          _dateLabel(context, event.eventDate),
+                          style: GoogleFonts.inter(
+                            color: _CalibrationColors.slate,
+                            fontSize: 12,
+                          ),
+                        ),
+                        if (event.title?.isNotEmpty == true) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            event.title!,
+                            style: GoogleFonts.inter(
+                              color: _CalibrationColors.alabaster.withValues(
+                                alpha: .82,
+                              ),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                        if (event.notes?.isNotEmpty == true) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            event.notes!,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              color: _CalibrationColors.slate,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        key: ValueKey(
+                          'edit-career-event-${event.careerEventId}',
+                        ),
+                        tooltip: t.editCareerEvent,
+                        onPressed: busy ? null : onEdit,
+                        icon: const Icon(
+                          Icons.edit_outlined,
+                          color: _CalibrationColors.gold,
+                        ),
+                      ),
+                      IconButton(
+                        key: ValueKey(
+                          'delete-career-event-${event.careerEventId}',
+                        ),
+                        tooltip: t.deleteCareerEvent,
+                        onPressed: busy ? null : onDelete,
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: _CalibrationColors.mutedError,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
+
+IconData _eventIcon(CareerEventType type) => switch (type) {
+  CareerEventType.firstJob => Icons.badge_outlined,
+  CareerEventType.jobSwitch => Icons.swap_horiz_rounded,
+  CareerEventType.promotion => Icons.trending_up_rounded,
+  CareerEventType.roleChange => Icons.person_outline,
+  CareerEventType.salaryGrowth => Icons.savings_outlined,
+  CareerEventType.jobLoss => Icons.work_off_outlined,
+  CareerEventType.businessStarted => Icons.storefront_outlined,
+  CareerEventType.careerBreakthrough => Icons.auto_awesome_outlined,
+  CareerEventType.careerSetback => Icons.flag_outlined,
+  CareerEventType.other => Icons.work_outline,
+};
 
 String _errorText(AppLocalizations t, Object? error) {
   if (error is ApiFailure && error.code == 'CAREER_EVENT_DATE_IN_FUTURE') {
