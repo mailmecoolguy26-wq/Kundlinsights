@@ -333,7 +333,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Check Payment Status'), findsOneWidget);
+    expect(find.text('CHECK PAYMENT STATUS'), findsOneWidget);
     expect(find.text('Try Again'), findsNothing);
     expect(find.text('Unlock Career Premium — ₹588.82'), findsNothing);
     razorpay.dispose();

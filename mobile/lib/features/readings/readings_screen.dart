@@ -39,6 +39,7 @@ class ReadingsScreen extends StatefulWidget {
 class _ReadingsScreenState extends State<ReadingsScreen> {
   String? _navigatedReadingId;
   bool _premiumRouteRequested = false;
+  String? _dismissedPremiumProfileId;
   String? _lastHydratedProfileId;
   final Set<String> _hydratingProfileIds = {};
 
@@ -58,6 +59,10 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
   }
 
   void _onGenerationChanged() {
+    final activeProfileId = widget.generation?.activeBirthProfileId;
+    if (activeProfileId != _lastHydratedProfileId) {
+      _dismissedPremiumProfileId = null;
+    }
     _maybeHydrateRazorpay();
     final generation = widget.generation;
     final id = generation?.createdReadingId;
@@ -115,11 +120,115 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
           existingCareer == null &&
           widget.razorpayPremium != null &&
           widget.premiumProduct != null;
-      if (isDedicatedRazorpayPaywall && !_premiumRouteRequested) {
+      final profileId = widget.generation?.activeBirthProfileId;
+      final wasDismissedForProfile =
+          profileId != null && _dismissedPremiumProfileId == profileId;
+      if (isDedicatedRazorpayPaywall &&
+          !_premiumRouteRequested &&
+          !wasDismissedForProfile) {
         _premiumRouteRequested = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) context.push('/career-premium');
+          if (!mounted) return;
+          context.push('/career-premium').whenComplete(() {
+            if (!mounted) return;
+            _premiumRouteRequested = false;
+            _dismissedPremiumProfileId = profileId;
+            setState(() {});
+          });
         });
+      }
+      if (isDedicatedRazorpayPaywall) {
+        // Razorpay has one presentation only: the top-level premium route.
+        // Never fall through to the legacy My Readings paywall while a push is
+        // pending or after the user deliberately returns from that route.
+        if (wasDismissedForProfile) {
+          return Scaffold(
+            backgroundColor: const Color(0xFF0B071B),
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Container(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF181335),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: const Color(0xFFC5A059).withValues(alpha: .45),
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'READINGS',
+                        style: TextStyle(
+                          color: Color(0xFFF4BF50),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      const Text(
+                        'Career Reading',
+                        style: TextStyle(
+                          color: Color(0xFFFAF7F2),
+                          fontSize: 28,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      const Text(
+                        'Your personalized Career Reading is ready',
+                        style: TextStyle(
+                          color: Color(0xFFFAF7F2),
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      const Text(
+                        'Continue securely to unlock your complete career forecast and upcoming career windows.',
+                        style: TextStyle(color: Color(0xFF9E9AA9)),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      const Row(
+                        children: [
+                          Icon(
+                            Icons.auto_awesome,
+                            color: Color(0xFFC5A059),
+                            size: 16,
+                          ),
+                          SizedBox(width: 7),
+                          Text(
+                            'Career calibration ready',
+                            style: TextStyle(
+                              color: Color(0xFFF4BF50),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      FilledButton(
+                        onPressed: () {
+                          _dismissedPremiumProfileId = null;
+                          setState(() {});
+                        },
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFFF4BF50),
+                          foregroundColor: const Color(0xFF0B071B),
+                        ),
+                        child: const Text('CONTINUE TO CAREER READING →'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+        return const Scaffold(backgroundColor: Color(0xFF0B071B));
       }
       final t = AppLocalizations.of(context)!;
       final screen = AppPageScaffold(

@@ -24,6 +24,7 @@ class CareerPremiumPaywall extends StatefulWidget {
     this.onRazorpayReset,
     this.dedicatedRazorpaySurface = false,
     this.activeProfileLabel,
+    this.razorpayProfileId,
   });
 
   final CareerPremiumProductController productController;
@@ -40,6 +41,7 @@ class CareerPremiumPaywall extends StatefulWidget {
   final VoidCallback? onRazorpayReset;
   final bool dedicatedRazorpaySurface;
   final String? activeProfileLabel;
+  final String? razorpayProfileId;
 
   @override
   State<CareerPremiumPaywall> createState() => _CareerPremiumPaywallState();
@@ -84,17 +86,24 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
                   ],
                 ),
                 const SizedBox(height: 28),
-                _ProductAction(
-                  controller: widget.productController,
-                  onSubscribePressed: widget.onSubscribePressed,
-                  onContinuePressed: widget.onContinuePressed,
-                  onBackHomePressed: widget.onBackHomePressed,
-                  purchaseController: widget.purchaseController,
-                  razorpayController: widget.razorpayController,
-                  onRazorpayStart: widget.onRazorpayStart,
-                  razorpayState: widget.razorpayState,
-                  onRazorpayRecover: widget.onRazorpayRecover,
-                  onRazorpayReset: widget.onRazorpayReset,
+                ListenableBuilder(
+                  listenable: widget.razorpayController!,
+                  builder: (context, child) => _ProductAction(
+                    controller: widget.productController,
+                    onSubscribePressed: widget.onSubscribePressed,
+                    onContinuePressed: widget.onContinuePressed,
+                    onBackHomePressed: widget.onBackHomePressed,
+                    purchaseController: widget.purchaseController,
+                    razorpayController: widget.razorpayController,
+                    onRazorpayStart: widget.onRazorpayStart,
+                    razorpayState: widget.razorpayProfileId == null
+                        ? widget.razorpayState
+                        : widget.razorpayController!.stateFor(
+                            widget.razorpayProfileId!,
+                          ),
+                    onRazorpayRecover: widget.onRazorpayRecover,
+                    onRazorpayReset: widget.onRazorpayReset,
+                  ),
                 ),
               ],
             ),
@@ -422,22 +431,46 @@ class _RazorpayProcessing extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(
+        'CAREER PREMIUM',
+        style: TextStyle(
+          color: Color(0xFFF4BF50),
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+      SizedBox(height: 10),
+      Icon(Icons.auto_awesome, color: Color(0xFFC5A059), size: 34),
+      SizedBox(height: 10),
+      Text(
         'Processing your payment',
-        style: TextStyle(fontWeight: FontWeight.w700),
+        style: TextStyle(
+          color: Color(0xFFFAF7F2),
+          fontSize: 25,
+          fontWeight: FontWeight.w600,
+        ),
       ),
       SizedBox(height: AppSpacing.xs),
-      Text('Please wait while we securely confirm your payment.'),
+      Text(
+        'Please wait while we securely confirm your payment.',
+        style: TextStyle(color: Color(0xFF9E9AA9)),
+      ),
       SizedBox(height: AppSpacing.sm),
-      Text('Career Premium · Annual access'),
-      Text('₹588.82'),
-      Text('₹588.82 total, including GST'),
+      Text(
+        'CAREER PREMIUM · ANNUAL ACCESS',
+        style: TextStyle(color: Color(0xFFF4BF50)),
+      ),
+      Text('₹588.82', style: TextStyle(color: Color(0xFFFAF7F2), fontSize: 28)),
+      Text(
+        '₹588.82 total, including GST',
+        style: TextStyle(color: Color(0xFF9E9AA9)),
+      ),
       SizedBox(height: AppSpacing.sm),
       LinearProgressIndicator(),
-      Text('Confirming payment…'),
+      Text('Confirming payment…', style: TextStyle(color: Color(0xFFFAF7F2))),
       SizedBox(height: AppSpacing.xs),
       Text(
         'Please do not close the app or press back while your payment is being confirmed.',
-        style: TextStyle(fontSize: 12),
+        style: TextStyle(color: Color(0xFF9E9AA9), fontSize: 12),
       ),
     ],
   );
@@ -453,11 +486,22 @@ class _RazorpaySuccess extends StatelessWidget {
     children: [
       const Text(
         'PAYMENT SUCCESSFUL',
-        style: TextStyle(fontWeight: FontWeight.w700),
+        style: TextStyle(color: Color(0xFFF4BF50), fontWeight: FontWeight.w800),
       ),
-      const Text('Career Premium is now unlocked'),
+      const SizedBox(height: 10),
+      const Icon(Icons.verified_rounded, color: Color(0xFFC5A059), size: 38),
+      const SizedBox(height: 10),
+      const Text(
+        'Career Premium is now unlocked',
+        style: TextStyle(
+          color: Color(0xFFFAF7F2),
+          fontSize: 24,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
       const Text(
         'You now have full access to your personalized career forecast and upcoming career windows.',
+        style: TextStyle(color: Color(0xFF9E9AA9)),
       ),
       const SizedBox(height: AppSpacing.sm),
       const Text(
@@ -481,24 +525,46 @@ class _RazorpayFailure extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       const Text(
-        'PAYMENT NOT COMPLETED',
-        style: TextStyle(fontWeight: FontWeight.w700),
+        'PAYMENT FAILED',
+        style: TextStyle(color: Color(0xFFF4BF50), fontWeight: FontWeight.w800),
       ),
-      const Text('Your payment couldn’t be completed'),
+      const SizedBox(height: 10),
+      const Icon(Icons.error_outline, color: Color(0xFFC5A059), size: 36),
+      const Text(
+        'Your payment couldn’t be completed',
+        style: TextStyle(color: Color(0xFFFAF7F2), fontSize: 22),
+      ),
       const Text(
         'Career Premium has not been activated. You can safely try the payment again.',
+        style: TextStyle(color: Color(0xFF9E9AA9)),
       ),
-      const Text('₹588.82'),
+      const Text(
+        '₹588.82',
+        style: TextStyle(color: Color(0xFFFAF7F2), fontSize: 20),
+      ),
       const Text(
         'If money was deducted, we’ll verify the payment status before asking you to pay again.',
+        style: TextStyle(color: Color(0xFF9E9AA9)),
       ),
-      FilledButton(onPressed: onRetry, child: const Text('Try Again')),
+      FilledButton(
+        onPressed: onRetry,
+        style: FilledButton.styleFrom(
+          backgroundColor: const Color(0xFFF4BF50),
+          foregroundColor: const Color(0xFF0B071B),
+        ),
+        child: const Text('TRY AGAIN'),
+      ),
       TextButton(
         onPressed: onReset,
+        style: TextButton.styleFrom(
+          foregroundColor: const Color(0xFFFAF7F2),
+          side: const BorderSide(color: Color(0xFFC5A059)),
+        ),
         child: const Text('Choose Another Payment Method'),
       ),
       TextButton(
         onPressed: onReset,
+        style: TextButton.styleFrom(foregroundColor: const Color(0xFFF4BF50)),
         child: const Text('Back to Career Premium'),
       ),
     ],
@@ -514,20 +580,39 @@ class _RazorpayUnknown extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       const Text(
+        'CAREER PREMIUM',
+        style: TextStyle(color: Color(0xFFF4BF50), fontWeight: FontWeight.w800),
+      ),
+      const SizedBox(height: 10),
+      const Text(
         'We’re checking your payment',
-        style: TextStyle(fontWeight: FontWeight.w700),
+        style: TextStyle(
+          color: Color(0xFFFAF7F2),
+          fontSize: 24,
+          fontWeight: FontWeight.w600,
+        ),
       ),
       const Text(
         'Your payment may have been completed, but we haven’t confirmed it yet.',
+        style: TextStyle(color: Color(0xFF9E9AA9)),
       ),
       const Text(
         'Please don’t make another payment while we verify the status.',
+        style: TextStyle(color: Color(0xFF9E9AA9)),
       ),
       FilledButton(
         onPressed: onCheck,
-        child: const Text('Check Payment Status'),
+        style: FilledButton.styleFrom(
+          backgroundColor: const Color(0xFFF4BF50),
+          foregroundColor: const Color(0xFF0B071B),
+        ),
+        child: const Text('CHECK PAYMENT STATUS'),
       ),
-      TextButton(onPressed: onHome, child: const Text('Back to Home')),
+      TextButton(
+        onPressed: onHome,
+        style: TextButton.styleFrom(foregroundColor: const Color(0xFFF4BF50)),
+        child: const Text('Back to Home'),
+      ),
     ],
   );
 }

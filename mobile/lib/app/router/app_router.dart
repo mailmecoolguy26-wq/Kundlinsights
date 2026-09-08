@@ -174,10 +174,14 @@ GoRouter createAppRouter(
     GoRoute(
       path: '/career-premium',
       builder: (context, state) {
-        final profileId = generation.activeBirthProfileId;
+        // The ProfileController is the source of truth for the profile that
+        // owns this top-level purchase route. Generation can be transiently
+        // reset while its profile-scoped eligibility refreshes.
+        final profileId = profiles.activeProfile?.id;
         return CareerPremiumPaywall(
           dedicatedRazorpaySurface: true,
           activeProfileLabel: profiles.activeProfile?.label,
+          razorpayProfileId: profileId,
           productController: premiumProduct,
           hasAccess: false,
           purchaseController: premiumPurchase,
