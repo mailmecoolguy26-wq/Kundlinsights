@@ -102,6 +102,13 @@ class CareerCalibrationScreen extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         _GoldAction(
+          key: const ValueKey('done-career-calibration'),
+          label: 'DONE  →',
+          enabled: !controller.isMutating,
+          onPressed: () => context.go('/home'),
+        ),
+        const SizedBox(height: 10),
+        _SecondaryAction(
           key: const ValueKey('add-career-event'),
           label: 'ADD CAREER EVENT  →',
           enabled: !controller.isMutating,
@@ -493,6 +500,42 @@ class _GoldAction extends StatelessWidget {
       child: Text(
         label,
         style: _calibrationLabel(color: _CalibrationColors.abyss),
+      ),
+    ),
+  );
+}
+
+class _SecondaryAction extends StatelessWidget {
+  const _SecondaryAction({
+    super.key,
+    required this.label,
+    required this.enabled,
+    required this.onPressed,
+  });
+  final String label;
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: 50,
+    width: double.infinity,
+    child: OutlinedButton(
+      onPressed: enabled ? onPressed : null,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: _CalibrationColors.champagne,
+        disabledForegroundColor: _CalibrationColors.slate,
+        side: BorderSide(
+          color: enabled
+              ? _CalibrationColors.gold.withValues(alpha: .55)
+              : _CalibrationColors.slate.withValues(alpha: .3),
+        ),
+        backgroundColor: _CalibrationColors.violet,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      ),
+      child: Text(
+        label,
+        style: _calibrationLabel(color: _CalibrationColors.champagne),
       ),
     ),
   );

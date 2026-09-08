@@ -184,6 +184,7 @@ GoRouter createAppRouter(
                 natalController: natal,
                 vimshottariController: vimshottari,
                 careerEventController: careerEvents,
+                readingController: readings,
               ),
             ),
           ],

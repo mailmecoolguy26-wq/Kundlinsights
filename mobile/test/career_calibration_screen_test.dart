@@ -301,6 +301,53 @@ void main() {
     scope.dispose();
   });
 
+  testWidgets('review completion returns Home without mutating career events', (
+    tester,
+  ) async {
+    final repository = _Events();
+    final scope = await _scope(
+      events: [_event('event-1', CareerEventDatePrecision.year)],
+      repository: repository,
+    );
+    final router = GoRouter(
+      initialLocation: '/career',
+      routes: [
+        GoRoute(
+          path: '/career',
+          builder: (_, _) =>
+              CareerCalibrationScreen(controller: scope.controller),
+        ),
+        GoRoute(
+          path: '/home',
+          builder: (_, _) => const Scaffold(body: Text('Home destination')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      MaterialApp.router(
+        routerConfig: router,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await _revealDone(tester);
+
+    expect(find.text('DONE  →'), findsOneWidget);
+    expect(find.byKey(const ValueKey('add-career-event')), findsOneWidget);
+    expect(find.text('CALIBRATE MY CAREER'), findsNothing);
+    expect(find.text('GENERATE CAREER READING'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('done-career-calibration')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Home destination'), findsOneWidget);
+    expect(repository.createCalls, 0);
+    expect(repository.updateCalls, 0);
+    expect(repository.deleteCalls, 0);
+    scope.dispose();
+  });
+
   testWidgets('add form uses dark fields and preserves precision options', (
     tester,
   ) async {
@@ -430,6 +477,12 @@ Future<void> _revealAdd(WidgetTester tester) => tester.scrollUntilVisible(
   scrollable: find.byType(Scrollable).first,
 );
 
+Future<void> _revealDone(WidgetTester tester) => tester.scrollUntilVisible(
+  find.byKey(const ValueKey('done-career-calibration')),
+  180,
+  scrollable: find.byType(Scrollable).first,
+);
+
 Future<void> _openAddForm(WidgetTester tester) async {
   await _revealStart(tester);
   await tester.tap(find.byKey(const ValueKey('start-calibration')));
@@ -531,6 +584,9 @@ class _Events implements CareerEventRepository {
   List<CareerEvent> events = const [];
   CareerEventInput? lastInput;
   CareerEventInput? lastUpdatedInput;
+  int createCalls = 0;
+  int updateCalls = 0;
+  int deleteCalls = 0;
   @override
   Future<List<CareerEvent>> listCareerEvents(String id) async => events;
   @override
@@ -538,6 +594,7 @@ class _Events implements CareerEventRepository {
     String id,
     CareerEventInput input,
   ) async {
+    createCalls++;
     lastInput = input;
     final event = _event('new', input.eventDate.precision, input: input);
     events = [...events, event];
@@ -550,6 +607,7 @@ class _Events implements CareerEventRepository {
     String eventId,
     CareerEventInput input,
   ) async {
+    updateCalls++;
     lastUpdatedInput = input;
     final event = _event(eventId, input.eventDate.precision, input: input);
     events = [
@@ -560,8 +618,10 @@ class _Events implements CareerEventRepository {
   }
 
   @override
-  Future<CareerEvent> deleteCareerEvent(String id, String eventId) =>
-      throw UnimplementedError();
+  Future<CareerEvent> deleteCareerEvent(String id, String eventId) async {
+    deleteCalls++;
+    throw UnimplementedError();
+  }
 }
 
 CareerEvent _event(

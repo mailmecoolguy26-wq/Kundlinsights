@@ -8,6 +8,7 @@ import '../kundli/north_indian_chart.dart';
 import '../natal/natal_summary_controller.dart';
 import '../profiles/domain/birth_profile.dart';
 import '../profiles/profile_controller.dart';
+import '../readings/reading_controller.dart';
 import '../vimshottari/vimshottari_controller.dart';
 
 /// Home is presentation-only: every astrological value is supplied by the
@@ -19,12 +20,14 @@ class HomeScreen extends StatelessWidget {
     required this.natalController,
     required this.vimshottariController,
     required this.careerEventController,
+    required this.readingController,
   });
 
   final ProfileController profileController;
   final NatalSummaryController natalController;
   final VimshottariController vimshottariController;
   final CareerEventController careerEventController;
+  final ReadingController readingController;
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -33,6 +36,7 @@ class HomeScreen extends StatelessWidget {
       natalController,
       vimshottariController,
       careerEventController,
+      readingController,
     ]),
     builder: (context, child) => Scaffold(
       backgroundColor: _HomeColors.background,
@@ -56,7 +60,10 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: 14),
               _ProfileSelector(profile: profileController.activeProfile),
               const SizedBox(height: 24),
-              _CalibrationHero(controller: careerEventController),
+              _CalibrationHero(
+                careerEvents: careerEventController,
+                readings: readingController,
+              ),
               const SizedBox(height: 30),
               const _SectionTitle('Your Current Career Phase'),
               const SizedBox(height: 12),
@@ -225,20 +232,13 @@ class _ProfileSelector extends StatelessWidget {
 }
 
 class _CalibrationHero extends StatelessWidget {
-  const _CalibrationHero({required this.controller});
-  final CareerEventController controller;
+  const _CalibrationHero({required this.careerEvents, required this.readings});
+  final CareerEventController careerEvents;
+  final ReadingController readings;
 
   @override
   Widget build(BuildContext context) {
-    final hasEvents =
-        controller.state == CareerEventLoadState.loaded &&
-        controller.events.isNotEmpty;
-    final title = hasEvents
-        ? 'Keep your career forecast calibrated'
-        : 'Make your career forecast more personal';
-    final action = hasEvents
-        ? 'UPDATE CAREER EVENTS  →'
-        : 'CALIBRATE MY CAREER  →';
+    final state = _careerHeroState(careerEvents, readings);
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -253,17 +253,12 @@ class _CalibrationHero extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'PERSONALIZED CAREER FORECAST',
-            style: _labelStyle(color: _HomeColors.champagne),
-          ),
+          Text(state.eyebrow, style: _labelStyle(color: _HomeColors.champagne)),
           const SizedBox(height: 11),
-          Text(title, style: _headlineStyle(fontSize: 28)),
+          Text(state.headline, style: _headlineStyle(fontSize: 28)),
           const SizedBox(height: 10),
           Text(
-            hasEvents
-                ? 'Your saved career events are being used to personalize your forecast.'
-                : 'Add a few important career events from your past so KundliInsights can better calibrate the timing of your future career windows.',
+            state.body,
             style: GoogleFonts.inter(
               color: _HomeColors.slate,
               fontSize: 12,
@@ -271,17 +266,37 @@ class _CalibrationHero extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 18),
-          TextButton(
-            key: const ValueKey('home-calibration-cta'),
-            onPressed: () => context.push('/career-calibration'),
-            style: TextButton.styleFrom(
-              foregroundColor: _HomeColors.abyss,
-              backgroundColor: _HomeColors.gold,
-              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+          if (!state.isLoading)
+            TextButton(
+              key: ValueKey(state.primaryKey),
+              onPressed: () => state.primaryRoute == '/readings'
+                  ? context.go('/readings')
+                  : context.push('/career-calibration'),
+              style: TextButton.styleFrom(
+                foregroundColor: _HomeColors.abyss,
+                backgroundColor: _HomeColors.gold,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 15,
+                  vertical: 12,
+                ),
+              ),
+              child: Text(
+                state.primaryAction,
+                style: _labelStyle(color: _HomeColors.abyss),
+              ),
             ),
-            child: Text(action, style: _labelStyle(color: _HomeColors.abyss)),
-          ),
-          if (!hasEvents) ...[
+          if (state.showUpdateAction) ...[
+            const SizedBox(height: 5),
+            TextButton(
+              key: const ValueKey('home-career-update-events'),
+              onPressed: () => context.push('/career-calibration'),
+              child: Text(
+                'UPDATE CAREER EVENTS',
+                style: _labelStyle(color: _HomeColors.gold),
+              ),
+            ),
+          ],
+          if (state.showDurationCaption) ...[
             const SizedBox(height: 9),
             Text(
               'Takes about 2 minutes',
@@ -291,6 +306,96 @@ class _CalibrationHero extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _CareerHeroContent {
+  const _CareerHeroContent({
+    required this.eyebrow,
+    required this.headline,
+    required this.body,
+    required this.primaryAction,
+    required this.primaryRoute,
+    required this.primaryKey,
+    this.showDurationCaption = false,
+    this.showUpdateAction = false,
+    this.isLoading = false,
+  });
+
+  final String eyebrow;
+  final String headline;
+  final String body;
+  final String primaryAction;
+  final String primaryRoute;
+  final String primaryKey;
+  final bool showDurationCaption;
+  final bool showUpdateAction;
+  final bool isLoading;
+}
+
+_CareerHeroContent _careerHeroState(
+  CareerEventController careerEvents,
+  ReadingController readings,
+) {
+  // Both controllers clear their scoped data before fetching a newly selected
+  // profile. Render neutral copy until both loads have completed so Profile A
+  // can never briefly appear as Profile B with zero events or no reading.
+  if (careerEvents.state != CareerEventLoadState.loaded ||
+      readings.listState != ReadingListState.loaded) {
+    return const _CareerHeroContent(
+      eyebrow: 'PERSONALIZED CAREER FORECAST',
+      headline: 'Preparing your career forecast',
+      body: 'Loading your saved career history and readings.',
+      primaryAction: 'OPEN CAREER READING  →',
+      primaryRoute: '/readings',
+      primaryKey: 'home-career-loading-cta',
+      isLoading: true,
+    );
+  }
+  final hasCareerReading = readings.readings.any(
+    (reading) => reading.domain == 'CAREER',
+  );
+  if (hasCareerReading) {
+    return const _CareerHeroContent(
+      eyebrow: 'YOUR CAREER READING',
+      headline: 'Your personalized Career Reading is ready',
+      body: 'View your saved Career Reading and revisit your personalized timing insights.',
+      primaryAction: 'VIEW CAREER READING  →',
+      primaryRoute: '/readings',
+      primaryKey: 'home-career-reading-cta',
+      showUpdateAction: true,
+    );
+  }
+  switch (careerEvents.events.length) {
+    case 0:
+      return const _CareerHeroContent(
+        eyebrow: 'PERSONALIZED CAREER FORECAST',
+        headline: 'Make your career forecast more personal',
+        body: 'Add a few important career events from your past so KundliInsights can better personalize the timing of your future career windows.',
+        primaryAction: 'CALIBRATE MY CAREER  →',
+        primaryRoute: '/career-calibration',
+        primaryKey: 'home-calibration-cta',
+        showDurationCaption: true,
+      );
+    case 1:
+      return const _CareerHeroContent(
+        eyebrow: 'CAREER CALIBRATION',
+        headline: 'Add one more career milestone',
+        body: 'You’ve started your career history. Add another important event to give your Career Reading stronger real-life context.',
+        primaryAction: 'UPDATE CAREER EVENTS  →',
+        primaryRoute: '/career-calibration',
+        primaryKey: 'home-calibration-cta',
+      );
+    default:
+      return const _CareerHeroContent(
+        eyebrow: 'CAREER CALIBRATION READY',
+        headline: 'Your personalized Career Reading is ready to unlock',
+        body: 'Your birth chart and saved career events will be used to personalize your Career Reading and upcoming career windows.',
+        primaryAction: 'CONTINUE TO CAREER READING  →',
+        primaryRoute: '/readings',
+        primaryKey: 'home-career-reading-cta',
+        showUpdateAction: true,
+      );
   }
 }
 
