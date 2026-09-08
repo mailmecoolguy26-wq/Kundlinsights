@@ -1,251 +1,549 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
-import '../../app/theme/app_theme.dart';
-import '../../l10n/app_localizations.dart';
-import '../../shared/widgets/app_card.dart';
-import '../../shared/widgets/app_page_scaffold.dart';
-import '../../shared/widgets/section_header.dart';
+import '../career_events/career_event_controller.dart';
+import '../kundli/north_indian_chart.dart';
 import '../natal/natal_summary_controller.dart';
+import '../profiles/domain/birth_profile.dart';
 import '../profiles/profile_controller.dart';
-import '../vimshottari/domain/vimshottari.dart';
 import '../vimshottari/vimshottari_controller.dart';
 
+/// Home is presentation-only: every astrological value is supplied by the
+/// profile, natal, Vimshottari, or career-event controllers already in scope.
 class HomeScreen extends StatelessWidget {
   const HomeScreen({
     super.key,
     required this.profileController,
     required this.natalController,
     required this.vimshottariController,
+    required this.careerEventController,
   });
 
   final ProfileController profileController;
   final NatalSummaryController natalController;
   final VimshottariController vimshottariController;
+  final CareerEventController careerEventController;
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: Listenable.merge([natalController, vimshottariController]),
-    builder: (context, child) => AppPageScaffold(
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await natalController.refresh();
-          await vimshottariController.refreshCurrent();
-        },
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(AppSpacing.md),
-          children: [
-            SectionHeader(title: AppLocalizations.of(context)!.welcome),
-            _ProfileCard(profileController: profileController),
-            const SizedBox(height: AppSpacing.xl),
-            _NatalSummaryCard(controller: natalController),
-            const SizedBox(height: AppSpacing.xl),
-            _CurrentDashaCard(controller: vimshottariController),
-          ],
+    listenable: Listenable.merge([
+      profileController,
+      natalController,
+      vimshottariController,
+      careerEventController,
+    ]),
+    builder: (context, child) => Scaffold(
+      backgroundColor: _HomeColors.background,
+      body: SafeArea(
+        child: RefreshIndicator(
+          color: _HomeColors.gold,
+          onRefresh: () async {
+            await Future.wait([
+              natalController.refresh(),
+              vimshottariController.refreshCurrent(),
+              careerEventController.refresh(),
+            ]);
+          },
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
+            children: [
+              _HomeHeader(profile: profileController.activeProfile),
+              const SizedBox(height: 22),
+              _Greeting(profile: profileController.activeProfile),
+              const SizedBox(height: 14),
+              _ProfileSelector(profile: profileController.activeProfile),
+              const SizedBox(height: 24),
+              _CalibrationHero(controller: careerEventController),
+              const SizedBox(height: 30),
+              const _SectionTitle('Your Current Career Phase'),
+              const SizedBox(height: 12),
+              _CareerPhaseCard(controller: vimshottariController),
+              const SizedBox(height: 30),
+              const _SectionTitle('Your Kundli', subtitle: 'Lagna Chart'),
+              const SizedBox(height: 12),
+              _KundliPreview(controller: natalController),
+            ],
+          ),
         ),
       ),
     ),
   );
 }
 
-class _CurrentDashaCard extends StatelessWidget {
-  const _CurrentDashaCard({required this.controller});
-  final VimshottariController controller;
+abstract final class _HomeColors {
+  static const background = Color(0xFF0B071B);
+  static const abyss = Color(0xFF120D29);
+  static const surface = Color(0xFF211D32);
+  static const violet = Color(0xFF181335);
+  static const gold = Color(0xFFC5A059);
+  static const champagne = Color(0xFFF4BF50);
+  static const alabaster = Color(0xFFFAF7F2);
+  static const slate = Color(0xFF9E9AA9);
+}
+
+class _HomeHeader extends StatelessWidget {
+  const _HomeHeader({required this.profile});
+  final BirthProfile? profile;
 
   @override
-  Widget build(BuildContext context) {
-    final t = AppLocalizations.of(context)!;
-    if (controller.currentState == VimshottariLoadState.loading ||
-        controller.currentState == VimshottariLoadState.initial) {
-      return Semantics(
-        label: t.currentDashaLoading,
-        child: const AppCard(
-          child: SizedBox(
-            height: 184,
-            child: Center(child: CircularProgressIndicator()),
-          ),
-        ),
-      );
-    }
-    if (controller.currentState == VimshottariLoadState.error ||
-        controller.current == null) {
-      return AppCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              t.currentDasha,
-              style: Theme.of(context).textTheme.headlineSmall,
+  Widget build(BuildContext context) => Row(
+    children: [
+      const Icon(Icons.auto_awesome, color: _HomeColors.gold, size: 20),
+      const SizedBox(width: 8),
+      RichText(
+        text: TextSpan(
+          style: GoogleFonts.ebGaramond(fontSize: 25, height: 1),
+          children: const [
+            TextSpan(
+              text: 'Kundli',
+              style: TextStyle(color: _HomeColors.alabaster),
             ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(t.vimshottariUnavailable),
-            const SizedBox(height: AppSpacing.sm),
-            TextButton(
-              onPressed: controller.refreshCurrent,
-              child: Text(t.retry),
+            TextSpan(
+              text: 'Insights',
+              style: TextStyle(
+                color: _HomeColors.gold,
+                fontStyle: FontStyle.italic,
+              ),
             ),
           ],
         ),
-      );
-    }
-    final current = controller.current!;
-    return AppCard(
+      ),
+      const Spacer(),
+      Semantics(
+        button: true,
+        label: 'Open profile',
+        child: InkWell(
+          key: const ValueKey('home-profile-avatar'),
+          onTap: () => context.go('/profile'),
+          borderRadius: BorderRadius.circular(999),
+          child: Container(
+            width: 38,
+            height: 38,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: _HomeColors.violet,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: _HomeColors.gold.withValues(alpha: .55),
+              ),
+            ),
+            child: Text(
+              _initials(profile?.label),
+              style: GoogleFonts.inter(
+                color: _HomeColors.champagne,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+class _Greeting extends StatelessWidget {
+  const _Greeting({required this.profile});
+  final BirthProfile? profile;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        '${_daypart()}, ${profile?.label ?? 'there'}',
+        style: GoogleFonts.ebGaramond(
+          color: _HomeColors.alabaster,
+          fontSize: 34,
+          height: .95,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      const SizedBox(height: 8),
+      Text(
+        'Here’s what your chart indicates right now',
+        style: GoogleFonts.inter(color: _HomeColors.slate, fontSize: 13),
+      ),
+    ],
+  );
+}
+
+class _ProfileSelector extends StatelessWidget {
+  const _ProfileSelector({required this.profile});
+  final BirthProfile? profile;
+
+  @override
+  Widget build(BuildContext context) {
+    final date = _birthDate(profile);
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: InkWell(
+        key: const ValueKey('home-profile-selector'),
+        onTap: () => context.go('/profiles'),
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+          decoration: BoxDecoration(
+            color: _HomeColors.violet,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: _HomeColors.gold.withValues(alpha: .25)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.person_outline,
+                color: _HomeColors.gold,
+                size: 16,
+              ),
+              const SizedBox(width: 7),
+              Text(
+                date == null
+                    ? (profile?.label ?? 'Birth profile')
+                    : '${profile!.label} · $date',
+                style: GoogleFonts.inter(
+                  color: _HomeColors.alabaster,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Icon(
+                Icons.expand_more,
+                color: _HomeColors.champagne,
+                size: 17,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CalibrationHero extends StatelessWidget {
+  const _CalibrationHero({required this.controller});
+  final CareerEventController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasEvents =
+        controller.state == CareerEventLoadState.loaded &&
+        controller.events.isNotEmpty;
+    final title = hasEvents
+        ? 'Keep your career forecast calibrated'
+        : 'Make your career forecast more personal';
+    final action = hasEvents
+        ? 'UPDATE CAREER EVENTS  →'
+        : 'CALIBRATE MY CAREER  →';
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [_HomeColors.surface, _HomeColors.violet],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _HomeColors.gold.withValues(alpha: .27)),
+      ),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            t.currentDasha,
-            style: Theme.of(context).textTheme.headlineSmall,
+            'PERSONALIZED CAREER FORECAST',
+            style: _labelStyle(color: _HomeColors.champagne),
           ),
-          const SizedBox(height: AppSpacing.md),
-          _DashaFact(label: t.currentMahadasha, period: current.mahadasha),
-          _DashaFact(label: t.currentAntardasha, period: current.antardasha),
-          _DashaFact(
-            label: t.currentPratyantardasha,
-            period: current.pratyantardasha,
+          const SizedBox(height: 11),
+          Text(title, style: _headlineStyle(fontSize: 28)),
+          const SizedBox(height: 10),
+          Text(
+            hasEvents
+                ? 'Your saved career events are being used to personalize your forecast.'
+                : 'Add a few important career events from your past so KundliInsights can better calibrate the timing of your future career windows.',
+            style: GoogleFonts.inter(
+              color: _HomeColors.slate,
+              fontSize: 12,
+              height: 1.5,
+            ),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: 18),
           TextButton(
-            onPressed: () => context.push('/vimshottari'),
-            child: Text(t.viewFullDashaTimeline),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DashaFact extends StatelessWidget {
-  const _DashaFact({required this.label, required this.period});
-  final String label;
-  final DashaPeriod period;
-
-  @override
-  Widget build(BuildContext context) {
-    final format = DateFormat.yMMMd().add_jm();
-    final dates =
-        '${format.format(period.startUtc.toLocal())} – ${format.format(period.endUtc.toLocal())}';
-    return Semantics(
-      label: '$label: ${period.lord}; $dates',
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: Theme.of(context).textTheme.bodyMedium),
-            Text(period.lord, style: Theme.of(context).textTheme.titleMedium),
-            Text(dates, style: Theme.of(context).textTheme.bodySmall),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ProfileCard extends StatelessWidget {
-  const _ProfileCard({required this.profileController});
-  final ProfileController profileController;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppLocalizations.of(context)!;
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            t.activeProfile,
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(profileController.activeProfile?.label ?? t.profileBody),
-        ],
-      ),
-    );
-  }
-}
-
-class _NatalSummaryCard extends StatelessWidget {
-  const _NatalSummaryCard({required this.controller});
-  final NatalSummaryController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppLocalizations.of(context)!;
-    if (controller.state == NatalSummaryLoadState.loading ||
-        controller.state == NatalSummaryLoadState.initial) {
-      return const AppCard(child: _SummaryLoading());
-    }
-    if (controller.state == NatalSummaryLoadState.error ||
-        controller.summary == null) {
-      return AppCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              t.natalSummary,
-              style: Theme.of(context).textTheme.headlineSmall,
+            key: const ValueKey('home-calibration-cta'),
+            onPressed: () => context.push('/career-calibration'),
+            style: TextButton.styleFrom(
+              foregroundColor: _HomeColors.abyss,
+              backgroundColor: _HomeColors.gold,
+              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
             ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(t.natalSummaryUnavailable),
-            const SizedBox(height: AppSpacing.md),
-            TextButton(onPressed: controller.refresh, child: Text(t.retry)),
+            child: Text(action, style: _labelStyle(color: _HomeColors.abyss)),
+          ),
+          if (!hasEvents) ...[
+            const SizedBox(height: 9),
+            Text(
+              'Takes about 2 minutes',
+              style: GoogleFonts.inter(color: _HomeColors.slate, fontSize: 10),
+            ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.title, {this.subtitle});
+  final String title;
+  final String? subtitle;
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Text(title, style: _headlineStyle(fontSize: 26)),
+      if (subtitle != null) ...[
+        const SizedBox(width: 9),
+        Text(
+          subtitle!,
+          style: _labelStyle(color: _HomeColors.gold, fontSize: 9),
         ),
+      ],
+    ],
+  );
+}
+
+class _CareerPhaseCard extends StatelessWidget {
+  const _CareerPhaseCard({required this.controller});
+  final VimshottariController controller;
+  @override
+  Widget build(BuildContext context) {
+    if (controller.currentState == VimshottariLoadState.initial ||
+        controller.currentState == VimshottariLoadState.loading) {
+      return const _StateCard(label: 'Loading your current dasha…');
+    }
+    final current = controller.current;
+    if (controller.currentState == VimshottariLoadState.error ||
+        current == null) {
+      return _RetryCard(
+        title: 'Current career phase unavailable',
+        onRetry: controller.refreshCurrent,
       );
     }
-    final summary = controller.summary!.summary;
-    return AppCard(
+    return _DarkCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            t.natalSummary,
-            style: Theme.of(context).textTheme.headlineSmall,
+            'CURRENT DASHA',
+            style: _labelStyle(color: _HomeColors.champagne),
           ),
-          const SizedBox(height: AppSpacing.md),
-          _Fact(label: t.ascendant, value: summary.ascendant.sign.englishName),
-          _Fact(label: t.moonSign, value: summary.moonSign.englishName),
-          _Fact(label: t.nakshatra, value: summary.moonNakshatra.name),
-          _Fact(label: t.pada, value: '${summary.moonPada}'),
-          _Fact(label: t.sunSign, value: summary.sunSign.englishName),
+          const SizedBox(height: 11),
+          Text(
+            '${current.mahadasha.lord} → ${current.antardasha.lord}',
+            style: _headlineStyle(fontSize: 28),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            '${DateFormat.yMMMd().format(current.mahadasha.startUtc.toLocal())} – ${DateFormat.yMMMd().format(current.antardasha.endUtc.toLocal())}',
+            style: GoogleFonts.inter(color: _HomeColors.slate, fontSize: 11),
+          ),
+          const SizedBox(height: 12),
+          TextButton(
+            key: const ValueKey('home-dasha-cta'),
+            onPressed: () => context.push('/vimshottari'),
+            child: Text(
+              'UNDERSTAND THIS PHASE  →',
+              style: _labelStyle(color: _HomeColors.gold),
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _SummaryLoading extends StatelessWidget {
-  const _SummaryLoading();
+class _KundliPreview extends StatelessWidget {
+  const _KundliPreview({required this.controller});
+  final NatalSummaryController controller;
   @override
   Widget build(BuildContext context) {
-    final t = AppLocalizations.of(context)!;
-    return Semantics(
-      label: t.natalSummaryLoading,
-      child: const SizedBox(
-        height: 164,
-        child: Center(child: CircularProgressIndicator()),
+    if (controller.state == NatalSummaryLoadState.initial ||
+        controller.state == NatalSummaryLoadState.loading) {
+      return const _StateCard(label: 'Loading your Lagna chart…');
+    }
+    final natal = controller.summary;
+    if (controller.state == NatalSummaryLoadState.error || natal == null) {
+      return _RetryCard(
+        title: 'Kundli preview unavailable',
+        onRetry: controller.refresh,
+      );
+    }
+    final summary = natal.summary;
+    return _DarkCard(
+      child: Column(
+        children: [
+          SizedBox(
+            width: 250,
+            child: FittedBox(
+              child: SizedBox(
+                width: 800,
+                child: NorthIndianKundliChart(
+                  houses: buildD1ChartHouses(natal),
+                  onHouseTap: (_) {},
+                  onPlanetTap: (_) {},
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              _Identity(
+                label: 'Lagna',
+                value: summary.ascendant.sign.englishName,
+              ),
+              _Identity(label: 'Moon', value: summary.moonSign.englishName),
+              _Identity(label: 'Nakshatra', value: summary.moonNakshatra.name),
+            ],
+          ),
+          const SizedBox(height: 14),
+          TextButton(
+            key: const ValueKey('home-kundli-cta'),
+            onPressed: () => context.go('/kundli'),
+            child: Text(
+              'OPEN MY KUNDLI  →',
+              style: _labelStyle(color: _HomeColors.gold),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _Fact extends StatelessWidget {
-  const _Fact({required this.label, required this.value});
+class _Identity extends StatelessWidget {
+  const _Identity({required this.label, required this.value});
   final String label;
   final String value;
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-    child: Row(
+  Widget build(BuildContext context) => Expanded(
+    child: Column(
       children: [
-        Expanded(
-          child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
+        Text(label, style: _labelStyle(fontSize: 8, color: _HomeColors.slate)),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.inter(
+            color: _HomeColors.alabaster,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-        Text(value, style: Theme.of(context).textTheme.bodyLarge),
       ],
     ),
   );
 }
+
+class _DarkCard extends StatelessWidget {
+  const _DarkCard({required this.child});
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(18),
+    decoration: BoxDecoration(
+      color: _HomeColors.abyss,
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: _HomeColors.gold.withValues(alpha: .16)),
+    ),
+    child: child,
+  );
+}
+
+class _StateCard extends StatelessWidget {
+  const _StateCard({required this.label});
+  final String label;
+  @override
+  Widget build(BuildContext context) => _DarkCard(
+    child: SizedBox(
+      height: 130,
+      child: Center(
+        child: Semantics(
+          label: label,
+          child: const CircularProgressIndicator(color: _HomeColors.gold),
+        ),
+      ),
+    ),
+  );
+}
+
+class _RetryCard extends StatelessWidget {
+  const _RetryCard({required this.title, required this.onRetry});
+  final String title;
+  final Future<void> Function() onRetry;
+  @override
+  Widget build(BuildContext context) => _DarkCard(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: GoogleFonts.inter(
+            color: _HomeColors.alabaster,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Please try again.',
+          style: GoogleFonts.inter(color: _HomeColors.slate, fontSize: 12),
+        ),
+        TextButton(
+          onPressed: onRetry,
+          child: Text('RETRY', style: _labelStyle(color: _HomeColors.gold)),
+        ),
+      ],
+    ),
+  );
+}
+
+String _daypart() {
+  final hour = DateTime.now().hour;
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
+String _initials(String? name) {
+  final parts = (name ?? '')
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((part) => part.isNotEmpty)
+      .toList();
+  if (parts.isEmpty) return 'KI';
+  return parts.take(2).map((part) => part[0].toUpperCase()).join();
+}
+
+String? _birthDate(BirthProfile? profile) {
+  final raw = profile?.birthData.localDate;
+  final date = raw == null ? null : DateTime.tryParse(raw);
+  return date == null ? null : DateFormat('dd MMM yyyy').format(date);
+}
+
+TextStyle _labelStyle({
+  double fontSize = 10,
+  Color color = _HomeColors.alabaster,
+}) => GoogleFonts.inter(
+  color: color,
+  fontSize: fontSize,
+  fontWeight: FontWeight.w700,
+  letterSpacing: 1.0,
+);
+
+TextStyle _headlineStyle({double fontSize = 28}) => GoogleFonts.ebGaramond(
+  color: _HomeColors.alabaster,
+  fontSize: fontSize,
+  height: .98,
+  fontWeight: FontWeight.w500,
+);

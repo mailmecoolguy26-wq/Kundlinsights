@@ -183,6 +183,7 @@ GoRouter createAppRouter(
                 profileController: profiles,
                 natalController: natal,
                 vimshottariController: vimshottari,
+                careerEventController: careerEvents,
               ),
             ),
           ],

@@ -45,7 +45,10 @@ void main() {
     await tester.pumpWidget(_app(controller, profiles));
     await controller.restore();
     await tester.pumpAndSettle();
-    expect(find.text('Welcome to KundlInsights'), findsOneWidget);
+    expect(
+      find.text('Here’s what your chart indicates right now'),
+      findsOneWidget,
+    );
     expect(find.text('Home'), findsWidgets);
   });
 
@@ -63,7 +66,10 @@ void main() {
 
     await tester.pump(const Duration(milliseconds: 1300));
     await tester.pumpAndSettle();
-    expect(find.text('Welcome to KundlInsights'), findsOneWidget);
+    expect(
+      find.text('Here’s what your chart indicates right now'),
+      findsOneWidget,
+    );
   });
 
   testWidgets(
@@ -120,7 +126,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 1300));
       await tester.pumpAndSettle();
 
-      final home = find.text('Welcome to KundlInsights');
+      final home = find.byKey(const ValueKey('home-profile-avatar'));
       final router = GoRouter.of(tester.element(home));
       expect(router.routerDelegate.currentConfiguration.uri.path, '/home');
 
@@ -151,7 +157,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(router.routerDelegate.currentConfiguration.uri.path, '/home');
-    expect(find.text('Welcome to KundlInsights'), findsOneWidget);
+    expect(
+      find.text('Here’s what your chart indicates right now'),
+      findsOneWidget,
+    );
   });
 
   testWidgets(
@@ -171,20 +180,21 @@ void main() {
     await tester.pumpWidget(_app(controller, subjectProfiles));
     await controller.restore();
     await tester.pumpAndSettle();
-    expect(find.text('A profile'), findsOneWidget);
-    final router = GoRouter.of(tester.element(find.text('A profile')));
+    expect(find.textContaining('A profile'), findsWidgets);
+    final router = GoRouter.of(
+      tester.element(find.byKey(const ValueKey('home-profile-avatar'))),
+    );
 
     subjectProfiles.holdNextLoad = true;
     repository.replaceAuthenticatedSubject('user-b');
     await tester.pump();
     await tester.pump();
-    expect(find.byType(CircularProgressIndicator), findsWidgets);
     expect(router.routerDelegate.currentConfiguration.uri.path, '/home');
 
     subjectProfiles.completeForB();
     await tester.pump();
     await tester.pump();
-    expect(find.text('B profile'), findsOneWidget);
+    expect(find.textContaining('B profile'), findsWidgets);
     expect(router.routerDelegate.currentConfiguration.uri.path, '/home');
   });
 
@@ -271,6 +281,8 @@ void main() {
       await tester.pumpWidget(_app(controller, profiles));
       await controller.restore();
       await tester.pumpAndSettle();
+      await tester.drag(find.byType(ListView).first, const Offset(0, -900));
+      await tester.pumpAndSettle();
       expect(find.text('Aquarius'), findsWidgets);
       await tester.tap(find.text('Kundli').last);
       await tester.pumpAndSettle();
@@ -352,13 +364,44 @@ void main() {
     await tester.pumpWidget(_app(controller, profiles, vimshottari: _Dasha()));
     await controller.restore();
     await tester.pumpAndSettle();
-    expect(find.text('Current Mahadasha'), findsOneWidget);
-    expect(find.text('Mercury'), findsOneWidget);
-    expect(find.text('Current Antardasha'), findsOneWidget);
-    expect(find.text('Venus'), findsOneWidget);
-    expect(find.text('Current Pratyantardasha'), findsOneWidget);
-    expect(find.text('Sun'), findsOneWidget);
-    expect(find.text('View full Dasha timeline'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Mercury → Venus'), 240);
+    expect(find.text('Mercury → Venus'), findsOneWidget);
+    expect(find.text('UNDERSTAND THIS PHASE  →'), findsOneWidget);
+  });
+
+  testWidgets('Home uses the active profile and real Kundli summary', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(900, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(_app(controller, profiles));
+    await controller.restore();
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('My Profile · 26 Nov 1990'), findsOneWidget);
+    expect(find.text('MP'), findsOneWidget);
+    expect(find.text('Active Growth Phase'), findsNothing);
+    expect(find.text('Saturn → Mercury'), findsNothing);
+
+    await tester.drag(find.byType(ListView).first, const Offset(0, -900));
+    await tester.pumpAndSettle();
+    expect(find.text('Aquarius'), findsWidgets);
+    expect(find.text('Shatabhisha'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('home-kundli-cta')));
+    await tester.pumpAndSettle();
+    expect(find.text('My Kundli'), findsOneWidget);
+  });
+
+  testWidgets('Home profile selector preserves profile navigation', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_app(controller, profiles));
+    await controller.restore();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('home-profile-selector')));
+    await tester.pumpAndSettle();
+    expect(find.text('Birth Profiles'), findsOneWidget);
   });
 
   testWidgets('Kundli opens factual sign-oriented Ashtakavarga', (
