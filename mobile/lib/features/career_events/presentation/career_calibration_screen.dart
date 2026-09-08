@@ -181,6 +181,7 @@ abstract final class _CalibrationColors {
   static const background = Color(0xFF0B071B);
   static const abyss = Color(0xFF120D29);
   static const violet = Color(0xFF181335);
+  static const surface = Color(0xFF211D32);
   static const gold = Color(0xFFC5A059);
   static const champagne = Color(0xFFF4BF50);
   static const alabaster = Color(0xFFFAF7F2);
@@ -743,6 +744,93 @@ String _dateLabel(BuildContext context, CareerEventDate value) =>
       CareerEventDatePrecision.year => '${value.year}',
     };
 
+class _CareerEventFormHeader extends StatelessWidget {
+  const _CareerEventFormHeader({required this.title, required this.onBack});
+  final String title;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+    child: Row(
+      children: [
+        Container(
+          decoration: const BoxDecoration(
+            color: _CalibrationColors.violet,
+            shape: BoxShape.circle,
+          ),
+          child: BackButton(
+            onPressed: onBack,
+            color: _CalibrationColors.alabaster,
+          ),
+        ),
+        const Spacer(),
+        Column(
+          children: [
+            Text(
+              'CALIBRATION',
+              style: _calibrationLabel(color: _CalibrationColors.champagne),
+            ),
+            const SizedBox(height: 2),
+            Text(title, style: _calibrationHeading(fontSize: 23)),
+          ],
+        ),
+        const Spacer(),
+        const SizedBox(width: 48),
+      ],
+    ),
+  );
+}
+
+class _CareerTimingHelperCard extends StatelessWidget {
+  const _CareerTimingHelperCard();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: _CalibrationColors.violet,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: _CalibrationColors.gold.withValues(alpha: .18)),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(
+          Icons.info_outline,
+          color: _CalibrationColors.gold,
+          size: 19,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Career timing detail',
+                style: GoogleFonts.inter(
+                  color: _CalibrationColors.alabaster,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'The date precision and context you provide help KundliInsights place this event correctly in your saved career history.',
+                style: GoogleFonts.inter(
+                  color: _CalibrationColors.slate,
+                  fontSize: 11,
+                  height: 1.45,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 class CareerEventFormScreen extends StatefulWidget {
   const CareerEventFormScreen({
     super.key,
@@ -818,6 +906,7 @@ class _CareerEventFormScreenState extends State<CareerEventFormScreen> {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
     final pending = widget.controller.isMutating;
+    final editing = widget.event != null;
     return PopScope<void>(
       canPop: _allowPop,
       onPopInvokedWithResult: (didPop, result) async {
@@ -827,121 +916,150 @@ class _CareerEventFormScreenState extends State<CareerEventFormScreen> {
         Navigator.of(this.context).pop();
       },
       child: Scaffold(
-        appBar: AppBar(
-          title: Text(
-            widget.event == null ? t.addCareerEvent : t.editCareerEvent,
-          ),
-        ),
+        backgroundColor: _CalibrationColors.background,
         body: SafeArea(
-          child: Form(
-            key: _form,
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                if (_scopeChanged)
-                  Card(
-                    color: Theme.of(context).colorScheme.errorContainer,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Semantics(
-                        liveRegion: true,
-                        child: Text(t.careerProfileChanged),
-                      ),
+          child: Column(
+            children: [
+              _CareerEventFormHeader(
+                title: editing ? t.editCareerEvent : t.addCareerEvent,
+                onBack: () => Navigator.of(context).maybePop(),
+              ),
+              Expanded(
+                child: Form(
+                  key: _form,
+                  child: ListView(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: EdgeInsets.fromLTRB(
+                      20,
+                      16,
+                      20,
+                      28 + MediaQuery.viewInsetsOf(context).bottom,
                     ),
-                  ),
-                _dropdown<CareerEventType>(
-                  value: _type,
-                  label: t.eventType,
-                  items: CareerEventType.values,
-                  text: (value) => _eventTypeLabel(t, value),
-                  onChanged: (value) => setState(() => _type = value),
-                ),
-                const SizedBox(height: 12),
-                _dropdown<CareerEventDatePrecision>(
-                  value: _precision,
-                  label: t.datePrecision,
-                  items: CareerEventDatePrecision.values,
-                  text: (value) => _precisionLabel(t, value),
-                  onChanged: (value) => setState(() {
-                    _precision = value;
-                    if (value == CareerEventDatePrecision.year) {
-                      _month.clear();
-                      _day.clear();
-                    }
-                    if (value == CareerEventDatePrecision.month) _day.clear();
-                    _dateError = null;
-                  }),
-                ),
-                const SizedBox(height: 12),
-                _numberField(
-                  _year,
-                  t.year,
-                  enabled: !_scopeChanged && !pending,
-                ),
-                if (_precision != CareerEventDatePrecision.year)
-                  _numberField(
-                    _month,
-                    t.month,
-                    enabled: !_scopeChanged && !pending,
-                  ),
-                if (_precision == CareerEventDatePrecision.day)
-                  _numberField(
-                    _day,
-                    t.day,
-                    enabled: !_scopeChanged && !pending,
-                  ),
-                if (_dateError != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Semantics(
-                      liveRegion: true,
-                      child: Text(
-                        _dateError!,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
+                    children: [
+                      Text(
+                        'CAREER EVENT',
+                        style: _calibrationLabel(
+                          color: _CalibrationColors.champagne,
                         ),
                       ),
-                    ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Tell us about your ${_eventTypeLabel(t, _type)}',
+                        style: _calibrationHeading(fontSize: 34),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Add the timing and details you remember. Month/year or year-only precision is supported when exact dates are unavailable.',
+                        style: GoogleFonts.inter(
+                          color: _CalibrationColors.slate,
+                          fontSize: 13,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      if (_scopeChanged) _scopeChangedNotice(t),
+                      _dropdown<CareerEventType>(
+                        value: _type,
+                        label: t.eventType,
+                        items: CareerEventType.values,
+                        text: (value) => _eventTypeLabel(t, value),
+                        onChanged: (value) => setState(() => _type = value),
+                        icon: Icons.work_outline,
+                      ),
+                      const SizedBox(height: 12),
+                      _dropdown<CareerEventDatePrecision>(
+                        value: _precision,
+                        label: t.datePrecision,
+                        items: CareerEventDatePrecision.values,
+                        text: (value) => _precisionLabel(t, value),
+                        onChanged: (value) => setState(() {
+                          _precision = value;
+                          if (value == CareerEventDatePrecision.year) {
+                            _month.clear();
+                            _day.clear();
+                          }
+                          if (value == CareerEventDatePrecision.month) {
+                            _day.clear();
+                          }
+                          _dateError = null;
+                        }),
+                        icon: Icons.calendar_month_outlined,
+                      ),
+                      const SizedBox(height: 7),
+                      Text(
+                        _precisionHelper,
+                        style: GoogleFonts.inter(
+                          color: _CalibrationColors.slate,
+                          fontSize: 11,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _dateFields(t, enabled: !_scopeChanged && !pending),
+                      if (_dateError != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Semantics(
+                            liveRegion: true,
+                            child: Text(
+                              _dateError!,
+                              style: const TextStyle(
+                                color: _CalibrationColors.mutedError,
+                              ),
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 16),
+                      _textField(
+                        controller: _title,
+                        label: t.titleOptional,
+                        maxLength: 160,
+                        enabled: !_scopeChanged && !pending,
+                        fieldKey: const ValueKey('career-event-title'),
+                      ),
+                      const SizedBox(height: 12),
+                      _textField(
+                        controller: _notes,
+                        label: t.notesOptional,
+                        maxLength: 2000,
+                        enabled: !_scopeChanged && !pending,
+                        fieldKey: const ValueKey('career-event-notes'),
+                        minLines: 3,
+                        maxLines: 5,
+                      ),
+                      const SizedBox(height: 14),
+                      const _CareerTimingHelperCard(),
+                      const SizedBox(height: 18),
+                      if (pending) ...[
+                        Semantics(
+                          liveRegion: true,
+                          label: editing
+                              ? t.savingCareerEvent
+                              : t.creatingCareerEvent,
+                          child: const LinearProgressIndicator(
+                            color: _CalibrationColors.gold,
+                            backgroundColor: _CalibrationColors.violet,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      _GoldAction(
+                        key: const ValueKey('save-career-event'),
+                        label: pending
+                            ? (editing
+                                  ? t.savingCareerEvent
+                                  : t.creatingCareerEvent)
+                            : editing
+                            ? 'SAVE CHANGES  →'
+                            : 'ADD CAREER EVENT  →',
+                        enabled: !_scopeChanged && !pending,
+                        onPressed: _save,
+                      ),
+                    ],
                   ),
-                TextFormField(
-                  controller: _title,
-                  enabled: !_scopeChanged && !pending,
-                  decoration: InputDecoration(labelText: t.titleOptional),
-                  maxLength: 160,
                 ),
-                TextFormField(
-                  controller: _notes,
-                  enabled: !_scopeChanged && !pending,
-                  decoration: InputDecoration(labelText: t.notesOptional),
-                  maxLength: 2000,
-                  minLines: 3,
-                  maxLines: 6,
-                ),
-                const SizedBox(height: 16),
-                if (pending) ...[
-                  Semantics(
-                    liveRegion: true,
-                    label: widget.event == null
-                        ? t.creatingCareerEvent
-                        : t.savingCareerEvent,
-                    child: const LinearProgressIndicator(),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-                FilledButton(
-                  onPressed: _scopeChanged || pending ? null : _save,
-                  child: Text(
-                    pending
-                        ? (widget.event == null
-                              ? t.creatingCareerEvent
-                              : t.savingCareerEvent)
-                        : (widget.event == null
-                              ? t.addCareerEvent
-                              : t.saveChanges),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -954,11 +1072,28 @@ class _CareerEventFormScreenState extends State<CareerEventFormScreen> {
     required List<T> items,
     required String Function(T) text,
     required ValueChanged<T> onChanged,
+    required IconData icon,
   }) => DropdownButtonFormField<T>(
     initialValue: value,
-    decoration: InputDecoration(labelText: label),
+    dropdownColor: _CalibrationColors.surface,
+    menuMaxHeight: MediaQuery.sizeOf(context).height * .5,
+    style: GoogleFonts.inter(
+      color: _CalibrationColors.alabaster,
+      fontSize: 14,
+      fontWeight: FontWeight.w600,
+    ),
+    iconEnabledColor: _CalibrationColors.gold,
+    decoration: _fieldDecoration(label, icon: icon),
     items: items
-        .map((item) => DropdownMenuItem(value: item, child: Text(text(item))))
+        .map(
+          (item) => DropdownMenuItem(
+            value: item,
+            child: Text(
+              text(item),
+              style: GoogleFonts.inter(color: _CalibrationColors.alabaster),
+            ),
+          ),
+        )
         .toList(),
     onChanged: _scopeChanged || widget.controller.isMutating
         ? null
@@ -971,14 +1106,141 @@ class _CareerEventFormScreenState extends State<CareerEventFormScreen> {
     TextEditingController controller,
     String label, {
     required bool enabled,
+    required Key fieldKey,
   }) => TextFormField(
+    key: fieldKey,
     controller: controller,
     enabled: enabled,
-    decoration: InputDecoration(labelText: label),
+    style: GoogleFonts.inter(color: _CalibrationColors.alabaster),
+    decoration: _fieldDecoration(label),
     keyboardType: TextInputType.number,
     validator: (value) => int.tryParse(value ?? '') == null
         ? AppLocalizations.of(context)!.invalidCareerEvent
         : null,
+  );
+
+  Widget _dateFields(AppLocalizations t, {required bool enabled}) {
+    final fields = [
+      Expanded(
+        child: _numberField(
+          _year,
+          t.year,
+          enabled: enabled,
+          fieldKey: const ValueKey('career-event-year'),
+        ),
+      ),
+      if (_precision != CareerEventDatePrecision.year)
+        Expanded(
+          child: _numberField(
+            _month,
+            t.month,
+            enabled: enabled,
+            fieldKey: const ValueKey('career-event-month'),
+          ),
+        ),
+      if (_precision == CareerEventDatePrecision.day)
+        Expanded(
+          child: _numberField(
+            _day,
+            t.day,
+            enabled: enabled,
+            fieldKey: const ValueKey('career-event-day'),
+          ),
+        ),
+    ];
+    return Row(
+      children: [
+        for (var index = 0; index < fields.length; index++) ...[
+          if (index > 0) const SizedBox(width: 9),
+          fields[index],
+        ],
+      ],
+    );
+  }
+
+  Widget _textField({
+    required TextEditingController controller,
+    required String label,
+    required int maxLength,
+    required bool enabled,
+    required Key fieldKey,
+    int minLines = 1,
+    int maxLines = 1,
+  }) => TextFormField(
+    key: fieldKey,
+    controller: controller,
+    enabled: enabled,
+    style: GoogleFonts.inter(color: _CalibrationColors.alabaster),
+    decoration: _fieldDecoration(label),
+    maxLength: maxLength,
+    minLines: minLines,
+    maxLines: maxLines,
+    buildCounter:
+        (context, {required currentLength, required isFocused, maxLength}) =>
+            Text(
+              '$currentLength / $maxLength',
+              style: GoogleFonts.inter(
+                color: _CalibrationColors.slate,
+                fontSize: 10,
+              ),
+            ),
+  );
+
+  InputDecoration _fieldDecoration(
+    String label, {
+    IconData? icon,
+  }) => InputDecoration(
+    labelText: label,
+    labelStyle: _calibrationLabel(color: _CalibrationColors.slate),
+    floatingLabelStyle: _calibrationLabel(color: _CalibrationColors.champagne),
+    prefixIcon: icon == null
+        ? null
+        : Icon(icon, color: _CalibrationColors.gold, size: 19),
+    filled: true,
+    fillColor: _CalibrationColors.surface,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(13),
+      borderSide: BorderSide(
+        color: _CalibrationColors.gold.withValues(alpha: .18),
+      ),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(13),
+      borderSide: const BorderSide(color: _CalibrationColors.gold),
+    ),
+    disabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(13),
+      borderSide: BorderSide(
+        color: _CalibrationColors.slate.withValues(alpha: .22),
+      ),
+    ),
+  );
+
+  String get _precisionHelper => switch (_precision) {
+    CareerEventDatePrecision.day => 'Use when you remember the full date.',
+    CareerEventDatePrecision.month =>
+      'Month and year is sufficient for calibration.',
+    CareerEventDatePrecision.year => 'Year-only precision is supported.',
+  };
+
+  Widget _scopeChangedNotice(AppLocalizations t) => Container(
+    margin: const EdgeInsets.only(bottom: 14),
+    padding: const EdgeInsets.all(13),
+    decoration: BoxDecoration(
+      color: _CalibrationColors.violet,
+      borderRadius: BorderRadius.circular(13),
+      border: Border.all(
+        color: _CalibrationColors.mutedError.withValues(alpha: .55),
+      ),
+    ),
+    child: Semantics(
+      liveRegion: true,
+      child: Text(
+        t.careerProfileChanged,
+        style: GoogleFonts.inter(color: _CalibrationColors.alabaster),
+      ),
+    ),
   );
 
   String? _validateDate() {

@@ -300,6 +300,116 @@ void main() {
     expect(find.byType(CareerEventFormScreen), findsOneWidget);
     scope.dispose();
   });
+
+  testWidgets('add form uses dark fields and preserves precision options', (
+    tester,
+  ) async {
+    final scope = await _scope(events: const []);
+    await tester.pumpWidget(_app(scope.controller));
+    await tester.pumpAndSettle();
+    await _openAddForm(tester);
+
+    expect(find.text('CAREER EVENT'), findsOneWidget);
+    expect(find.text('Tell us about your First job'), findsOneWidget);
+    expect(find.text('Step 3 of 4'), findsNothing);
+    expect(find.textContaining('Dasha'), findsNothing);
+    expect(find.byKey(const ValueKey('career-event-year')), findsOneWidget);
+    expect(find.byKey(const ValueKey('career-event-month')), findsOneWidget);
+    expect(find.byKey(const ValueKey('career-event-day')), findsOneWidget);
+    final typeField = tester.widget<DropdownButtonFormField<CareerEventType>>(
+      find.byWidgetPredicate(
+        (widget) => widget is DropdownButtonFormField<CareerEventType>,
+      ),
+    );
+    expect((typeField.decoration.fillColor), const Color(0xFF211D32));
+    await tester.tap(
+      find.byWidgetPredicate(
+        (widget) => widget is DropdownButtonFormField<CareerEventType>,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Job switch'), findsOneWidget);
+    expect(find.text('Promotion'), findsOneWidget);
+    expect(find.text('Business started'), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byWidgetPredicate(
+        (widget) => widget is DropdownButtonFormField<CareerEventDatePrecision>,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Exact date'), findsWidgets);
+    expect(find.text('Month and year'), findsOneWidget);
+    expect(find.text('Year only'), findsOneWidget);
+    await tester.tap(find.text('Month and year'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('career-event-year')), findsOneWidget);
+    expect(find.byKey(const ValueKey('career-event-month')), findsOneWidget);
+    expect(find.byKey(const ValueKey('career-event-day')), findsNothing);
+    expect(
+      find.text('Month and year is sufficient for calibration.'),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byWidgetPredicate(
+        (widget) => widget is DropdownButtonFormField<CareerEventDatePrecision>,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Year only'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('career-event-year')), findsOneWidget);
+    expect(find.byKey(const ValueKey('career-event-month')), findsNothing);
+    expect(find.byKey(const ValueKey('career-event-day')), findsNothing);
+    expect(find.text('Year-only precision is supported.'), findsOneWidget);
+    await _revealFormSave(tester);
+    expect(find.text('Career timing detail'), findsOneWidget);
+    expect(find.text('0 / 160'), findsOneWidget);
+    expect(find.text('0 / 2000'), findsOneWidget);
+    scope.dispose();
+  });
+
+  testWidgets('add and edit continue using the existing controller calls', (
+    tester,
+  ) async {
+    final repository = _Events();
+    final scope = await _scope(events: const [], repository: repository);
+    await tester.pumpWidget(_app(scope.controller));
+    await tester.pumpAndSettle();
+    await _openAddForm(tester);
+    await tester.enterText(
+      find.byKey(const ValueKey('career-event-year')),
+      '2020',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('career-event-month')),
+      '4',
+    );
+    await tester.enterText(find.byKey(const ValueKey('career-event-day')), '5');
+    await _revealFormSave(tester);
+    await tester.tap(find.byKey(const ValueKey('save-career-event')));
+    await tester.pumpAndSettle();
+    expect(
+      repository.lastInput?.eventDate.precision,
+      CareerEventDatePrecision.day,
+    );
+    expect(repository.lastInput?.eventDate.year, 2020);
+
+    await tester.tap(find.byKey(const ValueKey('edit-career-event-new')));
+    await tester.pumpAndSettle();
+    await _revealFormField(tester, const ValueKey('career-event-title'));
+    await tester.enterText(
+      find.byKey(const ValueKey('career-event-title')),
+      'Updated title',
+    );
+    await tester.tap(find.byKey(const ValueKey('save-career-event')));
+    await tester.pumpAndSettle();
+    expect(repository.lastUpdatedInput?.title, 'Updated title');
+    scope.dispose();
+  });
 }
 
 Widget _app(CareerEventController controller) => MaterialApp(
@@ -319,6 +429,25 @@ Future<void> _revealAdd(WidgetTester tester) => tester.scrollUntilVisible(
   180,
   scrollable: find.byType(Scrollable).first,
 );
+
+Future<void> _openAddForm(WidgetTester tester) async {
+  await _revealStart(tester);
+  await tester.tap(find.byKey(const ValueKey('start-calibration')));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _revealFormSave(WidgetTester tester) => tester.scrollUntilVisible(
+  find.byKey(const ValueKey('save-career-event')),
+  220,
+  scrollable: find.byType(Scrollable).first,
+);
+
+Future<void> _revealFormField(WidgetTester tester, Key key) =>
+    tester.scrollUntilVisible(
+      find.byKey(key),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
 
 Future<_Scope> _scope({
   List<CareerEvent> events = const [],
@@ -401,6 +530,7 @@ final _profile = BirthProfile(
 class _Events implements CareerEventRepository {
   List<CareerEvent> events = const [];
   CareerEventInput? lastInput;
+  CareerEventInput? lastUpdatedInput;
   @override
   Future<List<CareerEvent>> listCareerEvents(String id) async => events;
   @override
@@ -419,7 +549,16 @@ class _Events implements CareerEventRepository {
     String id,
     String eventId,
     CareerEventInput input,
-  ) => throw UnimplementedError();
+  ) async {
+    lastUpdatedInput = input;
+    final event = _event(eventId, input.eventDate.precision, input: input);
+    events = [
+      for (final existing in events)
+        if (existing.careerEventId == eventId) event else existing,
+    ];
+    return event;
+  }
+
   @override
   Future<CareerEvent> deleteCareerEvent(String id, String eventId) =>
       throw UnimplementedError();
