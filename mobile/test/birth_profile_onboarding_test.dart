@@ -12,527 +12,187 @@ import 'package:kundlinsights_mobile/features/profiles/profile_controller.dart';
 import 'package:kundlinsights_mobile/l10n/app_localizations.dart';
 
 void main() {
-  testWidgets('starts the visible five-step onboarding flow', (tester) async {
-    final scope = _Scope();
-    await tester.pumpWidget(scope.app());
-    expect(find.text('Step 1 of 5'), findsOneWidget);
-    expect(find.text('Profile label'), findsOneWidget);
-    await tester.tap(find.text('Continue'));
-    await tester.pump();
-    expect(find.text('Step 2 of 5'), findsOneWidget);
-    scope.dispose();
-  });
-
-  testWidgets('free text without a selected place cannot advance', (
+  testWidgets('renders the polished single-step birth profile form', (
     tester,
   ) async {
     final scope = _Scope();
     await tester.pumpWidget(scope.app());
-    await _toPlace(tester);
-    await tester.enterText(find.byType(TextField), 'Delhi');
-    await tester.pump(const Duration(milliseconds: 400));
-    await tester.tap(find.text('Continue'));
-    await tester.pump();
-    expect(find.text('Complete this field to continue.'), findsOneWidget);
+
+    expect(find.textContaining('STEP 1/1'), findsOneWidget);
+    expect(find.text('Create your birth profile'), findsOneWidget);
+    expect(find.text('FULL NAME'), findsOneWidget);
+    expect(find.text('DATE OF BIRTH'), findsOneWidget);
+    expect(find.text('TIME OF BIRTH'), findsOneWidget);
+    expect(find.text('PLACE OF BIRTH'), findsOneWidget);
+    expect(find.text('Vedic Time Precision'), findsOneWidget);
+    expect(find.textContaining("don't know my exact birth time"), findsNothing);
+    expect(_generate(tester).onPressed, isNull);
     scope.dispose();
   });
 
-  testWidgets('selecting an authoritative place enables progression', (
+  testWidgets('uses canonical date/time and resolved backend birth data', (
     tester,
   ) async {
-    final repository = _Profiles()
-      ..places = const [
-        PlaceCandidate(
-          id: 'place-delhi',
-          label: 'Delhi, India',
-          latitude: 0,
-          longitude: 0,
-          timezone: 'Asia/Kolkata',
-          timezoneProvenance: {},
-        ),
-      ];
+    final repository = _Profiles()..places = [_place];
     final scope = _Scope(repository);
+    await scope.ready();
     await tester.pumpWidget(scope.app());
-    await _toPlace(tester);
-    await tester.enterText(find.byType(TextField), 'Delhi');
-    await tester.pump(const Duration(milliseconds: 400));
-    expect(find.text('Delhi, India'), findsOneWidget);
-    await tester.tap(find.text('Delhi, India'));
-    await tester.pump();
-    expect(find.byIcon(Icons.check_circle), findsOneWidget);
-    await tester.tap(find.text('Continue'));
-    await tester.pump();
-    expect(repository.resolvedPlaceId, 'place-delhi');
-    scope.dispose();
-  });
+    await _fillValidForm(tester);
 
-  testWidgets('editing search text invalidates the selected place', (
-    tester,
-  ) async {
-    final repository = _Profiles()
-      ..places = const [
-        PlaceCandidate(
-          id: 'place-a',
-          label: 'Ludhiana, Punjab, India',
-          latitude: 0,
-          longitude: 0,
-          timezone: 'Asia/Kolkata',
-          timezoneProvenance: {},
-        ),
-      ];
-    final scope = _Scope(repository);
-    await tester.pumpWidget(scope.app());
-    await _toPlace(tester);
-    await tester.enterText(find.byType(TextField), 'Ludhiana');
-    await tester.pump(const Duration(milliseconds: 400));
-    await tester.tap(find.text('Ludhiana, Punjab, India'));
-    await tester.pump();
-    expect(find.byIcon(Icons.check_circle), findsOneWidget);
-    await tester.enterText(find.byType(TextField), 'Ludh');
-    await tester.pump();
-    expect(find.byIcon(Icons.check_circle), findsNothing);
-    await tester.tap(find.text('Continue'));
-    await tester.pump();
-    expect(find.text('Complete this field to continue.'), findsOneWidget);
-    scope.dispose();
-  });
-
-  testWidgets('stale search responses cannot replace newer results', (
-    tester,
-  ) async {
-    final repository = _Profiles()..pendingSearches = true;
-    final scope = _Scope(repository);
-    await tester.pumpWidget(scope.app());
-    await _toPlace(tester);
-    await tester.enterText(find.byType(TextField), 'Delhi');
-    await tester.pump(const Duration(milliseconds: 400));
-    await tester.enterText(find.byType(TextField), 'Delhii');
-    await tester.pump(const Duration(milliseconds: 400));
-    repository.completeSearch('Delhii', const [
-      PlaceCandidate(
-        id: 'b',
-        label: 'Delhi B',
-        latitude: 0,
-        longitude: 0,
-        timezone: 'Asia/Kolkata',
-        timezoneProvenance: {},
-      ),
-    ]);
-    await tester.pump();
-    expect(find.text('Delhi B'), findsOneWidget);
-    repository.completeSearch('Delhi', const [
-      PlaceCandidate(
-        id: 'a',
-        label: 'Delhi A',
-        latitude: 0,
-        longitude: 0,
-        timezone: 'Asia/Kolkata',
-        timezoneProvenance: {},
-      ),
-    ]);
-    await tester.pump();
-    expect(find.text('Delhi B'), findsOneWidget);
-    expect(find.text('Delhi A'), findsNothing);
-    scope.dispose();
-  });
-
-  testWidgets('missing date cannot advance to the time step', (tester) async {
-    final scope = _Scope();
-    await tester.pumpWidget(scope.app());
-    await tester.tap(find.text('Continue'));
-    await tester.pump();
-    expect(find.text('Step 2 of 5'), findsOneWidget);
-    await tester.tap(find.text('Continue'));
-    await tester.pump();
-    expect(find.text('Step 2 of 5'), findsOneWidget);
-    expect(find.text('Complete this field to continue.'), findsOneWidget);
-    scope.dispose();
-  });
-
-  testWidgets('date picker prevents future dates from being submitted', (
-    tester,
-  ) async {
-    final scope = _Scope();
-    await tester.pumpWidget(scope.app());
-    await tester.tap(find.text('Continue'));
-    await tester.pump();
-    await tester.tap(find.text('Select date'));
-    await tester.pumpAndSettle();
-    final picker = tester.widget<CalendarDatePicker>(
-      find.byType(CalendarDatePicker),
-    );
+    expect(repository.resolvedPlaceId, _place.id);
     expect(
-      picker.lastDate.isBefore(DateTime.now().add(const Duration(days: 1))),
-      isTrue,
+      repository.resolvedLocalDate,
+      matches(RegExp(r'^\d{4}-\d{2}-\d{2}$')),
     );
-    await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Continue'));
-    await tester.pump();
-    expect(find.text('Step 2 of 5'), findsOneWidget);
-    expect(find.text('Complete this field to continue.'), findsOneWidget);
-    scope.dispose();
-  });
-
-  testWidgets('missing time cannot advance to the place step', (tester) async {
-    final scope = _Scope();
-    await tester.pumpWidget(scope.app());
-    await _toTime(tester);
-    expect(find.text('Step 3 of 5'), findsOneWidget);
-    await tester.tap(find.text('Continue'));
-    await tester.pump();
-    expect(find.text('Step 3 of 5'), findsOneWidget);
-    expect(find.text('Complete this field to continue.'), findsOneWidget);
-    scope.dispose();
-  });
-
-  testWidgets('changing date requires a fresh resolution', (tester) async {
-    final repository = _Profiles()..places = _places;
-    final scope = _Scope(repository);
-    await tester.pumpWidget(scope.app());
-    await _toResolvedReview(tester);
-    expect(repository.resolutionPlaceIds, ['place-a']);
-    await _editReviewRow(tester, 1);
-    await _changeDate(tester);
-    expect(find.text('Step 2 of 5'), findsOneWidget);
-    expect(find.text('Create profile'), findsNothing);
-    await _resolveAgain(tester);
-    expect(repository.resolutionPlaceIds, ['place-a', 'place-a']);
-    expect(find.text('Review profile'), findsOneWidget);
-    scope.dispose();
-  });
-
-  testWidgets('changing time requires a fresh resolution', (tester) async {
-    final repository = _Profiles()..places = _places;
-    final scope = _Scope(repository);
-    await tester.pumpWidget(scope.app());
-    await _toResolvedReview(tester);
-    expect(repository.resolutionPlaceIds, ['place-a']);
-    await _editReviewRow(tester, 2);
-    await _changeTime(tester);
-    expect(find.text('Step 3 of 5'), findsOneWidget);
-    expect(find.text('Create profile'), findsNothing);
-    await _resolveAfterTimeChange(tester);
-    expect(repository.resolutionPlaceIds, ['place-a', 'place-a']);
-    expect(find.text('Review profile'), findsOneWidget);
-    scope.dispose();
-  });
-
-  testWidgets('changing place requires a fresh resolution', (tester) async {
-    final repository = _Profiles()..places = _places;
-    final scope = _Scope(repository);
-    await tester.pumpWidget(scope.app());
-    await _toResolvedReview(tester);
-    expect(repository.resolutionPlaceIds, ['place-a']);
-    await _editReviewRow(tester, 3);
-    await tester.enterText(find.byType(TextField), 'Mumbai');
-    await tester.pump(const Duration(milliseconds: 400));
-    await tester.tap(find.text('Mumbai, Maharashtra, India'));
-    await tester.pump();
-    expect(find.text('Create profile'), findsNothing);
-    await tester.tap(find.text('Continue'));
-    await tester.pump();
-    expect(repository.resolutionPlaceIds, ['place-a', 'place-b']);
-    expect(find.text('Review profile'), findsOneWidget);
-    scope.dispose();
-  });
-
-  testWidgets(
-    'late stale birth-time resolution cannot replace the current one',
-    (tester) async {
-      final repository = _Profiles()
-        ..places = _places
-        ..pendingResolutions = true;
-      final scope = _Scope(repository);
-      await scope.auth.restore();
-      await tester.pumpWidget(scope.app());
-      await _toPlace(tester);
-      await tester.enterText(find.byType(TextField), 'Ludhiana');
-      await tester.pump(const Duration(milliseconds: 400));
-      await tester.tap(find.text('Ludhiana, Punjab, India'));
-      await tester.pump();
-      await tester.tap(find.text('Continue'));
-      await tester.pump();
-      expect(repository.resolutionPlaceIds, ['place-a']);
-
-      await tester.enterText(find.byType(TextField), 'Mumbai');
-      await tester.pump(const Duration(milliseconds: 400));
-      await tester.tap(find.text('Mumbai, Maharashtra, India'));
-      await tester.pump();
-      expect(find.text('Continue'), findsOneWidget);
-      await tester.tap(find.text('Continue'));
-      await tester.pump();
-      expect(repository.resolutionPlaceIds, ['place-a', 'place-b']);
-
-      repository.completeResolution('place-b', _resolution('Current/Zone'));
-      await tester.pump();
-      expect(find.text('Review profile'), findsOneWidget);
-      expect(
-        find.text('Selected birthplace: Mumbai, Maharashtra, India'),
-        findsOneWidget,
-      );
-
-      repository.completeResolution('place-a', _resolution('Stale/Zone'));
-      await tester.pump();
-      expect(
-        find.text('Selected birthplace: Mumbai, Maharashtra, India'),
-        findsOneWidget,
-      );
-      expect(
-        find.text('Selected birthplace: Ludhiana, Punjab, India'),
-        findsNothing,
-      );
-
-      await tester.tap(find.text('Create Profile'));
-      await tester.pump();
-      expect(repository.createdBirthData?.timezone, 'Current/Zone');
-      scope.dispose();
-    },
-  );
-
-  testWidgets('resolution failure preserves entered onboarding data', (
-    tester,
-  ) async {
-    final repository = _Profiles()
-      ..places = _places
-      ..resolutionFailures.add(StateError('provider resolution detail'));
-    final scope = _Scope(repository);
-    await tester.pumpWidget(scope.app());
-    await tester.enterText(find.byType(TextField), 'My birth profile');
-    await _toPlace(tester);
-    await tester.enterText(find.byType(TextField), 'Ludhiana');
-    await tester.pump(const Duration(milliseconds: 400));
-    await tester.tap(find.text('Ludhiana, Punjab, India'));
-    await tester.pump();
-    await tester.tap(find.text('Continue'));
-    await tester.pump();
+    expect(repository.resolvedLocalTime, matches(RegExp(r'^\d{2}:\d{2}:00$')));
     expect(
-      find.text('We could not complete that request. Please try again.'),
+      find.byKey(const ValueKey('resolved-birth-details')),
       findsOneWidget,
     );
-    expect(find.textContaining('provider resolution detail'), findsNothing);
-    expect(find.text('Step 4 of 5'), findsOneWidget);
-    expect(find.byIcon(Icons.check_circle), findsOneWidget);
-    scope.dispose();
-  });
+    expect(find.textContaining('28.6139° N'), findsOneWidget);
+    expect(find.textContaining('UTC +05:30'), findsOneWidget);
+    expect(find.text('No matching places found.'), findsNothing);
+    expect(_generate(tester).onPressed, isNotNull);
 
-  testWidgets('resolution retry reaches review with the same inputs', (
-    tester,
-  ) async {
-    final repository = _Profiles()
-      ..places = _places
-      ..resolutionFailures.add(StateError('provider resolution detail'));
-    final scope = _Scope(repository);
-    await tester.pumpWidget(scope.app());
-    await tester.enterText(find.byType(TextField), 'My birth profile');
-    await _toPlace(tester);
-    await tester.enterText(find.byType(TextField), 'Ludhiana');
-    await tester.pump(const Duration(milliseconds: 400));
-    await tester.tap(find.text('Ludhiana, Punjab, India'));
-    await tester.pump();
-    await tester.tap(find.text('Continue'));
-    await tester.pump();
-    await tester.tap(find.text('Continue'));
-    await tester.pump();
-    expect(repository.resolutionPlaceIds, ['place-a', 'place-a']);
-    expect(find.text('Review profile'), findsOneWidget);
-    expect(find.text('My birth profile'), findsOneWidget);
-    expect(find.text('Ludhiana, Punjab, India'), findsWidgets);
-    expect(
-      find.text('We could not complete that request. Please try again.'),
-      findsNothing,
+    await tester.enterText(
+      find.byKey(const ValueKey('birth-profile-name')),
+      'Riya Sharma',
     );
-    scope.dispose();
-  });
-
-  testWidgets('create pending state keeps the review stable', (tester) async {
-    final repository = _Profiles()
-      ..places = _places
-      ..pendingCreates = true;
-    final scope = _Scope(repository);
-    await scope.auth.restore();
-    await tester.pumpWidget(scope.app());
-    await _toResolvedReview(tester);
-    await tester.tap(find.text('Create Profile'));
-    await tester.pump();
-    expect(repository.createCallCount, 1);
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    expect(find.text('Review profile'), findsOneWidget);
-    scope.dispose();
-  });
-
-  testWidgets('create cannot be submitted twice while pending', (tester) async {
-    final repository = _Profiles()
-      ..places = _places
-      ..pendingCreates = true;
-    final scope = _Scope(repository);
-    await scope.auth.restore();
-    await tester.pumpWidget(scope.app());
-    await _toResolvedReview(tester);
-    await tester.tap(find.text('Create Profile'));
-    await tester.pump();
-    await tester.tap(find.byType(FilledButton));
-    await tester.pump();
-    expect(repository.createCallCount, 1);
-    scope.dispose();
-  });
-
-  testWidgets('create failure retries successfully and navigates home', (
-    tester,
-  ) async {
-    final repository = _Profiles()
-      ..places = _places
-      ..createFailures.add(StateError('provider create detail'));
-    final scope = _Scope(repository);
-    await scope.auth.restore();
-    await tester.pumpWidget(scope.app());
-    await _toResolvedReview(tester);
-    await tester.tap(find.text('Create Profile'));
-    await tester.pump();
-    expect(
-      find.text('We could not complete that request. Please try again.'),
-      findsOneWidget,
-    );
-    expect(find.textContaining('provider create detail'), findsNothing);
-    expect(find.text('Review profile'), findsOneWidget);
-    await tester.tap(find.text('Create Profile'));
+    final generate = find.byKey(const ValueKey('generate-vedic-horoscope'));
+    await tester.ensureVisible(generate);
+    await tester.tap(generate);
     await tester.pumpAndSettle();
-    expect(repository.createCallCount, 2);
-    expect(repository.createdProfiles, hasLength(1));
+    expect(repository.createdBirthData, same(repository.resolution));
+    expect(repository.createdLabel, 'Riya Sharma');
     expect(find.text('Home destination'), findsOneWidget);
     scope.dispose();
   });
+
+  testWidgets('editing place invalidates resolution and disables creation', (
+    tester,
+  ) async {
+    final repository = _Profiles()..places = [_place];
+    final scope = _Scope(repository);
+    await tester.pumpWidget(scope.app());
+    await _fillValidForm(tester);
+    expect(_generate(tester).onPressed, isNotNull);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('birth-profile-place')),
+      'Delhi changed',
+    );
+    await tester.pump();
+    expect(_generate(tester).onPressed, isNull);
+    scope.dispose();
+  });
+
+  testWidgets('safe resolution errors do not expose provider details', (
+    tester,
+  ) async {
+    final repository = _Profiles()
+      ..places = [_place]
+      ..resolutionError = StateError('raw resolver details');
+    final scope = _Scope(repository);
+    await tester.pumpWidget(scope.app());
+    await _setDateAndTime(tester);
+    await _selectPlace(tester);
+
+    expect(
+      find.text('We could not complete that request. Please try again.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('raw resolver details'), findsNothing);
+    expect(_generate(tester).onPressed, isNull);
+    scope.dispose();
+  });
+
+  testWidgets('add-profile mode retains the visual form and back affordance', (
+    tester,
+  ) async {
+    final scope = _Scope();
+    await tester.pumpWidget(scope.app(adding: true));
+    expect(find.byIcon(Icons.arrow_back), findsOneWidget);
+    expect(find.text('Create your birth profile'), findsOneWidget);
+    scope.dispose();
+  });
+
+  testWidgets('header stays visible when the form scrolls', (tester) async {
+    final scope = _Scope();
+    await tester.pumpWidget(scope.app());
+    await tester.drag(
+      find.byType(SingleChildScrollView),
+      const Offset(0, -500),
+    );
+    await tester.pump();
+    expect(find.textContaining('STEP 1/1'), findsOneWidget);
+    scope.dispose();
+  });
 }
 
-const _places = [
-  PlaceCandidate(
-    id: 'place-a',
-    label: 'Ludhiana, Punjab, India',
-    latitude: 30.9,
-    longitude: 75.8,
-    timezone: 'Asia/Kolkata',
-    timezoneProvenance: {},
-  ),
-  PlaceCandidate(
-    id: 'place-b',
-    label: 'Mumbai, Maharashtra, India',
-    latitude: 19.1,
-    longitude: 72.9,
-    timezone: 'Asia/Kolkata',
-    timezoneProvenance: {},
-  ),
-];
+final _place = PlaceCandidate(
+  id: 'place-delhi',
+  label: 'Delhi, India',
+  latitude: 28.6139,
+  longitude: 77.2090,
+  timezone: 'Asia/Kolkata',
+  timezoneProvenance: const {'source': 'test'},
+);
 
-ResolvedBirthData _resolution(String timezone) => ResolvedBirthData({
-  'localDate': '2000-01-01',
-  'localTime': '12:00:00',
-  'timezone': timezone,
-});
-
-Future<void> _toPlace(WidgetTester tester) async {
-  await tester.tap(find.text('Continue'));
-  await tester.pump();
-  await tester.tap(find.text('Select date'));
-  await tester.pumpAndSettle();
-  await tester.tap(find.text('OK'));
-  await tester.pump();
-  await tester.tap(find.text('Continue'));
-  await tester.pump();
-  await tester.tap(find.text('Select time'));
-  await tester.pumpAndSettle();
-  await tester.tap(find.text('OK'));
-  await tester.pump();
-  await tester.tap(find.text('Continue'));
-  await tester.pump();
+Future<void> _fillValidForm(WidgetTester tester) async {
+  await _setDateAndTime(tester);
+  await _selectPlace(tester);
 }
 
-Future<void> _toTime(WidgetTester tester) async {
-  await tester.tap(find.text('Continue'));
-  await tester.pump();
-  await tester.tap(find.text('Select date'));
+Future<void> _setDateAndTime(WidgetTester tester) async {
+  await tester.ensureVisible(find.byKey(const ValueKey('birth-profile-date')));
+  await tester.tap(find.byKey(const ValueKey('birth-profile-date')));
   await tester.pumpAndSettle();
   await tester.tap(find.text('OK'));
-  await tester.pump();
-  await tester.tap(find.text('Continue'));
-  await tester.pump();
+  await tester.pumpAndSettle();
+  await tester.ensureVisible(find.byKey(const ValueKey('birth-profile-time')));
+  await tester.tap(find.byKey(const ValueKey('birth-profile-time')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('OK'));
+  await tester.pumpAndSettle();
 }
 
-Future<void> _toResolvedReview(WidgetTester tester) async {
-  await _toPlace(tester);
-  await tester.enterText(find.byType(TextField), 'Ludhiana');
+Future<void> _selectPlace(WidgetTester tester) async {
+  final field = find.byKey(const ValueKey('birth-profile-place'));
+  await tester.ensureVisible(field);
+  await tester.enterText(field, 'Delhi');
   await tester.pump(const Duration(milliseconds: 400));
-  await tester.tap(find.text('Ludhiana, Punjab, India'));
-  await tester.pump();
-  await tester.tap(find.text('Continue'));
-  await tester.pump();
-  expect(find.text('Review profile'), findsOneWidget);
-}
-
-Future<void> _editReviewRow(WidgetTester tester, int index) async {
-  await tester.tap(find.text('Edit').at(index));
+  await tester.tap(find.text('Delhi, India'));
   await tester.pump();
 }
 
-Future<void> _changeDate(WidgetTester tester) async {
-  await tester.tap(find.byIcon(Icons.calendar_today_outlined));
-  await tester.pumpAndSettle();
-  final picker = tester.widget<CalendarDatePicker>(
-    find.byType(CalendarDatePicker),
-  );
-  final initial = picker.initialDate!;
-  final target =
-      initial.day == DateUtils.getDaysInMonth(initial.year, initial.month)
-      ? initial.subtract(const Duration(days: 1))
-      : initial.add(const Duration(days: 1));
-  await tester.tap(find.text('${target.day}').first);
-  await tester.pump();
-  await tester.tap(find.text('OK'));
-  await tester.pump();
-}
-
-Future<void> _changeTime(WidgetTester tester) async {
-  await tester.tap(find.byIcon(Icons.access_time));
-  await tester.pumpAndSettle();
-  await tester.tap(find.byIcon(Icons.keyboard_outlined));
-  await tester.pump();
-  await tester.enterText(find.byType(TextFormField).first, '1');
-  await tester.enterText(find.byType(TextFormField).last, '30');
-  await tester.pump();
-  await tester.tap(find.text('OK'));
-  await tester.pump();
-}
-
-Future<void> _resolveAgain(WidgetTester tester) async {
-  await tester.tap(find.text('Continue'));
-  await tester.pump();
-  await tester.tap(find.text('Continue'));
-  await tester.pump();
-  await tester.tap(find.text('Continue'));
-  await tester.pump();
-}
-
-Future<void> _resolveAfterTimeChange(WidgetTester tester) async {
-  await tester.tap(find.text('Continue'));
-  await tester.pump();
-  await tester.tap(find.text('Continue'));
-  await tester.pump();
-}
+FilledButton _generate(WidgetTester tester) => tester.widget<FilledButton>(
+  find.byKey(const ValueKey('generate-vedic-horoscope')),
+);
 
 class _Scope {
   _Scope([BirthProfileRepository? repository])
     : _repository = repository ?? _Profiles();
-  final authSource = _Auth();
+
+  final _AuthSource authSource = _AuthSource();
   final BirthProfileRepository _repository;
-  late final auth = AuthController(authSource);
-  late final controller = ProfileController(_repository, auth);
-  Widget app() {
+  late final AuthController auth = AuthController(authSource);
+  late final ProfileController controller = ProfileController(
+    _repository,
+    auth,
+  );
+
+  Future<void> ready() => auth.restore();
+
+  Widget app({bool adding = false}) {
     final router = GoRouter(
       initialLocation: '/onboarding',
       routes: [
         GoRoute(
           path: '/onboarding',
-          builder: (_, state) =>
-              BirthProfileOnboardingScreen(controller: controller),
+          builder: (_, state) => BirthProfileOnboardingScreen(
+            controller: controller,
+            adding: adding,
+          ),
         ),
         GoRoute(
           path: '/home',
@@ -553,17 +213,17 @@ class _Scope {
   }
 }
 
-class _Auth implements AuthRepository {
+class _AuthSource implements AuthRepository {
   final _states = StreamController<AuthSnapshot>.broadcast();
   @override
   Stream<AuthSnapshot> get states => _states.stream;
   @override
-  Future<String?> accessToken() async => 't';
+  Future<String?> accessToken() async => 'token';
   @override
-  Future<String?> refreshAccessToken() async => 't';
+  Future<String?> refreshAccessToken() async => 'token';
   @override
   Future<AuthSnapshot> restore() async =>
-      const AuthSnapshot(AuthStatus.authenticated, subject: 'u');
+      const AuthSnapshot(AuthStatus.authenticated, subject: 'user-1');
   @override
   Future<void> signIn({
     required String email,
@@ -580,33 +240,28 @@ class _Auth implements AuthRepository {
 
 class _Profiles implements BirthProfileRepository {
   List<PlaceCandidate> places = const [];
-  bool pendingSearches = false;
-  bool pendingResolutions = false;
-  final pending = <String, Completer<List<PlaceCandidate>>>{};
-  final pendingResolution = <String, Completer<ResolvedBirthData>>{};
-  final createFailures = <Object>[];
-  bool pendingCreates = false;
-  final pendingCreate = Completer<BirthProfile>();
+  Object? resolutionError;
   String? resolvedPlaceId;
-  final resolutionPlaceIds = <String>[];
+  String? resolvedLocalDate;
+  String? resolvedLocalTime;
+  String? createdLabel;
   ResolvedBirthData? createdBirthData;
-  final createdProfiles = <BirthProfile>[];
-  final resolutionFailures = <Object>[];
-  int createCallCount = 0;
+  final resolution = const ResolvedBirthData({
+    'localDate': '2000-01-01',
+    'localTime': '12:00:00',
+    'timezone': 'Asia/Kolkata',
+    'utc': '2000-01-01T06:30:00.000Z',
+    'latitude': 28.6139,
+    'longitude': 77.2090,
+    'timezoneProvenance': {'source': 'test'},
+  });
+
   @override
   Future<List<BirthProfile>> list() async => const [];
   @override
-  Future<List<PlaceCandidate>> searchPlaces(String query) {
-    if (!pendingSearches) return Future.value(places);
-    return (pending[query] ??= Completer<List<PlaceCandidate>>()).future;
-  }
-
-  void completeSearch(String query, List<PlaceCandidate> value) =>
-      pending[query]!.complete(value);
-
-  void completeResolution(String placeId, ResolvedBirthData value) =>
-      pendingResolution[placeId]!.complete(value);
-
+  Future<BirthProfile> get(String id) async => throw UnimplementedError();
+  @override
+  Future<List<PlaceCandidate>> searchPlaces(String query) async => places;
   @override
   Future<ResolvedBirthData> resolveBirthTime({
     required String placeId,
@@ -614,17 +269,10 @@ class _Profiles implements BirthProfileRepository {
     required String localTime,
   }) async {
     resolvedPlaceId = placeId;
-    resolutionPlaceIds.add(placeId);
-    if (resolutionFailures.isNotEmpty) throw resolutionFailures.removeAt(0);
-    if (pendingResolutions) {
-      return (pendingResolution[placeId] ??= Completer<ResolvedBirthData>())
-          .future;
-    }
-    return ResolvedBirthData({
-      'localDate': localDate,
-      'localTime': localTime,
-      'timezone': 'Asia/Kolkata',
-    });
+    resolvedLocalDate = localDate;
+    resolvedLocalTime = localTime;
+    if (resolutionError != null) throw resolutionError!;
+    return resolution;
   }
 
   @override
@@ -632,20 +280,13 @@ class _Profiles implements BirthProfileRepository {
     required String? displayLabel,
     required ResolvedBirthData birthData,
   }) async {
-    createCallCount++;
-    if (createFailures.isNotEmpty) throw createFailures.removeAt(0);
-    if (pendingCreates) return pendingCreate.future;
+    createdLabel = displayLabel;
     createdBirthData = birthData;
-    final profile = BirthProfile(
-      id: 'created',
+    return BirthProfile(
+      id: 'profile-1',
       displayLabel: displayLabel,
       birthData: birthData,
       status: 'ACTIVE',
     );
-    createdProfiles.add(profile);
-    return profile;
   }
-
-  @override
-  Future<BirthProfile> get(String id) async => throw UnimplementedError();
 }

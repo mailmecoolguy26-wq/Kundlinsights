@@ -103,7 +103,7 @@ void main() {
 
       await tester.pump(const Duration(milliseconds: 1300));
       await tester.pumpAndSettle();
-      expect(find.text('Create birth profile'), findsOneWidget);
+      expect(find.text('Create your birth profile'), findsOneWidget);
     },
   );
 
@@ -160,7 +160,7 @@ void main() {
       await tester.pumpWidget(_app(controller, _Profiles(empty: true)));
       await controller.restore();
       await tester.pumpAndSettle();
-      expect(find.text('Create birth profile'), findsOneWidget);
+      expect(find.text('Create your birth profile'), findsOneWidget);
     },
   );
 
