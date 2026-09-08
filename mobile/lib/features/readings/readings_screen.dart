@@ -231,6 +231,66 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
         return const Scaffold(backgroundColor: Color(0xFF0B071B));
       }
       final t = AppLocalizations.of(context)!;
+      final hasCareerReading =
+          widget.controller.listState == ReadingListState.loaded &&
+          _careerReading(widget.controller.readings) != null;
+      if (hasCareerReading) {
+        return Scaffold(
+          backgroundColor: const Color(0xFF0B071B),
+          body: SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 12, 8),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'READINGS',
+                              style: TextStyle(
+                                color: Color(0xFFF4BF50),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            Text(
+                              'My Readings',
+                              style: TextStyle(
+                                color: Color(0xFFFAF7F2),
+                                fontSize: 30,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.refresh,
+                          color: Color(0xFFC5A059),
+                        ),
+                        onPressed: widget.controller.refresh,
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: _ReadingList(
+                    controller: widget.controller,
+                    generation: widget.generation,
+                    premiumProduct: widget.premiumProduct,
+                    premiumPurchase: widget.premiumPurchase,
+                    razorpayPremium: widget.razorpayPremium,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
       final screen = AppPageScaffold(
         title: t.myReadings,
         actions: [
@@ -380,18 +440,62 @@ class _GenerationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
     if (existingReading != null) {
-      return AppCard(
+      return Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: const Color(0xFF181335),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: const Color(0xFFC5A059).withValues(alpha: .45),
+          ),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(t.careerReadingAvailable),
+            const Text(
+              'CAREER READING',
+              style: TextStyle(
+                color: Color(0xFFF4BF50),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            const Text(
+              'Your personalized Career Reading is ready',
+              style: TextStyle(
+                color: Color(0xFFFAF7F2),
+                fontSize: 22,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            const Text(
+              'Explore your career forecast, upcoming career windows, and personalized timing insights.',
+              style: TextStyle(color: Color(0xFF9E9AA9)),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            const Row(
+              children: [
+                Icon(Icons.auto_awesome, color: Color(0xFFC5A059), size: 16),
+                SizedBox(width: 6),
+                Text(
+                  'Career Premium unlocked',
+                  style: TextStyle(color: Color(0xFFF4BF50), fontSize: 12),
+                ),
+              ],
+            ),
             const SizedBox(height: AppSpacing.sm),
             FilledButton(
               onPressed: () => context.pushNamed(
                 'reading-detail',
                 pathParameters: {'id': existingReading!.readingId},
               ),
-              child: Text(t.viewCareerReading),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFF4BF50),
+                foregroundColor: const Color(0xFF0B071B),
+              ),
+              child: const Text('VIEW CAREER READING →'),
             ),
           ],
         ),
@@ -540,16 +644,26 @@ class _ReadingCard extends StatelessWidget {
     return Semantics(
       label: '${t.careerReading}, $date',
       button: true,
-      child: AppCard(
-        padding: EdgeInsets.zero,
+      child: Material(
+        color: const Color(0xFF181335),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: const Color(0xFFC5A059).withValues(alpha: .35)),
+        ),
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
             vertical: AppSpacing.xs,
           ),
-          title: Text(t.careerReading),
-          subtitle: Text('${t.createdOn}: $date'),
-          trailing: const Icon(Icons.chevron_right),
+          title: Text(
+            t.careerReading,
+            style: const TextStyle(color: Color(0xFFFAF7F2)),
+          ),
+          subtitle: Text(
+            '${t.createdOn}: $date',
+            style: const TextStyle(color: Color(0xFF9E9AA9)),
+          ),
+          trailing: const Icon(Icons.chevron_right, color: Color(0xFFC5A059)),
           onTap: () => context.pushNamed(
             'reading-detail',
             pathParameters: {'id': reading.readingId},
