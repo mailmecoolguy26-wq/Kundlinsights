@@ -22,6 +22,8 @@ class CareerPremiumPaywall extends StatefulWidget {
     this.razorpayState,
     this.onRazorpayRecover,
     this.onRazorpayReset,
+    this.dedicatedRazorpaySurface = false,
+    this.activeProfileLabel,
   });
 
   final CareerPremiumProductController productController;
@@ -36,6 +38,8 @@ class CareerPremiumPaywall extends StatefulWidget {
   final RazorpayCareerPremiumState? razorpayState;
   final VoidCallback? onRazorpayRecover;
   final VoidCallback? onRazorpayReset;
+  final bool dedicatedRazorpaySurface;
+  final String? activeProfileLabel;
 
   @override
   State<CareerPremiumPaywall> createState() => _CareerPremiumPaywallState();
@@ -54,6 +58,50 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
   @override
   Widget build(BuildContext context) {
     final usesRazorpay = widget.razorpayController != null;
+    if (usesRazorpay && widget.dedicatedRazorpaySurface) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF0B071B),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      icon: const Icon(
+                        Icons.arrow_back,
+                        color: Color(0xFFFAF7F2),
+                      ),
+                      style: IconButton.styleFrom(
+                        backgroundColor: const Color(0xFF181335),
+                      ),
+                    ),
+                    const Spacer(),
+                    _ProfilePill(label: widget.activeProfileLabel),
+                  ],
+                ),
+                const SizedBox(height: 28),
+                _ProductAction(
+                  controller: widget.productController,
+                  onSubscribePressed: widget.onSubscribePressed,
+                  onContinuePressed: widget.onContinuePressed,
+                  onBackHomePressed: widget.onBackHomePressed,
+                  purchaseController: widget.purchaseController,
+                  razorpayController: widget.razorpayController,
+                  onRazorpayStart: widget.onRazorpayStart,
+                  razorpayState: widget.razorpayState,
+                  onRazorpayRecover: widget.onRazorpayRecover,
+                  onRazorpayReset: widget.onRazorpayReset,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     if (widget.hasAccess) {
       return AppCard(
         child: Column(
@@ -84,15 +132,17 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Career Premium',
-              style: TextStyle(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            const Text('Unlock your complete Career reading.'),
-            const SizedBox(height: AppSpacing.sm),
-            const _Benefits(),
-            const SizedBox(height: AppSpacing.md),
+            if (!usesRazorpay) ...[
+              const Text(
+                'Career Premium',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              const Text('Unlock your complete Career reading.'),
+              const SizedBox(height: AppSpacing.sm),
+              const _Benefits(),
+              const SizedBox(height: AppSpacing.md),
+            ],
             _ProductAction(
               controller: widget.productController,
               onSubscribePressed: widget.onSubscribePressed,
@@ -125,6 +175,36 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
       ),
     );
   }
+}
+
+class _ProfilePill extends StatelessWidget {
+  const _ProfilePill({this.label});
+  final String? label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+    decoration: BoxDecoration(
+      color: const Color(0xFF181335),
+      borderRadius: BorderRadius.circular(999),
+      border: Border.all(color: const Color(0xFFC5A059).withValues(alpha: .45)),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.circle, size: 8, color: Color(0xFFC5A059)),
+        const SizedBox(width: 6),
+        Text(
+          label?.toUpperCase() ?? 'BIRTH PROFILE',
+          style: const TextStyle(
+            color: Color(0xFFFAF7F2),
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _Benefits extends StatelessWidget {
@@ -456,38 +536,242 @@ class _RazorpayIdle extends StatelessWidget {
   const _RazorpayIdle({required this.onStart});
   final VoidCallback onStart;
   @override
-  Widget build(BuildContext c) => Column(
+  Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      const Text(
+      Text(
         'CAREER PREMIUM',
-        style: TextStyle(fontWeight: FontWeight.w700),
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: const Color(0xFFF4BF50),
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.4,
+        ),
       ),
-      const Text('Unlock your complete career forecast'),
-      const Text(
-        'Get full access to your personalized career timing and upcoming career windows.',
+      const SizedBox(height: AppSpacing.xs),
+      Text(
+        'Unlock your complete career forecast',
+        style: const TextStyle(
+          color: Color(0xFFFAF7F2),
+          fontSize: 29,
+          height: .98,
+          fontWeight: FontWeight.w500,
+        ),
       ),
-      const SizedBox(height: AppSpacing.sm),
-      const Text(
-        'Career Premium\n₹499 / year\n+ GST @ 18%\nTotal payable: ₹588.82',
-      ),
-      const SizedBox(height: AppSpacing.sm),
-      const Text(
-        'Full Career Forecast\nYour complete personalized career timing\n\nUpcoming Career Windows\nSee important upcoming periods\n\nCareer Calibration\nForecast personalized using your career history',
-      ),
-      const SizedBox(height: AppSpacing.sm),
-      FilledButton(
-        onPressed: onStart,
-        child: const Text('Unlock Career Premium — ₹588.82'),
-      ),
-      const Text('₹588.82 total, including GST'),
       const SizedBox(height: AppSpacing.xs),
       const Text(
-        'UPI · PhonePe · Google Pay · Paytm · Cards',
-        style: TextStyle(fontSize: 12),
+        'Get full access to your personalized career timing and upcoming career windows.',
+        style: TextStyle(color: Color(0xFF9E9AA9)),
       ),
-      const Text('Terms · Privacy · Secure payment', style: TextStyle(fontSize: 12)),
+      const SizedBox(height: 12),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+        decoration: BoxDecoration(
+          color: const Color(0xFF181335),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: const Color(0xFFC5A059).withValues(alpha: .55),
+          ),
+        ),
+        child: const Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Text(
+                'CAREER PREMIUM\nAnnual access',
+                style: TextStyle(color: Color(0xFFFAF7F2), fontSize: 13),
+              ),
+            ),
+            Text(
+              '₹499 / year\n+ GST @ 18%\nTotal payable: ₹588.82',
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: Color(0xFFFAF7F2),
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: AppSpacing.md),
+      const Row(
+        children: [
+          SizedBox(
+            width: 3,
+            height: 16,
+            child: ColoredBox(color: Color(0xFFF4BF50)),
+          ),
+          SizedBox(width: 8),
+          Text(
+            'WHAT YOU’LL UNLOCK',
+            style: TextStyle(
+              color: Color(0xFFF4BF50),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1,
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: AppSpacing.sm),
+      Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF141025),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: const Column(
+          children: [
+            _RazorpayBenefit(
+              Icons.event_outlined,
+              'Full Career Forecast',
+              'Your complete personalized career timing',
+            ),
+            Divider(height: 1, color: Color(0x33211D32)),
+            _RazorpayBenefit(
+              Icons.bar_chart_outlined,
+              'Upcoming Career Windows',
+              'See important upcoming periods',
+            ),
+            Divider(height: 1, color: Color(0x33211D32)),
+            _RazorpayBenefit(
+              Icons.tune,
+              'Career Calibration',
+              'Forecast personalized using your career history',
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: AppSpacing.md),
+      SizedBox(
+        width: double.infinity,
+        child: FilledButton(
+          onPressed: onStart,
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFFF4BF50),
+            foregroundColor: const Color(0xFF0B071B),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+          ),
+          child: const Text('UNLOCK CAREER PREMIUM — ₹588.82 →'),
+        ),
+      ),
+      const SizedBox(height: AppSpacing.xs),
+      const Center(
+        child: Text(
+          '₹588.82 total, including GST',
+          style: TextStyle(color: Color(0xFF9E9AA9), fontSize: 12),
+        ),
+      ),
+      const SizedBox(height: 14),
+      const Divider(color: Color(0x33211D32)),
+      const SizedBox(height: 8),
+      const Center(
+        child: Text(
+          'PAY SECURELY WITH',
+          style: TextStyle(
+            color: Color(0xFF9E9AA9),
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1,
+          ),
+        ),
+      ),
+      const SizedBox(height: AppSpacing.xs),
+      const Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        alignment: WrapAlignment.center,
+        children: [
+          _PaymentChip('UPI'),
+          _PaymentChip('PhonePe'),
+          _PaymentChip('Google Pay'),
+          _PaymentChip('Paytm'),
+          _PaymentChip('Cards'),
+        ],
+      ),
+      const SizedBox(height: AppSpacing.md),
+      const Row(
+        children: [
+          Icon(Icons.lock_outline, size: 14, color: Color(0xFFC5A059)),
+          SizedBox(width: 6),
+          Text(
+            'Secure payment',
+            style: TextStyle(color: Color(0xFF9E9AA9), fontSize: 12),
+          ),
+          Spacer(),
+          Text(
+            'Terms · Privacy',
+            style: TextStyle(color: Color(0xFFC5A059), fontSize: 12),
+          ),
+        ],
+      ),
     ],
+  );
+}
+
+class _RazorpayBenefit extends StatelessWidget {
+  const _RazorpayBenefit(this.icon, this.title, this.body);
+  final IconData icon;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+    child: Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: const Color(0xFF181335),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 17, color: const Color(0xFFC5A059)),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              children: [
+                TextSpan(
+                  text: '$title\n',
+                  style: const TextStyle(
+                    color: Color(0xFFFAF7F2),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                TextSpan(
+                  text: body,
+                  style: const TextStyle(
+                    color: Color(0xFF9E9AA9),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _PaymentChip extends StatelessWidget {
+  const _PaymentChip(this.label);
+  final String label;
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+    decoration: BoxDecoration(
+      color: const Color(0xFF141025),
+      border: Border.all(color: const Color(0xFFC5A059).withValues(alpha: .35)),
+      borderRadius: BorderRadius.circular(7),
+    ),
+    child: Text(
+      label,
+      style: const TextStyle(color: Color(0xFFFAF7F2), fontSize: 11),
+    ),
   );
 }
 

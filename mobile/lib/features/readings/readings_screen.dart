@@ -23,12 +23,14 @@ class ReadingsScreen extends StatefulWidget {
     this.premiumProduct,
     this.premiumPurchase,
     this.razorpayPremium,
+    this.activeProfileLabel,
   });
   final ReadingController controller;
   final CareerReadingGenerationController? generation;
   final CareerPremiumProductController? premiumProduct;
   final CareerPremiumPurchaseController? premiumPurchase;
   final RazorpayCareerPremiumController? razorpayPremium;
+  final String? activeProfileLabel;
 
   @override
   State<ReadingsScreen> createState() => _ReadingsScreenState();
@@ -36,6 +38,7 @@ class ReadingsScreen extends StatefulWidget {
 
 class _ReadingsScreenState extends State<ReadingsScreen> {
   String? _navigatedReadingId;
+  bool _premiumRouteRequested = false;
   String? _lastHydratedProfileId;
   final Set<String> _hydratingProfileIds = {};
 
@@ -104,6 +107,20 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
             ],
     ),
     builder: (context, child) {
+      final existingCareer = _careerReading(widget.controller.readings);
+      final isDedicatedRazorpayPaywall =
+          widget.generation?.eligibilityState ==
+              CareerEligibilityState.ineligible &&
+          widget.controller.listState == ReadingListState.loaded &&
+          existingCareer == null &&
+          widget.razorpayPremium != null &&
+          widget.premiumProduct != null;
+      if (isDedicatedRazorpayPaywall && !_premiumRouteRequested) {
+        _premiumRouteRequested = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) context.push('/career-premium');
+        });
+      }
       final t = AppLocalizations.of(context)!;
       final screen = AppPageScaffold(
         title: t.myReadings,

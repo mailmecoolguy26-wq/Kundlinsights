@@ -20,6 +20,7 @@ import '../../features/readings/career_reading_generation_controller.dart';
 import '../../features/payments/career_premium_product_controller.dart';
 import '../../features/payments/career_premium_purchase_controller.dart';
 import '../../features/payments/razorpay_career_premium_controller.dart';
+import '../../features/payments/presentation/career_premium_paywall.dart';
 import '../../features/career_events/career_event_controller.dart';
 import '../../features/career_events/presentation/career_calibration_screen.dart';
 import '../../features/vimshottari/presentation/vimshottari_timeline_screen.dart';
@@ -170,6 +171,36 @@ GoRouter createAppRouter(
       builder: (context, state) =>
           CareerCalibrationScreen(controller: careerEvents),
     ),
+    GoRoute(
+      path: '/career-premium',
+      builder: (context, state) {
+        final profileId = generation.activeBirthProfileId;
+        return CareerPremiumPaywall(
+          dedicatedRazorpaySurface: true,
+          activeProfileLabel: profiles.activeProfile?.label,
+          productController: premiumProduct,
+          hasAccess: false,
+          purchaseController: premiumPurchase,
+          razorpayController: razorpayPremium,
+          razorpayState: profileId == null
+              ? null
+              : razorpayPremium?.stateFor(profileId),
+          onRazorpayStart: profileId == null
+              ? null
+              : () => razorpayPremium?.start(birthProfileId: profileId),
+          onRazorpayRecover: profileId == null
+              ? null
+              : () => razorpayPremium?.recover(birthProfileId: profileId),
+          onRazorpayReset: profileId == null
+              ? null
+              : () =>
+                    razorpayPremium?.returnToPaywall(birthProfileId: profileId),
+          onSubscribePressed: premiumPurchase.startPurchase,
+          onContinuePressed: generation.generate,
+          onBackHomePressed: () => context.go('/home'),
+        );
+      },
+    ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, shell) =>
           AppShell(navigationShell: shell, profiles: profiles),
@@ -232,6 +263,7 @@ GoRouter createAppRouter(
                 premiumProduct: premiumProduct,
                 premiumPurchase: premiumPurchase,
                 razorpayPremium: razorpayPremium,
+                activeProfileLabel: profiles.activeProfile?.label,
               ),
               routes: [
                 GoRoute(

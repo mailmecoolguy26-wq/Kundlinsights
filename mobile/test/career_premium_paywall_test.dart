@@ -300,7 +300,10 @@ void main() {
       expect(find.textContaining('₹499 / year'), findsOneWidget);
       expect(find.textContaining('+ GST @ 18%'), findsOneWidget);
       expect(find.textContaining('Total payable: ₹588.82'), findsOneWidget);
-      expect(find.text('Unlock Career Premium — ₹588.82'), findsOneWidget);
+      expect(
+        find.text('UNLOCK CAREER PREMIUM — ₹588.82 →'),
+        findsOneWidget,
+      );
       expect(find.textContaining(r'$7.99'), findsNothing);
       expect(find.text('Restore Purchases'), findsNothing);
       expect(find.textContaining('Apple ID'), findsNothing);
