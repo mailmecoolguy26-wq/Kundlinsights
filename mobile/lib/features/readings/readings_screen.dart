@@ -1038,12 +1038,12 @@ String _insightFamilyLabel(String family) =>
 String _insightTitle(String family) => _insightFamilyLabel(family);
 String _insightSummary(String family) =>
     const {
-      'CAREER_FOUNDATION': 'Existing Career-model evidence describes the natal professional-activity context.',
-      'ACTIVE_CAREER_DASHA': 'Your current Vimshottari period activates career-related evidence in the existing Career model.',
-      'CURRENT_CAREER_TRANSIT': 'Current transit evidence is structurally connected with the existing Career context.',
-      'CONCURRENT_CAREER_TIMING': 'Career-related Dasha and transit evidence are active at the same time.',
-      'HISTORICAL_CALIBRATION_RECURRENCE': 'Similar deterministic timing patterns were found across multiple saved career events.',
-      'FUTURE_RECURRENCE_WINDOW': 'A future window matches deterministic patterns selected from saved career events.',
+      'CAREER_FOUNDATION': 'Your natal Career structure is centered on the 10th-house factors identified in your chart.',
+      'ACTIVE_CAREER_DASHA': 'Your current Dasha timing connects to Career-related factors in the natal chart.',
+      'CURRENT_CAREER_TRANSIT': 'A current transit is activating a Career-related natal factor used by this reading.',
+      'CONCURRENT_CAREER_TIMING': 'Career-related Dasha and transit evidence currently overlap.',
+      'HISTORICAL_CALIBRATION_RECURRENCE': 'Similar timing appeared across your saved Career events.',
+      'FUTURE_RECURRENCE_WINDOW': 'An upcoming period matches a timing pattern seen in your saved Career history.',
       'AUDITED_CLASSICAL_PREDICATE': 'The supplied evidence satisfies the existing audited classical predicate; this does not establish an outcome.',
     }[family] ??
     'This deterministic Career Insight is available from your stored reading.';

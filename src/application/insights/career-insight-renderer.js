@@ -1,7 +1,10 @@
 'use strict';
 const { freeze } = require('../../synthesis/evidence-node');
-const COPY = freeze({ CAREER_FOUNDATION: 'Existing Career-model evidence describes the natal professional-activity context.', ACTIVE_CAREER_DASHA: 'Your current Vimshottari period activates career-related evidence in the existing Career model.', CURRENT_CAREER_TRANSIT: 'Current transit evidence is structurally connected with the existing Career context.', CONCURRENT_CAREER_TIMING: 'Career-related Dasha and transit evidence are active at the same time.', HISTORICAL_CALIBRATION_RECURRENCE: 'Similar deterministic timing patterns were found across multiple saved career events.', FUTURE_RECURRENCE_WINDOW: 'A future window matches deterministic patterns selected from saved career events.', AUDITED_CLASSICAL_PREDICATE: 'The supplied evidence satisfies the existing audited classical predicate; this does not establish an outcome.' });
+const COPY = freeze({ CAREER_FOUNDATION: 'Your natal Career structure is centered on the 10th-house factors identified in your chart.', ACTIVE_CAREER_DASHA: 'Your current Dasha timing connects to Career-related factors in the natal chart.', CURRENT_CAREER_TRANSIT: 'A current transit is activating a Career-related natal factor used by this reading.', CONCURRENT_CAREER_TIMING: 'Career-related Dasha and transit evidence currently overlap.', HISTORICAL_CALIBRATION_RECURRENCE: 'Similar timing appeared across your saved Career events.', FUTURE_RECURRENCE_WINDOW: 'An upcoming period matches a timing pattern seen in your saved Career history.', AUDITED_CLASSICAL_PREDICATE: 'An audited classical Career rule is active in the current period. This is not a guaranteed Career outcome.' });
 function sentenceFor(insight) {
+  if (insight.status === 'MIXED') return 'The timing evidence is mixed; some indicators are active while other evidence does not fully align.';
+  if (insight.status === 'CONTRADICTED') return 'Current evidence does not consistently support this signal.';
+  if (insight.status === 'INSUFFICIENT_EVIDENCE') return 'There is not enough deterministic evidence to make this a primary Career insight.';
   const hasD10 = (insight.evidenceTrace && insight.evidenceTrace.signals || [])
     .flatMap((signal) => signal.evidence || [])
     .some((evidence) => evidence.chart === 'D10');
@@ -9,10 +12,10 @@ function sentenceFor(insight) {
     .flatMap((signal) => signal.evidence || [])
     .some((evidence) => (evidence.technicalContext || []).some((context) => context.sourceFamily === 'ASHTAKAVARGA'));
   if (insight.family === 'CAREER_FOUNDATION' && hasD10 && hasAshtakavarga) {
-    return 'Your D10 career chart and Ashtakavarga provide additional structural context for the natal career pattern.';
+    return 'Your D10 Career Chart and Ashtakavarga provide additional structural context for the natal pattern.';
   }
   if (insight.family === 'CAREER_FOUNDATION' && hasAshtakavarga) {
-    return 'Ashtakavarga provides additional natal support context for the career houses used in this insight.';
+    return 'Ashtakavarga is included as factual supporting context for the Career houses used here.';
   }
   if (insight.family === 'CAREER_FOUNDATION' && hasD10) {
     return 'Your D10 career chart adds supporting structural evidence to the natal career pattern.';
@@ -20,8 +23,8 @@ function sentenceFor(insight) {
   const timing = insight.timing || {};
   if (insight.family === 'CONCURRENT_CAREER_TIMING') {
     if (timing.timingWindow) return 'Career-related Dasha and transit evidence overlap during this period.';
-    if (timing.lineageClassification === 'INDEPENDENT') return 'This timing signal is supported by two independent mechanisms.';
-    if (timing.lineageClassification === 'PARTIALLY_OVERLAPPING') return 'Career-related Dasha and transit evidence are active with partially overlapping lineage.';
+    if (timing.lineageClassification === 'INDEPENDENT') return 'Two separate timing mechanisms are active at the same time.';
+    if (timing.lineageClassification === 'PARTIALLY_OVERLAPPING') return 'Two timing mechanisms point to the same Career area, though some evidence overlaps.';
   }
   if (insight.family === 'ACTIVE_CAREER_DASHA' && Array.isArray(timing.dashaPeriods) && timing.dashaPeriods.length) {
     const levels = timing.dashaPeriods.map((period) => period.periodLevel).filter(Boolean);
@@ -34,4 +37,4 @@ function sentenceFor(insight) {
   return COPY[insight.family];
 }
 function renderCareerInsights({ insights = [] } = {}) { return freeze(insights.map((insight) => freeze({ insightId: insight.insightId, family: insight.family, status: insight.status, titleKey: insight.titleKey, summaryKey: insight.summaryKey, sentence: sentenceFor(insight), evidenceTrace: insight.evidenceTrace, caveats: insight.caveats }))); }
-module.exports = { renderCareerInsights };
+module.exports = { renderCareerInsights, sentenceFor };
