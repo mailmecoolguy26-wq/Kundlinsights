@@ -57,6 +57,21 @@ function publicPlanetaryRelationshipContext(context) {
   if (!context || context.sourceFamily !== 'PLANETARY_RELATIONSHIP' || context.chart !== 'D1' || typeof context.subjectPlanet !== 'string' || typeof context.targetPlanet !== 'string' || !['NATURAL', 'TEMPORARY', 'PANCHADHA'].includes(context.relationshipType) || !['friend', 'neutral', 'enemy', 'greatFriend', 'greatEnemy'].includes(context.relationship)) return null;
   return { sourceFamily: 'PLANETARY_RELATIONSHIP', subjectPlanet: context.subjectPlanet, targetPlanet: context.targetPlanet, relationshipType: context.relationshipType, relationship: context.relationship, chart: 'D1' };
 }
+function publicInsightTiming(timing) {
+  const iso = (value) => typeof value === 'string' && value.endsWith('Z') && !Number.isNaN(Date.parse(value)) ? value : null;
+  const periods = (timing && timing.dashaPeriods || []).map((item) => {
+    const start = iso(item.start), end = iso(item.end);
+    if (!start || !end || !['MAHADASHA', 'ANTARDASHA', 'PRATYANTAR_DASHA'].includes(item.periodLevel) || typeof item.periodPlanet !== 'string') return null;
+    return { kind: 'DASHA_PERIOD', start, end, isCurrent: item.isCurrent === true, periodLevel: item.periodLevel, periodPlanet: item.periodPlanet, source: 'VIMSHOTTARI', ...(typeof item.sourceRulesetId === 'string' ? { sourceRulesetId: item.sourceRulesetId } : {}) };
+  }).filter(Boolean);
+  const transits = (timing && timing.transitContexts || []).map((item) => {
+    const start = iso(item.start); const end = iso(item.end);
+    if (!start || !['GOCHAR_SNAPSHOT', 'TRANSIT_EVENT'].includes(item.kind)) return null;
+    return { kind: item.kind, start, ...(end ? { end } : {}), isCurrent: item.isCurrent === true, ...(typeof item.transitPlanet === 'string' ? { transitPlanet: item.transitPlanet } : {}), ...(typeof item.eventType === 'string' ? { eventType: item.eventType } : {}), ...(typeof item.motion === 'string' ? { motion: item.motion } : {}), ...(Number.isInteger(item.natalHouseNumber) ? { natalHouseNumber: item.natalHouseNumber } : {}), ...(typeof item.natalBody === 'string' ? { natalBody: item.natalBody } : {}), source: item.kind === 'GOCHAR_SNAPSHOT' ? 'GOCHAR' : 'TRANSIT_EVENT_SCANNER' };
+  }).filter(Boolean);
+  const window = timing && timing.timingWindow; const start = window && iso(window.start), end = window && iso(window.end);
+  return { dashaPeriods: periods, transitContexts: transits, ...(start && end ? { timingWindow: { kind: 'CAREER_TIMING_OVERLAP', start, end, isCurrent: window.isCurrent === true } } : {}), ...(timing && ['CURRENT', 'UPCOMING', 'PAST'].includes(timing.timingState) ? { timingState: timing.timingState } : {}), ...(timing && ['INDEPENDENT', 'PARTIALLY_OVERLAPPING', 'FULLY_DEPENDENT', 'IDENTICAL', 'CONTRADICTORY'].includes(timing.lineageClassification) ? { lineageClassification: timing.lineageClassification } : {}), mechanismFamilies: Array.isArray(timing && timing.mechanismFamilies) ? timing.mechanismFamilies.filter((item) => typeof item === 'string').sort() : [] };
+}
 function publicInsights(record) {
   const insights = record && record.reading && record.reading.insights;
   if (!Array.isArray(insights)) return undefined;
@@ -67,7 +82,7 @@ function publicInsights(record) {
     summaryKey: insight.summaryKey,
     displayPriority: insight.displayPriority,
     status: insight.status,
-    timing: insight.timing || {},
+    timing: publicInsightTiming(insight.timing),
     caveats: (insight.caveats || []).map((caveat) => ({ status: caveat.status })),
     calibrationContext: insight.calibrationContext || null,
     technicalDetails: { independentMechanismFamilies: insight.technicalDetails && insight.technicalDetails.independentMechanismFamilies || [] },

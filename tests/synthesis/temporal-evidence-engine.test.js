@@ -54,6 +54,14 @@ test('adapts every approved Layer 10 event family without renaming it', () => {
   assert.ok(result.relations.some((item) => item.fact.eventType === 'transitDrishtiStart' && item.subject.entityId === 'Jupiter'));
 });
 
+test('preserves a supplied transit interval without deriving one from an event instant', () => {
+  const result = buildTemporalEvidence(input({ dasha: undefined, gochar: undefined, transitEvents: { events: [{ eventType: 'rashiIngress', instant: INSTANT, startInstant: '2024-06-01T00:00:00.000Z', endInstant: '2024-07-01T00:00:00.000Z', body: 'Jupiter', targetHouseNumber: 10 }] } }));
+  const event = result.nodes.find((item) => item.sourceLayer === '10');
+  assert.deepEqual(event.temporalContext, { id: INSTANT, type: 'INTERVAL', startInstant: '2024-06-01T00:00:00.000Z', endInstant: '2024-07-01T00:00:00.000Z' });
+  assert.equal(event.fact.startInstant, '2024-06-01T00:00:00.000Z');
+  assert.throws(() => buildTemporalEvidence(input({ dasha: undefined, gochar: undefined, transitEvents: { events: [{ eventType: 'rashiIngress', instant: INSTANT, startInstant: '2024-07-01T00:00:00.000Z', endInstant: '2024-06-01T00:00:00.000Z', body: 'Jupiter' }] } })), /start before end/);
+});
+
 test('records neutral Dasha and transit co-activation only for independently matched static subjects', () => {
   const result = buildTemporalEvidence(input());
   const co = result.relations.filter((item) => item.relationType === 'TEMPORAL_CO_ACTIVATION');

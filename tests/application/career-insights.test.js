@@ -29,6 +29,17 @@ test('adapter maps only existing conclusion families and calibration artifacts',
   assert.equal(evidence.some((item) => item.rawFacts.topic === 'UNSUPPORTED_TOPIC'), false);
 });
 
+test('adapter normalizes factual MD AD PD and transit timing without internal identifiers', () => {
+  const dasha = { ...conclusion('CAREER_H10_CONNECTED_DASHA_ACTIVATION_PRESENT', 'SUPPORTED', 'dasha-timing'), temporalContext: { readingInstant: '2026-09-09T00:00:00.000Z', dashaIntervals: [{ level: 'MD', lord: 'Saturn', start: '2026-01-01T00:00:00.000Z', end: '2028-01-01T00:00:00.000Z', temporalNodeId: 'private' }, { level: 'AD', lord: 'Mercury', start: '2026-08-01T00:00:00.000Z', end: '2027-01-01T00:00:00.000Z' }, { level: 'PD', lord: 'Venus', start: '2026-09-01T00:00:00.000Z', end: '2026-10-01T00:00:00.000Z' }], transitContexts: [], mechanismFamilies: ['DASHA'] } };
+  const transit = { ...conclusion('CAREER_TIMING_TRIGGER_CONTEXT_PRESENT', 'SUPPORTED', 'transit-timing'), temporalContext: { readingInstant: '2026-09-09T00:00:00.000Z', dashaIntervals: [], transitContexts: [{ kind: 'TRANSIT_EVENT', instant: '2026-10-01T00:00:00.000Z', transitPlanet: 'Saturn', eventType: 'rashiIngress', natalHouseNumber: 10, privateNodeId: 'nope' }], mechanismFamilies: ['TRANSIT_EVENT'], timingState: 'UPCOMING' } };
+  const evidence = adaptCareerInsightEvidence({ conclusions: [dasha, transit], analysis: analysis() });
+  const dashaContext = evidence.find((item) => item.family === 'ACTIVE_CAREER_DASHA').temporalContext;
+  assert.deepEqual(dashaContext.dashaPeriods.map((item) => [item.periodLevel, item.periodPlanet, item.isCurrent]), [['MAHADASHA', 'Saturn', true], ['ANTARDASHA', 'Mercury', true], ['PRATYANTAR_DASHA', 'Venus', true]]);
+  const transitContext = evidence.find((item) => item.family === 'CURRENT_CAREER_TRANSIT').temporalContext;
+  assert.deepEqual(transitContext.transitContexts, [{ kind: 'TRANSIT_EVENT', start: '2026-10-01T00:00:00.000Z', isCurrent: false, transitPlanet: 'Saturn', eventType: 'rashiIngress', natalHouseNumber: 10, source: 'TRANSIT_EVENT_SCANNER' }]);
+  assert.equal(JSON.stringify(evidence).includes('privateNodeId'), false);
+});
+
 test('adapter retains supplied D10 Career structure as additive foundation evidence without inventing timing or outcome fields', () => {
   const domainGraph = { rulesetId: 'parashari-career-domain-evidence-v1', derivedRelations: [
     { id: 'career-relation:d10-house', relationType: 'CAREER_D10_TENTH_HOUSE', inputNodeIds: ['fact:d10'], fact: { chart: 'D10', houseNumber: 10, sign: { rashiIndex: 10 } } },
@@ -111,10 +122,22 @@ test('ranking is ordinal: concurrent timing outranks natal foundation and calibr
   assert.deepEqual(buildCareerInsightSignals({ evidence: [], calibrationContext: { calibrationLevel: 'CALIBRATED' } }), []);
 });
 
+test('ranking keeps current concurrent timing before upcoming and independent before partially overlapping', () => {
+  const signal = (signalId, timingState, lineageClassification) => createInsightSignal({ signalId, domain: 'CAREER', family: 'CONCURRENT_CAREER_TIMING', ruleId: 'parashari', status: 'SUPPORTED', supportiveEvidenceIds: ['e'], limitingEvidenceIds: [], contradictoryEvidenceIds: [], independentMechanismFamilies: ['DASHA', 'TRANSIT_EVENT'], temporalContext: { timingState, lineageClassification }, calibrationSupport: null, explanationKey: 'x', provenance: {} });
+  const active = createInsightSignal({ signalId: 'active', domain: 'CAREER', family: 'ACTIVE_CAREER_DASHA', ruleId: 'parashari', status: 'SUPPORTED', supportiveEvidenceIds: ['e'], limitingEvidenceIds: [], contradictoryEvidenceIds: [], independentMechanismFamilies: ['DASHA'], temporalContext: {}, calibrationSupport: null, explanationKey: 'x', provenance: {} });
+  assert.deepEqual(rankCareerInsightSignals([active, signal('upcoming', 'UPCOMING', 'INDEPENDENT'), signal('partial', 'CURRENT', 'PARTIALLY_OVERLAPPING'), signal('current', 'CURRENT', 'INDEPENDENT')]).map((item) => item.signalId), ['current', 'partial', 'upcoming', 'active']);
+});
+
 test('builder is stable, traceable, and renderer stays deterministic without outcome prose', () => {
   const evidence = adaptCareerInsightEvidence({ conclusions: [conclusion('CAREER_H10_CONNECTED_DASHA_ACTIVATION_PRESENT', 'SUPPORTED', 'dasha')], analysis: analysis() });
   const signals = buildCareerInsightSignals({ evidence }); const first = buildCareerInsights({ evidence, signals }); const second = buildCareerInsights({ evidence, signals });
   assert.deepEqual(first, second); assert.equal(first.length, 1); assert.equal(first[0].evidenceTrace.signals[0].evidence[0].sourceConclusionId, 'conclusion:dasha');
   assert.throws(() => buildCareerInsightTrace({ insightId: 'orphan', signalIds: ['missing'], signals, evidence }), /Orphan/);
   const rendered = renderCareerInsights({ insights: first }); assert.equal(rendered[0].insightId, first[0].insightId); assert.equal(JSON.stringify(rendered).includes('promoted'), false);
+});
+
+test('timing renderer uses supplied timing facts without outcome language', () => {
+  const rendered = renderCareerInsights({ insights: [{ insightId: 'timing', family: 'CONCURRENT_CAREER_TIMING', timing: { timingWindow: { kind: 'CAREER_TIMING_OVERLAP' } }, evidenceTrace: {}, caveats: [] }] });
+  assert.equal(rendered[0].sentence, 'Career-related Dasha and transit evidence overlap during this period.');
+  assert.equal(JSON.stringify(rendered).match(/promotion|salary|job-switch|success/i), null);
 });
