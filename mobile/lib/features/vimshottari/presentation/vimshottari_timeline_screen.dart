@@ -27,7 +27,10 @@ class _VimshottariTimelineScreenState extends State<VimshottariTimelineScreen> {
   @override
   void initState() {
     super.initState();
-    widget.controller.loadTimeline();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      widget.controller.loadTimeline();
+    });
   }
 
   @override
