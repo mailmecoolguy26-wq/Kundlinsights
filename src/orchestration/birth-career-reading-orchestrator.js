@@ -8,6 +8,7 @@ const { scanTransitEvents } = require('../transit-events');
 const { assembleNatalEvidenceGraph, freeze } = require('../synthesis');
 const { calculateChartCoordinates } = require('../application/divisional-charts');
 const { calculateAshtakavargaForLayer2 } = require('../application/ashtakavarga');
+const { evaluatePlanetaryState } = require('../dignity');
 const { buildCareerReading } = require('./career-reading-orchestrator');
 const { isProductionAstronomicalAuthority } = require('../astronomy');
 const { validateBirthCareerRequest, utcInstantToLayer1Input } = require('./birth-career-input-validation');
@@ -203,6 +204,7 @@ class BirthCareerReadingOrchestrator {
     const natal = assembleNatalEvidenceGraph({
       layer2Bodies,
       houses,
+      planetaryState: evaluatePlanetaryState({ bodies: Object.fromEntries(Object.entries(layer2Bodies).map(([body, value]) => [body, { canonicalSiderealLongitudeDegrees: value.siderealLongitudeDegrees, motion: value.motion || 'unknown' }])) }),
       vargas: { D10: d10CareerStructure(birthLayer1Result) },
       ashtakavarga: calculateAshtakavargaForLayer2(layer2Bodies),
     });

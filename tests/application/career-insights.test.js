@@ -43,6 +43,15 @@ test('adapter retains supplied D10 Career structure as additive foundation evide
   assert.deepEqual([...signals.find((item) => item.family === 'CAREER_FOUNDATION').independentMechanismFamilies].sort(), ['D10_DIVISIONAL', 'NATAL_STRUCTURE']);
 });
 
+test('adapter exposes relevant D1 planetary states as factual Career Foundation context only', () => {
+  const graph = { rulesetId: 'career', derivedRelations: [{ id: 'lord-state', relationType: 'CAREER_HOUSE_LORD_STATE', subject: { entityId: 'Saturn' }, inputNodeIds: ['state:saturn'], fact: { suppliedStateFlags: { retrograde: true, ownSign: true, exalted: false, debilitated: false, moolatrikona: false, combust: false } } }] };
+  const evidence = adaptCareerInsightEvidence({ conclusions: [conclusion('CAREER_H10_SIGNIFICATION_SCOPE_PRESENT', 'SUPPORTED', 'natal')], analysis: analysis(), domainGraph: graph });
+  const state = evidence.find((item) => item.evidenceId.startsWith('planetary-state:'));
+  assert.deepEqual(state.provenance.publicContext, [{ planet: 'Saturn', state: 'OWN_SIGN', chart: 'D1' }, { planet: 'Saturn', state: 'RETROGRADE', chart: 'D1' }]);
+  assert.equal(JSON.stringify(state).match(/\"(score|strength|confidence|probability|favorable|unfavorable|timing)\"/), null);
+  assert.equal(adaptCareerInsightEvidence({ conclusions: [], analysis: analysis(), domainGraph: graph }).some((item) => item.evidenceId.startsWith('planetary-state:')), false);
+});
+
 test('adapter exposes raw natal Ashtakavarga context only alongside an existing Career foundation', () => {
   const domainGraph = { rulesetId: 'parashari-career-domain-evidence-v1', derivedRelations: [{
     id: 'career-relation:ashtaka', relationType: 'CAREER_ASHTAKAVARGA_CONTEXT', inputNodeIds: ['fact:ashtaka'], fact: { selections: [
