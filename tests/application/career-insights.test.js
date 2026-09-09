@@ -52,6 +52,14 @@ test('adapter exposes relevant D1 planetary states as factual Career Foundation 
   assert.equal(adaptCareerInsightEvidence({ conclusions: [], analysis: analysis(), domainGraph: graph }).some((item) => item.evidenceId.startsWith('planetary-state:')), false);
 });
 
+test('adapter exposes only factual H10-lord to occupant Maitri context', () => {
+  const graph = { rulesetId: 'career', derivedRelations: [{ id: 'lord-state', relationType: 'CAREER_HOUSE_LORD_STATE', subject: { entityId: 'Saturn' }, inputNodeIds: ['state:saturn'], fact: { relationships: [{ subjectPlanet: 'Saturn', targetPlanet: 'Mercury', chart: 'D1', natural: 'friend', temporary: 'enemy', panchadha: 'neutral' }] } }] };
+  const evidence = adaptCareerInsightEvidence({ conclusions: [conclusion('CAREER_H10_SIGNIFICATION_SCOPE_PRESENT', 'SUPPORTED', 'natal')], analysis: analysis(), domainGraph: graph });
+  const relationship = evidence.find((item) => item.evidenceId.startsWith('planetary-relationship:'));
+  assert.deepEqual(relationship.provenance.publicContext, [{ sourceFamily: 'PLANETARY_RELATIONSHIP', subjectPlanet: 'Saturn', targetPlanet: 'Mercury', relationshipType: 'NATURAL', relationship: 'friend', chart: 'D1' }, { sourceFamily: 'PLANETARY_RELATIONSHIP', subjectPlanet: 'Saturn', targetPlanet: 'Mercury', relationshipType: 'PANCHADHA', relationship: 'neutral', chart: 'D1' }, { sourceFamily: 'PLANETARY_RELATIONSHIP', subjectPlanet: 'Saturn', targetPlanet: 'Mercury', relationshipType: 'TEMPORARY', relationship: 'enemy', chart: 'D1' }]);
+  assert.equal(adaptCareerInsightEvidence({ conclusions: [], analysis: analysis(), domainGraph: graph }).some((item) => item.evidenceId.startsWith('planetary-relationship:')), false);
+});
+
 test('adapter exposes raw natal Ashtakavarga context only alongside an existing Career foundation', () => {
   const domainGraph = { rulesetId: 'parashari-career-domain-evidence-v1', derivedRelations: [{
     id: 'career-relation:ashtaka', relationType: 'CAREER_ASHTAKAVARGA_CONTEXT', inputNodeIds: ['fact:ashtaka'], fact: { selections: [

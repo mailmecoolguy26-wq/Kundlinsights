@@ -63,6 +63,17 @@ function stateFlags(state) {
     retrograde: motion.isRetrograde ?? motion.retrograde ?? null
   };
 }
+function careerRelationships(state, targets) {
+  const relationships = state && state.relationships || {};
+  return targets.map((targetPlanet) => ({
+    subjectPlanet: state.body,
+    targetPlanet,
+    chart: 'D1',
+    natural: relationships.naturalByBody && relationships.naturalByBody[targetPlanet] || null,
+    temporary: relationships.temporaryByBody && relationships.temporaryByBody[targetPlanet] || null,
+    panchadha: relationships.compoundByBody && relationships.compoundByBody[targetPlanet] || null,
+  })).filter((item) => item.natural !== null || item.temporary !== null || item.panchadha !== null);
+}
 function d10BodyFact(node, body) {
   const fact = nodeFact(node);
   if (!fact || !isObject(fact)) return null;
@@ -137,7 +148,8 @@ function buildCareerEvidence(input = {}) {
     const state = states.find((node) => node.subject.entityId === body);
     if (!state) return;
     const isH10Lord = body === lord;
-    addRelation(relations, relation({ relationType: isH10Lord ? 'CAREER_HOUSE_LORD_STATE' : 'CAREER_OCCUPANT_STATE', subject: { entityType: 'GRAHA', entityId: body }, target: { entityType: 'EVIDENCE_NODE', entityId: state.id }, inputNodeIds: [state.id], fact: { suppliedStateFlags: stateFlags(nodeFact(state)), ...(isH10Lord && statusPredicateRequested ? { sourcePredicateIds: [CAREER_STATUS_SOURCE_PREDICATES.H10_NATAL.sourcePredicateId] } : {}) }, provenance: isH10Lord && statusPredicateRequested ? predicateProvenance('H10_NATAL') : null }));
+    const targetOccupants = isH10Lord ? occupants.map((item) => bodyOfAssignment(nodeFact(item))).filter((item) => item !== lord) : [];
+    addRelation(relations, relation({ relationType: isH10Lord ? 'CAREER_HOUSE_LORD_STATE' : 'CAREER_OCCUPANT_STATE', subject: { entityType: 'GRAHA', entityId: body }, target: { entityType: 'EVIDENCE_NODE', entityId: state.id }, inputNodeIds: [state.id], fact: { suppliedStateFlags: stateFlags(nodeFact(state)), relationships: careerRelationships(nodeFact(state), targetOccupants), ...(isH10Lord && statusPredicateRequested ? { sourcePredicateIds: [CAREER_STATUS_SOURCE_PREDICATES.H10_NATAL.sourcePredicateId] } : {}) }, provenance: isH10Lord && statusPredicateRequested ? predicateProvenance('H10_NATAL') : null }));
   });
   const aspects = sourceNodes(graph, '6');
   if (aspects.length === 0) missingOptional('grahaDrishti');

@@ -92,6 +92,13 @@ function adaptPlanetaryStateEvidence(domainGraph) {
   const inputNodeIds = [...new Set(relations.flatMap((relation) => relation.inputNodeIds || []))].sort();
   return createInsightEvidence({ evidenceId: `planetary-state:${relationIds.join('|')}`, domain: 'CAREER', family: 'CAREER_FOUNDATION', sourceLayer: '12B', sourceRulesetId: domainGraph.rulesetId, sourceStrength: 'ENGINE_CONVENTION', subject: { entityType: 'NATAL_CHART', entityId: 'D1' }, target: { entityType: 'DOMAIN', entityId: 'CAREER' }, chart: 'D1', temporalContext: {}, rawFacts: relations.map((relation) => ({ relationType: relation.relationType, suppliedStateFlags: relation.fact.suppliedStateFlags })), rootSourceIds: inputNodeIds, evidenceFamilyIds: ['PLANETARY_STATE_NATAL'], lineage: { sourceRelationIds: relationIds, inputNodeIds }, status: 'SUPPORTED', explanationKey: 'career.evidence.career_foundation', provenance: { sourceFamily: 'PLANETARY_STATE', publicContext: states.sort((a, b) => `${a.planet}|${a.state}`.localeCompare(`${b.planet}|${b.state}`)) } });
 }
+function adaptPlanetaryRelationshipEvidence(domainGraph) {
+  const relations = domainGraph && Array.isArray(domainGraph.derivedRelations) ? domainGraph.derivedRelations.filter((relation) => relation.relationType === 'CAREER_HOUSE_LORD_STATE' && Array.isArray(relation.fact && relation.fact.relationships)) : [];
+  const publicContext = relations.flatMap((relation) => relation.fact.relationships).filter((item) => item && item.chart === 'D1' && typeof item.subjectPlanet === 'string' && typeof item.targetPlanet === 'string').flatMap((item) => [['NATURAL', item.natural], ['TEMPORARY', item.temporary], ['PANCHADHA', item.panchadha]].filter(([, relationship]) => typeof relationship === 'string').map(([relationshipType, relationship]) => ({ sourceFamily: 'PLANETARY_RELATIONSHIP', subjectPlanet: item.subjectPlanet, targetPlanet: item.targetPlanet, relationshipType, relationship, chart: 'D1' }))).sort((a, b) => `${a.subjectPlanet}|${a.targetPlanet}|${a.relationshipType}`.localeCompare(`${b.subjectPlanet}|${b.targetPlanet}|${b.relationshipType}`));
+  if (!publicContext.length) return null;
+  const relationIds = relations.map((relation) => relation.id).sort(); const inputNodeIds = [...new Set(relations.flatMap((relation) => relation.inputNodeIds || []))].sort();
+  return createInsightEvidence({ evidenceId: `planetary-relationship:${relationIds.join('|')}`, domain: 'CAREER', family: 'CAREER_FOUNDATION', sourceLayer: '12B', sourceRulesetId: domainGraph.rulesetId, sourceStrength: 'ENGINE_CONVENTION', subject: { entityType: 'NATAL_CHART', entityId: 'D1' }, target: { entityType: 'DOMAIN', entityId: 'CAREER' }, chart: 'D1', temporalContext: {}, rawFacts: relations.map((relation) => ({ relationships: relation.fact.relationships })), rootSourceIds: inputNodeIds, evidenceFamilyIds: ['PLANETARY_RELATIONSHIP_NATAL'], lineage: { sourceRelationIds: relationIds, inputNodeIds }, status: 'SUPPORTED', explanationKey: 'career.evidence.career_foundation', provenance: { sourceFamily: 'PLANETARY_RELATIONSHIP', publicContext } });
+}
 function adaptCareerInsightEvidence({ conclusions = [], analysis = {}, domainGraph = null, calibrationContext = null } = {}) {
   const adapted = conclusions.map((conclusion) => adaptConclusion({ conclusion, analysis })).filter(Boolean);
   const d10 = adaptD10Evidence(domainGraph); if (d10) adapted.push(d10);
@@ -100,6 +107,7 @@ function adaptCareerInsightEvidence({ conclusions = [], analysis = {}, domainGra
   if (adapted.some((item) => item.family === 'CAREER_FOUNDATION')) {
     const ashtakavarga = adaptAshtakavargaEvidence(domainGraph); if (ashtakavarga) adapted.push(ashtakavarga);
     const planetaryState = adaptPlanetaryStateEvidence(domainGraph); if (planetaryState) adapted.push(planetaryState);
+    const planetaryRelationship = adaptPlanetaryRelationshipEvidence(domainGraph); if (planetaryRelationship) adapted.push(planetaryRelationship);
   }
   if (calibrationContext && calibrationContext.calibrationLevel === 'CALIBRATED') {
     (calibrationContext.historicalEvidence || []).forEach((item) => adapted.push(calibrationEvidence(item, 'HISTORICAL_CALIBRATION_RECURRENCE', 'historical')));
@@ -108,4 +116,4 @@ function adaptCareerInsightEvidence({ conclusions = [], analysis = {}, domainGra
   }
   return freeze([...new Map(adapted.map((item) => [item.evidenceId, item])).values()].sort((a, b) => a.evidenceId.localeCompare(b.evidenceId)));
 }
-module.exports = { adaptCareerInsightEvidence, familyForTopic, adaptD10Evidence, adaptAshtakavargaEvidence, adaptPlanetaryStateEvidence };
+module.exports = { adaptCareerInsightEvidence, familyForTopic, adaptD10Evidence, adaptAshtakavargaEvidence, adaptPlanetaryStateEvidence, adaptPlanetaryRelationshipEvidence };
