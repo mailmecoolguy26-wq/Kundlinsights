@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../readings/career_reading_generation_controller.dart';
+
 class InsightsScreen extends StatelessWidget {
-  const InsightsScreen({super.key});
+  const InsightsScreen({super.key, required this.generation});
+  final CareerReadingGenerationController generation;
 
   static const midnight = Color(0xFF0B071B);
   static const abyss = Color(0xFF120D29);
@@ -12,39 +15,42 @@ class InsightsScreen extends StatelessWidget {
   static const gold = Color(0xFFC5A059);
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: midnight,
-    body: SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
-        children: [
-          const _Header(),
-          const SizedBox(height: 28),
-          const _SectionLabel('AVAILABLE NOW'),
-          const SizedBox(height: 10),
-          _TransitCard(onTap: () => context.pushNamed('current-transits')),
-          const SizedBox(height: 28),
-          const _SectionLabel('COMING NEXT'),
-          const SizedBox(height: 10),
-          const _InsightCard(
-            icon: Icons.work_outline,
-            title: 'Career',
-            subtitle: 'Personalized career timing and future windows',
-            premium: true,
-          ),
-          const SizedBox(height: 12),
-          const _InsightCard(
-            icon: Icons.favorite_border,
-            title: 'Marriage',
-            subtitle: 'Relationship timing and compatibility insights',
-          ),
-          const SizedBox(height: 12),
-          const _InsightCard(
-            icon: Icons.account_balance_wallet_outlined,
-            title: 'Wealth & Property',
-            subtitle: 'Financial cycles, assets, and property timing',
-          ),
-        ],
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: generation,
+    builder: (context, child) => Scaffold(
+      backgroundColor: midnight,
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
+          children: [
+            const _Header(),
+            const SizedBox(height: 28),
+            const _SectionLabel('AVAILABLE NOW'),
+            const SizedBox(height: 10),
+            _TransitCard(onTap: () => context.pushNamed('current-transits')),
+            const SizedBox(height: 12),
+            _CareerInsightCard(
+              eligibilityState: generation.eligibilityState,
+              onUnlock: () => context.push('/career-premium'),
+              onSeeCareerInsights: () => context.go('/readings'),
+              onRetryEligibility: generation.refreshEligibility,
+            ),
+            const SizedBox(height: 28),
+            const _SectionLabel('COMING NEXT'),
+            const SizedBox(height: 10),
+            const _InsightCard(
+              icon: Icons.favorite_border,
+              title: 'Marriage',
+              subtitle: 'Relationship timing and compatibility insights',
+            ),
+            const SizedBox(height: 12),
+            const _InsightCard(
+              icon: Icons.account_balance_wallet_outlined,
+              title: 'Wealth & Property',
+              subtitle: 'Financial cycles, assets, and property timing',
+            ),
+          ],
+        ),
       ),
     ),
   );
@@ -133,17 +139,121 @@ class _TransitCard extends StatelessWidget {
   );
 }
 
+class _CareerInsightCard extends StatelessWidget {
+  const _CareerInsightCard({
+    required this.eligibilityState,
+    required this.onUnlock,
+    required this.onSeeCareerInsights,
+    required this.onRetryEligibility,
+  });
+  final CareerEligibilityState eligibilityState;
+  final VoidCallback onUnlock;
+  final VoidCallback onSeeCareerInsights;
+  final Future<void> Function() onRetryEligibility;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = switch (eligibilityState) {
+      CareerEligibilityState.eligible => _CareerCardState(
+        actionLabel: 'SEE CAREER INSIGHTS',
+        onTap: onSeeCareerInsights,
+        semanticLabel: 'Career, premium, see career insights',
+      ),
+      CareerEligibilityState.ineligible => _CareerCardState(
+        actionLabel: 'UNLOCK',
+        onTap: onUnlock,
+        semanticLabel: 'Career, premium, unlock',
+      ),
+      CareerEligibilityState.error => _CareerCardState(
+        actionLabel: 'CHECK AVAILABILITY',
+        onTap: () => onRetryEligibility(),
+        semanticLabel: 'Career, premium, check availability',
+      ),
+      CareerEligibilityState.initial ||
+      CareerEligibilityState.loading => const _CareerCardState(
+        actionLabel: 'CHECKING',
+        semanticLabel: 'Career, premium, checking availability',
+      ),
+    };
+    final actionable = state.onTap != null;
+    return Semantics(
+      button: actionable,
+      enabled: actionable,
+      label: state.semanticLabel,
+      child: Opacity(
+        opacity: actionable ? 1 : .78,
+        child: Material(
+          color: InsightsScreen.abyss,
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            onTap: state.onTap,
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: actionable
+                      ? const Color(0x66C5A059)
+                      : const Color(0x335E4A87),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const _IconTile(Icons.work_outline),
+                  const SizedBox(width: 13),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Career', style: _Styles.cardTitle),
+                        SizedBox(height: 3),
+                        Text(
+                          'Personalized career timing and future windows',
+                          style: _Styles.cardBody,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      const _Pill('PREMIUM', gold: true),
+                      const SizedBox(height: 6),
+                      _Pill(state.actionLabel, gold: actionable),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CareerCardState {
+  const _CareerCardState({
+    required this.actionLabel,
+    required this.semanticLabel,
+    this.onTap,
+  });
+  final String actionLabel;
+  final String semanticLabel;
+  final VoidCallback? onTap;
+}
+
 class _InsightCard extends StatelessWidget {
   const _InsightCard({
     required this.icon,
     required this.title,
     required this.subtitle,
-    this.premium = false,
   });
   final IconData icon;
   final String title;
   final String subtitle;
-  final bool premium;
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -174,11 +284,7 @@ class _InsightCard extends StatelessWidget {
             const SizedBox(width: 8),
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                if (premium) const _Pill('PREMIUM', gold: true),
-                if (premium) const SizedBox(height: 6),
-                const _Pill('COMING SOON'),
-              ],
+              children: const [_Pill('COMING SOON')],
             ),
           ],
         ),

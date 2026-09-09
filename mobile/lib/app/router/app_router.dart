@@ -253,7 +253,8 @@ GoRouter createAppRouter(
             GoRoute(
               path: '/insights',
               name: 'insights',
-              builder: (context, state) => const InsightsScreen(),
+              builder: (context, state) =>
+                  InsightsScreen(generation: generation),
             ),
           ],
         ),
