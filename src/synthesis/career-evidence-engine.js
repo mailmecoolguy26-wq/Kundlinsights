@@ -81,21 +81,31 @@ function d10Assignments(node) {
     .map(([body, placement]) => ({ body, placement }));
 }
 function rashiEntry(container, index) { return container && Array.isArray(container.rashis) ? container.rashis.find((entry) => entry && entry.rashiIndex === index) || null : null; }
-function ashtakavargaSelections(fact, careerRashiIndex, lord, lordRashiIndex) {
+function ashtakavargaSelections(fact, careerRashiIndex, lord, lordRashiIndex, careerHouseSigns = []) {
   const selections = [];
+  const houseSigns = careerHouseSigns.length ? careerHouseSigns : [{ houseNumber: 10, rashiIndex: careerRashiIndex }];
   const rawSav = fact && (fact.rawSarvashtakavarga || fact.rawSav || fact.sarvashtakavarga);
-  const rawEntry = rashiEntry(rawSav, careerRashiIndex);
-  if (rawEntry) selections.push({ context: 'H10_RASHI_RAW_SAV', sourcePath: 'rawSarvashtakavarga.rashis', rashiIndex: careerRashiIndex, rawValue: rawEntry.favorableMarkCount });
+  for (const { houseNumber, rashiIndex: index } of houseSigns) {
+    const rawEntry = rashiEntry(rawSav, index);
+    if (rawEntry) selections.push({ context: `H${houseNumber}_RASHI_RAW_SAV`, sourcePath: 'rawSarvashtakavarga.rashis', scoreType: 'SAV', houseNumber, rashiIndex: index, rawValue: rawEntry.favorableMarkCount });
+  }
   const bav = fact && fact.planetaryBavs && fact.planetaryBavs[lord];
   const bavEntry = rashiEntry(bav, lordRashiIndex);
-  if (bavEntry) selections.push({ context: 'H10_LORD_RAW_BAV_AT_NATAL_RASHI', sourcePath: `planetaryBavs.${lord}.rashis`, rashiIndex: lordRashiIndex, rawValue: bavEntry.favorableMarkCount });
+  if (bavEntry) selections.push({ context: 'H10_LORD_RAW_BAV_AT_NATAL_RASHI', sourcePath: `planetaryBavs.${lord}.rashis`, scoreType: 'BAV', houseNumber: 10, planet: lord, rashiIndex: lordRashiIndex, rawValue: bavEntry.favorableMarkCount });
+  const h10BavEntry = rashiEntry(bav, careerRashiIndex);
+  if (h10BavEntry) selections.push({ context: 'H10_LORD_RAW_BAV_AT_H10_RASHI', sourcePath: `planetaryBavs.${lord}.rashis`, scoreType: 'BAV', houseNumber: 10, planet: lord, rashiIndex: careerRashiIndex, rawValue: h10BavEntry.favorableMarkCount });
+  const lagnaBav = fact && fact.lagnaBav;
+  for (const { houseNumber, rashiIndex: index } of houseSigns) {
+    const lagnaEntry = rashiEntry(lagnaBav, index);
+    if (lagnaEntry) selections.push({ context: `H${houseNumber}_RASHI_LAGNA_BAV`, sourcePath: 'lagnaBav.rashis', scoreType: 'LAGNA_BAV', houseNumber, rashiIndex: index, rawValue: lagnaEntry.favorableMarkCount });
+  }
   const shodhita = fact && (fact.shodhitaAshtakavarga || fact.shodhita);
   const shodhitaBav = shodhita && shodhita.planetaryBavs && shodhita.planetaryBavs[lord];
   const shodhitaEntry = rashiEntry(shodhitaBav, lordRashiIndex);
-  if (shodhitaEntry) selections.push({ context: 'H10_LORD_SHODHITA_BAV_AT_NATAL_RASHI', sourcePath: `shodhita.planetaryBavs.${lord}.rashis`, rashiIndex: lordRashiIndex, rawValue: shodhitaEntry.favorableMarkCount });
+  if (shodhitaEntry) selections.push({ context: 'H10_LORD_SHODHITA_BAV_AT_NATAL_RASHI', sourcePath: `shodhita.planetaryBavs.${lord}.rashis`, scoreType: 'SHODHITA_BAV', houseNumber: 10, planet: lord, rashiIndex: lordRashiIndex, rawValue: shodhitaEntry.favorableMarkCount });
   const pinda = fact && (fact.pindaByTarget || fact.pindas || fact.pinda);
   const pindaValue = pinda && (Array.isArray(pinda) ? pinda.find((entry) => entry && entry.targetBody === lord) : pinda[lord]);
-  if (pindaValue) selections.push({ context: 'H10_LORD_PINDA', sourcePath: 'pindaByTarget', targetBody: lord, rawValue: pindaValue.totalPinda ?? pindaValue });
+  if (pindaValue) selections.push({ context: 'H10_LORD_PINDA', sourcePath: 'pindaByTarget', scoreType: 'PINDA', targetBody: lord, rawValue: pindaValue.totalPinda ?? pindaValue });
   return selections;
 }
 function buildCareerEvidence(input = {}) {
@@ -181,7 +191,14 @@ function buildCareerEvidence(input = {}) {
   const ashtaka = sourceNodes(graph, '11');
   if (ashtaka.length === 0) missingOptional('ashtakavarga');
   else ashtaka.forEach((node) => {
-    const selections = ashtakavargaSelections(nodeFact(node), careerRashiIndex, lord, lordAssignment ? rashiIndex(nodeFact(lordAssignment)) : null);
+    const careerHouseSigns = [
+      { houseNumber: 10, rashiIndex: careerRashiIndex },
+      ...[2, 11].map((houseNumber) => {
+        const context = findContextHouse(graph, houseNumber);
+        return context ? { houseNumber, rashiIndex: rashiIndex(nodeFact(context.node)) } : null;
+      }).filter(Boolean),
+    ].filter((entry) => entry.rashiIndex !== null);
+    const selections = ashtakavargaSelections(nodeFact(node), careerRashiIndex, lord, lordAssignment ? rashiIndex(nodeFact(lordAssignment)) : null, careerHouseSigns);
     const pindaSelections = selections.filter((selection) => selection.context === 'H10_LORD_PINDA');
     const houseSelections = selections.filter((selection) => selection.context !== 'H10_LORD_PINDA');
     if (houseSelections.length) addRelation(relations, relation({ relationType: 'CAREER_ASHTAKAVARGA_CONTEXT', subject: house, target: { entityType: 'EVIDENCE_NODE', entityId: node.id }, inputNodeIds: [node.id], fact: { selections: houseSelections, thresholdOrRanking: 'not-performed' } }));

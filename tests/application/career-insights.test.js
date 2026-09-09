@@ -43,6 +43,40 @@ test('adapter retains supplied D10 Career structure as additive foundation evide
   assert.deepEqual([...signals.find((item) => item.family === 'CAREER_FOUNDATION').independentMechanismFamilies].sort(), ['D10_DIVISIONAL', 'NATAL_STRUCTURE']);
 });
 
+test('adapter exposes raw natal Ashtakavarga context only alongside an existing Career foundation', () => {
+  const domainGraph = { rulesetId: 'parashari-career-domain-evidence-v1', derivedRelations: [{
+    id: 'career-relation:ashtaka', relationType: 'CAREER_ASHTAKAVARGA_CONTEXT', inputNodeIds: ['fact:ashtaka'], fact: { selections: [
+      { scoreType: 'SAV', houseNumber: 10, rashiIndex: 9, rawValue: 29 },
+      { scoreType: 'BAV', houseNumber: 10, planet: 'Jupiter', rashiIndex: 4, rawValue: 6 },
+      { scoreType: 'LAGNA_BAV', houseNumber: 11, rashiIndex: 10, rawValue: 4 },
+    ], thresholdOrRanking: 'not-performed' },
+  }] };
+  const withFoundation = adaptCareerInsightEvidence({ conclusions: [conclusion('CAREER_H10_SIGNIFICATION_SCOPE_PRESENT', 'SUPPORTED', 'natal')], analysis: analysis(), domainGraph });
+  const ashtaka = withFoundation.find((item) => item.evidenceId.startsWith('ashtakavarga:'));
+  assert.equal(ashtaka.family, 'CAREER_FOUNDATION'); assert.equal(ashtaka.chart, 'D1');
+  assert.deepEqual(ashtaka.provenance.publicContext, [
+    { sourceFamily: 'ASHTAKAVARGA', scoreType: 'BAV', houseNumber: 10, rashiIndex: 4, value: 6, planet: 'Jupiter' },
+    { sourceFamily: 'ASHTAKAVARGA', scoreType: 'LAGNA_BAV', houseNumber: 11, rashiIndex: 10, value: 4 },
+    { sourceFamily: 'ASHTAKAVARGA', scoreType: 'SAV', houseNumber: 10, rashiIndex: 9, value: 29 },
+  ]);
+  assert.equal(JSON.stringify(ashtaka).match(/\"(score|strength|confidence|probability|timing|prediction)\"/), null);
+  const traced = buildCareerInsights({ evidence: withFoundation, signals: buildCareerInsightSignals({ evidence: withFoundation }) });
+  assert.deepEqual(traced[0].evidenceTrace.signals.flatMap((signal) => signal.evidence).find((item) => item.evidenceId === ashtaka.evidenceId).technicalContext, ashtaka.provenance.publicContext);
+  const withoutFoundation = adaptCareerInsightEvidence({ conclusions: [], analysis: analysis(), domainGraph });
+  assert.equal(withoutFoundation.some((item) => item.evidenceId.startsWith('ashtakavarga:')), false);
+});
+
+test('raw Ashtakavarga magnitude neither changes Career Foundation status nor its ordinal rank', () => {
+  const evidenceFor = (value) => adaptCareerInsightEvidence({
+    conclusions: [conclusion('CAREER_H10_SIGNIFICATION_SCOPE_PRESENT', 'SUPPORTED', 'natal')], analysis: analysis(),
+    domainGraph: { rulesetId: 'parashari-career-domain-evidence-v1', derivedRelations: [{ id: 'career-relation:ashtaka', relationType: 'CAREER_ASHTAKAVARGA_CONTEXT', inputNodeIds: ['fact:ashtaka'], fact: { selections: [{ scoreType: 'SAV', houseNumber: 10, rashiIndex: 9, rawValue: value }] } }] },
+  });
+  const low = buildCareerInsightSignals({ evidence: evidenceFor(1) });
+  const high = buildCareerInsightSignals({ evidence: evidenceFor(99) });
+  assert.deepEqual(low.map((item) => [item.family, item.status, item.signalId]), high.map((item) => [item.family, item.status, item.signalId]));
+  assert.deepEqual(rankCareerInsightSignals(low).map((item) => item.signalId), rankCareerInsightSignals(high).map((item) => item.signalId));
+});
+
 test('signal engine preserves supported, mixed, contradicted and insufficient evidence separately', () => {
   const evidence = adaptCareerInsightEvidence({ conclusions: [conclusion('CAREER_H10_SIGNIFICATION_SCOPE_PRESENT', 'SUPPORTED', 'natal'), conclusion('CAREER_H10_LORD_NATAL_CONNECTION_PRESENT', 'INSUFFICIENT_EVIDENCE', 'dasha'), conclusion('CAREER_GOCHAR_CONNECTION_PRESENT', 'CONTRADICTED', 'transit')], analysis: analysis() });
   const signals = buildCareerInsightSignals({ evidence });

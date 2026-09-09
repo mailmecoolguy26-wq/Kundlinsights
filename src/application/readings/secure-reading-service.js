@@ -37,6 +37,18 @@ function calibratedContent(record) {
   if (interpretation.disclosure && interpretation.disclosure.hasProvisionalEvidence === true) add('calculation-note', 'Calculation note', [{ headline: 'Calculation basis', sentence: 'Some calculations use a provisional calculation basis.' }]);
   return { domain: record.domain, locale: record.input.locale, sections };
 }
+function publicAshtakavargaContext(context) {
+  if (!context || context.sourceFamily !== 'ASHTAKAVARGA' || !['SAV', 'BAV', 'LAGNA_BAV'].includes(context.scoreType)) return null;
+  if (!Number.isInteger(context.houseNumber) || context.houseNumber < 1 || context.houseNumber > 12 || !Number.isInteger(context.rashiIndex) || context.rashiIndex < 1 || context.rashiIndex > 12 || !Number.isInteger(context.value)) return null;
+  return {
+    sourceFamily: 'ASHTAKAVARGA',
+    scoreType: context.scoreType,
+    houseNumber: context.houseNumber,
+    rashiIndex: context.rashiIndex,
+    value: context.value,
+    ...(typeof context.planet === 'string' ? { planet: context.planet } : {}),
+  };
+}
 function publicInsights(record) {
   const insights = record && record.reading && record.reading.insights;
   if (!Array.isArray(insights)) return undefined;
@@ -52,7 +64,7 @@ function publicInsights(record) {
     calibrationContext: insight.calibrationContext || null,
     technicalDetails: { independentMechanismFamilies: insight.technicalDetails && insight.technicalDetails.independentMechanismFamilies || [] },
     rulesetVersions: insight.rulesetVersions || {},
-    evidenceTrace: { signals: (insight.evidenceTrace && insight.evidenceTrace.signals || []).map((signal) => ({ sourceRulesetIds: [...new Set((signal.evidence || []).map((evidence) => evidence.sourceRulesetId).filter(Boolean))], sourceRuleIds: [...new Set((signal.evidence || []).map((evidence) => evidence.sourceRuleId).filter(Boolean))], charts: [...new Set((signal.evidence || []).map((evidence) => evidence.chart).filter((chart) => chart === 'D10'))] })) },
+    evidenceTrace: { signals: (insight.evidenceTrace && insight.evidenceTrace.signals || []).map((signal) => ({ sourceRulesetIds: [...new Set((signal.evidence || []).map((evidence) => evidence.sourceRulesetId).filter(Boolean))], sourceRuleIds: [...new Set((signal.evidence || []).map((evidence) => evidence.sourceRuleId).filter(Boolean))], charts: [...new Set((signal.evidence || []).map((evidence) => evidence.chart).filter((chart) => chart === 'D10'))], ashtakavarga: (signal.evidence || []).flatMap((evidence) => evidence.technicalContext || []).map(publicAshtakavargaContext).filter(Boolean) })) },
   }));
 }
 function publicReadingDetail(item) { const calibrated = calibratedContent(item.record), insights = publicInsights(item.record); return immutableCopy({ ...publicReadingSummary(item), content: item.record.renderedReading, ...(calibrated ? { calibratedContent: calibrated } : {}), ...(insights === undefined ? {} : { insights }) }); }

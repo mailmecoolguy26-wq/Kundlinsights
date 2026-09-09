@@ -35,6 +35,10 @@ test('builds the Hyderabad development fixture through Layer 15A using injected 
   assert.equal(result.reading.readingItems.some((item) => item.topic === 'CAREER_GOCHAR_CONNECTION_PRESENT'), true);
   const foundation = result.reading.insights.find((item) => item.family === 'CAREER_FOUNDATION');
   assert.equal(foundation.evidenceTrace.signals.flatMap((signal) => signal.evidence).some((evidence) => evidence.chart === 'D10'), true);
+  const ashtakavarga = foundation.evidenceTrace.signals.flatMap((signal) => signal.evidence).flatMap((evidence) => evidence.technicalContext || []).filter((item) => item.sourceFamily === 'ASHTAKAVARGA');
+  assert.equal(ashtakavarga.some((item) => item.scoreType === 'SAV' && item.houseNumber === 10), true);
+  assert.equal(ashtakavarga.some((item) => item.scoreType === 'BAV' && item.houseNumber === 10), true);
+  assert.equal(ashtakavarga.some((item) => item.scoreType === 'LAGNA_BAV' && item.houseNumber === 10), true);
   assert.equal(foundation.technicalDetails.independentMechanismFamilies.includes('D10_DIVISIONAL'), true);
   const serialized = JSON.stringify(result);
   for (const forbidden of ['1990-11-26', '13:40:00', '17.385', '78.4867', 'siderealLongitudeDegrees', 'ephemerisPath', 'manifest']) assert.equal(serialized.includes(forbidden), false, forbidden);

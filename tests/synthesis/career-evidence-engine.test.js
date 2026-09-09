@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { EvidenceGraphBuilder, buildCareerEvidence } = require('../../src/synthesis');
 
-function graphFixture({ occupants = ['Saturn'], includeState = true, includeDrishti = true, includeD10 = true, productionD10 = false, includeAshtaka = true, duplicateH10Lord = null, contradictoryD10 = false, includeContexts = false, reverseContexts = false, missingContexts = false, duplicateH2Lord = null } = {}) {
+function graphFixture({ occupants = ['Saturn'], includeState = true, includeDrishti = true, includeD10 = true, productionD10 = false, includeAshtaka = true, productionAshtaka = false, duplicateH10Lord = null, contradictoryD10 = false, includeContexts = false, reverseContexts = false, missingContexts = false, duplicateH2Lord = null } = {}) {
   const builder = new EvidenceGraphBuilder({ sourceIdentity: 'career-provisional-meena-lagna-fixture' });
   const add = (input) => builder.addFact({ sourceStrength: 'ENGINE_CONVENTION', ...input });
   const h10 = { houseNumber: 10, rashi: { rashiIndex: 9, rashiName: 'Dhanu' }, rashiHouseLord: { name: 'Jupiter' } };
@@ -43,7 +43,9 @@ function graphFixture({ occupants = ['Saturn'], includeState = true, includeDris
     add({ subject: { entityType: 'VARGA', entityId: 'D10' }, sourceLayer: '3', sourceRulesetId: 'parashari-varga-engine-v1', sourceIdentity: 'vargas.D10', fact: productionD10 ? { chart: 'D10', ascendant: { rashi: { rashiIndex: 1 }, houseNumber: 1 }, houses: [{ houseNumber: 10, rashi: { rashiIndex: 10 }, rashiHouseLord: { name: 'Saturn' } }], bodies: { Jupiter: { rashi: { rashiIndex: 7 }, rashiHouseNumber: 5 }, Saturn: { rashi: { rashiIndex: 10 }, rashiHouseNumber: 10 }, Ascendant: { rashi: { rashiIndex: 1 }, rashiHouseNumber: 1 } } } : { bodies: { Jupiter: { rashi: { rashiIndex: 7 } }, Saturn: { rashi: { rashiIndex: 10 } }, Ascendant: { rashi: { rashiIndex: 1 } } } } });
     if (contradictoryD10) add({ subject: { entityType: 'VARGA', entityId: 'D10' }, sourceLayer: '3', sourceRulesetId: 'parashari-varga-engine-v1', sourceIdentity: 'vargas.D10.conflict', fact: { bodies: { Jupiter: { rashi: { rashiIndex: 8 } } } } });
   }
-  if (includeAshtaka) add({ subject: { entityType: 'NATAL_CHART', entityId: 'natal' }, sourceLayer: '11', sourceRulesetId: 'ashtakavarga-composite', sourceIdentity: 'ashtakavarga', fact: { rawSarvashtakavarga: { rashis: [{ rashiIndex: 9, favorableMarkCount: 28 }] }, planetaryBavs: { Jupiter: { rashis: [{ rashiIndex: 4, favorableMarkCount: 6 }] } }, shodhita: { planetaryBavs: { Jupiter: { rashis: [{ rashiIndex: 4, favorableMarkCount: 4 }] } } }, pindaByTarget: { Jupiter: { targetBody: 'Jupiter', totalPinda: 111 } } } });
+  if (includeAshtaka) add({ subject: { entityType: 'NATAL_CHART', entityId: 'natal' }, sourceLayer: '11', sourceRulesetId: 'ashtakavarga-composite', sourceIdentity: 'ashtakavarga', fact: productionAshtaka
+    ? { rawSarvashtakavarga: { rashis: [{ rashiIndex: 1, favorableMarkCount: 21 }, { rashiIndex: 9, favorableMarkCount: 29 }, { rashiIndex: 10, favorableMarkCount: 27 }] }, planetaryBavs: { Jupiter: { rashis: [{ rashiIndex: 4, favorableMarkCount: 6 }, { rashiIndex: 9, favorableMarkCount: 5 }] } }, lagnaBav: { rashis: [{ rashiIndex: 1, favorableMarkCount: 2 }, { rashiIndex: 9, favorableMarkCount: 3 }, { rashiIndex: 10, favorableMarkCount: 4 }] } }
+    : { rawSarvashtakavarga: { rashis: [{ rashiIndex: 9, favorableMarkCount: 28 }] }, planetaryBavs: { Jupiter: { rashis: [{ rashiIndex: 4, favorableMarkCount: 6 }] } }, shodhita: { planetaryBavs: { Jupiter: { rashis: [{ rashiIndex: 4, favorableMarkCount: 4 }] } } }, pindaByTarget: { Jupiter: { targetBody: 'Jupiter', totalPinda: 111 } } } });
   return builder.build();
 }
 function types(result) { return result.derivedRelations.map((relation) => relation.relationType); }
@@ -104,6 +106,17 @@ test('retains neutral raw SAV, BAV, Shodhita, and Pinda values without threshold
   const facts = result.derivedRelations.filter((item) => item.relationType === 'CAREER_ASHTAKAVARGA_CONTEXT').map((item) => item.fact);
   assert.deepEqual(facts.flatMap((fact) => fact.selections.map((item) => item.rawValue)).sort((a, b) => a - b), [4, 6, 28, 111]);
   assert.equal(facts.every((fact) => fact.thresholdOrRanking === 'not-performed'), true);
+});
+
+test('preserves raw natal SAV, BAV, and Lagna BAV context for supplied H2, H10, and H11 without interpretation', () => {
+  const result = buildCareerEvidence({ natalGraph: graphFixture({ occupants: [], includeContexts: true, productionAshtaka: true }) });
+  const selections = result.derivedRelations.filter((item) => item.relationType === 'CAREER_ASHTAKAVARGA_CONTEXT').flatMap((item) => item.fact.selections);
+  assert.deepEqual(selections.filter((item) => item.scoreType === 'SAV').map((item) => [item.houseNumber, item.rashiIndex, item.rawValue]).sort((a, b) => a[0] - b[0]), [[2, 1, 21], [10, 9, 29], [11, 10, 27]]);
+  assert.deepEqual(selections.filter((item) => item.scoreType === 'LAGNA_BAV').map((item) => [item.houseNumber, item.rashiIndex, item.rawValue]).sort((a, b) => a[0] - b[0]), [[2, 1, 2], [10, 9, 3], [11, 10, 4]]);
+  assert.deepEqual(selections.filter((item) => item.scoreType === 'BAV').map((item) => [item.planet, item.rashiIndex, item.rawValue]).sort(), [['Jupiter', 4, 6], ['Jupiter', 9, 5]]);
+  assert.equal(result.derivedRelations.filter((item) => item.relationType === 'CAREER_ASHTAKAVARGA_CONTEXT').every((item) => item.fact.thresholdOrRanking === 'not-performed'), true);
+  const text = JSON.stringify(selections);
+  for (const forbidden of ['\"strength\"', '\"confidence\"', '\"probability\"', '\"timing\"', '\"prediction\"']) assert.equal(text.includes(forbidden), false, forbidden);
 });
 
 test('is deterministic, immutable, accepts frozen input, and leaves it unchanged', () => {

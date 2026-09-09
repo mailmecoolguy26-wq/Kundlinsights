@@ -40,9 +40,55 @@ function adaptD10Evidence(domainGraph) {
     provenance: { sourceChart: 'D10', sourceRelationTypes: [...new Set(relations.map((relation) => relation.relationType))].sort() },
   });
 }
+function publicAshtakavargaContext(relations) {
+  return relations.flatMap((relation) => relation.fact && relation.fact.selections || [])
+    .filter((selection) => ['SAV', 'BAV', 'LAGNA_BAV'].includes(selection.scoreType))
+    .map((selection) => ({
+      sourceFamily: 'ASHTAKAVARGA',
+      scoreType: selection.scoreType,
+      houseNumber: selection.houseNumber,
+      rashiIndex: selection.rashiIndex,
+      value: selection.rawValue,
+      ...(selection.planet ? { planet: selection.planet } : {}),
+    }))
+    .sort((left, right) => `${left.scoreType}|${left.houseNumber}|${left.planet || ''}|${left.rashiIndex}`.localeCompare(`${right.scoreType}|${right.houseNumber}|${right.planet || ''}|${right.rashiIndex}`));
+}
+function adaptAshtakavargaEvidence(domainGraph) {
+  const relations = domainGraph && Array.isArray(domainGraph.derivedRelations)
+    ? domainGraph.derivedRelations.filter((relation) => relation.relationType === 'CAREER_ASHTAKAVARGA_CONTEXT')
+    : [];
+  const publicContext = publicAshtakavargaContext(relations);
+  if (!publicContext.length) return null;
+  const relationIds = relations.map((relation) => relation.id).sort();
+  const inputNodeIds = [...new Set(relations.flatMap((relation) => relation.inputNodeIds || []))].sort();
+  return createInsightEvidence({
+    evidenceId: `ashtakavarga:${relationIds.join('|')}`,
+    domain: 'CAREER',
+    family: 'CAREER_FOUNDATION',
+    sourceLayer: '12B',
+    sourceRulesetId: domainGraph.rulesetId,
+    sourceStrength: 'ENGINE_CONVENTION',
+    subject: { entityType: 'NATAL_CHART', entityId: 'D1' },
+    target: { entityType: 'DOMAIN', entityId: 'CAREER' },
+    chart: 'D1',
+    temporalContext: {},
+    rawFacts: relations.map((relation) => ({ relationType: relation.relationType, fact: relation.fact })),
+    rootSourceIds: inputNodeIds,
+    evidenceFamilyIds: ['ASHTAKAVARGA_NATAL'],
+    lineage: { sourceRelationIds: relationIds, inputNodeIds },
+    status: 'SUPPORTED',
+    explanationKey: 'career.evidence.career_foundation',
+    provenance: { sourceFamily: 'ASHTAKAVARGA', publicContext },
+  });
+}
 function adaptCareerInsightEvidence({ conclusions = [], analysis = {}, domainGraph = null, calibrationContext = null } = {}) {
   const adapted = conclusions.map((conclusion) => adaptConclusion({ conclusion, analysis })).filter(Boolean);
   const d10 = adaptD10Evidence(domainGraph); if (d10) adapted.push(d10);
+  // Scores are factual context only. They can supplement an existing D1
+  // foundation conclusion, never originate an Insight or alter its status.
+  if (adapted.some((item) => item.family === 'CAREER_FOUNDATION')) {
+    const ashtakavarga = adaptAshtakavargaEvidence(domainGraph); if (ashtakavarga) adapted.push(ashtakavarga);
+  }
   if (calibrationContext && calibrationContext.calibrationLevel === 'CALIBRATED') {
     (calibrationContext.historicalEvidence || []).forEach((item) => adapted.push(calibrationEvidence(item, 'HISTORICAL_CALIBRATION_RECURRENCE', 'historical')));
     (calibrationContext.futureOccurrences || []).forEach((item) => adapted.push(calibrationEvidence(item, 'FUTURE_RECURRENCE_WINDOW', 'future')));
@@ -50,4 +96,4 @@ function adaptCareerInsightEvidence({ conclusions = [], analysis = {}, domainGra
   }
   return freeze([...new Map(adapted.map((item) => [item.evidenceId, item])).values()].sort((a, b) => a.evidenceId.localeCompare(b.evidenceId)));
 }
-module.exports = { adaptCareerInsightEvidence, familyForTopic, adaptD10Evidence };
+module.exports = { adaptCareerInsightEvidence, familyForTopic, adaptD10Evidence, adaptAshtakavargaEvidence };

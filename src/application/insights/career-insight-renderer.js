@@ -5,6 +5,15 @@ function sentenceFor(insight) {
   const hasD10 = (insight.evidenceTrace && insight.evidenceTrace.signals || [])
     .flatMap((signal) => signal.evidence || [])
     .some((evidence) => evidence.chart === 'D10');
+  const hasAshtakavarga = (insight.evidenceTrace && insight.evidenceTrace.signals || [])
+    .flatMap((signal) => signal.evidence || [])
+    .some((evidence) => (evidence.technicalContext || []).some((context) => context.sourceFamily === 'ASHTAKAVARGA'));
+  if (insight.family === 'CAREER_FOUNDATION' && hasD10 && hasAshtakavarga) {
+    return 'Your D10 career chart and Ashtakavarga provide additional structural context for the natal career pattern.';
+  }
+  if (insight.family === 'CAREER_FOUNDATION' && hasAshtakavarga) {
+    return 'Ashtakavarga provides additional natal support context for the career houses used in this insight.';
+  }
   if (insight.family === 'CAREER_FOUNDATION' && hasD10) {
     return 'Your D10 career chart adds supporting structural evidence to the natal career pattern.';
   }
