@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kundlinsights_mobile/features/auth/auth_controller.dart';
 import 'package:kundlinsights_mobile/features/auth/domain/auth_repository.dart';
@@ -8,6 +9,7 @@ import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile_repo
 import 'package:kundlinsights_mobile/features/profiles/profile_controller.dart';
 import 'package:kundlinsights_mobile/features/transits/domain/transit_snapshot.dart';
 import 'package:kundlinsights_mobile/features/transits/domain/transit_snapshot_repository.dart';
+import 'package:kundlinsights_mobile/features/transits/presentation/current_transits_screen.dart';
 import 'package:kundlinsights_mobile/features/transits/transit_snapshot_controller.dart';
 
 void main() {
@@ -75,6 +77,55 @@ void main() {
       auth.dispose();
     },
   );
+
+  testWidgets('renders real transit fields in the dark Gochar presentation', (
+    tester,
+  ) async {
+    final auth = AuthController(_Auth());
+    await auth.restore();
+    final profiles = ProfileController(_Profiles(_Auth()), auth);
+    await profiles.load();
+    final controller = TransitSnapshotController(
+      _ImmediateRepo(_snapshot('a')),
+      auth,
+      profiles,
+    );
+    addTearDown(() {
+      controller.dispose();
+      profiles.dispose();
+      auth.dispose();
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurrentTransitsScreen(
+          profileController: profiles,
+          controller: controller,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).first);
+    expect(scaffold.backgroundColor, const Color(0xFF0B071B));
+    expect(find.text('GOCHAR'), findsOneWidget);
+    expect(find.text('Current Transits'), findsOneWidget);
+    expect(find.text('a'), findsOneWidget);
+    expect(find.text('Your Transit Snapshot'), findsOneWidget);
+    expect(find.text('ALL CURRENT TRANSITS'), findsOneWidget);
+    expect(find.text('Sun'), findsOneWidget);
+    expect(
+      find.textContaining('Backend supplied sign · 99.75° · House 12'),
+      findsOneWidget,
+    );
+    expect(find.text('Retrograde'), findsOneWidget);
+    expect(find.text('HOUSES ACTIVATED'), findsOneWidget);
+    expect(find.textContaining('12th House'), findsOneWidget);
+    expect(find.text('MOST IMPORTANT RIGHT NOW'), findsNothing);
+    expect(find.text('Transit Timeline'), findsNothing);
+    expect(find.text('Career Impact'), findsNothing);
+    expect(find.text('What to Watch'), findsNothing);
+  });
 }
 
 Future<void> _settle() => Future<void>.delayed(Duration.zero);
@@ -117,6 +168,16 @@ class _Repo implements TransitSnapshotRepository {
       _pending[id]!.removeAt(0).complete(value);
   void completeLatest(String id, TransitSnapshot value) =>
       _pending[id]!.removeLast().complete(value);
+}
+
+class _ImmediateRepo implements TransitSnapshotRepository {
+  const _ImmediateRepo(this.snapshot);
+  final TransitSnapshot snapshot;
+  @override
+  Future<TransitSnapshot> getTransitSnapshot({
+    required String birthProfileId,
+    required DateTime atUtc,
+  }) async => snapshot;
 }
 
 class _Auth implements AuthRepository {

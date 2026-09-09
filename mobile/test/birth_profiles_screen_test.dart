@@ -46,9 +46,12 @@ void main() {
     );
     await tester.tap(find.text('Open Birth Profiles'));
     await tester.pumpAndSettle();
-    expect(find.byType(BackButton), findsOneWidget);
+    expect(find.text('PROFILES'), findsOneWidget);
+    expect(find.text('Birth Profiles'), findsOneWidget);
+    expect(find.byIcon(Icons.arrow_back), findsOneWidget);
+    expect(find.byType(NavigationBar), findsNothing);
 
-    await tester.tap(find.byType(BackButton));
+    await tester.tap(find.byIcon(Icons.arrow_back));
     await tester.pumpAndSettle();
     expect(find.text('Open Birth Profiles'), findsOneWidget);
     controller.dispose();
@@ -64,11 +67,15 @@ void main() {
     await tester.pumpWidget(_app(controller));
     await tester.pump();
 
-    expect(find.text('No birth profile yet'), findsOneWidget);
+    expect(find.text('No birth profiles yet'), findsOneWidget);
     expect(find.text('Create a birth profile to get started.'), findsOneWidget);
     expect(find.text('Add profile'), findsWidgets);
     expect(find.byType(ListView), findsNothing);
     expect(find.text('Birth profile'), findsNothing);
+
+    await tester.tap(find.text('Add profile').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Add destination'), findsOneWidget);
 
     controller.dispose();
     auth.dispose();
@@ -137,9 +144,10 @@ void main() {
     await tester.pump();
 
     expect(find.text('Pratik'), findsOneWidget);
-    expect(find.text('1990-01-02 · 03:04:00'), findsOneWidget);
+    expect(find.text('2 Jan 1990 · 3:04 AM'), findsOneWidget);
     expect(find.text('Family Member'), findsOneWidget);
-    expect(find.text('2001-05-06 · 07:08:00'), findsOneWidget);
+    expect(find.text('6 May 2001 · 7:08 AM'), findsOneWidget);
+    expect(find.text('1990-01-02 · 03:04:00'), findsNothing);
 
     controller.dispose();
     auth.dispose();
@@ -158,13 +166,12 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.text('Active'), findsOneWidget);
-    final pratikCard = find.ancestor(
-      of: find.text('Pratik'),
-      matching: find.byType(Card),
-    );
+    expect(find.text('ACTIVE'), findsOneWidget);
+    final pratikCard = find
+        .ancestor(of: find.text('Pratik'), matching: find.byType(Material))
+        .first;
     expect(
-      find.descendant(of: pratikCard, matching: find.text('Active')),
+      find.descendant(of: pratikCard, matching: find.text('ACTIVE')),
       findsOneWidget,
     );
 
@@ -190,12 +197,14 @@ void main() {
     await tester.tap(find.text('Family Member'));
     await tester.pumpAndSettle();
     expect(controller.activeProfile?.id, 'family');
-    final familyCard = find.ancestor(
-      of: find.text('Family Member'),
-      matching: find.byType(Card),
-    );
+    final familyCard = find
+        .ancestor(
+          of: find.text('Family Member'),
+          matching: find.byType(Material),
+        )
+        .first;
     expect(
-      find.descendant(of: familyCard, matching: find.text('Active')),
+      find.descendant(of: familyCard, matching: find.text('ACTIVE')),
       findsOneWidget,
     );
 
