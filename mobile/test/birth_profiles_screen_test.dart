@@ -218,6 +218,57 @@ void main() {
       _profile('detail-id', 'Unique Detail Label'),
     );
     expect(find.text('Unique Detail Label'), findsWidgets);
+    expect(find.text('Birth details'), findsOneWidget);
+    expect(find.text('BIRTH DATE'), findsOneWidget);
+    expect(find.text('BIRTH TIME'), findsOneWidget);
+    expect(find.text('ACTIVE'), findsOneWidget);
+    expect(
+      tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor,
+      const Color(0xFF0B071B),
+    );
+    scope.dispose();
+  });
+
+  testWidgets('profile detail keeps Career History navigation tappable', (
+    tester,
+  ) async {
+    final scope = _DetailScope(
+      _Profiles()..profiles = [_profile('detail-id', 'Detail')],
+      'detail-id',
+    );
+    final profileController = scope.controller;
+    await scope.auth.restore();
+    final router = GoRouter(
+      initialLocation: '/profiles/detail-id',
+      routes: [
+        GoRoute(
+          path: '/profiles/:id',
+          builder: (_, state) => ProfileDetailScreen(
+            controller: profileController,
+            profileId: state.pathParameters['id']!,
+          ),
+        ),
+        GoRoute(
+          path: '/career-calibration',
+          builder: (_, state) =>
+              const Scaffold(body: Text('Career history destination')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      MaterialApp.router(
+        routerConfig: router,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Detail'), findsWidgets);
+    await tester.tap(find.text('Career History'));
+    await tester.pumpAndSettle();
+    expect(find.text('Career history destination'), findsOneWidget);
     scope.dispose();
   });
 
