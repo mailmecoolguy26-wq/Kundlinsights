@@ -6,6 +6,7 @@ const { calculateVimshottariDasha, SOLAR_RETURN_VIMSHOTTARI_RULESET, resolveVims
 const { calculateGocharSnapshot } = require('../gochar');
 const { scanTransitEvents } = require('../transit-events');
 const { assembleNatalEvidenceGraph, freeze } = require('../synthesis');
+const { calculateChartCoordinates } = require('../application/divisional-charts');
 const { buildCareerReading } = require('./career-reading-orchestrator');
 const { isProductionAstronomicalAuthority } = require('../astronomy');
 const { validateBirthCareerRequest, utcInstantToLayer1Input } = require('./birth-career-input-validation');
@@ -17,6 +18,57 @@ const {
 
 function layer1Request(birth) {
   return { date: birth.date, time: birth.time, timezone: birth.place.timezone, latitude: birth.place.latitude, longitude: birth.place.longitude };
+}
+
+function d10Rashi(coordinate) {
+  const rashi = coordinate.varga.derivedVargaRashi;
+  return {
+    rashiIndex: rashi.rashiIndex,
+    sanskritName: rashi.sanskritName,
+    englishName: rashi.englishName,
+  };
+}
+
+// This is the same pure projection used by DivisionalChartService.  It keeps
+// only the factual D10 structure needed by the Career evidence graph; it does
+// not introduce a second calculator or any D10 interpretation.
+function d10CareerStructure(layer1Result) {
+  const d10 = calculateChartCoordinates(layer1Result, 'd10');
+  const assignmentByBody = new Map(
+    d10.houses.planetaryAssignments.map((assignment) => [
+      assignment.body,
+      assignment.rashiHouseNumber,
+    ]),
+  );
+  return freeze({
+    chart: 'D10',
+    rulesetId: 'parashari-varga-engine-v1',
+    ascendant: {
+      rashi: d10Rashi(d10.coordinates.Ascendant),
+      houseNumber: d10.houses.ascendant.rashiHouseNumber,
+    },
+    houses: d10.houses.houses.map((house) => ({
+      houseNumber: house.houseNumber,
+      rashi: house.rashi,
+      rashiHouseLord: house.rashiHouseLord,
+    })),
+    bodies: Object.fromEntries(
+      Object.entries(d10.coordinates).map(([body, coordinate]) => [
+        body,
+        {
+          rashi: d10Rashi(coordinate),
+          rashiHouseNumber:
+            body === 'Ascendant'
+              ? d10.houses.ascendant.rashiHouseNumber
+              : assignmentByBody.get(body) || null,
+        },
+      ]),
+    ),
+    provenance: {
+      chartCalculation: 'delegated-to-production-divisional-chart-projection',
+      sourceLayer: '1',
+    },
+  });
 }
 
 function orchestrationError(code, message) {
@@ -147,7 +199,11 @@ class BirthCareerReadingOrchestrator {
         observer: { latitude: input.birth.place.latitude, longitude: input.birth.place.longitude },
       });
     }
-    const natal = assembleNatalEvidenceGraph({ layer2Bodies, houses });
+    const natal = assembleNatalEvidenceGraph({
+      layer2Bodies,
+      houses,
+      vargas: { D10: d10CareerStructure(birthLayer1Result) },
+    });
     const career = buildCareerReading({
       natal,
       temporal: { instant: input.readingInstant, dasha, gochar, ...(transitEvents === undefined ? {} : { transitEvents }) },
@@ -163,4 +219,4 @@ class BirthCareerReadingOrchestrator {
   }
 }
 
-module.exports = { BirthCareerReadingOrchestrator };
+module.exports = { BirthCareerReadingOrchestrator, d10CareerStructure };

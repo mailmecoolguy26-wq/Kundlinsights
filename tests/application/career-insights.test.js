@@ -29,6 +29,20 @@ test('adapter maps only existing conclusion families and calibration artifacts',
   assert.equal(evidence.some((item) => item.rawFacts.topic === 'UNSUPPORTED_TOPIC'), false);
 });
 
+test('adapter retains supplied D10 Career structure as additive foundation evidence without inventing timing or outcome fields', () => {
+  const domainGraph = { rulesetId: 'parashari-career-domain-evidence-v1', derivedRelations: [
+    { id: 'career-relation:d10-house', relationType: 'CAREER_D10_TENTH_HOUSE', inputNodeIds: ['fact:d10'], fact: { chart: 'D10', houseNumber: 10, sign: { rashiIndex: 10 } } },
+    { id: 'career-relation:d10-lord', relationType: 'CAREER_D10_TENTH_LORD', inputNodeIds: ['fact:d10'], fact: { chart: 'D10', houseNumber: 10, lord: 'Saturn' } },
+  ] };
+  const evidence = adaptCareerInsightEvidence({ conclusions: [conclusion('CAREER_H10_SIGNIFICATION_SCOPE_PRESENT', 'SUPPORTED', 'natal')], analysis: analysis(), domainGraph });
+  const d10 = evidence.find((item) => item.chart === 'D10');
+  assert.equal(d10.family, 'CAREER_FOUNDATION');
+  assert.deepEqual(d10.rawFacts.map((item) => item.relationType), ['CAREER_D10_TENTH_HOUSE', 'CAREER_D10_TENTH_LORD']);
+  assert.equal(JSON.stringify(d10).match(/strength|confidence|promotion|salary|leadership/), null);
+  const signals = buildCareerInsightSignals({ evidence });
+  assert.deepEqual([...signals.find((item) => item.family === 'CAREER_FOUNDATION').independentMechanismFamilies].sort(), ['D10_DIVISIONAL', 'NATAL_STRUCTURE']);
+});
+
 test('signal engine preserves supported, mixed, contradicted and insufficient evidence separately', () => {
   const evidence = adaptCareerInsightEvidence({ conclusions: [conclusion('CAREER_H10_SIGNIFICATION_SCOPE_PRESENT', 'SUPPORTED', 'natal'), conclusion('CAREER_H10_LORD_NATAL_CONNECTION_PRESENT', 'INSUFFICIENT_EVIDENCE', 'dasha'), conclusion('CAREER_GOCHAR_CONNECTION_PRESENT', 'CONTRADICTED', 'transit')], analysis: analysis() });
   const signals = buildCareerInsightSignals({ evidence });

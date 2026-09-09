@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { EvidenceGraphBuilder, buildCareerEvidence } = require('../../src/synthesis');
 
-function graphFixture({ occupants = ['Saturn'], includeState = true, includeDrishti = true, includeD10 = true, includeAshtaka = true, duplicateH10Lord = null, contradictoryD10 = false, includeContexts = false, reverseContexts = false, missingContexts = false, duplicateH2Lord = null } = {}) {
+function graphFixture({ occupants = ['Saturn'], includeState = true, includeDrishti = true, includeD10 = true, productionD10 = false, includeAshtaka = true, duplicateH10Lord = null, contradictoryD10 = false, includeContexts = false, reverseContexts = false, missingContexts = false, duplicateH2Lord = null } = {}) {
   const builder = new EvidenceGraphBuilder({ sourceIdentity: 'career-provisional-meena-lagna-fixture' });
   const add = (input) => builder.addFact({ sourceStrength: 'ENGINE_CONVENTION', ...input });
   const h10 = { houseNumber: 10, rashi: { rashiIndex: 9, rashiName: 'Dhanu' }, rashiHouseLord: { name: 'Jupiter' } };
@@ -40,7 +40,7 @@ function graphFixture({ occupants = ['Saturn'], includeState = true, includeDris
     if (includeContexts) add({ subject: { entityType: 'GRAHA', entityId: 'Jupiter' }, sourceLayer: '6', sourceRulesetId: 'parashari-graha-drishti-v1', sourceIdentity: 'rashiAspects.Jupiter.5.1', sourceStrength: 'DIRECT_CLASSICAL', fact: { fromBody: 'Jupiter', aspectNumber: 5, targetRashi: { rashiIndex: 1 }, targetHouseNumber: 2, targetBodies: [{ body: 'Mars' }] } });
   }
   if (includeD10) {
-    add({ subject: { entityType: 'VARGA', entityId: 'D10' }, sourceLayer: '3', sourceRulesetId: 'parashari-varga-engine-v1', sourceIdentity: 'vargas.D10', fact: { bodies: { Jupiter: { rashi: { rashiIndex: 7 } }, Saturn: { rashi: { rashiIndex: 10 } }, Ascendant: { rashi: { rashiIndex: 1 } } } } });
+    add({ subject: { entityType: 'VARGA', entityId: 'D10' }, sourceLayer: '3', sourceRulesetId: 'parashari-varga-engine-v1', sourceIdentity: 'vargas.D10', fact: productionD10 ? { chart: 'D10', ascendant: { rashi: { rashiIndex: 1 }, houseNumber: 1 }, houses: [{ houseNumber: 10, rashi: { rashiIndex: 10 }, rashiHouseLord: { name: 'Saturn' } }], bodies: { Jupiter: { rashi: { rashiIndex: 7 }, rashiHouseNumber: 5 }, Saturn: { rashi: { rashiIndex: 10 }, rashiHouseNumber: 10 }, Ascendant: { rashi: { rashiIndex: 1 }, rashiHouseNumber: 1 } } } : { bodies: { Jupiter: { rashi: { rashiIndex: 7 } }, Saturn: { rashi: { rashiIndex: 10 } }, Ascendant: { rashi: { rashiIndex: 1 } } } } });
     if (contradictoryD10) add({ subject: { entityType: 'VARGA', entityId: 'D10' }, sourceLayer: '3', sourceRulesetId: 'parashari-varga-engine-v1', sourceIdentity: 'vargas.D10.conflict', fact: { bodies: { Jupiter: { rashi: { rashiIndex: 8 } } } } });
   }
   if (includeAshtaka) add({ subject: { entityType: 'NATAL_CHART', entityId: 'natal' }, sourceLayer: '11', sourceRulesetId: 'ashtakavarga-composite', sourceIdentity: 'ashtakavarga', fact: { rawSarvashtakavarga: { rashis: [{ rashiIndex: 9, favorableMarkCount: 28 }] }, planetaryBavs: { Jupiter: { rashis: [{ rashiIndex: 4, favorableMarkCount: 6 }] } }, shodhita: { planetaryBavs: { Jupiter: { rashis: [{ rashiIndex: 4, favorableMarkCount: 4 }] } } }, pindaByTarget: { Jupiter: { targetBody: 'Jupiter', totalPinda: 111 } } } });
@@ -66,6 +66,16 @@ test('keeps D10 strictly to supplied Rashi placement facts and never derives D10
   assert.deepEqual(d10.map((item) => item.subject.entityId).sort(), ['Jupiter', 'Saturn']);
   assert.equal(JSON.stringify(d10).includes('houseNumber'), false);
   assert.equal(JSON.stringify(result).includes('Ascendant'), false);
+});
+
+test('adapts supplied production D10 tenth-house facts without creating D10 timing or prediction evidence', () => {
+  const result = buildCareerEvidence({ natalGraph: graphFixture({ productionD10: true }) });
+  const d10 = result.derivedRelations.filter((item) => item.relationType.startsWith('CAREER_D10_'));
+  assert.deepEqual(d10.map((item) => item.relationType).sort(), ['CAREER_D10_PLACEMENT', 'CAREER_D10_PLACEMENT', 'CAREER_D10_TENTH_HOUSE', 'CAREER_D10_TENTH_LORD', 'CAREER_D10_TENTH_OCCUPANT']);
+  assert.equal(d10.find((item) => item.relationType === 'CAREER_D10_TENTH_HOUSE').fact.sign.rashiIndex, 10);
+  assert.equal(d10.find((item) => item.relationType === 'CAREER_D10_TENTH_LORD').target.entityId, 'Saturn');
+  assert.equal(d10.find((item) => item.relationType === 'CAREER_D10_TENTH_OCCUPANT').subject.entityId, 'Saturn');
+  assert.equal(JSON.stringify(d10).includes('timing'), false);
 });
 
 test('attaches direct supplied Drishti to H10 and separate Drishti to the H10 lord', () => {

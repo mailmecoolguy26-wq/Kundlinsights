@@ -68,6 +68,18 @@ function d10BodyFact(node, body) {
   if (!fact || !isObject(fact)) return null;
   return fact.bodies && fact.bodies[body] || fact[body] || null;
 }
+function d10HouseFact(node, number) {
+  const fact = nodeFact(node);
+  if (!fact || !Array.isArray(fact.houses)) return null;
+  return fact.houses.find((house) => Number(house && house.houseNumber) === number) || null;
+}
+function d10Assignments(node) {
+  const fact = nodeFact(node);
+  if (!fact || !fact.bodies || !isObject(fact.bodies)) return [];
+  return Object.entries(fact.bodies)
+    .filter(([body, placement]) => body !== 'Ascendant' && Number(placement && placement.rashiHouseNumber) >= 1 && Number(placement && placement.rashiHouseNumber) <= 12)
+    .map(([body, placement]) => ({ body, placement }));
+}
 function rashiEntry(container, index) { return container && Array.isArray(container.rashis) ? container.rashis.find((entry) => entry && entry.rashiIndex === index) || null : null; }
 function ashtakavargaSelections(fact, careerRashiIndex, lord, lordRashiIndex) {
   const selections = [];
@@ -127,13 +139,45 @@ function buildCareerEvidence(input = {}) {
   });
   const d10 = sourceNodes(graph, '3').filter((node) => node.subject.entityId === 'D10');
   if (d10.length === 0) missingOptional('D10');
-  else [lord, ...occupants.map((node) => bodyOfAssignment(nodeFact(node)))].filter((body, index, values) => values.indexOf(body) === index).forEach((body) => {
+  else {
+    d10.forEach((node) => {
+      const d10TenthHouse = d10HouseFact(node, 10);
+      if (!d10TenthHouse) return;
+      const d10House = { entityType: 'D10_HOUSE', entityId: '10' };
+      const d10Lord = d10TenthHouse.rashiHouseLord && d10TenthHouse.rashiHouseLord.name || null;
+      addRelation(relations, relation({
+        relationType: 'CAREER_D10_TENTH_HOUSE',
+        subject: d10House,
+        target: { entityType: 'VARGA', entityId: 'D10' },
+        inputNodeIds: [node.id],
+        fact: { chart: 'D10', houseNumber: 10, sign: d10TenthHouse.rashi || null },
+        provenance: { sourceChart: 'D10', relationshipCalculation: 'selection-of-supplied-D10-whole-sign-house-facts-only' },
+      }));
+      if (d10Lord) addRelation(relations, relation({
+        relationType: 'CAREER_D10_TENTH_LORD',
+        subject: d10House,
+        target: { entityType: 'GRAHA', entityId: d10Lord },
+        inputNodeIds: [node.id],
+        fact: { chart: 'D10', houseNumber: 10, lord: d10Lord },
+        provenance: { sourceChart: 'D10', relationshipCalculation: 'selection-of-supplied-D10-whole-sign-house-lord-only' },
+      }));
+      d10Assignments(node).filter(({ placement }) => Number(placement.rashiHouseNumber) === 10).forEach(({ body, placement }) => addRelation(relations, relation({
+        relationType: 'CAREER_D10_TENTH_OCCUPANT',
+        subject: { entityType: 'GRAHA', entityId: body },
+        target: d10House,
+        inputNodeIds: [node.id],
+        fact: { chart: 'D10', houseNumber: 10, body, sign: placement.rashi || null },
+        provenance: { sourceChart: 'D10', relationshipCalculation: 'selection-of-supplied-D10-whole-sign-assignments-only' },
+      })));
+    });
+    [lord, ...occupants.map((node) => bodyOfAssignment(nodeFact(node)))].filter((body, index, values) => values.indexOf(body) === index).forEach((body) => {
     const placements = d10.map((node) => ({ node, placement: d10BodyFact(node, body) })).filter((entry) => entry.placement);
     const identities = new Set(placements.map((entry) => stable(entry.placement.rashi || entry.placement.resultingRashi || entry.placement)));
     if (identities.size > 1) throw new RangeError(`Career evidence found contradictory supplied D10 Rashi facts for ${body}.`);
     if (placements.length === 0) { missing.push(freeze({ dataKey: `D10.${body}`, status: 'notProvided', sourceNodeId: null, neutrality: 'absence-is-not-negative-evidence' })); return; }
     placements.forEach(({ node, placement }) => addRelation(relations, relation({ relationType: 'CAREER_D10_PLACEMENT', subject: { entityType: 'GRAHA', entityId: body }, target: { entityType: 'EVIDENCE_NODE', entityId: node.id }, inputNodeIds: [node.id], fact: { body, suppliedD10Rashi: placement.rashi || placement.resultingRashi || placement } })));
   });
+  }
   const ashtaka = sourceNodes(graph, '11');
   if (ashtaka.length === 0) missingOptional('ashtakavarga');
   else ashtaka.forEach((node) => {

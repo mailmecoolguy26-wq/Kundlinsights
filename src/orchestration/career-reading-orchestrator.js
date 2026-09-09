@@ -18,7 +18,7 @@ function buildCareerReading({ natal, temporal, locale = SUPPORTED_LOCALE } = {})
   const coactivationConclusions = buildCareerTemporalCoactivationConclusions({ domainGraph, temporalGraph, analysis, dashaConclusions, gocharConclusions });
   const classicalConclusions = buildCareerClassicalEventConclusions({ domainGraph, temporalGraph, analysis });
   const conclusions = [...new Map([...natalConclusions, ...dashaConclusions, ...gocharConclusions, ...coactivationConclusions, ...classicalConclusions].map((item) => [item.conclusionId, item])).values()].sort((left, right) => left.conclusionId.localeCompare(right.conclusionId));
-  const insightEvidence = adaptCareerInsightEvidence({ conclusions, analysis });
+  const insightEvidence = adaptCareerInsightEvidence({ conclusions, analysis, domainGraph });
   const insightSignals = buildCareerInsightSignals({ evidence: insightEvidence });
   const insights = buildCareerInsights({ evidence: insightEvidence, signals: insightSignals });
   const baseReading = buildReading({ domain: SUPPORTED_DOMAIN, conclusions });

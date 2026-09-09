@@ -52,7 +52,7 @@ function publicInsights(record) {
     calibrationContext: insight.calibrationContext || null,
     technicalDetails: { independentMechanismFamilies: insight.technicalDetails && insight.technicalDetails.independentMechanismFamilies || [] },
     rulesetVersions: insight.rulesetVersions || {},
-    evidenceTrace: { signals: (insight.evidenceTrace && insight.evidenceTrace.signals || []).map((signal) => ({ sourceRulesetIds: [...new Set((signal.evidence || []).map((evidence) => evidence.sourceRulesetId).filter(Boolean))], sourceRuleIds: [...new Set((signal.evidence || []).map((evidence) => evidence.sourceRuleId).filter(Boolean))] })) },
+    evidenceTrace: { signals: (insight.evidenceTrace && insight.evidenceTrace.signals || []).map((signal) => ({ sourceRulesetIds: [...new Set((signal.evidence || []).map((evidence) => evidence.sourceRulesetId).filter(Boolean))], sourceRuleIds: [...new Set((signal.evidence || []).map((evidence) => evidence.sourceRuleId).filter(Boolean))], charts: [...new Set((signal.evidence || []).map((evidence) => evidence.chart).filter((chart) => chart === 'D10'))] })) },
   }));
 }
 function publicReadingDetail(item) { const calibrated = calibratedContent(item.record), insights = publicInsights(item.record); return immutableCopy({ ...publicReadingSummary(item), content: item.record.renderedReading, ...(calibrated ? { calibratedContent: calibrated } : {}), ...(insights === undefined ? {} : { insights }) }); }

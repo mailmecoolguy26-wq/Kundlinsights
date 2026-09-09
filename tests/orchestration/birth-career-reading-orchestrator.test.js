@@ -33,6 +33,9 @@ test('builds the Hyderabad development fixture through Layer 15A using injected 
   assert.equal(result.provenance.calculationStatus, 'LICENSE_GATED_VALIDATION'); assert.equal(result.provenance.productionAuthority, false);
   assert.equal(result.provenance.siderealMode, 'SE_SIDM_LAHIRI'); assert.equal(result.provenance.nodeModel, 'MEAN_NODE');
   assert.equal(result.reading.readingItems.some((item) => item.topic === 'CAREER_GOCHAR_CONNECTION_PRESENT'), true);
+  const foundation = result.reading.insights.find((item) => item.family === 'CAREER_FOUNDATION');
+  assert.equal(foundation.evidenceTrace.signals.flatMap((signal) => signal.evidence).some((evidence) => evidence.chart === 'D10'), true);
+  assert.equal(foundation.technicalDetails.independentMechanismFamilies.includes('D10_DIVISIONAL'), true);
   const serialized = JSON.stringify(result);
   for (const forbidden of ['1990-11-26', '13:40:00', '17.385', '78.4867', 'siderealLongitudeDegrees', 'ephemerisPath', 'manifest']) assert.equal(serialized.includes(forbidden), false, forbidden);
   assert.equal(Object.isFrozen(result), true); assert.equal(Object.isFrozen(result.provenance), true);

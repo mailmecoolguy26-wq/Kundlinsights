@@ -83,11 +83,12 @@ test('API-P5C2 service returns only owned persisted rendered content without gen
 });
 test('Career Insight delivery exposes a safe structured trace without internal evidence identifiers', async () => {
   const { service, readings } = setup();
-  const insights = [{ insightId: 'insight:private', family: 'ACTIVE_CAREER_DASHA', titleKey: 'career.dasha.active.title', summaryKey: 'career.dasha.active.summary', displayPriority: 0, status: 'SUPPORTED', timing: { dashaIntervals: [] }, signals: ['signal:private'], evidenceTrace: { signals: [{ signalId: 'signal:private', evidence: [{ evidenceId: 'evidence:private', sourceRuleId: 'career-h10-connected-dasha-activation-v1', sourceRulesetId: 'parashari-career-interpretation-foundation-v1', rootSourceIds: ['fact:private'] }] }] }, caveats: [], calibrationContext: null, technicalDetails: { independentMechanismFamilies: ['DASHA'] }, rulesetVersions: { insightEngine: 'kundlinsights-career-insight-engine-v1' } }];
+  const insights = [{ insightId: 'insight:private', family: 'ACTIVE_CAREER_DASHA', titleKey: 'career.dasha.active.title', summaryKey: 'career.dasha.active.summary', displayPriority: 0, status: 'SUPPORTED', timing: { dashaIntervals: [] }, signals: ['signal:private'], evidenceTrace: { signals: [{ signalId: 'signal:private', evidence: [{ evidenceId: 'evidence:private', sourceRuleId: 'career-h10-connected-dasha-activation-v1', sourceRulesetId: 'parashari-career-interpretation-foundation-v1', chart: 'D10', rootSourceIds: ['fact:private'] }] }] }, caveats: [], calibrationContext: null, technicalDetails: { independentMechanismFamilies: ['DASHA'] }, rulesetVersions: { insightEngine: 'kundlinsights-career-insight-engine-v1' } }];
   readings.insertReadingRecord({ userId: 'user-a', birthProfileId: 'profile-a', record: record('reading-insight', '2026-08-21T00:00:00.000Z', 'Insight content.', null, insights) });
   const detail = await service.getSecureReadingDetail({ principal: principal('subject-a'), readingId: 'reading-insight' });
   assert.equal(detail.insights[0].family, 'ACTIVE_CAREER_DASHA');
   assert.equal(detail.insights[0].evidenceTrace.signals[0].sourceRuleIds[0], 'career-h10-connected-dasha-activation-v1');
+  assert.deepEqual(detail.insights[0].evidenceTrace.signals[0].charts, ['D10']);
   assert.equal(JSON.stringify(detail.insights).match(/evidence:private|signal:private|fact:private/), null);
 });
 test('P7B normalizes persisted calibrated interpretation without exposing internal evidence', async () => {
