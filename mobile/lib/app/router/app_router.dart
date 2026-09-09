@@ -348,40 +348,113 @@ class AppShell extends StatelessWidget {
     final t = AppLocalizations.of(context)!;
     return Scaffold(
       body: navigationShell,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: (index) => navigationShell.goBranch(
-          index,
-          initialLocation: index == navigationShell.currentIndex,
+      bottomNavigationBar: DecoratedBox(
+        decoration: const BoxDecoration(
+          color: _ShellNavigationColors.midnight,
+          border: Border(top: BorderSide(color: _ShellNavigationColors.border)),
         ),
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.home_outlined),
-            selectedIcon: const Icon(Icons.home),
-            label: t.home,
+        child: NavigationBarTheme(
+          data: NavigationBarThemeData(
+            height: 72,
+            backgroundColor: _ShellNavigationColors.midnight,
+            surfaceTintColor: Colors.transparent,
+            indicatorColor: Colors.transparent,
+            labelTextStyle: WidgetStateProperty.resolveWith((states) {
+              final selected = states.contains(WidgetState.selected);
+              return TextStyle(
+                color: selected
+                    ? _ShellNavigationColors.gold
+                    : _ShellNavigationColors.inactive,
+                fontSize: 11,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                height: 1.15,
+              );
+            }),
+            iconTheme: const WidgetStatePropertyAll(IconThemeData(size: 22)),
           ),
-          NavigationDestination(
-            icon: const Icon(Icons.diamond_outlined),
-            selectedIcon: const Icon(Icons.diamond),
-            label: t.kundli,
+          child: NavigationBar(
+            selectedIndex: navigationShell.currentIndex,
+            onDestinationSelected: (index) => navigationShell.goBranch(
+              index,
+              initialLocation: index == navigationShell.currentIndex,
+            ),
+            destinations: [
+              NavigationDestination(
+                icon: const _ShellNavigationIcon(Icons.home_outlined),
+                selectedIcon: const _ShellNavigationIcon(
+                  Icons.home,
+                  selected: true,
+                ),
+                label: t.home,
+              ),
+              NavigationDestination(
+                icon: const _ShellNavigationIcon(Icons.diamond_outlined),
+                selectedIcon: const _ShellNavigationIcon(
+                  Icons.diamond,
+                  selected: true,
+                ),
+                label: t.kundli,
+              ),
+              NavigationDestination(
+                icon: const _ShellNavigationIcon(Icons.auto_awesome_outlined),
+                selectedIcon: const _ShellNavigationIcon(
+                  Icons.auto_awesome,
+                  selected: true,
+                ),
+                label: t.insights,
+              ),
+              NavigationDestination(
+                icon: const _ShellNavigationIcon(Icons.menu_book_outlined),
+                selectedIcon: const _ShellNavigationIcon(
+                  Icons.menu_book,
+                  selected: true,
+                ),
+                label: t.readings,
+              ),
+              NavigationDestination(
+                icon: const _ShellNavigationIcon(Icons.person_outline),
+                selectedIcon: const _ShellNavigationIcon(
+                  Icons.person,
+                  selected: true,
+                ),
+                label: t.profile,
+              ),
+            ],
           ),
-          NavigationDestination(
-            icon: const Icon(Icons.auto_awesome_outlined),
-            selectedIcon: const Icon(Icons.auto_awesome),
-            label: t.insights,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.menu_book_outlined),
-            selectedIcon: const Icon(Icons.menu_book),
-            label: t.readings,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.person_outline),
-            selectedIcon: const Icon(Icons.person),
-            label: t.profile,
-          ),
-        ],
+        ),
       ),
     );
   }
+}
+
+class _ShellNavigationIcon extends StatelessWidget {
+  const _ShellNavigationIcon(this.icon, {this.selected = false});
+  final IconData icon;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 36,
+    height: 30,
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: selected ? _ShellNavigationColors.selectedSurface : null,
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Icon(
+      icon,
+      color: selected
+          ? _ShellNavigationColors.gold
+          : _ShellNavigationColors.inactive,
+      size: 22,
+    ),
+  );
+}
+
+abstract final class _ShellNavigationColors {
+  static const midnight = Color(0xFF0B071B);
+  static const inactive = Color(0xFF9E9AA9);
+  static const gold = Color(0xFFC5A059);
+  static const border = Color(0x335E4A87);
+  static const selectedSurface = Color(0x1FC5A059);
 }

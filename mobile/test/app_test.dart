@@ -214,6 +214,65 @@ void main() {
     }
   });
 
+  testWidgets('keeps the five shell tabs and premium selected treatment', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_app(controller, profiles));
+    await controller.restore();
+    await tester.pumpAndSettle();
+
+    final navigationBar = find.byType(NavigationBar);
+    expect(navigationBar, findsOneWidget);
+    final bar = tester.widget<NavigationBar>(navigationBar);
+    final navigationTheme = NavigationBarTheme.of(
+      tester.element(navigationBar),
+    );
+    expect(bar.selectedIndex, 0);
+    expect(navigationTheme.backgroundColor, const Color(0xFF0B071B));
+    expect(navigationTheme.indicatorColor, Colors.transparent);
+    for (final label in const [
+      'Home',
+      'Kundli',
+      'Insights',
+      'Readings',
+      'Profile',
+    ]) {
+      expect(
+        find.descendant(of: navigationBar, matching: find.text(label)),
+        findsOneWidget,
+      );
+    }
+    expect(
+      tester
+          .widget<Icon>(
+            find.descendant(
+              of: navigationBar,
+              matching: find.byIcon(Icons.home),
+            ),
+          )
+          .color,
+      const Color(0xFFC5A059),
+    );
+    expect(
+      tester
+          .widget<Icon>(
+            find.descendant(
+              of: navigationBar,
+              matching: find.byIcon(Icons.diamond_outlined),
+            ),
+          )
+          .color,
+      const Color(0xFF9E9AA9),
+    );
+
+    await tester.tap(
+      find.descendant(of: navigationBar, matching: find.text('Kundli')),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.widget<NavigationBar>(navigationBar).selectedIndex, 1);
+    expect(find.text('My Kundli'), findsOneWidget);
+  });
+
   testWidgets('Kundli renders an accessible North Indian D1 chart', (
     tester,
   ) async {
