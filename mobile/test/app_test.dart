@@ -206,7 +206,7 @@ void main() {
       ('Kundli', 'My Kundli'),
       ('Insights', 'Career'),
       ('Readings', 'My Readings'),
-      ('Profile', 'Settings'),
+      ('Profile', 'Profile & Settings'),
     ]) {
       await tester.tap(find.text(item.$1).last);
       await tester.pumpAndSettle();
