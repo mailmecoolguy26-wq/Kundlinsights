@@ -277,8 +277,15 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    expect(find.text('Career Timing Forecast'), findsWidgets);
+    expect(find.text('CAREER READING'), findsOneWidget);
+    expect(find.text('CAREER INSIGHTS'), findsOneWidget);
     expect(find.text('Career structure'), findsWidgets);
     expect(find.text('Stored text.'), findsOneWidget);
+    final detailScaffold = tester.widget<Scaffold>(find.byType(Scaffold).last);
+    expect(detailScaffold.backgroundColor, const Color(0xFF0B071B));
+    expect(find.text('NEXT STRONG CAREER WINDOW'), findsNothing);
+    expect(find.text('WHAT TO WATCH FOR'), findsNothing);
     expect(repository.listCalls, greaterThan(0));
     expect(repository.detailCalls, greaterThan(0));
     controller.dispose();
@@ -344,6 +351,8 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('No historical calibration.'), findsOneWidget);
+    expect(find.text('CAREER HISTORY CALIBRATION'), findsOneWidget);
+    expect(find.text('Update Career History'), findsOneWidget);
     expect(find.text('Historical patterns'), findsNothing);
     expect(find.text('Upcoming periods'), findsNothing);
 
