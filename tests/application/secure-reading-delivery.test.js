@@ -8,11 +8,11 @@ const { ReadingPayloadCodec } = require('../../src/security/crypto');
 
 const principal = (subject) => ({ provider: 'supabase', subject, isAnonymous: false });
 
-function record(readingId, createdAt, sentence, calibrationInterpretation = null) {
+function record(readingId, createdAt, sentence, calibrationInterpretation = null, insights = null) {
   return {
     schemaVersion: 'kundlinsights-reading-record-v1', readingId, domain: 'CAREER', createdAt,
     engineProfileId: 'kundlinsights-vedic-engine-profile-v2',
-    input: { readingInstant: createdAt, locale: 'en-IN' }, provenance: calibrationInterpretation ? { calibration: { contextVersion: 'career-reading-context-v1', sourceEventIds: ['private-event'], rulesets: { p3: 'career-pattern-comparison-v1' } } } : {}, reading: calibrationInterpretation ? { internalEvidence: 'not-public', calibrationInterpretation } : { internalEvidence: 'not-public' },
+    input: { readingInstant: createdAt, locale: 'en-IN' }, provenance: calibrationInterpretation ? { calibration: { contextVersion: 'career-reading-context-v1', sourceEventIds: ['private-event'], rulesets: { p3: 'career-pattern-comparison-v1' } } } : {}, reading: { internalEvidence: 'not-public', ...(calibrationInterpretation ? { calibrationInterpretation } : {}), ...(insights ? { insights } : {}) },
     renderedReading: { domain: 'CAREER', locale: 'en-IN', sections: [{ section: 'CAREER_STRUCTURE', headline: 'Career structure', items: [{ sentence }] }] },
     integrity: { calculation: { algorithm: 'sha256', digest: 'a'.repeat(64) }, output: { algorithm: 'sha256', digest: 'b'.repeat(64) }, rendered: { algorithm: 'sha256', digest: 'c'.repeat(64) } },
   };
@@ -80,6 +80,15 @@ test('API-P5C2 service returns only owned persisted rendered content without gen
   assert.equal(JSON.stringify(detail).includes('internalEvidence'), false);
   await assert.rejects(service.getSecureReadingDetail({ principal: principal('subject-a'), readingId: 'reading-b-own' }), (error) => error && error.code === 'NOT_FOUND_OR_FORBIDDEN');
   assert.deepEqual(calls, { generator: 0, entitlement: 0, replay: 0 });
+});
+test('Career Insight delivery exposes a safe structured trace without internal evidence identifiers', async () => {
+  const { service, readings } = setup();
+  const insights = [{ insightId: 'insight:private', family: 'ACTIVE_CAREER_DASHA', titleKey: 'career.dasha.active.title', summaryKey: 'career.dasha.active.summary', displayPriority: 0, status: 'SUPPORTED', timing: { dashaIntervals: [] }, signals: ['signal:private'], evidenceTrace: { signals: [{ signalId: 'signal:private', evidence: [{ evidenceId: 'evidence:private', sourceRuleId: 'career-h10-connected-dasha-activation-v1', sourceRulesetId: 'parashari-career-interpretation-foundation-v1', rootSourceIds: ['fact:private'] }] }] }, caveats: [], calibrationContext: null, technicalDetails: { independentMechanismFamilies: ['DASHA'] }, rulesetVersions: { insightEngine: 'kundlinsights-career-insight-engine-v1' } }];
+  readings.insertReadingRecord({ userId: 'user-a', birthProfileId: 'profile-a', record: record('reading-insight', '2026-08-21T00:00:00.000Z', 'Insight content.', null, insights) });
+  const detail = await service.getSecureReadingDetail({ principal: principal('subject-a'), readingId: 'reading-insight' });
+  assert.equal(detail.insights[0].family, 'ACTIVE_CAREER_DASHA');
+  assert.equal(detail.insights[0].evidenceTrace.signals[0].sourceRuleIds[0], 'career-h10-connected-dasha-activation-v1');
+  assert.equal(JSON.stringify(detail.insights).match(/evidence:private|signal:private|fact:private/), null);
 });
 test('P7B normalizes persisted calibrated interpretation without exposing internal evidence', async () => {
   const readings = new InMemoryReadingRepository(), calibrated = { schemaVersion: 'career-reading-interpretation-schema-v1', calibrationSummary: { narrative: 'Calibration is limited.' }, recurringHistoricalEvidence: [{ evidenceId: 'hist:private', patternKey: 'private-pattern', text: 'A recurring pattern is present.' }], upcomingRecurrenceWindows: [], decisionConsiderations: ['Review options.'], disclosure: { hasProvisionalEvidence: true } }; readings.insertReadingRecord({ userId: 'user-a', birthProfileId: 'profile-a', record: record('reading-a-new', '2026-08-18T00:00:00.000Z', 'Newer stored content.', calibrated) }); const calls = { generator: 0, entitlement: 0, replay: 0 }; const service = new SecureReadingService({ authUserResolver: async () => ({ id: 'user-a', status: 'active' }), transactionExecutor: { execute: async ({ operation }) => operation({}) }, repositories: () => ({ birthProfiles: {}, readings, entitlements: {} }), readingGenerator: { generate: async () => { calls.generator++; } }, readingRecordFactory: () => {}, replayReading: async () => {}, requiresEntitlement: () => false, idGenerator: () => 'unused', clock: () => '2026-08-20T00:00:00.000Z' }); const detail = await service.getSecureReadingDetail({ principal: principal('subject-a'), readingId: 'reading-a-new' }); assert.equal(detail.calibratedContent.sections[0].items[0].sentence, 'Calibration is limited.'); assert.equal(JSON.stringify(detail.calibratedContent).match(/evidenceId|patternKey|provenance|private/), null); assert.equal(detail.content.sections[0].items[0].sentence, 'Newer stored content.');

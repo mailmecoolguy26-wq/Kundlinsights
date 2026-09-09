@@ -37,7 +37,25 @@ function calibratedContent(record) {
   if (interpretation.disclosure && interpretation.disclosure.hasProvisionalEvidence === true) add('calculation-note', 'Calculation note', [{ headline: 'Calculation basis', sentence: 'Some calculations use a provisional calculation basis.' }]);
   return { domain: record.domain, locale: record.input.locale, sections };
 }
-function publicReadingDetail(item) { const calibrated = calibratedContent(item.record); return immutableCopy({ ...publicReadingSummary(item), content: item.record.renderedReading, ...(calibrated ? { calibratedContent: calibrated } : {}) }); }
+function publicInsights(record) {
+  const insights = record && record.reading && record.reading.insights;
+  if (!Array.isArray(insights)) return undefined;
+  return insights.map((insight) => ({
+    insightId: insight.insightId,
+    family: insight.family,
+    titleKey: insight.titleKey,
+    summaryKey: insight.summaryKey,
+    displayPriority: insight.displayPriority,
+    status: insight.status,
+    timing: insight.timing || {},
+    caveats: (insight.caveats || []).map((caveat) => ({ status: caveat.status })),
+    calibrationContext: insight.calibrationContext || null,
+    technicalDetails: { independentMechanismFamilies: insight.technicalDetails && insight.technicalDetails.independentMechanismFamilies || [] },
+    rulesetVersions: insight.rulesetVersions || {},
+    evidenceTrace: { signals: (insight.evidenceTrace && insight.evidenceTrace.signals || []).map((signal) => ({ sourceRulesetIds: [...new Set((signal.evidence || []).map((evidence) => evidence.sourceRulesetId).filter(Boolean))], sourceRuleIds: [...new Set((signal.evidence || []).map((evidence) => evidence.sourceRuleId).filter(Boolean))] })) },
+  }));
+}
+function publicReadingDetail(item) { const calibrated = calibratedContent(item.record), insights = publicInsights(item.record); return immutableCopy({ ...publicReadingSummary(item), content: item.record.renderedReading, ...(calibrated ? { calibratedContent: calibrated } : {}), ...(insights === undefined ? {} : { insights }) }); }
 function scopedKeyProvider(key) { return Object.freeze({ current: async () => ({ keyVersion: key.keyVersion, dek: Buffer.from(key.dek) }), forVersion: async () => ({ keyVersion: key.keyVersion, dek: Buffer.from(key.dek) }) }); }
 function rawRecord(raw, record) { return { readingId: raw.readingId, userId: raw.userId, birthProfileId: raw.birthProfileId, status: raw.status, archivedAt: raw.archivedAt, idempotencyKey: raw.idempotencyKey, record }; }
 

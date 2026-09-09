@@ -126,10 +126,12 @@ class ReadingDetail extends ReadingSummary {
     required super.locale,
     required this.content,
     this.calibratedContent,
+    this.insights = const [],
   });
 
   final ReadingContent content;
   final ReadingContent? calibratedContent;
+  final List<CareerInsight> insights;
 
   factory ReadingDetail.fromJson(Map<String, dynamic> json) {
     final content = json['content'];
@@ -137,10 +139,18 @@ class ReadingDetail extends ReadingSummary {
       throw const FormatException('Stored reading content is unavailable.');
     }
     final calibratedContent = json['calibratedContent'];
+    final rawInsights = json['insights'];
     if (calibratedContent != null &&
         calibratedContent is! Map<String, dynamic>) {
       throw const FormatException('Malformed calibrated reading content.');
     }
+    final insights = rawInsights is List
+        ? rawInsights
+              .whereType<Map<String, dynamic>>()
+              .map(CareerInsight.tryFromJson)
+              .whereType<CareerInsight>()
+              .toList(growable: false)
+        : const <CareerInsight>[];
     final summary = ReadingSummary.fromJson(json);
     return ReadingDetail(
       readingId: summary.readingId,
@@ -154,8 +164,151 @@ class ReadingDetail extends ReadingSummary {
       calibratedContent: calibratedContent == null
           ? null
           : ReadingContent.fromJson(calibratedContent),
+      insights: List<CareerInsight>.unmodifiable(insights),
     );
   }
+}
+
+class CareerInsight {
+  const CareerInsight({
+    required this.insightId,
+    required this.family,
+    required this.titleKey,
+    required this.summaryKey,
+    required this.displayPriority,
+    required this.status,
+    required this.timing,
+    required this.caveats,
+    required this.evidenceTrace,
+    this.calibrationContext,
+    this.technicalDetails = const {},
+    this.rulesetVersions = const {},
+  });
+  final String insightId;
+  final String family;
+  final String titleKey;
+  final String summaryKey;
+  final int displayPriority;
+  final String status;
+  final CareerInsightTiming timing;
+  final List<CareerInsightCaveat> caveats;
+  final CareerInsightEvidenceTrace evidenceTrace;
+  final CareerInsightCalibrationContext? calibrationContext;
+  final Map<String, dynamic> technicalDetails;
+  final Map<String, dynamic> rulesetVersions;
+
+  static CareerInsight? tryFromJson(Map<String, dynamic> json) {
+    final id = json['insightId'];
+    final family = json['family'];
+    final title = json['titleKey'];
+    final summary = json['summaryKey'];
+    final priority = json['displayPriority'];
+    final status = json['status'];
+    if (id is! String ||
+        family is! String ||
+        title is! String ||
+        summary is! String ||
+        priority is! int ||
+        status is! String) {
+      return null;
+    }
+    return CareerInsight(
+      insightId: id,
+      family: family,
+      titleKey: title,
+      summaryKey: summary,
+      displayPriority: priority,
+      status: status,
+      timing: CareerInsightTiming.fromJson(json['timing']),
+      caveats: (json['caveats'] as List? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(CareerInsightCaveat.fromJson)
+          .toList(growable: false),
+      evidenceTrace: CareerInsightEvidenceTrace.fromJson(json['evidenceTrace']),
+      calibrationContext: CareerInsightCalibrationContext.tryFromJson(
+        json['calibrationContext'],
+      ),
+      technicalDetails: json['technicalDetails'] is Map<String, dynamic>
+          ? Map<String, dynamic>.unmodifiable(
+              json['technicalDetails'] as Map<String, dynamic>,
+            )
+          : const {},
+      rulesetVersions: json['rulesetVersions'] is Map<String, dynamic>
+          ? Map<String, dynamic>.unmodifiable(
+              json['rulesetVersions'] as Map<String, dynamic>,
+            )
+          : const {},
+    );
+  }
+}
+
+class CareerInsightTiming {
+  const CareerInsightTiming({
+    this.instant,
+    this.from,
+    this.to,
+    this.dashaIntervals = const [],
+  });
+  final String? instant;
+  final String? from;
+  final String? to;
+  final List<Map<String, dynamic>> dashaIntervals;
+  factory CareerInsightTiming.fromJson(Object? raw) {
+    final json = raw is Map<String, dynamic> ? raw : const <String, dynamic>{};
+    final intervals = (json['dashaIntervals'] as List? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(Map<String, dynamic>.unmodifiable)
+        .toList(growable: false);
+    return CareerInsightTiming(
+      instant: json['instant'] as String?,
+      from: json['from'] as String?,
+      to: json['to'] as String?,
+      dashaIntervals: List.unmodifiable(intervals),
+    );
+  }
+}
+
+class CareerInsightCaveat {
+  const CareerInsightCaveat(this.status);
+  final String? status;
+  factory CareerInsightCaveat.fromJson(Map<String, dynamic> json) =>
+      CareerInsightCaveat(json['status'] as String?);
+}
+
+class CareerInsightEvidenceTrace {
+  const CareerInsightEvidenceTrace({
+    this.sourceRuleIds = const [],
+    this.sourceRulesetIds = const [],
+  });
+  final List<String> sourceRuleIds;
+  final List<String> sourceRulesetIds;
+  factory CareerInsightEvidenceTrace.fromJson(Object? raw) {
+    final trace = raw is Map<String, dynamic> ? raw : const <String, dynamic>{};
+    final signals = trace['signals'] as List? ?? const [];
+    final rules = <String>{}, rulesets = <String>{};
+    for (final rawSignal in signals.whereType<Map<String, dynamic>>()) {
+      rules.addAll(
+        (rawSignal['sourceRuleIds'] as List? ?? const []).whereType<String>(),
+      );
+      rulesets.addAll(
+        (rawSignal['sourceRulesetIds'] as List? ?? const [])
+            .whereType<String>(),
+      );
+    }
+    return CareerInsightEvidenceTrace(
+      sourceRuleIds: List.unmodifiable(rules),
+      sourceRulesetIds: List.unmodifiable(rulesets),
+    );
+  }
+}
+
+class CareerInsightCalibrationContext {
+  const CareerInsightCalibrationContext(this.calibrationLevel);
+  final String? calibrationLevel;
+  static CareerInsightCalibrationContext? tryFromJson(Object? raw) =>
+      raw is Map<String, dynamic>
+      ? CareerInsightCalibrationContext(raw['calibrationLevel'] as String?)
+      : null;
 }
 
 String _string(Map<String, dynamic> json, String key) {

@@ -769,6 +769,14 @@ class _CareerReadingDetail extends StatelessWidget {
     final calibrated = detail.calibratedContent;
     final hasCalibrationContext =
         calibrated != null && calibrated.sections.isNotEmpty;
+    final insights =
+        detail.insights
+            .where((insight) => insight.status != 'NOT_APPLICABLE')
+            .toList()
+          ..sort(
+            (left, right) =>
+                left.displayPriority.compareTo(right.displayPriority),
+          );
     final createdAt = DateFormat.yMMMd().add_jm().format(
       DateTime.parse(detail.createdAt).toLocal(),
     );
@@ -789,7 +797,9 @@ class _CareerReadingDetail extends StatelessWidget {
                     hasCalibrationContext: hasCalibrationContext,
                   ),
                   const SizedBox(height: 28),
-                  if (detail.content.sections.isNotEmpty) ...[
+                  if (insights.isNotEmpty) ...[
+                    _CareerInsightExperience(insights: insights),
+                  ] else if (detail.content.sections.isNotEmpty) ...[
                     const _CareerReadingSectionLabel('CAREER INSIGHTS'),
                     const SizedBox(height: 12),
                     _CareerReadingContentSections(content: detail.content),
@@ -826,6 +836,208 @@ class _CareerReadingDetail extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CareerInsightExperience extends StatelessWidget {
+  const _CareerInsightExperience({required this.insights});
+  final List<CareerInsight> insights;
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = insights.first;
+    final historical = insights
+        .where((item) => item.family == 'HISTORICAL_CALIBRATION_RECURRENCE')
+        .toList();
+    final future = insights
+        .where((item) => item.family == 'FUTURE_RECURRENCE_WINDOW')
+        .toList();
+    final supporting = insights
+        .where(
+          (item) =>
+              item != primary &&
+              !historical.contains(item) &&
+              !future.contains(item),
+        )
+        .toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _CareerReadingSectionLabel('CAREER INSIGHTS'),
+        const SizedBox(height: 12),
+        _CareerInsightCard(insight: primary, primary: true),
+        if (supporting.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          const _CareerReadingSectionLabel('SUPPORTING INSIGHTS'),
+          const SizedBox(height: 12),
+          for (final insight in supporting)
+            _CareerInsightCard(insight: insight),
+        ],
+        if (historical.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          const _CareerReadingSectionLabel('MATCHED WITH YOUR CAREER HISTORY'),
+          const SizedBox(height: 12),
+          for (final insight in historical)
+            _CareerInsightCard(insight: insight),
+          OutlinedButton.icon(
+            onPressed: () => context.push('/career-calibration'),
+            icon: const Icon(Icons.tune_rounded, size: 18),
+            label: const Text('Update Career History'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _CareerReadingColors.alabaster,
+              side: const BorderSide(color: _CareerReadingColors.goldBorder),
+            ),
+          ),
+        ],
+        if (future.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          const _CareerReadingSectionLabel('FUTURE CAREER TIMING'),
+          const SizedBox(height: 12),
+          for (final insight in future) _CareerInsightCard(insight: insight),
+        ],
+      ],
+    );
+  }
+}
+
+class _CareerInsightCard extends StatelessWidget {
+  const _CareerInsightCard({required this.insight, this.primary = false});
+  final CareerInsight insight;
+  final bool primary;
+
+  @override
+  Widget build(BuildContext context) {
+    final caveat =
+        insight.status == 'MIXED' ||
+        insight.status == 'CONTRADICTED' ||
+        insight.status == 'INSUFFICIENT_EVIDENCE';
+    final timing = _insightTiming(insight.timing);
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: EdgeInsets.all(primary ? 20 : 17),
+      decoration: BoxDecoration(
+        color: _CareerReadingColors.surface,
+        borderRadius: BorderRadius.circular(primary ? 20 : 16),
+        border: Border.all(
+          color: primary
+              ? _CareerReadingColors.goldBorder
+              : _CareerReadingColors.cardBorder,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _insightFamilyLabel(insight.family).toUpperCase(),
+            style: _CareerReadingText.eyebrow,
+          ),
+          const SizedBox(height: 9),
+          Text(
+            _insightTitle(insight.family),
+            style: primary
+                ? _CareerReadingText.sectionTitle
+                : _CareerReadingText.itemTitle,
+          ),
+          const SizedBox(height: 7),
+          Text(_insightSummary(insight.family), style: _CareerReadingText.body),
+          if (timing != null) ...[
+            const SizedBox(height: 12),
+            Text(timing, style: _CareerReadingText.meta),
+          ],
+          if (caveat) ...[
+            const SizedBox(height: 14),
+            const _CareerReadingSectionLabel('WHAT LIMITS THIS SIGNAL'),
+            const SizedBox(height: 7),
+            Text(
+              _insightCaveat(insight.status),
+              style: _CareerReadingText.body,
+            ),
+          ],
+          const SizedBox(height: 10),
+          Material(
+            color: Colors.transparent,
+            child: Theme(
+              data: Theme.of(context)
+                  .copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                title: Text(
+                  'ASTROLOGY BEHIND THIS',
+                  style: _CareerReadingText.source,
+                ),
+                iconColor: _CareerReadingColors.gold,
+                collapsedIconColor: _CareerReadingColors.slate,
+                children: [
+                  if (insight.evidenceTrace.sourceRuleIds.isNotEmpty)
+                    Text(
+                      'Source rule: ${insight.evidenceTrace.sourceRuleIds.join(', ')}',
+                      style: _CareerReadingText.meta,
+                    ),
+                  if (insight.evidenceTrace.sourceRulesetIds.isNotEmpty)
+                    Text(
+                      'Ruleset: ${insight.evidenceTrace.sourceRulesetIds.join(', ')}',
+                      style: _CareerReadingText.meta,
+                    ),
+                  if (insight.technicalDetails['independentMechanismFamilies']
+                          is List &&
+                      (insight.technicalDetails['independentMechanismFamilies']
+                              as List)
+                          .isNotEmpty)
+                    Text(
+                      'Evidence families: ${(insight.technicalDetails['independentMechanismFamilies'] as List).join(', ')}',
+                      style: _CareerReadingText.meta,
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _insightFamilyLabel(String family) =>
+    const {
+      'CAREER_FOUNDATION': 'Career Foundation',
+      'ACTIVE_CAREER_DASHA': 'Current Career Dasha',
+      'CURRENT_CAREER_TRANSIT': 'Current Career Transits',
+      'CONCURRENT_CAREER_TIMING': 'Career Timing Alignment',
+      'HISTORICAL_CALIBRATION_RECURRENCE': 'Matched With Your Career History',
+      'FUTURE_RECURRENCE_WINDOW': 'Future Career Timing',
+      'AUDITED_CLASSICAL_PREDICATE': 'Classical Career Indicator',
+    }[family] ??
+    'Career Insight';
+String _insightTitle(String family) => _insightFamilyLabel(family);
+String _insightSummary(String family) =>
+    const {
+      'CAREER_FOUNDATION': 'Existing Career-model evidence describes the natal professional-activity context.',
+      'ACTIVE_CAREER_DASHA': 'Your current Vimshottari period activates career-related evidence in the existing Career model.',
+      'CURRENT_CAREER_TRANSIT': 'Current transit evidence is structurally connected with the existing Career context.',
+      'CONCURRENT_CAREER_TIMING': 'Career-related Dasha and transit evidence are active at the same time.',
+      'HISTORICAL_CALIBRATION_RECURRENCE': 'Similar deterministic timing patterns were found across multiple saved career events.',
+      'FUTURE_RECURRENCE_WINDOW': 'A future window matches deterministic patterns selected from saved career events.',
+      'AUDITED_CLASSICAL_PREDICATE': 'The supplied evidence satisfies the existing audited classical predicate; this does not establish an outcome.',
+    }[family] ??
+    'This deterministic Career Insight is available from your stored reading.';
+String _insightCaveat(String status) =>
+    const {
+      'MIXED': 'The supplied deterministic evidence contains both supporting and limiting context.',
+      'CONTRADICTED': 'The relevant deterministic evidence contains an explicit contradiction.',
+      'INSUFFICIENT_EVIDENCE': 'Available deterministic evidence is insufficient to evaluate this signal fully.',
+    }[status] ??
+    'Additional deterministic context is available.';
+String? _insightTiming(CareerInsightTiming timing) {
+  if (timing.instant != null) {
+    return 'Timing: ${timing.instant}';
+  }
+  if (timing.from != null && timing.to != null) {
+    return 'Timing: ${timing.from} to ${timing.to}';
+  }
+  if (timing.dashaIntervals.isNotEmpty) {
+    return 'Current timing context is included in this reading.';
+  }
+  return null;
 }
 
 class _CareerReadingHero extends StatelessWidget {

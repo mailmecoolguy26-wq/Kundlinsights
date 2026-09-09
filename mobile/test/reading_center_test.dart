@@ -66,6 +66,24 @@ void main() {
   );
 
   test(
+    'parses safe structured insights defensively and retains legacy detail',
+    () {
+      final detail = ReadingDetail.fromJson({
+        ..._detailJson(),
+        'insights': [
+          _insight('ACTIVE_CAREER_DASHA', 0),
+          _insight('FUTURE_UNKNOWN', 1, status: 'FUTURE_STATUS'),
+          {'family': 'malformed'},
+        ],
+      });
+      expect(detail.insights, hasLength(2));
+      expect(detail.insights.first.family, 'ACTIVE_CAREER_DASHA');
+      expect(detail.insights.last.status, 'FUTURE_STATUS');
+      expect(ReadingDetail.fromJson(_detailJson()).insights, isEmpty);
+    },
+  );
+
+  test(
     'preserves backend list order and supports the documented 50-item cap',
     () async {
       final authSource = _AuthSource();
@@ -294,6 +312,48 @@ void main() {
   });
 
   testWidgets(
+    'renders structured insights first with caveats and expandable trace',
+    (tester) async {
+      final authSource = _AuthSource();
+      final auth = AuthController(authSource);
+      await auth.restore();
+      final profiles = ProfileController(_Profiles(authSource), auth);
+      await tester.pump();
+      final repository = _ReadingRepository()
+        ..nextDetail = ReadingDetail.fromJson({
+          ..._detailJson(),
+          'insights': [
+            _insight('CONCURRENT_CAREER_TIMING', 0),
+            _insight('HISTORICAL_CALIBRATION_RECURRENCE', 1, status: 'MIXED'),
+            _insight(
+              'FUTURE_RECURRENCE_WINDOW',
+              2,
+              timing: {'from': '2027-02-01', 'to': '2027-03-01'},
+            ),
+          ],
+        });
+      final controller = ReadingController(repository, auth, profiles);
+      await tester.pumpWidget(
+        _localized(
+          ReadingDetailScreen(controller: controller, readingId: 'reading-a'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Career Timing Alignment'), findsWidgets);
+      expect(find.text('MATCHED WITH YOUR CAREER HISTORY'), findsWidgets);
+      expect(find.text('FUTURE CAREER TIMING'), findsWidgets);
+      expect(find.text('Career structure'), findsNothing);
+      expect(find.text('WHAT LIMITS THIS SIGNAL'), findsOneWidget);
+      await tester.tap(find.text('ASTROLOGY BEHIND THIS').first);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Source rule:'), findsWidgets);
+      controller.dispose();
+      profiles.dispose();
+      auth.dispose();
+    },
+  );
+
+  testWidgets(
     'renders the safe detail error without retaining stored content',
     (tester) async {
       final authSource = _AuthSource();
@@ -489,6 +549,37 @@ Map<String, dynamic> _section(
 };
 Map<String, dynamic> _calibratedContent(List<Map<String, dynamic>> sections) =>
     {'domain': 'CAREER', 'locale': 'en-IN', 'sections': sections};
+Map<String, dynamic> _insight(
+  String family,
+  int priority, {
+  String status = 'SUPPORTED',
+  Map<String, dynamic>? timing,
+}) => {
+  'insightId': 'insight-$family-$priority',
+  'family': family,
+  'titleKey': 'title',
+  'summaryKey': 'summary',
+  'displayPriority': priority,
+  'status': status,
+  'timing': timing ?? <String, dynamic>{},
+  'caveats': status == 'MIXED'
+      ? [
+          {'status': 'MIXED'},
+        ]
+      : [],
+  'evidenceTrace': {
+    'signals': [
+      {
+        'sourceRuleIds': ['rule-$family'],
+        'sourceRulesetIds': ['ruleset-$family'],
+      },
+    ],
+  },
+  'technicalDetails': {
+    'independentMechanismFamilies': ['DASHA'],
+  },
+  'rulesetVersions': {'insightEngine': 'v1'},
+};
 
 class _ReadingRepository implements ReadingRepository {
   _ReadingRepository({Set<int>? deferredListCalls})
