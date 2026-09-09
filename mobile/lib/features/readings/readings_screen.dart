@@ -944,6 +944,33 @@ class _CareerInsightCard extends StatelessWidget {
             const SizedBox(height: 12),
             Text(timing, style: _CareerReadingText.meta),
           ],
+          if (insight.calibrationContext != null &&
+              insight.calibrationContext!.matchedEventCount != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              '${insight.calibrationContext!.matchedEventCount} past Career event${insight.calibrationContext!.matchedEventCount == 1 ? '' : 's'} matched this timing pattern.',
+              style: _CareerReadingText.body,
+            ),
+            if (insight.calibrationContext!.mechanismFamilies.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Recurring timing: ${insight.calibrationContext!.mechanismFamilies.map(_calibrationMechanismLabel).join(', ')}',
+                style: _CareerReadingText.meta,
+              ),
+            ],
+            for (final event in insight.calibrationContext!.matchedEvents)
+              Padding(
+                padding: const EdgeInsets.only(top: 5),
+                child: Text(
+                  '${event.eventType} · ${_calibrationEventDate(event.eventDate)}',
+                  style: _CareerReadingText.meta,
+                ),
+              ),
+            if (insight.calibrationContext!.composite) ...[
+              const SizedBox(height: 6),
+              Text('Two historical pattern matches overlap in this period.', style: _CareerReadingText.meta),
+            ],
+          ],
           if (caveat) ...[
             const SizedBox(height: 14),
             const _CareerReadingSectionLabel('WHAT LIMITS THIS SIGNAL'),
@@ -1038,6 +1065,25 @@ String? _insightTiming(CareerInsightTiming timing) {
     return 'Current timing context is included in this reading.';
   }
   return null;
+}
+
+String _calibrationMechanismLabel(String value) => const {
+  'DASHA_RECURRENCE': 'Dasha timing',
+  'TRANSIT_RECURRENCE': 'Transit timing',
+  'DASHA_TRANSIT_COACTIVATION_RECURRENCE': 'Dasha and transit timing',
+  'CAREER_SUBJECT_RECURRENCE': 'Career subject timing',
+  'STRUCTURAL_CONTEXT': 'Structural context',
+}[value] ?? 'Timing pattern';
+
+String _calibrationEventDate(Map<String, dynamic> date) {
+  final year = date['year'];
+  final month = date['month'];
+  final day = date['day'];
+  if (year is! int) return 'Saved Career event';
+  if (month is! int) return '$year';
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  if (month < 1 || month > 12) return '$year';
+  return day is int ? '${months[month - 1]} $day, $year' : '${months[month - 1]} $year';
 }
 
 class _CareerReadingHero extends StatelessWidget {

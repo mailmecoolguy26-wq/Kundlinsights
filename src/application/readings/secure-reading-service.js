@@ -72,6 +72,26 @@ function publicInsightTiming(timing) {
   const window = timing && timing.timingWindow; const start = window && iso(window.start), end = window && iso(window.end);
   return { dashaPeriods: periods, transitContexts: transits, ...(start && end ? { timingWindow: { kind: 'CAREER_TIMING_OVERLAP', start, end, isCurrent: window.isCurrent === true } } : {}), ...(timing && ['CURRENT', 'UPCOMING', 'PAST'].includes(timing.timingState) ? { timingState: timing.timingState } : {}), ...(timing && ['INDEPENDENT', 'PARTIALLY_OVERLAPPING', 'FULLY_DEPENDENT', 'IDENTICAL', 'CONTRADICTORY'].includes(timing.lineageClassification) ? { lineageClassification: timing.lineageClassification } : {}), mechanismFamilies: Array.isArray(timing && timing.mechanismFamilies) ? timing.mechanismFamilies.filter((item) => typeof item === 'string').sort() : [] };
 }
+function publicCalibrationEvent(event) {
+  if (!event || typeof event.eventType !== 'string' || !event.eventDate || !['DAY', 'MONTH', 'YEAR'].includes(event.eventDate.precision) || !Number.isInteger(event.eventDate.year)) return null;
+  const date = { precision: event.eventDate.precision, year: event.eventDate.year };
+  if (date.precision !== 'YEAR' && Number.isInteger(event.eventDate.month)) date.month = event.eventDate.month;
+  if (date.precision === 'DAY' && Number.isInteger(event.eventDate.day)) date.day = event.eventDate.day;
+  return { eventType: event.eventType, eventDate: date };
+}
+function publicCalibrationContext(context) {
+  if (!context || typeof context !== 'object' || !['NONE', 'LIMITED', 'CALIBRATED'].includes(context.calibrationLevel)) return null;
+  const families = Array.isArray(context.mechanismFamilies) ? context.mechanismFamilies.filter((item) => ['DASHA_RECURRENCE', 'TRANSIT_RECURRENCE', 'DASHA_TRANSIT_COACTIVATION_RECURRENCE', 'CAREER_SUBJECT_RECURRENCE', 'STRUCTURAL_CONTEXT'].includes(item)).sort() : [];
+  return {
+    calibrationLevel: context.calibrationLevel,
+    ...(Number.isInteger(context.eventCount) ? { eventCount: context.eventCount } : {}),
+    ...(Number.isInteger(context.matchedEventCount) ? { matchedEventCount: context.matchedEventCount } : {}),
+    matchedEvents: (context.matchedEvents || []).map(publicCalibrationEvent).filter(Boolean),
+    mechanismFamilies: families,
+    ...(Number.isInteger(context.patternCount) ? { patternCount: context.patternCount } : {}),
+    composite: context.composite === true,
+  };
+}
 function publicInsights(record) {
   const insights = record && record.reading && record.reading.insights;
   if (!Array.isArray(insights)) return undefined;
@@ -84,7 +104,7 @@ function publicInsights(record) {
     status: insight.status,
     timing: publicInsightTiming(insight.timing),
     caveats: (insight.caveats || []).map((caveat) => ({ status: caveat.status })),
-    calibrationContext: insight.calibrationContext || null,
+    calibrationContext: publicCalibrationContext(insight.calibrationContext),
     technicalDetails: { independentMechanismFamilies: insight.technicalDetails && insight.technicalDetails.independentMechanismFamilies || [] },
     rulesetVersions: insight.rulesetVersions || {},
     evidenceTrace: { signals: (insight.evidenceTrace && insight.evidenceTrace.signals || []).map((signal) => ({ sourceRulesetIds: [...new Set((signal.evidence || []).map((evidence) => evidence.sourceRulesetId).filter(Boolean))], sourceRuleIds: [...new Set((signal.evidence || []).map((evidence) => evidence.sourceRuleId).filter(Boolean))], charts: [...new Set((signal.evidence || []).map((evidence) => evidence.chart).filter((chart) => chart === 'D10'))], ashtakavarga: (signal.evidence || []).flatMap((evidence) => evidence.technicalContext || []).map(publicAshtakavargaContext).filter(Boolean), planetaryState: (signal.evidence || []).flatMap((evidence) => evidence.technicalContext || []).map(publicPlanetaryStateContext).filter(Boolean), planetaryRelationships: (signal.evidence || []).flatMap((evidence) => evidence.technicalContext || []).map(publicPlanetaryRelationshipContext).filter(Boolean) })) },

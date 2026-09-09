@@ -35,3 +35,16 @@ test('keeps a calibrated no-pattern result factual and preserves compact composi
 test('is deterministic, fresh, non-mutating, and excludes raw or predictive fields', async () => {
   const x = fixture({ events: [event('a'), event('b')] }); const before = JSON.stringify({ p3: x.p3, p4: x.p4 }); const a = await x.builder.build({ principal: {}, birthProfileId: 'profile-a' }), b = await x.builder.build({ principal: {}, birthProfileId: 'profile-a' }); assert.deepEqual(a, b); assert.notEqual(a, b); assert.notEqual(a.eventReferences, b.eventReferences); assert.equal(JSON.stringify({ p3: x.p3, p4: x.p4 }), before); assert.equal(/providerRequest|rawScanner|sourceFacts|score|confidence|probability|prediction|favorable|unfavorable/.test(JSON.stringify(a)), false); assert.deepEqual(x.calls, { events: 2, p3: 2, p4: 2 });
 });
+test('keeps static Ashtakavarga and Career-house patterns out of timing recurrence while retaining temporal event references', async () => {
+  const patterns = [
+    pattern('dasha', 'DASHA'),
+    pattern('static-score', 'ASHTAKAVARGA'),
+    pattern('static-house', 'CAREER_HOUSE'),
+  ];
+  const x = fixture({ events: [event('event-a', 'DAY'), event('event-b', 'MONTH')], patterns });
+  const out = await x.builder.build({ principal: {}, birthProfileId: 'profile-a' });
+  assert.deepEqual(out.historicalEvidence.map((item) => item.patternKey), ['dasha']);
+  assert.deepEqual(out.historicalEvidence[0].mechanismFamilies, ['DASHA_RECURRENCE']);
+  assert.deepEqual(out.historicalEvidence[0].matchedEvents.map((item) => item.eventDate.precision), ['DAY']);
+  assert.equal(JSON.stringify(out).includes('private'), false);
+});

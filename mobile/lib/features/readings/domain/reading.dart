@@ -303,12 +303,55 @@ class CareerInsightEvidenceTrace {
 }
 
 class CareerInsightCalibrationContext {
-  const CareerInsightCalibrationContext(this.calibrationLevel);
+  const CareerInsightCalibrationContext({
+    this.calibrationLevel,
+    this.eventCount,
+    this.matchedEventCount,
+    this.matchedEvents = const [],
+    this.mechanismFamilies = const [],
+    this.patternCount,
+    this.composite = false,
+  });
   final String? calibrationLevel;
-  static CareerInsightCalibrationContext? tryFromJson(Object? raw) =>
-      raw is Map<String, dynamic>
-      ? CareerInsightCalibrationContext(raw['calibrationLevel'] as String?)
-      : null;
+  final int? eventCount;
+  final int? matchedEventCount;
+  final List<CareerInsightMatchedEvent> matchedEvents;
+  final List<String> mechanismFamilies;
+  final int? patternCount;
+  final bool composite;
+  static CareerInsightCalibrationContext? tryFromJson(Object? raw) {
+    if (raw is! Map<String, dynamic>) return null;
+    return CareerInsightCalibrationContext(
+      calibrationLevel: raw['calibrationLevel'] as String?,
+      eventCount: raw['eventCount'] as int?,
+      matchedEventCount: raw['matchedEventCount'] as int?,
+      matchedEvents: (raw['matchedEvents'] as List? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(CareerInsightMatchedEvent.tryFromJson)
+          .whereType<CareerInsightMatchedEvent>()
+          .toList(growable: false),
+      mechanismFamilies: (raw['mechanismFamilies'] as List? ?? const [])
+          .whereType<String>()
+          .toList(growable: false),
+      patternCount: raw['patternCount'] as int?,
+      composite: raw['composite'] == true,
+    );
+  }
+}
+
+class CareerInsightMatchedEvent {
+  const CareerInsightMatchedEvent({required this.eventType, required this.eventDate});
+  final String eventType;
+  final Map<String, dynamic> eventDate;
+  static CareerInsightMatchedEvent? tryFromJson(Map<String, dynamic> json) {
+    final type = json['eventType'];
+    final date = json['eventDate'];
+    if (type is! String || date is! Map<String, dynamic>) return null;
+    return CareerInsightMatchedEvent(
+      eventType: type,
+      eventDate: Map<String, dynamic>.unmodifiable(date),
+    );
+  }
 }
 
 String _string(Map<String, dynamic> json, String key) {
