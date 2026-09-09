@@ -41,12 +41,16 @@ void main() {
     addTearDown(harness.dispose);
 
     expect(
-      find.widgetWithText(FilledButton, 'View Career Reading'),
+      find.widgetWithText(FilledButton, 'VIEW CAREER READING →'),
       findsOneWidget,
     );
-    expect(find.text('Your Career Reading is ready.'), findsOneWidget);
+    expect(
+      find.text('Your personalized Career Reading is ready'),
+      findsOneWidget,
+    );
     expect(find.text('Generate Career Reading'), findsNothing);
-    expect(find.text('Career Reading'), findsWidgets);
+    expect(find.text('CAREER READING'), findsOneWidget);
+    expect(find.textContaining('Created:'), findsNothing);
   });
 
   testWidgets('shows neutral ineligible state without payment UI', (

@@ -400,10 +400,20 @@ class _ReadingList extends StatelessWidget {
         ],
       );
     }
+    final careerReadings = controller.readings
+        .where((reading) => reading.domain == 'CAREER')
+        .toList(growable: false);
+    final suppressHeroDuplicate =
+        generation != null && careerReadings.length == 1;
+    final displayedReadings = suppressHeroDuplicate
+        ? controller.readings
+              .where((reading) => reading.domain != 'CAREER')
+              .toList(growable: false)
+        : controller.readings;
     return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(AppSpacing.md),
-      itemCount: controller.readings.length + (generation == null ? 0 : 1),
+      itemCount: displayedReadings.length + (generation == null ? 0 : 1),
       separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
       itemBuilder: (context, index) => generation != null && index == 0
           ? _GenerationCard(
@@ -413,8 +423,7 @@ class _ReadingList extends StatelessWidget {
               premiumPurchase: premiumPurchase,
             )
           : _ReadingCard(
-              reading:
-                  controller.readings[index - (generation == null ? 0 : 1)],
+              reading: displayedReadings[index - (generation == null ? 0 : 1)],
             ),
     );
   }
@@ -648,7 +657,9 @@ class _ReadingCard extends StatelessWidget {
         color: const Color(0xFF181335),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
-          side: BorderSide(color: const Color(0xFFC5A059).withValues(alpha: .35)),
+          side: BorderSide(
+            color: const Color(0xFFC5A059).withValues(alpha: .35),
+          ),
         ),
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(
@@ -702,8 +713,19 @@ class _ReadingDetailScreenState extends State<ReadingDetailScreen> {
     listenable: widget.controller,
     builder: (context, child) {
       final t = AppLocalizations.of(context)!;
+      final isLoaded =
+          widget.controller.detailState == ReadingDetailState.loaded &&
+          widget.controller.detail != null;
       return Scaffold(
-        appBar: AppBar(title: Text(t.careerReading)),
+        backgroundColor: isLoaded ? _CareerReadingColors.midnight : null,
+        appBar: isLoaded
+            ? AppBar(
+                backgroundColor: _CareerReadingColors.midnight,
+                foregroundColor: _CareerReadingColors.alabaster,
+                surfaceTintColor: Colors.transparent,
+                title: const Text('Career Timing Forecast'),
+              )
+            : AppBar(title: Text(t.careerReading)),
         body: SafeArea(
           child: _DetailBody(
             controller: widget.controller,
@@ -734,46 +756,187 @@ class _DetailBody extends StatelessWidget {
         retryLabel: t.retry,
       );
     }
-    final date = DateFormat.yMMMd().add_jm().format(
+    return _CareerReadingDetail(detail: detail);
+  }
+}
+
+class _CareerReadingDetail extends StatelessWidget {
+  const _CareerReadingDetail({required this.detail});
+  final ReadingDetail detail;
+
+  @override
+  Widget build(BuildContext context) {
+    final calibrated = detail.calibratedContent;
+    final hasCalibrationContext =
+        calibrated != null && calibrated.sections.isNotEmpty;
+    final createdAt = DateFormat.yMMMd().add_jm().format(
       DateTime.parse(detail.createdAt).toLocal(),
     );
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.md,
-        AppSpacing.md,
-        AppSpacing.xxl,
-      ),
-      children: [
-        Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 760),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  t.careerReading,
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text('${t.createdOn}: $date'),
-                const SizedBox(height: AppSpacing.lg),
-                _ReadingContentSections(content: detail.content),
-                if (detail.calibratedContent != null) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  _ReadingContentSections(content: detail.calibratedContent!),
+
+    return ColoredBox(
+      color: _CareerReadingColors.midnight,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
+        children: [
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 680),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _CareerReadingHero(
+                    createdAt: createdAt,
+                    hasCalibrationContext: hasCalibrationContext,
+                  ),
+                  const SizedBox(height: 28),
+                  if (detail.content.sections.isNotEmpty) ...[
+                    const _CareerReadingSectionLabel('CAREER INSIGHTS'),
+                    const SizedBox(height: 12),
+                    _CareerReadingContentSections(content: detail.content),
+                  ],
+                  if (hasCalibrationContext) ...[
+                    const SizedBox(height: 12),
+                    const _CareerReadingSectionLabel(
+                      'CAREER HISTORY CALIBRATION',
+                    ),
+                    const SizedBox(height: 12),
+                    _CareerReadingContentSections(content: calibrated),
+                    const SizedBox(height: 6),
+                    OutlinedButton.icon(
+                      onPressed: () => context.push('/career-calibration'),
+                      icon: const Icon(Icons.tune_rounded, size: 18),
+                      label: const Text('Update Career History'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _CareerReadingColors.alabaster,
+                        side: const BorderSide(
+                          color: _CareerReadingColors.goldBorder,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 13,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
-class _ReadingContentSections extends StatelessWidget {
-  const _ReadingContentSections({required this.content});
+class _CareerReadingHero extends StatelessWidget {
+  const _CareerReadingHero({
+    required this.createdAt,
+    required this.hasCalibrationContext,
+  });
+  final String createdAt;
+  final bool hasCalibrationContext;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(22),
+    decoration: BoxDecoration(
+      color: _CareerReadingColors.surface,
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(color: _CareerReadingColors.goldBorder),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(
+              Icons.auto_awesome_rounded,
+              color: _CareerReadingColors.gold,
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            Text('CAREER READING', style: _CareerReadingText.eyebrow),
+            const Spacer(),
+            if (hasCalibrationContext) const _CareerReadingStatusChip(),
+          ],
+        ),
+        const SizedBox(height: 18),
+        Text('Career Timing Forecast', style: _CareerReadingText.headline),
+        const SizedBox(height: 8),
+        Text(
+          hasCalibrationContext
+              ? 'Personalized using your birth chart and available career-history context.'
+              : 'Personalized using your birth chart.',
+          style: _CareerReadingText.body,
+        ),
+        const SizedBox(height: 18),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+          decoration: BoxDecoration(
+            color: _CareerReadingColors.midnight,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: _CareerReadingColors.cardBorder),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.schedule_rounded,
+                color: _CareerReadingColors.gold,
+                size: 15,
+              ),
+              const SizedBox(width: 7),
+              Text('Created $createdAt', style: _CareerReadingText.meta),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _CareerReadingStatusChip extends StatelessWidget {
+  const _CareerReadingStatusChip();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+    decoration: BoxDecoration(
+      color: const Color(0x1FC5A059),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: _CareerReadingColors.goldBorder),
+    ),
+    child: Text('CALIBRATION CONTEXT', style: _CareerReadingText.chip),
+  );
+}
+
+class _CareerReadingSectionLabel extends StatelessWidget {
+  const _CareerReadingSectionLabel(this.label);
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    header: true,
+    child: Row(
+      children: [
+        Container(
+          width: 4,
+          height: 18,
+          decoration: BoxDecoration(
+            color: _CareerReadingColors.gold,
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+        const SizedBox(width: 9),
+        Text(label, style: _CareerReadingText.eyebrow),
+      ],
+    ),
+  );
+}
+
+class _CareerReadingContentSections extends StatelessWidget {
+  const _CareerReadingContentSections({required this.content});
   final ReadingContent content;
 
   @override
@@ -783,46 +946,128 @@ class _ReadingContentSections extends StatelessWidget {
       for (final section in content.sections) ...[
         Semantics(
           header: true,
-          child: Text(
-            section.headline,
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
+          child: Text(section.headline, style: _CareerReadingText.sectionTitle),
         ),
-        const SizedBox(height: AppSpacing.sm),
-        for (final item in section.items) _StoredReadingItem(item: item),
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: 10),
+        for (final item in section.items)
+          _CareerReadingEvidenceCard(
+            item: item,
+            showHeadline: item.headline != section.headline,
+          ),
+        const SizedBox(height: 18),
       ],
     ],
   );
 }
 
-class _StoredReadingItem extends StatelessWidget {
-  const _StoredReadingItem({required this.item});
+class _CareerReadingEvidenceCard extends StatelessWidget {
+  const _CareerReadingEvidenceCard({
+    required this.item,
+    required this.showHeadline,
+  });
   final ReadingSectionItem item;
+  final bool showHeadline;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-    child: AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(item.headline, style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            item.sentence,
-            style: Theme.of(context).textTheme.bodyLarge
-                ?.copyWith(height: 1.45),
-          ),
-          if (item.sourceTitle != null) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              item.sourceTitle!,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ],
-      ),
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    margin: const EdgeInsets.only(bottom: 10),
+    padding: const EdgeInsets.all(17),
+    decoration: BoxDecoration(
+      color: _CareerReadingColors.surface,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: _CareerReadingColors.cardBorder),
     ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (showHeadline) ...[
+          Text(item.headline, style: _CareerReadingText.itemTitle),
+          const SizedBox(height: 7),
+        ],
+        Text(item.sentence, style: _CareerReadingText.body),
+        if (item.sourceTitle != null &&
+            item.sourceTitle!.trim().isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _CareerReadingSourceChip(title: item.sourceTitle!),
+        ],
+      ],
+    ),
+  );
+}
+
+class _CareerReadingSourceChip extends StatelessWidget {
+  const _CareerReadingSourceChip({required this.title});
+  final String title;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+    decoration: BoxDecoration(
+      color: _CareerReadingColors.midnight,
+      borderRadius: BorderRadius.circular(99),
+      border: Border.all(color: _CareerReadingColors.cardBorder),
+    ),
+    child: Text(title, style: _CareerReadingText.source),
+  );
+}
+
+abstract final class _CareerReadingColors {
+  static const midnight = Color(0xFF0B071B);
+  static const surface = Color(0xFF17112F);
+  static const alabaster = Color(0xFFFAF7F2);
+  static const slate = Color(0xFF9E9AA9);
+  static const gold = Color(0xFFC5A059);
+  static const goldBorder = Color(0x66C5A059);
+  static const cardBorder = Color(0x665E4A87);
+}
+
+abstract final class _CareerReadingText {
+  static const eyebrow = TextStyle(
+    color: _CareerReadingColors.gold,
+    fontSize: 11,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 1.1,
+  );
+  static const headline = TextStyle(
+    color: _CareerReadingColors.alabaster,
+    fontFamily: 'EBGaramond',
+    fontSize: 31,
+    fontWeight: FontWeight.w600,
+    height: 1.06,
+  );
+  static const sectionTitle = TextStyle(
+    color: _CareerReadingColors.alabaster,
+    fontFamily: 'EBGaramond',
+    fontSize: 24,
+    fontWeight: FontWeight.w600,
+    height: 1.1,
+  );
+  static const itemTitle = TextStyle(
+    color: _CareerReadingColors.alabaster,
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+    height: 1.25,
+  );
+  static const body = TextStyle(
+    color: _CareerReadingColors.slate,
+    fontSize: 15,
+    height: 1.45,
+  );
+  static const meta = TextStyle(
+    color: _CareerReadingColors.slate,
+    fontSize: 12,
+    height: 1.2,
+  );
+  static const chip = TextStyle(
+    color: _CareerReadingColors.gold,
+    fontSize: 9,
+    fontWeight: FontWeight.w700,
+    letterSpacing: .6,
+  );
+  static const source = TextStyle(
+    color: _CareerReadingColors.slate,
+    fontSize: 11,
+    height: 1.2,
   );
 }
