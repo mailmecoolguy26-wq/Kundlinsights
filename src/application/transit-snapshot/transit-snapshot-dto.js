@@ -38,7 +38,7 @@ function sadeSati(snapshot) {
   });
 }
 
-function toTransitSnapshotDto({ birthProfileId, snapshot }) {
+function toTransitSnapshotDto({ birthProfileId, snapshot, insightContext = null }) {
   if (!birthProfileId || !snapshot || !snapshot.transitBodies) {
     throw new TypeError('Transit snapshot DTO requires an owned profile and Gochar snapshot.');
   }
@@ -47,6 +47,7 @@ function toTransitSnapshotDto({ birthProfileId, snapshot }) {
     at: snapshot.snapshotInstant,
     planets: BODIES.map((body) => planet(snapshot.transitBodies[body])),
     sadeSati: sadeSati(snapshot),
+    ...(insightContext ? { insightContext } : {}),
   });
 }
 
