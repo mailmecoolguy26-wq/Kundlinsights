@@ -10,6 +10,8 @@ import '../../shared/widgets/states.dart';
 import 'domain/reading.dart';
 import 'reading_controller.dart';
 import 'career_reading_generation_controller.dart';
+import 'career_explanation_language.dart';
+import 'career_reading_presentation_copy.dart';
 import '../payments/career_premium_product_controller.dart';
 import '../payments/career_premium_purchase_controller.dart';
 import '../payments/razorpay_career_premium_controller.dart';
@@ -690,10 +692,12 @@ class ReadingDetailScreen extends StatefulWidget {
     super.key,
     required this.controller,
     this.generation,
+    this.careerExplanationLanguage,
     required this.readingId,
   });
   final ReadingController controller;
   final CareerReadingGenerationController? generation;
+  final CareerExplanationLanguageController? careerExplanationLanguage;
   final String readingId;
 
   @override
@@ -732,6 +736,7 @@ class _ReadingDetailScreenState extends State<ReadingDetailScreen> {
           child: _DetailBody(
             controller: widget.controller,
             generation: widget.generation,
+            careerExplanationLanguage: widget.careerExplanationLanguage,
             readingId: widget.readingId,
           ),
         ),
@@ -744,10 +749,12 @@ class _DetailBody extends StatelessWidget {
   const _DetailBody({
     required this.controller,
     this.generation,
+    this.careerExplanationLanguage,
     required this.readingId,
   });
   final ReadingController controller;
   final CareerReadingGenerationController? generation;
+  final CareerExplanationLanguageController? careerExplanationLanguage;
   final String readingId;
 
   @override
@@ -764,14 +771,32 @@ class _DetailBody extends StatelessWidget {
         retryLabel: t.retry,
       );
     }
-    return _CareerReadingDetail(detail: detail, generation: generation);
+    final language = careerExplanationLanguage;
+    if (language == null) {
+      return _CareerReadingDetail(detail: detail, generation: generation);
+    }
+    return ListenableBuilder(
+      listenable: language,
+      builder: (context, child) => _CareerReadingDetail(
+        detail: detail,
+        generation: generation,
+        copy: CareerReadingPresentationCopy(language.language),
+      ),
+    );
   }
 }
 
 class _CareerReadingDetail extends StatelessWidget {
-  const _CareerReadingDetail({required this.detail, this.generation});
+  const _CareerReadingDetail({
+    required this.detail,
+    this.generation,
+    this.copy = const CareerReadingPresentationCopy(
+      CareerExplanationLanguage.english,
+    ),
+  });
   final ReadingDetail detail;
   final CareerReadingGenerationController? generation;
+  final CareerReadingPresentationCopy copy;
 
   @override
   Widget build(BuildContext context) {
@@ -822,7 +847,7 @@ class _CareerReadingDetail extends StatelessWidget {
                   ),
                   const SizedBox(height: 28),
                   if (insights.isNotEmpty) ...[
-                    _CareerInsightExperience(insights: insights),
+                    _CareerInsightExperience(insights: insights, copy: copy),
                   ] else if (detail.content.sections.isNotEmpty) ...[
                     const _CareerReadingSectionLabel('CAREER INSIGHTS'),
                     const SizedBox(height: 12),
@@ -830,11 +855,14 @@ class _CareerReadingDetail extends StatelessWidget {
                   ],
                   if (_CareerTimingSection.hasContent(insights)) ...[
                     const SizedBox(height: 18),
-                    _CareerTimingSection(insights: insights),
+                    _CareerTimingSection(insights: insights, copy: copy),
                   ],
                   if (insights.isNotEmpty && structuredCalibration != null) ...[
                     const SizedBox(height: 18),
-                    _CareerHistorySummary(summary: structuredCalibration),
+                    _CareerHistorySummary(
+                      summary: structuredCalibration,
+                      copy: copy,
+                    ),
                     const SizedBox(height: 8),
                     _UpdateCareerHistoryAction(),
                   ] else if (insights.isEmpty && hasCalibrationContext) ...[
@@ -997,8 +1025,9 @@ class _GenerateUpdatedReadingAction extends StatelessWidget {
 }
 
 class _CareerInsightExperience extends StatelessWidget {
-  const _CareerInsightExperience({required this.insights});
+  const _CareerInsightExperience({required this.insights, required this.copy});
   final List<CareerInsight> insights;
+  final CareerReadingPresentationCopy copy;
 
   @override
   Widget build(BuildContext context) {
@@ -1024,7 +1053,7 @@ class _CareerInsightExperience extends StatelessWidget {
       children: [
         _CareerReadingSectionLabel(_primaryTimingLabel(primary.family)),
         const SizedBox(height: 12),
-        _CareerInsightCard(insight: primary, primary: true),
+        _CareerInsightCard(insight: primary, primary: true, copy: copy),
         if (reasons.isNotEmpty) ...[
           const SizedBox(height: 16),
           const _CareerReadingSectionLabel('WHY THIS PERIOD STANDS OUT'),
@@ -1038,7 +1067,7 @@ class _CareerInsightExperience extends StatelessWidget {
             child: Column(
               children: [
                 for (var index = 0; index < reasons.length; index++) ...[
-                  _CareerReasonRow(insight: reasons[index]),
+                  _CareerReasonRow(insight: reasons[index], copy: copy),
                   if (index < reasons.length - 1)
                     const Divider(
                       color: _CareerReadingColors.cardBorder,
@@ -1053,13 +1082,13 @@ class _CareerInsightExperience extends StatelessWidget {
           const SizedBox(height: 16),
           const _CareerReadingSectionLabel('MATCHED WITH YOUR CAREER HISTORY'),
           const SizedBox(height: 10),
-          _CareerReasonRow(insight: history.first),
+          _CareerReasonRow(insight: history.first, copy: copy),
         ],
         if (future.isNotEmpty) ...[
           const SizedBox(height: 16),
           const _CareerReadingSectionLabel('UPCOMING CAREER TIMING'),
           const SizedBox(height: 10),
-          _CareerInsightCard(insight: future.first),
+          _CareerInsightCard(insight: future.first, copy: copy),
         ],
       ],
     );
@@ -1067,8 +1096,9 @@ class _CareerInsightExperience extends StatelessWidget {
 }
 
 class _CareerReasonRow extends StatelessWidget {
-  const _CareerReasonRow({required this.insight});
+  const _CareerReasonRow({required this.insight, required this.copy});
   final CareerInsight insight;
+  final CareerReadingPresentationCopy copy;
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -1091,7 +1121,7 @@ class _CareerReasonRow extends StatelessWidget {
               ),
               const SizedBox(height: 3),
               Text(
-                _insightSummary(insight.family),
+                copy.insightSummary(insight.family),
                 style: _CareerReadingText.meta,
               ),
               const SizedBox(height: 6),
@@ -1104,7 +1134,7 @@ class _CareerReasonRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  _insightCaveat(insight.status),
+                  copy.caveat(insight.status),
                   style: _CareerReadingText.meta,
                 ),
               ],
@@ -1126,8 +1156,9 @@ String _primaryTimingLabel(String family) =>
     'CAREER INSIGHT';
 
 class _CareerTimingSection extends StatelessWidget {
-  const _CareerTimingSection({required this.insights});
+  const _CareerTimingSection({required this.insights, required this.copy});
   final List<CareerInsight> insights;
+  final CareerReadingPresentationCopy copy;
 
   static bool hasContent(List<CareerInsight> insights) => insights.any(
     (insight) =>
@@ -1186,15 +1217,17 @@ class _CareerTimingSection extends StatelessWidget {
             children: [
               for (final period in dashas)
                 _TimingRow(
-                  title: _dashaLabel(period.level),
-                  value: period.planet,
+                  title: copy.dasha(period.level),
+                  value: copy.planet(period.planet),
                   date: _dateRange(period.start, period.end),
                   state: period.isCurrent ? 'Active now' : null,
                 ),
               for (final transit in transits)
                 _TimingRow(
                   title: 'Current Transit',
-                  value: transit.planet ?? 'Transit timing',
+                  value: transit.planet == null
+                      ? 'Transit timing'
+                      : copy.planet(transit.planet),
                   date: _dateRangeOrPoint(transit.start, transit.end),
                 ),
               for (final window in windows)
@@ -1252,22 +1285,14 @@ class _TimingRow extends StatelessWidget {
 }
 
 class _CareerHistorySummary extends StatelessWidget {
-  const _CareerHistorySummary({required this.summary});
+  const _CareerHistorySummary({required this.summary, required this.copy});
   final CareerReadingCalibrationSummary summary;
+  final CareerReadingPresentationCopy copy;
   @override
   Widget build(BuildContext context) {
     final count = summary.eventCount;
     final level = summary.calibrationLevel;
-    final text = switch (level) {
-      'NONE' => 'Add Career History to compare timing patterns.',
-      'LIMITED' =>
-        '${count ?? 1} saved Career event${count == 1 ? '' : 's'}. Add more history for recurring-pattern comparison.',
-      'CALIBRATED' =>
-        count == null
-            ? 'Career History is available for recurring-pattern comparison.'
-            : '$count saved Career event${count == 1 ? '' : 's'} available for recurring-pattern comparison.',
-      _ => 'Career History is available for this reading.',
-    };
+    final text = copy.careerHistory(level, count);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1352,8 +1377,13 @@ class _TechnicalNote extends StatelessWidget {
 }
 
 class _CareerInsightCard extends StatelessWidget {
-  const _CareerInsightCard({required this.insight, this.primary = false});
+  const _CareerInsightCard({
+    required this.insight,
+    required this.copy,
+    this.primary = false,
+  });
   final CareerInsight insight;
+  final CareerReadingPresentationCopy copy;
   final bool primary;
 
   @override
@@ -1393,7 +1423,10 @@ class _CareerInsightCard extends StatelessWidget {
                 : _CareerReadingText.itemTitle,
           ),
           const SizedBox(height: 7),
-          Text(_insightSummary(insight.family), style: _CareerReadingText.body),
+          Text(
+            copy.insightSummary(insight.family),
+            style: _CareerReadingText.body,
+          ),
           if (timing != null) ...[
             const SizedBox(height: 12),
             Text(timing, style: _CareerReadingText.meta),
@@ -1432,10 +1465,7 @@ class _CareerInsightCard extends StatelessWidget {
             const SizedBox(height: 14),
             const _CareerReadingSectionLabel('WHAT LIMITS THIS SIGNAL'),
             const SizedBox(height: 7),
-            Text(
-              _insightCaveat(insight.status),
-              style: _CareerReadingText.body,
-            ),
+            Text(copy.caveat(insight.status), style: _CareerReadingText.body),
           ],
           if (insight.technicalContext != null &&
               !insight.technicalContext!.isEmpty) ...[
@@ -1454,7 +1484,10 @@ class _CareerInsightCard extends StatelessWidget {
                   iconColor: _CareerReadingColors.gold,
                   collapsedIconColor: _CareerReadingColors.slate,
                   children: [
-                    _TechnicalGroups(context: insight.technicalContext!),
+                    _TechnicalGroups(
+                      context: insight.technicalContext!,
+                      copy: copy,
+                    ),
                   ],
                 ),
               ),
@@ -1467,8 +1500,9 @@ class _CareerInsightCard extends StatelessWidget {
 }
 
 class _TechnicalGroups extends StatelessWidget {
-  const _TechnicalGroups({required this.context});
+  const _TechnicalGroups({required this.context, required this.copy});
   final CareerTechnicalContext context;
+  final CareerReadingPresentationCopy copy;
   @override
   Widget build(BuildContext buildContext) {
     final ashtakavarga = context.supportingContext
@@ -1508,7 +1542,7 @@ class _TechnicalGroups extends StatelessWidget {
               Text(group.$1, style: _CareerReadingText.source),
               const SizedBox(height: 4),
               for (final row in group.$2)
-                Text(_technicalRow(row), style: _CareerReadingText.meta),
+                Text(_technicalRow(row, copy), style: _CareerReadingText.meta),
               const SizedBox(height: 9),
             ],
         ],
@@ -1517,16 +1551,19 @@ class _TechnicalGroups extends StatelessWidget {
   }
 }
 
-String _technicalRow(Map<String, dynamic> row) {
+String _technicalRow(
+  Map<String, dynamic> row,
+  CareerReadingPresentationCopy copy,
+) {
   final kind = row['kind'];
   if (kind == 'D10_CAREER_CHART') {
     return 'Career divisional chart included in this insight';
   }
   if (kind == 'DASHA') {
-    return '${_dashaLabel(row['level'])}: ${row['planet'] ?? 'Current period'}';
+    return '${copy.dasha(row['level'])}: ${copy.planet(row['planet'] ?? 'Current period')}';
   }
   if (kind == 'TRANSIT') {
-    return '${row['transitPlanet'] ?? 'Current transit'}${row['natalHouseNumber'] is int ? ' · Natal ${row['natalHouseNumber']}th-house context' : ''}';
+    return '${copy.planet(row['transitPlanet'] ?? 'Current transit')}${row['natalHouseNumber'] is int ? ' · ${copy.house(row['natalHouseNumber'] as int)} context' : ''}';
   }
   if (kind == 'CONCURRENT_TIMING') {
     return 'Timing relationship: ${_lineageLabel(row['lineageClassification'])}';
@@ -1542,16 +1579,16 @@ String _technicalRow(Map<String, dynamic> row) {
     final score = _ashtakavargaScoreLabel(row['scoreType']);
     final value = row['value'];
     final planet = row['planet'];
-    final houseLabel = house is int ? '${_ordinal(house)} House' : 'House';
+    final houseLabel = house is int ? copy.house(house) : 'House';
     return planet is String && planet.isNotEmpty
-        ? '$planet $score · $houseLabel: $value'
+        ? '${copy.planet(planet)} $score · $houseLabel: $value'
         : '$houseLabel · $score: $value';
   }
   if (row['sourceFamily'] == 'PLANETARY_STATE') {
-    return '${row['planet'] ?? 'Planet'} — ${_stateLabel(row['state'])}';
+    return '${copy.planet(row['planet'])} — ${copy.state(row['state'])}';
   }
   if (row['sourceFamily'] == 'PLANETARY_RELATIONSHIP') {
-    return '${row['subjectPlanet'] ?? 'Planet'} → ${row['targetPlanet'] ?? 'Planet'} · ${row['relationshipType'] ?? 'Relationship'}: ${row['relationship'] ?? ''}';
+    return '${copy.planet(row['subjectPlanet'])} → ${copy.planet(row['targetPlanet'])} · ${row['relationshipType'] ?? 'Relationship'}: ${row['relationship'] ?? ''}';
   }
   return '';
 }
@@ -1560,41 +1597,12 @@ String _ashtakavargaScoreLabel(Object? value) =>
     const {'LAGNA_BAV': 'Lagna BAV', 'SAV': 'SAV', 'BAV': 'BAV'}[value] ??
     'Score';
 
-String _ordinal(int value) {
-  final tens = value % 100;
-  if (tens >= 11 && tens <= 13) return '${value}th';
-  return switch (value % 10) {
-    1 => '${value}st',
-    2 => '${value}nd',
-    3 => '${value}rd',
-    _ => '${value}th',
-  };
-}
-
-String _dashaLabel(Object? value) =>
-    const {
-      'MAHADASHA': 'Mahadasha',
-      'ANTARDASHA': 'Antardasha',
-      'PRATYANTAR_DASHA': 'Pratyantar',
-    }[value] ??
-    'Dasha';
 String _lineageLabel(Object? value) =>
     const {
       'INDEPENDENT': 'Independent mechanisms',
       'PARTIALLY_OVERLAPPING': 'Partially overlapping mechanisms',
     }[value] ??
     'Timing context';
-String _stateLabel(Object? value) =>
-    const {
-      'RETROGRADE': 'Retrograde',
-      'COMBUST': 'Combust',
-      'EXALTED': 'Exalted',
-      'DEBILITATED': 'Debilitated',
-      'OWN_SIGN': 'Own Sign',
-      'MOOLATRIKONA': 'Moolatrikona',
-    }[value] ??
-    'State';
-
 String _insightFamilyLabel(String family) =>
     const {
       'CAREER_FOUNDATION': 'Career Foundation',
@@ -1607,25 +1615,6 @@ String _insightFamilyLabel(String family) =>
     }[family] ??
     'Career Insight';
 String _insightTitle(String family) => _insightFamilyLabel(family);
-String _insightSummary(String family) =>
-    const {
-      'CAREER_FOUNDATION': 'Your natal Career structure is centered on the 10th-house factors identified in your chart.',
-      'ACTIVE_CAREER_DASHA': 'Your current Dasha timing connects to Career-related factors in the natal chart.',
-      'CURRENT_CAREER_TRANSIT': 'A current transit is activating a Career-related natal factor used by this reading.',
-      'CONCURRENT_CAREER_TIMING': 'Available Career timing evidence is insufficient to evaluate this signal fully.',
-      'HISTORICAL_CALIBRATION_RECURRENCE':
-          'Similar timing appeared across your saved Career events.',
-      'FUTURE_RECURRENCE_WINDOW': 'An upcoming period matches a timing pattern seen in your saved Career history.',
-      'AUDITED_CLASSICAL_PREDICATE': 'The supplied evidence satisfies the existing audited classical predicate; this does not establish an outcome.',
-    }[family] ??
-    'This deterministic Career Insight is available from your stored reading.';
-String _insightCaveat(String status) =>
-    const {
-      'MIXED': 'The supplied deterministic evidence contains both supporting and limiting context.',
-      'CONTRADICTED': 'The relevant deterministic evidence contains an explicit contradiction.',
-      'INSUFFICIENT_EVIDENCE': 'Available deterministic evidence is insufficient to evaluate this signal fully.',
-    }[status] ??
-    'Additional deterministic context is available.';
 String? _insightTiming(CareerInsightTiming timing) {
   final current = timing.dashaPeriods
       .where((period) => period.isCurrent)

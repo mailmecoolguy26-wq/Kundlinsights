@@ -9,6 +9,7 @@ import 'package:kundlinsights_mobile/features/auth/domain/auth_repository.dart';
 import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile.dart';
 import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile_repository.dart';
 import 'package:kundlinsights_mobile/features/profiles/profile_controller.dart';
+import 'package:kundlinsights_mobile/features/readings/career_explanation_language.dart';
 import 'package:kundlinsights_mobile/l10n/app_localizations.dart';
 
 void main() {
@@ -59,16 +60,36 @@ void main() {
     await tester.pump();
     expect(authRepository.signOutCalls, 1);
   });
+
+  testWidgets('offers the persisted Career Reading language selector', (
+    tester,
+  ) async {
+    final language = CareerExplanationLanguageController(_LanguageStorage());
+    await tester.pumpWidget(_app(profileController, authController, language));
+    expect(find.text('Career Reading Language'), findsOneWidget);
+    expect(find.text('English'), findsOneWidget);
+    expect(find.text('Hinglish'), findsOneWidget);
+    await tester.tap(find.text('Hinglish'));
+    await tester.pump();
+    expect(language.language, CareerExplanationLanguage.hinglish);
+  });
 }
 
-Widget _app(ProfileController profiles, AuthController auth) {
+Widget _app(
+  ProfileController profiles,
+  AuthController auth, [
+  CareerExplanationLanguageController? language,
+]) {
   final router = GoRouter(
     initialLocation: '/profile',
     routes: [
       GoRoute(
         path: '/profile',
-        builder: (context, state) =>
-            ProfileScreen(authController: auth, profileController: profiles),
+        builder: (context, state) => ProfileScreen(
+          authController: auth,
+          profileController: profiles,
+          careerExplanationLanguage: language,
+        ),
       ),
       GoRoute(
         path: '/profiles',
@@ -82,6 +103,13 @@ Widget _app(ProfileController profiles, AuthController auth) {
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
   );
+}
+
+class _LanguageStorage implements CareerExplanationLanguageStorage {
+  @override
+  Future<String?> readLanguage() async => null;
+  @override
+  Future<void> writeLanguage(CareerExplanationLanguage language) async {}
 }
 
 class _AuthRepository implements AuthRepository {

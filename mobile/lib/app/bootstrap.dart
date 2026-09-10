@@ -176,12 +176,6 @@ class _UnavailableAshtakavargaRepository implements AshtakavargaRepository {
       Future<Ashtakavarga>.error(StateError('Configuration is required.'));
 }
 
-final secureStateStoreProvider = Provider<SecureStateStore>((ref) {
-  throw UnimplementedError(
-    'The bootstrap ProviderScope must override this provider.',
-  );
-});
-
 class _UnavailableAuthRepository implements AuthRepository {
   final _states = StreamController<AuthSnapshot>.broadcast();
   @override

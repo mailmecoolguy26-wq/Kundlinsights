@@ -17,6 +17,7 @@ import '../../features/profiles/profile_controller.dart';
 import '../../features/readings/readings_screen.dart';
 import '../../features/readings/reading_controller.dart';
 import '../../features/readings/career_reading_generation_controller.dart';
+import '../../features/readings/career_explanation_language.dart';
 import '../../features/payments/career_premium_product_controller.dart';
 import '../../features/payments/career_premium_purchase_controller.dart';
 import '../../features/payments/razorpay_career_premium_controller.dart';
@@ -49,6 +50,7 @@ GoRouter createAppRouter(
   CareerPremiumPurchaseController premiumPurchase,
   CareerEventController careerEvents, {
   RazorpayCareerPremiumController? razorpayPremium,
+  required CareerExplanationLanguageController careerExplanationLanguage,
   required SplashLaunchGate splashLaunchGate,
 }) => GoRouter(
   initialLocation: '/splash',
@@ -278,6 +280,7 @@ GoRouter createAppRouter(
                   builder: (context, state) => ReadingDetailScreen(
                     controller: readings,
                     generation: generation,
+                    careerExplanationLanguage: careerExplanationLanguage,
                     readingId: state.pathParameters['id']!,
                   ),
                 ),
@@ -293,6 +296,7 @@ GoRouter createAppRouter(
               builder: (context, state) => ProfileScreen(
                 authController: authController,
                 profileController: profiles,
+                careerExplanationLanguage: careerExplanationLanguage,
               ),
             ),
           ],

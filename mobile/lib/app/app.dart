@@ -8,6 +8,7 @@ import '../l10n/app_localizations.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
 import '../core/config/app_config.dart';
+import '../core/storage/secure_state_store.dart';
 import '../features/auth/auth_controller.dart';
 import '../features/profiles/profile_controller.dart';
 import '../features/natal/natal_summary_controller.dart';
@@ -16,6 +17,7 @@ import '../features/vimshottari/vimshottari_controller.dart';
 import '../features/transits/transit_snapshot_controller.dart';
 import '../features/ashtakavarga/ashtakavarga_controller.dart';
 import '../features/readings/reading_controller.dart';
+import '../features/readings/career_explanation_language.dart';
 import '../features/readings/career_reading_generation_controller.dart';
 import '../features/career_events/career_event_controller.dart';
 import '../features/payments/career_premium_product_controller.dart';
@@ -42,12 +44,19 @@ class KundlInsightsApp extends ConsumerStatefulWidget {
 class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp> {
   late final GoRouter _router;
   late final SplashLaunchGate _splashLaunchGate;
+  late final CareerExplanationLanguageController _careerExplanationLanguage;
   RazorpayCareerPremiumController? _razorpayPremium;
 
   @override
   void initState() {
     super.initState();
     _splashLaunchGate = widget.splashLaunchGate ?? SplashLaunchGate();
+    _careerExplanationLanguage = CareerExplanationLanguageController(
+      SecureCareerExplanationLanguageStorage(
+        ref.read(secureStateStoreProvider),
+      ),
+    );
+    _careerExplanationLanguage.load();
     final authController = widget.authController;
     final profiles = ref.read(profileControllerProvider(authController));
     final natal = ref.read(
@@ -111,6 +120,7 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp> {
       premiumPurchase,
       careerEvents,
       razorpayPremium: razorpayPremium,
+      careerExplanationLanguage: _careerExplanationLanguage,
       splashLaunchGate: _splashLaunchGate,
     );
   }
@@ -118,6 +128,7 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp> {
   @override
   void dispose() {
     _razorpayPremium?.dispose();
+    _careerExplanationLanguage.dispose();
     _router.dispose();
     _splashLaunchGate.dispose();
     super.dispose();
