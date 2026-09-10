@@ -8,8 +8,24 @@ const order = (items, key) => items.slice().sort((a, b) => key(a).localeCompare(
 
 function buildCareerTechnicalContext({ timing = {}, charts = [], ashtakavarga = [], planetaryState = [], planetaryRelationships = [], calibrationContext = null, family } = {}) {
   const dasha = (timing.dashaPeriods || []).map((item) => ({ kind: 'DASHA', level: item.periodLevel, planet: item.periodPlanet, start: item.start, end: item.end, isCurrent: item.isCurrent === true }));
-  const transit = (timing.transitContexts || []).map((item) => ({ kind: 'TRANSIT', transitPlanet: item.transitPlanet, eventType: item.eventType, motion: item.motion, natalHouseNumber: item.natalHouseNumber, natalBody: item.natalBody, start: item.start, ...(item.end ? { end: item.end } : {}) }));
-  const concurrent = timing.timingWindow ? [{ kind: 'CONCURRENT_TIMING', start: timing.timingWindow.start, end: timing.timingWindow.end, timingState: timing.timingState, lineageClassification: timing.lineageClassification, mechanismFamilies: timing.mechanismFamilies || [] }] : [];
+  const transit = (timing.transitContexts || []).map((item) => ({
+    kind: 'TRANSIT',
+    ...(typeof item.transitPlanet === 'string' ? { transitPlanet: item.transitPlanet } : {}),
+    ...(typeof item.eventType === 'string' ? { eventType: item.eventType } : {}),
+    ...(typeof item.motion === 'string' ? { motion: item.motion } : {}),
+    ...(Number.isInteger(item.natalHouseNumber) ? { natalHouseNumber: item.natalHouseNumber } : {}),
+    ...(typeof item.natalBody === 'string' ? { natalBody: item.natalBody } : {}),
+    start: item.start,
+    ...(item.end ? { end: item.end } : {}),
+  }));
+  const concurrent = timing.timingWindow ? [{
+    kind: 'CONCURRENT_TIMING',
+    start: timing.timingWindow.start,
+    end: timing.timingWindow.end,
+    ...(typeof timing.timingState === 'string' ? { timingState: timing.timingState } : {}),
+    ...(typeof timing.lineageClassification === 'string' ? { lineageClassification: timing.lineageClassification } : {}),
+    mechanismFamilies: timing.mechanismFamilies || [],
+  }] : [];
   const d10 = charts.includes('D10') ? [{ kind: 'D10_CAREER_CHART', label: 'D10 Career Chart' }] : [];
   const history = calibrationContext ? [{ kind: 'CAREER_HISTORY', calibrationLevel: calibrationContext.calibrationLevel, ...(Number.isInteger(calibrationContext.eventCount) ? { eventCount: calibrationContext.eventCount } : {}), ...(Number.isInteger(calibrationContext.matchedEventCount) ? { matchedEventCount: calibrationContext.matchedEventCount } : {}), matchedEvents: calibrationContext.matchedEvents || [], mechanismFamilies: calibrationContext.mechanismFamilies || [], composite: calibrationContext.composite === true }] : [];
   const classical = family === 'AUDITED_CLASSICAL_PREDICATE' ? [{ kind: 'CLASSICAL_RULE_CONTEXT', cautionRequired: true }] : [];

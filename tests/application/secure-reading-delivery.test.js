@@ -96,6 +96,25 @@ test('Career Insight delivery exposes a safe structured trace without internal e
   assert.deepEqual(detail.insights[0].timing.to, '2026-10-01T00:00:00.000Z');
   assert.equal(JSON.stringify(detail.insights).match(/evidence:private|signal:private|fact:private|privateBlob|career-h10-connected|ruleset/i), null);
 });
+test('Career Insight delivery omits absent optional transit and concurrent fields without rejecting the detail DTO', async () => {
+  const { service, readings } = setup();
+  const insights = [{
+    insightId: 'insight:partial-timing', family: 'CURRENT_CAREER_TRANSIT', titleKey: 'career.transit.title', summaryKey: 'career.transit.summary', displayPriority: 0, status: 'MIXED',
+    timing: {
+      transitContexts: [{ kind: 'GOCHAR_SNAPSHOT', start: '2026-09-10T00:00:00.000Z', isCurrent: true }],
+      timingWindow: { kind: 'CAREER_TIMING_OVERLAP', start: '2026-09-10T00:00:00.000Z', end: '2026-09-11T00:00:00.000Z', isCurrent: true },
+      mechanismFamilies: ['GOCHAR'],
+    },
+    caveats: [], calibrationContext: null, technicalDetails: { independentMechanismFamilies: ['GOCHAR'] }, evidenceTrace: { signals: [] },
+  }];
+  readings.insertReadingRecord({ userId: 'user-a', birthProfileId: 'profile-a', record: record('reading-partial-timing', '2026-08-22T00:00:00.000Z', 'Insight content.', null, insights) });
+  const detail = await service.getSecureReadingDetail({ principal: principal('subject-a'), readingId: 'reading-partial-timing' });
+  assert.equal(detail.insights.length, 1);
+  assert.deepEqual(detail.insights[0].technicalContext.timing, [
+    { kind: 'CONCURRENT_TIMING', start: '2026-09-10T00:00:00.000Z', end: '2026-09-11T00:00:00.000Z', mechanismFamilies: ['GOCHAR'] },
+    { kind: 'TRANSIT', start: '2026-09-10T00:00:00.000Z' },
+  ]);
+});
 test('P7B normalizes persisted calibrated interpretation without exposing internal evidence', async () => {
   const readings = new InMemoryReadingRepository(), calibrated = { schemaVersion: 'career-reading-interpretation-schema-v1', calibrationSummary: { narrative: 'Calibration is limited.' }, recurringHistoricalEvidence: [{ evidenceId: 'hist:private', patternKey: 'private-pattern', text: 'A recurring pattern is present.' }], upcomingRecurrenceWindows: [], decisionConsiderations: ['Review options.'], disclosure: { hasProvisionalEvidence: true } }; readings.insertReadingRecord({ userId: 'user-a', birthProfileId: 'profile-a', record: record('reading-a-new', '2026-08-18T00:00:00.000Z', 'Newer stored content.', calibrated) }); const calls = { generator: 0, entitlement: 0, replay: 0 }; const service = new SecureReadingService({ authUserResolver: async () => ({ id: 'user-a', status: 'active' }), transactionExecutor: { execute: async ({ operation }) => operation({}) }, repositories: () => ({ birthProfiles: {}, readings, entitlements: {} }), readingGenerator: { generate: async () => { calls.generator++; } }, readingRecordFactory: () => {}, replayReading: async () => {}, requiresEntitlement: () => false, idGenerator: () => 'unused', clock: () => '2026-08-20T00:00:00.000Z' }); const detail = await service.getSecureReadingDetail({ principal: principal('subject-a'), readingId: 'reading-a-new' }); assert.equal(detail.calibratedContent.sections[0].items[0].sentence, 'Calibration is limited.'); assert.equal(JSON.stringify(detail.calibratedContent).match(/evidenceId|patternKey|provenance|private/), null); assert.equal(detail.content.sections[0].items[0].sentence, 'Newer stored content.');
 });

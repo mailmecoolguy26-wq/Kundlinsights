@@ -126,11 +126,13 @@ class ReadingDetail extends ReadingSummary {
     required super.locale,
     required this.content,
     this.calibratedContent,
+    this.calibrationContext,
     this.insights = const [],
   });
 
   final ReadingContent content;
   final ReadingContent? calibratedContent;
+  final CareerReadingCalibrationSummary? calibrationContext;
   final List<CareerInsight> insights;
 
   factory ReadingDetail.fromJson(Map<String, dynamic> json) {
@@ -164,7 +166,35 @@ class ReadingDetail extends ReadingSummary {
       calibratedContent: calibratedContent == null
           ? null
           : ReadingContent.fromJson(calibratedContent),
+      calibrationContext: CareerReadingCalibrationSummary.tryFromJson(
+        json['calibrationContext'],
+      ),
       insights: List<CareerInsight>.unmodifiable(insights),
+    );
+  }
+}
+
+class CareerReadingCalibrationSummary {
+  const CareerReadingCalibrationSummary({
+    required this.calibrationLevel,
+    this.eventCount,
+  });
+
+  final String calibrationLevel;
+  final int? eventCount;
+
+  static CareerReadingCalibrationSummary? tryFromJson(Object? value) {
+    if (value is! Map<String, dynamic>) return null;
+    final level = value['calibrationLevel'];
+    final eventCount = value['eventCount'];
+    if (level is! String ||
+        !const {'NONE', 'LIMITED', 'CALIBRATED'}.contains(level) ||
+        (eventCount != null && eventCount is! int)) {
+      return null;
+    }
+    return CareerReadingCalibrationSummary(
+      calibrationLevel: level,
+      eventCount: eventCount as int?,
     );
   }
 }

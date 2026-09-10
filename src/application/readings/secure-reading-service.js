@@ -38,6 +38,14 @@ function calibratedContent(record) {
   if (interpretation.disclosure && interpretation.disclosure.hasProvisionalEvidence === true) add('calculation-note', 'Calculation note', [{ headline: 'Calculation basis', sentence: 'Some calculations use a provisional calculation basis.' }]);
   return { domain: record.domain, locale: record.input.locale, sections };
 }
+function publicCalibrationSummary(record) {
+  const summary = record && record.reading && record.reading.calibrationInterpretation && record.reading.calibrationInterpretation.calibrationSummary;
+  if (!summary || !['NONE', 'LIMITED', 'CALIBRATED'].includes(summary.calibrationLevel)) return undefined;
+  return {
+    calibrationLevel: summary.calibrationLevel,
+    ...(Number.isInteger(summary.eventCount) ? { eventCount: summary.eventCount } : {}),
+  };
+}
 function publicAshtakavargaContext(context) {
   if (!context || context.sourceFamily !== 'ASHTAKAVARGA' || !['SAV', 'BAV', 'LAGNA_BAV'].includes(context.scoreType)) return null;
   if (!Number.isInteger(context.houseNumber) || context.houseNumber < 1 || context.houseNumber > 12 || !Number.isInteger(context.rashiIndex) || context.rashiIndex < 1 || context.rashiIndex > 12 || !Number.isInteger(context.value)) return null;
@@ -120,7 +128,7 @@ function publicInsights(record) {
   });
   });
 }
-function publicReadingDetail(item) { const calibrated = calibratedContent(item.record), insights = publicInsights(item.record); return immutableCopy({ ...publicReadingSummary(item), content: item.record.renderedReading, ...(calibrated ? { calibratedContent: calibrated } : {}), ...(insights === undefined ? {} : { insights }) }); }
+function publicReadingDetail(item) { const calibrated = calibratedContent(item.record), calibrationContext = publicCalibrationSummary(item.record), insights = publicInsights(item.record); return immutableCopy({ ...publicReadingSummary(item), content: item.record.renderedReading, ...(calibrated ? { calibratedContent: calibrated } : {}), ...(calibrationContext === undefined ? {} : { calibrationContext }), ...(insights === undefined ? {} : { insights }) }); }
 function scopedKeyProvider(key) { return Object.freeze({ current: async () => ({ keyVersion: key.keyVersion, dek: Buffer.from(key.dek) }), forVersion: async () => ({ keyVersion: key.keyVersion, dek: Buffer.from(key.dek) }) }); }
 function rawRecord(raw, record) { return { readingId: raw.readingId, userId: raw.userId, birthProfileId: raw.birthProfileId, status: raw.status, archivedAt: raw.archivedAt, idempotencyKey: raw.idempotencyKey, record }; }
 

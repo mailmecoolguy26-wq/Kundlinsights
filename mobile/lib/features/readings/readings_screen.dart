@@ -789,6 +789,21 @@ class _CareerReadingDetail extends StatelessWidget {
     final createdAt = DateFormat.yMMMd().add_jm().format(
       DateTime.parse(detail.createdAt).toLocal(),
     );
+    final structuredCalibration =
+        detail.calibrationContext ??
+        insights
+            .map((insight) => insight.calibrationContext)
+            .whereType<CareerInsightCalibrationContext>()
+            .map(
+              (context) => context.calibrationLevel == null
+                  ? null
+                  : CareerReadingCalibrationSummary(
+                      calibrationLevel: context.calibrationLevel!,
+                      eventCount: context.eventCount,
+                    ),
+            )
+            .whereType<CareerReadingCalibrationSummary>()
+            .firstOrNull;
 
     return ColoredBox(
       color: _CareerReadingColors.midnight,
@@ -805,18 +820,6 @@ class _CareerReadingDetail extends StatelessWidget {
                     createdAt: createdAt,
                     hasCalibrationContext: hasCalibrationContext,
                   ),
-                  if (generation != null &&
-                      generation!.activeBirthProfileId ==
-                          detail.birthProfileId) ...[
-                    const SizedBox(height: 14),
-                    ListenableBuilder(
-                      listenable: generation!,
-                      builder: (context, child) =>
-                          _GenerateUpdatedReadingAction(
-                            generation: generation!,
-                          ),
-                    ),
-                  ],
                   const SizedBox(height: 28),
                   if (insights.isNotEmpty) ...[
                     _CareerInsightExperience(insights: insights),
@@ -829,11 +832,10 @@ class _CareerReadingDetail extends StatelessWidget {
                     const SizedBox(height: 18),
                     _CareerTimingSection(insights: insights),
                   ],
-                  if (_CareerHistorySummary.hasContent(insights)) ...[
+                  if (insights.isNotEmpty && structuredCalibration != null) ...[
                     const SizedBox(height: 18),
-                    _CareerHistorySummary(insights: insights),
-                  ],
-                  if (hasCalibrationContext) ...[
+                    _CareerHistorySummary(summary: structuredCalibration),
+                  ] else if (hasCalibrationContext) ...[
                     const SizedBox(height: 12),
                     const _CareerReadingSectionLabel(
                       'CAREER HISTORY CALIBRATION',
@@ -855,6 +857,23 @@ class _CareerReadingDetail extends StatelessWidget {
                           vertical: 13,
                         ),
                       ),
+                    ),
+                  ],
+                  if (insights.isNotEmpty &&
+                      _hasCalculationNote(calibrated)) ...[
+                    const SizedBox(height: 18),
+                    _TechnicalNote(content: calibrated!),
+                  ],
+                  if (generation != null &&
+                      generation!.activeBirthProfileId ==
+                          detail.birthProfileId) ...[
+                    const SizedBox(height: 22),
+                    ListenableBuilder(
+                      listenable: generation!,
+                      builder: (context, child) =>
+                          _GenerateUpdatedReadingAction(
+                            generation: generation!,
+                          ),
                     ),
                   ],
                 ],
@@ -918,6 +937,8 @@ class _GenerateUpdatedReadingAction extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Text('UPDATED READING', style: _CareerReadingText.eyebrow),
+          const SizedBox(height: 7),
           const Text(
             'Generate a fresh reading using your current birth profile and the latest available Career analysis.',
             style: TextStyle(color: _CareerReadingColors.slate, height: 1.4),
@@ -1078,7 +1099,7 @@ class _CareerTimingSection extends StatelessWidget {
         const SizedBox(height: 12),
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(17),
+          padding: const EdgeInsets.fromLTRB(15, 13, 15, 5),
           decoration: BoxDecoration(
             color: _CareerReadingColors.surface,
             borderRadius: BorderRadius.circular(16),
@@ -1130,7 +1151,7 @@ class _TimingRow extends StatelessWidget {
   final String date;
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 13),
+    padding: const EdgeInsets.only(bottom: 10),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1154,19 +1175,12 @@ class _TimingRow extends StatelessWidget {
 }
 
 class _CareerHistorySummary extends StatelessWidget {
-  const _CareerHistorySummary({required this.insights});
-  final List<CareerInsight> insights;
-  static bool hasContent(List<CareerInsight> insights) => insights.any(
-    (insight) => insight.calibrationContext?.calibrationLevel != null,
-  );
+  const _CareerHistorySummary({required this.summary});
+  final CareerReadingCalibrationSummary summary;
   @override
   Widget build(BuildContext context) {
-    final calibration = insights
-        .map((insight) => insight.calibrationContext)
-        .whereType<CareerInsightCalibrationContext>()
-        .firstWhere((value) => value.calibrationLevel != null);
-    final count = calibration.eventCount;
-    final level = calibration.calibrationLevel;
+    final count = summary.eventCount;
+    final level = summary.calibrationLevel;
     final text = switch (level) {
       'NONE' => 'Add Career History to compare timing patterns.',
       'LIMITED' =>
@@ -1193,6 +1207,55 @@ class _CareerHistorySummary extends StatelessWidget {
           child: Text(text, style: _CareerReadingText.body),
         ),
       ],
+    );
+  }
+}
+
+bool _hasCalculationNote(ReadingContent? content) =>
+    content?.sections.any((section) => section.section == 'calculation-note') ??
+    false;
+
+class _TechnicalNote extends StatelessWidget {
+  const _TechnicalNote({required this.content});
+  final ReadingContent content;
+
+  @override
+  Widget build(BuildContext context) {
+    final note = content.sections
+        .where((section) => section.section == 'calculation-note')
+        .expand((section) => section.items)
+        .map((item) => item.sentence)
+        .firstOrNull;
+    if (note == null) return const SizedBox.shrink();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: _CareerReadingColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _CareerReadingColors.cardBorder),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.info_outline_rounded,
+            size: 17,
+            color: _CareerReadingColors.slate,
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('TECHNICAL NOTE', style: _CareerReadingText.source),
+                const SizedBox(height: 3),
+                Text(note, style: _CareerReadingText.meta),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1317,11 +1380,26 @@ class _TechnicalGroups extends StatelessWidget {
   final CareerTechnicalContext context;
   @override
   Widget build(BuildContext buildContext) {
+    final ashtakavarga = context.supportingContext
+        .where((row) => row['sourceFamily'] == 'ASHTAKAVARGA')
+        .toList(growable: false);
+    final planetaryState = context.supportingContext
+        .where((row) => row['sourceFamily'] == 'PLANETARY_STATE')
+        .toList(growable: false);
+    final planetaryRelationship = context.supportingContext
+        .where((row) => row['sourceFamily'] == 'PLANETARY_RELATIONSHIP')
+        .toList(growable: false);
+    final hasSupportingContext =
+        ashtakavarga.isNotEmpty ||
+        planetaryState.isNotEmpty ||
+        planetaryRelationship.isNotEmpty;
     final groups = <(String, List<Map<String, dynamic>>)>[
       ('Natal Structure', context.natalStructure),
       ('D10 Career Chart', context.d10CareerChart),
       ('Timing', context.timing),
-      ('Supporting Context', context.supportingContext),
+      ('Ashtakavarga', ashtakavarga),
+      ('Planetary State', planetaryState),
+      ('Planetary Relationship', planetaryRelationship),
       ('Career History', context.careerHistory),
       ('Classical Rule Context', context.classicalRuleContext),
     ];
@@ -1330,6 +1408,10 @@ class _TechnicalGroups extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (hasSupportingContext) ...[
+            Text('Supporting Context', style: _CareerReadingText.source),
+            const SizedBox(height: 4),
+          ],
           for (final group in groups)
             if (group.$2.isNotEmpty) ...[
               Text(group.$1, style: _CareerReadingText.source),
@@ -1365,7 +1447,14 @@ String _technicalRow(Map<String, dynamic> row) {
     return 'Classical rule evidence is not a guaranteed Career outcome.';
   }
   if (row['sourceFamily'] == 'ASHTAKAVARGA') {
-    return '${row['houseNumber'] ?? ''}th-house ${row['scoreType'] ?? 'score'}: ${row['value'] ?? ''}';
+    final house = row['houseNumber'];
+    final score = _ashtakavargaScoreLabel(row['scoreType']);
+    final value = row['value'];
+    final planet = row['planet'];
+    final houseLabel = house is int ? '${_ordinal(house)} House' : 'House';
+    return planet is String && planet.isNotEmpty
+        ? '$planet $score · $houseLabel: $value'
+        : '$houseLabel · $score: $value';
   }
   if (row['sourceFamily'] == 'PLANETARY_STATE') {
     return '${row['planet'] ?? 'Planet'} — ${_stateLabel(row['state'])}';
@@ -1374,6 +1463,21 @@ String _technicalRow(Map<String, dynamic> row) {
     return '${row['subjectPlanet'] ?? 'Planet'} → ${row['targetPlanet'] ?? 'Planet'} · ${row['relationshipType'] ?? 'Relationship'}: ${row['relationship'] ?? ''}';
   }
   return '';
+}
+
+String _ashtakavargaScoreLabel(Object? value) =>
+    const {'LAGNA_BAV': 'Lagna BAV', 'SAV': 'SAV', 'BAV': 'BAV'}[value] ??
+    'Score';
+
+String _ordinal(int value) {
+  final tens = value % 100;
+  if (tens >= 11 && tens <= 13) return '${value}th';
+  return switch (value % 10) {
+    1 => '${value}st',
+    2 => '${value}nd',
+    3 => '${value}rd',
+    _ => '${value}th',
+  };
 }
 
 String _dashaLabel(Object? value) =>
@@ -1576,8 +1680,6 @@ class _CareerReadingHero extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Text('CAREER READING', style: _CareerReadingText.eyebrow),
-            const Spacer(),
-            if (hasCalibrationContext) const _CareerReadingStatusChip(),
           ],
         ),
         const SizedBox(height: 18),
@@ -1612,21 +1714,6 @@ class _CareerReadingHero extends StatelessWidget {
         ),
       ],
     ),
-  );
-}
-
-class _CareerReadingStatusChip extends StatelessWidget {
-  const _CareerReadingStatusChip();
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-    decoration: BoxDecoration(
-      color: const Color(0x1FC5A059),
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: _CareerReadingColors.goldBorder),
-    ),
-    child: Text('CALIBRATION CONTEXT', style: _CareerReadingText.chip),
   );
 }
 
