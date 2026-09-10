@@ -342,6 +342,14 @@ void main() {
       expect(find.text('Career Timing Alignment'), findsWidgets);
       expect(find.text('MATCHED WITH YOUR CAREER HISTORY'), findsWidgets);
       expect(find.text('FUTURE CAREER TIMING'), findsWidgets);
+      expect(
+        tester
+            .getTopLeft(find.text('MATCHED WITH YOUR CAREER HISTORY').first)
+            .dy,
+        lessThan(
+          tester.getTopLeft(find.text('FUTURE CAREER TIMING').first).dy,
+        ),
+      );
       expect(find.text('Career structure'), findsNothing);
       expect(find.text('WHAT LIMITS THIS SIGNAL'), findsOneWidget);
       await tester.tap(find.text('ASTROLOGY BEHIND THIS').first);

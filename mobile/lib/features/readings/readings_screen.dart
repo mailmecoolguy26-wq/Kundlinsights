@@ -845,39 +845,25 @@ class _CareerInsightExperience extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primary = insights.first;
-    final historical = insights
-        .where((item) => item.family == 'HISTORICAL_CALIBRATION_RECURRENCE')
-        .toList();
-    final future = insights
-        .where((item) => item.family == 'FUTURE_RECURRENCE_WINDOW')
-        .toList();
-    final supporting = insights
-        .where(
-          (item) =>
-              item != primary &&
-              !historical.contains(item) &&
-              !future.contains(item),
-        )
-        .toList();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _CareerReadingSectionLabel('CAREER INSIGHTS'),
-        const SizedBox(height: 12),
-        _CareerInsightCard(insight: primary, primary: true),
-        if (supporting.isNotEmpty) ...[
-          const SizedBox(height: 18),
-          const _CareerReadingSectionLabel('SUPPORTING INSIGHTS'),
-          const SizedBox(height: 12),
-          for (final insight in supporting)
-            _CareerInsightCard(insight: insight),
-        ],
-        if (historical.isNotEmpty) ...[
-          const SizedBox(height: 18),
+    final trailing = insights.skip(1).toList(growable: false);
+    final trailingWidgets = <Widget>[];
+    var supportingLabelShown = false;
+    for (final insight in trailing) {
+      trailingWidgets.add(const SizedBox(height: 18));
+      if (insight.family == 'HISTORICAL_CALIBRATION_RECURRENCE') {
+        trailingWidgets.add(
           const _CareerReadingSectionLabel('MATCHED WITH YOUR CAREER HISTORY'),
-          const SizedBox(height: 12),
-          for (final insight in historical)
-            _CareerInsightCard(insight: insight),
+        );
+      } else if (insight.family == 'FUTURE_RECURRENCE_WINDOW') {
+        trailingWidgets.add(const _CareerReadingSectionLabel('FUTURE CAREER TIMING'));
+      } else if (!supportingLabelShown) {
+        trailingWidgets.add(const _CareerReadingSectionLabel('SUPPORTING INSIGHTS'));
+        supportingLabelShown = true;
+      }
+      trailingWidgets.add(const SizedBox(height: 12));
+      trailingWidgets.add(_CareerInsightCard(insight: insight));
+      if (insight.family == 'HISTORICAL_CALIBRATION_RECURRENCE') {
+        trailingWidgets.add(
           OutlinedButton.icon(
             onPressed: () => context.push('/career-calibration'),
             icon: const Icon(Icons.tune_rounded, size: 18),
@@ -887,13 +873,16 @@ class _CareerInsightExperience extends StatelessWidget {
               side: const BorderSide(color: _CareerReadingColors.goldBorder),
             ),
           ),
-        ],
-        if (future.isNotEmpty) ...[
-          const SizedBox(height: 18),
-          const _CareerReadingSectionLabel('FUTURE CAREER TIMING'),
-          const SizedBox(height: 12),
-          for (final insight in future) _CareerInsightCard(insight: insight),
-        ],
+        );
+      }
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _CareerReadingSectionLabel('CAREER INSIGHTS'),
+        const SizedBox(height: 12),
+        _CareerInsightCard(insight: primary, primary: true),
+        ...trailingWidgets,
       ],
     );
   }

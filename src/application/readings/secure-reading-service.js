@@ -63,7 +63,7 @@ function publicInsightTiming(timing) {
   const periods = (timing && timing.dashaPeriods || []).map((item) => {
     const start = iso(item.start), end = iso(item.end);
     if (!start || !end || !['MAHADASHA', 'ANTARDASHA', 'PRATYANTAR_DASHA'].includes(item.periodLevel) || typeof item.periodPlanet !== 'string') return null;
-    return { kind: 'DASHA_PERIOD', start, end, isCurrent: item.isCurrent === true, periodLevel: item.periodLevel, periodPlanet: item.periodPlanet, source: 'VIMSHOTTARI', ...(typeof item.sourceRulesetId === 'string' ? { sourceRulesetId: item.sourceRulesetId } : {}) };
+    return { kind: 'DASHA_PERIOD', start, end, isCurrent: item.isCurrent === true, periodLevel: item.periodLevel, periodPlanet: item.periodPlanet, source: 'VIMSHOTTARI' };
   }).filter(Boolean);
   const transits = (timing && timing.transitContexts || []).map((item) => {
     const start = iso(item.start); const end = iso(item.end);
@@ -116,7 +116,6 @@ function publicInsights(record) {
     calibrationContext,
     technicalContext: buildCareerTechnicalContext({ timing, charts, ashtakavarga, planetaryState, planetaryRelationships, calibrationContext, family: insight.family }),
     technicalDetails: { independentMechanismFamilies: insight.technicalDetails && insight.technicalDetails.independentMechanismFamilies || [] },
-    rulesetVersions: insight.rulesetVersions || {},
     evidenceTrace: { signals: [] },
   });
   });
