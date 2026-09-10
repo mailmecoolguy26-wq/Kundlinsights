@@ -46,16 +46,35 @@ function publicEvent(event) {
   if (event.eventType === 'rashiIngress') return { type: 'INGRESS', planet, at: event.instant, ...(sign(event.fromRashi) ? { fromSign: sign(event.fromRashi) } : {}), ...(sign(event.toRashi) ? { toSign: sign(event.toRashi) } : {}) };
   if (event.eventType === 'retrogradeStation') return { type: 'STATION_RETROGRADE', planet, at: event.instant, ...(event.fromMotion ? { motionBefore: event.fromMotion } : {}), ...(event.toMotion ? { motionAfter: event.toMotion } : {}) };
   if (event.eventType === 'directStation') return { type: 'STATION_DIRECT', planet, at: event.instant, ...(event.fromMotion ? { motionBefore: event.fromMotion } : {}), ...(event.toMotion ? { motionAfter: event.toMotion } : {}) };
-  if (event.eventType === 'transitDrishtiStart' || event.eventType === 'transitDrishtiEnd') return { type: 'DRISHTI_CHANGE', planet, at: event.instant, ...(event.natalBody ? { targetPlanet: event.natalBody } : {}), ...(Number.isInteger(event.targetHouseNumber) ? { house: event.targetHouseNumber } : {}) };
-  if (event.eventType === 'sameRashiAssociationStart' || event.eventType === 'sameRashiAssociationEnd') return { type: 'ASSOCIATION_CHANGE', planet, at: event.instant, ...(event.natalBody ? { targetPlanet: event.natalBody } : {}) };
+  if (event.eventType === 'transitDrishtiStart' || event.eventType === 'transitDrishtiEnd') {
+    if (typeof event.natalBody !== 'string' || event.natalBody === planet) return null;
+    return { type: 'DRISHTI_CHANGE', planet, at: event.instant, targetPlanet: event.natalBody, ...(event.transition === 'start' || event.transition === 'end' ? { change: event.transition } : {}), ...(Number.isInteger(event.targetHouseNumber) ? { house: event.targetHouseNumber } : {}) };
+  }
+  if (event.eventType === 'sameRashiAssociationStart' || event.eventType === 'sameRashiAssociationEnd') {
+    if (typeof event.natalBody !== 'string' || event.natalBody === planet) return null;
+    return { type: 'ASSOCIATION_CHANGE', planet, at: event.instant, targetPlanet: event.natalBody, ...(event.transition === 'start' || event.transition === 'end' ? { change: event.transition } : {}) };
+  }
   if (event.eventType === 'sadeSatiPhaseChange') return { type: 'SADE_SATI_PHASE_CHANGE', planet, at: event.instant };
   return null;
 }
+function identity(value) {
+  return [value.type, value.planet, value.at, value.targetPlanet || '', value.fromSign || '', value.toSign || '', value.motionBefore || '', value.motionAfter || '', value.change || '', value.house ?? ''].join('|');
+}
 function transitions(scan) {
-  return (scan && Array.isArray(scan.events) ? scan.events : []).map((event) => ({ event, value: publicEvent(event) })).filter((item) => item.value).sort((left, right) => left.value.at.localeCompare(right.value.at) || (EVENT_TYPE_ORDER.get(left.event.eventType) ?? 99) - (EVENT_TYPE_ORDER.get(right.event.eventType) ?? 99) || left.value.planet.localeCompare(right.value.planet)).map((item) => item.value);
+  const ordered = (scan && Array.isArray(scan.events) ? scan.events : [])
+    .map((event) => ({ event, value: publicEvent(event) }))
+    .filter((item) => item.value)
+    .filter(({ value }) => value.planet !== 'Moon' || value.type === 'INGRESS' || (value.type !== 'ASSOCIATION_CHANGE' && value.type !== 'DRISHTI_CHANGE'))
+    .sort((left, right) => left.value.at.localeCompare(right.value.at) || (EVENT_TYPE_ORDER.get(left.event.eventType) ?? 99) - (EVENT_TYPE_ORDER.get(right.event.eventType) ?? 99) || left.value.planet.localeCompare(right.value.planet) || (left.value.targetPlanet || '').localeCompare(right.value.targetPlanet || ''));
+  const seen = new Set(); let moonIngresses = 0;
+  return ordered.filter(({ value }) => {
+    const key = identity(value); if (seen.has(key)) return false; seen.add(key);
+    if (value.type === 'INGRESS' && value.planet === 'Moon' && ++moonIngresses > 3) return false;
+    return true;
+  }).map((item) => item.value);
 }
 function adaptTransitInsight({ snapshot, insights = [], scan = null, horizon = null } = {}) {
   return createTransitInsightContext({ activatedHouses: activatedHouses(snapshot), careerRelevance: careerRelevance({ insights, snapshot }), specialStates: specialStates(snapshot), upcomingTransitions: transitions(scan), horizon });
 }
 
-module.exports = { adaptTransitInsight, activatedHouses, careerRelevance, specialStates, transitions };
+module.exports = { adaptTransitInsight, activatedHouses, careerRelevance, specialStates, transitions, publicEvent, identity };

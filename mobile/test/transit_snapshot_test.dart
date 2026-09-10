@@ -28,6 +28,23 @@ void main() {
     );
   });
 
+  test('parses additive transit insight context and skips malformed items', () {
+    final data = _json('a', insightContext: _insightContext())
+      ..['insightContext']['careerRelevance'] = [
+        ..._insightContext()['careerRelevance'],
+        {'planet': 4},
+      ]
+      ..['insightContext']['upcomingTransitions'] = [
+        ..._insightContext()['upcomingTransitions'],
+        {'type': 'UNKNOWN'},
+      ];
+    final context = TransitSnapshot.fromJson(data).insightContext!;
+    expect(context.activatedHouses.single.house, 10);
+    expect(context.careerRelevance.single.planet, 'Jupiter');
+    expect(context.specialStates.single.type, 'RETROGRADE');
+    expect(context.upcomingTransitions.single.type, 'INGRESS');
+  });
+
   test(
     'isolates profile, user, stale profile, and stale refresh requests',
     () async {
@@ -126,30 +143,222 @@ void main() {
     expect(find.text('Career Impact'), findsNothing);
     expect(find.text('What to Watch'), findsNothing);
   });
+
+  testWidgets('renders only supplied safe transit insight sections', (
+    tester,
+  ) async {
+    final auth = AuthController(_Auth());
+    await auth.restore();
+    final profiles = ProfileController(_Profiles(_Auth()), auth);
+    await profiles.load();
+    final controller = TransitSnapshotController(
+      _ImmediateRepo(
+        TransitSnapshot.fromJson(_json('a', insightContext: _insightContext())),
+      ),
+      auth,
+      profiles,
+    );
+    addTearDown(() {
+      controller.dispose();
+      profiles.dispose();
+      auth.dispose();
+    });
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CurrentTransitsScreen(
+          profileController: profiles,
+          controller: controller,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('CAREER-RELEVANT TRANSITS'), findsOneWidget);
+    expect(find.text('Mixed evidence'), findsOneWidget);
+    expect(find.text('Jupiter'), findsWidgets);
+    expect(
+      find.text(
+        'This transit contributes to your current Career timing analysis.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('See Career Timing'), findsOneWidget);
+    expect(find.text('UPCOMING TRANSIT CHANGES'), findsOneWidget);
+    expect(find.text('Jupiter enters Gemini'), findsOneWidget);
+    expect(find.text('SPECIAL TRANSIT STATUS'), findsOneWidget);
+    expect(find.text('Sade Sati'), findsOneWidget);
+    expect(find.text('Saturn · Retrograde'), findsNothing);
+    for (final forbidden in [
+      'Major Influence',
+      'Supportive',
+      'Watch',
+      'Most Important Right Now',
+      'Professional Direction',
+      'Opportunity',
+      'Pressure / Change',
+      'What to Watch',
+    ]) {
+      expect(find.text(forbidden), findsNothing);
+    }
+  });
+
+  testWidgets(
+    'groups and bounds factual transition rows without relation noise',
+    (tester) async {
+      final auth = AuthController(_Auth());
+      await auth.restore();
+      final profiles = ProfileController(_Profiles(_Auth()), auth);
+      await profiles.load();
+      final controller = TransitSnapshotController(
+        _ImmediateRepo(
+          TransitSnapshot.fromJson(
+            _json('a', insightContext: _timelineInsightContext()),
+          ),
+        ),
+        auth,
+        profiles,
+      );
+      addTearDown(() {
+        controller.dispose();
+        profiles.dispose();
+        auth.dispose();
+      });
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CurrentTransitsScreen(
+            profileController: profiles,
+            controller: controller,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('11 SEP 2027'), findsOneWidget);
+      expect(find.text('Mars association begins with Ketu'), findsOneWidget);
+      expect(find.text('Jupiter aspect ends with Sun'), findsOneWidget);
+      expect(find.text('Moon association changes with Moon'), findsNothing);
+      expect(find.text('Moon aspect changes'), findsNothing);
+      expect(find.text('View More Transit Changes'), findsOneWidget);
+      await tester.drag(find.byType(ListView).first, const Offset(0, -1100));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('View More Transit Changes'));
+      await tester.pumpAndSettle();
+      expect(find.text('Show Less'), findsOneWidget);
+      expect(find.text('Saturn enters Pisces'), findsOneWidget);
+    },
+  );
 }
 
 Future<void> _settle() => Future<void>.delayed(Duration.zero);
 TransitSnapshot _snapshot(String id) => TransitSnapshot.fromJson(_json(id));
-Map<String, dynamic> _json(String id) => {
-  'birthProfileId': id,
-  'at': '2027-01-01T00:00:00.000Z',
-  'planets': List.generate(
-    TransitSnapshot.grahas.length,
-    (i) => {
-      'planet': TransitSnapshot.grahas[i],
-      'longitude': i == 0 ? 1.0 : i + .0,
-      'sign': {
-        'rashiIndex': 12,
-        'sanskritName': 'Test',
-        'englishName': i == 0 ? 'Backend supplied sign' : 'Test',
+Map<String, dynamic> _json(String id, {Map<String, dynamic>? insightContext}) {
+  final value = <String, dynamic>{
+    'birthProfileId': id,
+    'at': '2027-01-01T00:00:00.000Z',
+    'planets': List.generate(
+      TransitSnapshot.grahas.length,
+      (i) => {
+        'planet': TransitSnapshot.grahas[i],
+        'longitude': i == 0 ? 1.0 : i + .0,
+        'sign': {
+          'rashiIndex': 12,
+          'sanskritName': 'Test',
+          'englishName': i == 0 ? 'Backend supplied sign' : 'Test',
+        },
+        'degreeWithinSign': i == 0 ? 99.75 : 1.0,
+        'natalHouse': i == 0 ? 12 : 1,
+        'motion': 'direct',
+        'retrograde': i == 0,
       },
-      'degreeWithinSign': i == 0 ? 99.75 : 1.0,
-      'natalHouse': i == 0 ? 12 : 1,
-      'motion': 'direct',
-      'retrograde': i == 0,
+    ),
+    'sadeSati': {'active': true, 'phase': 'rising', 'houseFromNatalMoon': 12},
+  };
+  if (insightContext != null) value['insightContext'] = insightContext;
+  return value;
+}
+
+Map<String, dynamic> _insightContext() => {
+  'activatedHouses': [
+    {
+      'house': 10,
+      'planets': ['Jupiter', 'Sun'],
     },
-  ),
-  'sadeSati': {'active': true, 'phase': 'rising', 'houseFromNatalMoon': 12},
+  ],
+  'careerRelevance': [
+    {
+      'planet': 'Jupiter',
+      'status': 'MIXED',
+      'summary': 'ignored',
+      'presentation': {
+        'english':
+            'This transit contributes to your current Career timing analysis.',
+        'hinglish':
+            'Yeh Gochar aapki current Career timing analysis ka hissa hai.',
+      },
+      'timing': {'instant': '2027-01-01T00:00:00.000Z'},
+    },
+  ],
+  'specialStates': [
+    {
+      'type': 'RETROGRADE',
+      'planet': 'Saturn',
+      'status': 'ACTIVE',
+      'summary': 'ignored',
+      'presentation': {
+        'english': 'Saturn is currently retrograde.',
+        'hinglish': 'Shani Dev abhi Vakri hain.',
+      },
+    },
+  ],
+  'upcomingTransitions': [
+    {
+      'type': 'INGRESS',
+      'planet': 'Jupiter',
+      'at': '2027-01-10T00:00:00.000Z',
+      'fromSign': 'Taurus',
+      'toSign': 'Gemini',
+    },
+  ],
+  'horizon': {
+    'from': '2027-01-01T00:00:00.000Z',
+    'to': '2027-01-31T00:00:00.000Z',
+  },
+};
+
+Map<String, dynamic> _timelineInsightContext() => {
+  ..._insightContext(),
+  'specialStates': [
+    {
+      'type': 'RETROGRADE',
+      'planet': 'Saturn',
+      'status': 'ACTIVE',
+      'presentation': {'english': 'ignored', 'hinglish': 'ignored'},
+    },
+  ],
+  'upcomingTransitions': [
+    {
+      'type': 'ASSOCIATION_CHANGE',
+      'planet': 'Mars',
+      'targetPlanet': 'Ketu',
+      'change': 'start',
+      'at': '2027-09-11T00:00:00.000Z',
+    },
+    {
+      'type': 'DRISHTI_CHANGE',
+      'planet': 'Jupiter',
+      'targetPlanet': 'Sun',
+      'change': 'end',
+      'at': '2027-09-11T00:00:00.000Z',
+    },
+    for (var index = 0; index < 13; index++)
+      {
+        'type': 'INGRESS',
+        'planet': index == 12 ? 'Saturn' : (index.isEven ? 'Mars' : 'Jupiter'),
+        'at':
+            '2027-09-${(12 + index).toString().padLeft(2, '0')}T00:00:00.000Z',
+        'toSign': index == 12 ? 'Pisces' : 'Aries',
+      },
+  ],
 };
 
 class _Repo implements TransitSnapshotRepository {

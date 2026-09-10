@@ -22,7 +22,7 @@ function special(item) {
 }
 function transition(item) {
   if (!item || !TRANSITION_TYPES.has(item.type) || typeof item.planet !== 'string' || typeof item.at !== 'string') throw new TypeError('Transit transition is invalid.');
-  const optional = ['fromSign', 'toSign', 'motionBefore', 'motionAfter', 'targetPlanet', 'house'];
+  const optional = ['fromSign', 'toSign', 'motionBefore', 'motionAfter', 'targetPlanet', 'house', 'change'];
   return { type: item.type, planet: item.planet, at: item.at, ...Object.fromEntries(optional.filter((key) => item[key] !== undefined && item[key] !== null).map((key) => [key, item[key]])) };
 }
 function createTransitInsightContext({ activatedHouses = [], careerRelevance = [], specialStates = [], upcomingTransitions = [], horizon = null } = {}) {

@@ -35,3 +35,25 @@ test('projects scanner events as chronological points without undefined fields',
   assert.deepEqual(value.upcomingTransitions[1], { type: 'INGRESS', planet: 'Saturn', at: '2026-09-02T00:00:00.000Z', fromSign: 'Pisces', toSign: 'Aries' });
   assert.equal(JSON.stringify(value).includes('undefined'), false);
 });
+
+test('filters self and ambiguous relations, deduplicates public facts, and bounds Moon ingress rows', () => {
+  const at = '2026-09-03T00:00:00.000Z';
+  const value = adaptTransitInsight({ snapshot: snapshot(), scan: { events: [
+    { eventType: 'sameRashiAssociationStart', body: 'Moon', instant: at, natalBody: 'Moon', transition: 'start' },
+    { eventType: 'transitDrishtiStart', body: 'Moon', instant: at, natalBody: 'Sun', transition: 'start' },
+    { eventType: 'transitDrishtiStart', body: 'Mars', instant: at, natalBody: 'Mars', transition: 'start' },
+    { eventType: 'sameRashiAssociationStart', body: 'Mars', instant: at, natalBody: 'Ketu', transition: 'start' },
+    { eventType: 'sameRashiAssociationStart', body: 'Mars', instant: at, natalBody: 'Ketu', transition: 'start' },
+    { eventType: 'transitDrishtiEnd', body: 'Jupiter', instant: at, natalBody: 'Sun', transition: 'end', targetHouseNumber: 10 },
+    { eventType: 'rashiIngress', body: 'Moon', instant: '2026-09-04T00:00:00.000Z', toRashi: { englishName: 'Aries' } },
+    { eventType: 'rashiIngress', body: 'Moon', instant: '2026-09-05T00:00:00.000Z', toRashi: { englishName: 'Taurus' } },
+    { eventType: 'rashiIngress', body: 'Moon', instant: '2026-09-06T00:00:00.000Z', toRashi: { englishName: 'Gemini' } },
+    { eventType: 'rashiIngress', body: 'Moon', instant: '2026-09-07T00:00:00.000Z', toRashi: { englishName: 'Cancer' } },
+  ] } });
+  assert.deepEqual(value.upcomingTransitions.filter((item) => item.type === 'ASSOCIATION_CHANGE'), [{ type: 'ASSOCIATION_CHANGE', planet: 'Mars', at, targetPlanet: 'Ketu', change: 'start' }]);
+  assert.deepEqual(value.upcomingTransitions.find((item) => item.type === 'DRISHTI_CHANGE'), { type: 'DRISHTI_CHANGE', planet: 'Jupiter', at, targetPlanet: 'Sun', house: 10, change: 'end' });
+  assert.equal(value.upcomingTransitions.filter((item) => item.planet === 'Moon' && item.type === 'INGRESS').length, 3);
+  assert.equal(value.upcomingTransitions.some((item) => item.planet === item.targetPlanet), false);
+  assert.equal(value.upcomingTransitions.some((item) => item.planet === 'Moon' && item.type === 'DRISHTI_CHANGE'), false);
+  assert.deepEqual([...value.upcomingTransitions].map((item) => item.at), [...value.upcomingTransitions].map((item) => item.at).sort());
+});

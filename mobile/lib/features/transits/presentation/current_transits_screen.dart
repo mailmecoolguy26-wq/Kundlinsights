@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../profiles/profile_controller.dart';
@@ -168,14 +169,38 @@ class _TransitBody extends StatelessWidget {
     final snapshot = controller.snapshot!;
     final timestamp = DateFormat('d MMM yyyy · h:mm a')
         .format(DateTime.parse(snapshot.at).toLocal());
-    final houses = <int, List<TransitPlanet>>{};
-    for (final planet in snapshot.planets) {
-      houses.putIfAbsent(planet.natalHouse, () => []).add(planet);
-    }
+    final insight = snapshot.insightContext;
+    final houses = insight?.activatedHouses.isNotEmpty == true
+        ? insight!.activatedHouses
+        : _legacyHouses(snapshot.planets);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _SnapshotCard(timestamp: timestamp),
+        if (insight?.careerRelevance.isNotEmpty == true) ...[
+          const SizedBox(height: 26),
+          const _Section('CAREER-RELEVANT TRANSITS'),
+          const SizedBox(height: 10),
+          _CareerRelevanceCard(items: insight!.careerRelevance),
+          const SizedBox(height: 4),
+          TextButton.icon(
+            onPressed: () => context.go('/readings'),
+            icon: const Icon(Icons.arrow_forward, size: 16),
+            label: const Text('See Career Timing'),
+            style: TextButton.styleFrom(
+              foregroundColor: CurrentTransitsScreen.gold,
+            ),
+          ),
+        ],
+        if (insight?.upcomingTransitions.isNotEmpty == true) ...[
+          const SizedBox(height: 22),
+          const _Section('UPCOMING TRANSIT CHANGES'),
+          const SizedBox(height: 10),
+          _UpcomingTransitionsCard(
+            items: insight!.upcomingTransitions,
+            horizon: insight.horizon,
+          ),
+        ],
         const SizedBox(height: 26),
         const _Section('HOUSES ACTIVATED'),
         const SizedBox(height: 10),
@@ -185,10 +210,16 @@ class _TransitBody extends StatelessWidget {
         const SizedBox(height: 10),
         _AllTransitsCard(planets: snapshot.planets),
         const SizedBox(height: 26),
-        if (snapshot.sadeSati.active) ...[
+        if (_hasAdditiveSpecialState(
+          insight?.specialStates ?? const [],
+          snapshot.sadeSati,
+        )) ...[
           const _Section('SPECIAL TRANSIT STATUS'),
           const SizedBox(height: 10),
-          _SadeSatiCard(status: snapshot.sadeSati),
+          _SpecialStatesCard(
+            states: insight?.specialStates ?? const [],
+            fallbackSadeSati: snapshot.sadeSati,
+          ),
           const SizedBox(height: 26),
         ],
         _TechnicalDetails(snapshot: snapshot, timestamp: timestamp),
@@ -223,7 +254,7 @@ class _SnapshotCard extends StatelessWidget {
 
 class _HousesCard extends StatelessWidget {
   const _HousesCard({required this.houses});
-  final Map<int, List<TransitPlanet>> houses;
+  final List<TransitActivatedHouse> houses;
   @override
   Widget build(BuildContext context) {
     final copy = AstrologyPresentationCopy.of(context);
@@ -231,10 +262,8 @@ class _HousesCard extends StatelessWidget {
       child: Wrap(
         spacing: 8,
         runSpacing: 8,
-        children: houses.entries.map((entry) {
-          final names = entry.value
-              .map((planet) => copy.planet(planet.planet))
-              .join(', ');
+        children: houses.map((entry) {
+          final names = entry.planets.map(copy.planet).join(', ');
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
@@ -242,7 +271,7 @@ class _HousesCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
-              '${copy.houseContext(entry.key)} · $names',
+              '${copy.houseContext(entry.house)} · $names',
               style: const TextStyle(
                 color: CurrentTransitsScreen.alabaster,
                 fontSize: 12,
@@ -366,16 +395,379 @@ class _MotionPill extends StatelessWidget {
   );
 }
 
-class _SadeSatiCard extends StatelessWidget {
-  const _SadeSatiCard({required this.status});
-  final SadeSatiStatus status;
+class _CareerRelevanceCard extends StatelessWidget {
+  const _CareerRelevanceCard({required this.items});
+  final List<TransitCareerRelevance> items;
   @override
   Widget build(BuildContext context) => _DarkCard(
-    child: Text(
-      'Sade Sati · ${status.phase} phase · House ${status.houseFromNatalMoon} from natal Moon',
-      style: _Styles.cardBody,
+    padding: EdgeInsets.zero,
+    child: Column(
+      children: [
+        for (var index = 0; index < items.length; index++) ...[
+          _CareerRelevanceRow(item: items[index]),
+          if (index < items.length - 1)
+            const Divider(height: 1, color: Color(0x335E4A87)),
+        ],
+      ],
     ),
   );
+}
+
+class _CareerRelevanceRow extends StatelessWidget {
+  const _CareerRelevanceRow({required this.item});
+  final TransitCareerRelevance item;
+  @override
+  Widget build(BuildContext context) {
+    final copy = AstrologyPresentationCopy.of(context);
+    return Padding(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(copy.planet(item.planet), style: _Styles.cardTitle),
+              ),
+              _StatusChip(_statusLabel(item.status)),
+            ],
+          ),
+          if (item.instant != null) ...[
+            const SizedBox(height: 3),
+            Text(_pointDate(item.instant!), style: _Styles.goldText),
+          ],
+          const SizedBox(height: 6),
+          Text(
+            _presentation(context, item.presentation),
+            style: _Styles.cardBody,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UpcomingTransitionsCard extends StatefulWidget {
+  const _UpcomingTransitionsCard({required this.items, required this.horizon});
+  final List<UpcomingTransitTransition> items;
+  final TransitHorizon? horizon;
+  @override
+  State<_UpcomingTransitionsCard> createState() =>
+      _UpcomingTransitionsCardState();
+}
+
+class _UpcomingTransitionsCardState extends State<_UpcomingTransitionsCard> {
+  static const _initialLimit = 12;
+  var _expanded = false;
+  @override
+  Widget build(BuildContext context) {
+    final all = _displayTransitions(widget.items);
+    final shown = _expanded ? all : all.take(_initialLimit).toList();
+    final groups = <String, List<UpcomingTransitTransition>>{};
+    for (final item in shown) {
+      final date = _dateKey(item.at);
+      (groups[date] ??= []).add(item);
+    }
+    return _DarkCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (widget.horizon != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
+              child: Text(
+                _horizonText(widget.horizon!),
+                style: _Styles.cardBody,
+              ),
+            ),
+          for (final entry in groups.entries) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 2),
+              child: Text(_dateHeading(entry.key), style: _Styles.eyebrow),
+            ),
+            for (final item in entry.value)
+              _UpcomingTransitionRow(item: item, showDate: false),
+          ],
+          if (all.length > _initialLimit)
+            TextButton(
+              onPressed: () => setState(() => _expanded = !_expanded),
+              style: TextButton.styleFrom(
+                foregroundColor: CurrentTransitsScreen.gold,
+              ),
+              child: Text(
+                _expanded ? 'Show Less' : 'View More Transit Changes',
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UpcomingTransitionRow extends StatelessWidget {
+  const _UpcomingTransitionRow({required this.item, required this.showDate});
+  final UpcomingTransitTransition item;
+  final bool showDate;
+  @override
+  Widget build(BuildContext context) {
+    final copy = AstrologyPresentationCopy.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.schedule_outlined,
+            color: CurrentTransitsScreen.gold,
+            size: 19,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(_transitionLabel(copy, item), style: _Styles.cardTitle),
+                if (showDate) ...[
+                  const SizedBox(height: 3),
+                  Text(_pointDate(item.at), style: _Styles.cardBody),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SpecialStatesCard extends StatelessWidget {
+  const _SpecialStatesCard({
+    required this.states,
+    required this.fallbackSadeSati,
+  });
+  final List<TransitSpecialState> states;
+  final SadeSatiStatus fallbackSadeSati;
+  @override
+  Widget build(BuildContext context) {
+    final values = states.where((state) => state.type != 'RETROGRADE').toList()
+      ..sort((left, right) => left.type.compareTo(right.type));
+    final resolved = values.isNotEmpty
+        ? values
+        : [
+            TransitSpecialState(
+              type: 'SADE_SATI',
+              planet: 'Saturn',
+              status: 'ACTIVE',
+              phase: fallbackSadeSati.phase,
+              presentation: const TransitPresentationCopy(
+                english: 'Sade Sati is currently active.',
+                hinglish: 'Sade Sati abhi active hai.',
+              ),
+            ),
+          ];
+    return _DarkCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          for (var index = 0; index < resolved.length; index++) ...[
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.info_outline,
+                    color: CurrentTransitsScreen.gold,
+                    size: 19,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          resolved[index].type == 'SADE_SATI'
+                              ? 'Sade Sati'
+                              : '${AstrologyPresentationCopy.of(context).planet(resolved[index].planet)} · Retrograde',
+                          style: _Styles.cardTitle,
+                        ),
+                        if (resolved[index].phase != null)
+                          Text(
+                            'Phase ${resolved[index].phase} active',
+                            style: _Styles.goldText,
+                          ),
+                        const SizedBox(height: 5),
+                        Text(
+                          _presentation(context, resolved[index].presentation),
+                          style: _Styles.cardBody,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (index < resolved.length - 1)
+              const Divider(height: 1, color: Color(0x335E4A87)),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip(this.label);
+  final String label;
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+    decoration: BoxDecoration(
+      border: Border.all(color: const Color(0x66C5A059)),
+      borderRadius: BorderRadius.circular(99),
+    ),
+    child: Text(
+      label,
+      style: const TextStyle(
+        color: CurrentTransitsScreen.gold,
+        fontSize: 9,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+  );
+}
+
+List<TransitActivatedHouse> _legacyHouses(List<TransitPlanet> planets) {
+  final groups = <int, List<String>>{};
+  for (final planet in planets) {
+    groups.putIfAbsent(planet.natalHouse, () => []).add(planet.planet);
+  }
+  return groups.entries
+      .map(
+        (entry) => TransitActivatedHouse(
+          house: entry.key,
+          planets: List.unmodifiable(entry.value),
+        ),
+      )
+      .toList()
+    ..sort((a, b) => a.house.compareTo(b.house));
+}
+
+String _presentation(BuildContext context, TransitPresentationCopy copy) =>
+    AstrologyPresentationCopy.of(context).isHinglish
+    ? copy.hinglish
+    : copy.english;
+String _statusLabel(String status) => switch (status) {
+  'SUPPORTED' => 'Supported',
+  'MIXED' => 'Mixed evidence',
+  'CONTRADICTED' => 'Not consistently supported',
+  'INSUFFICIENT_EVIDENCE' => 'Limited evidence',
+  _ => 'Status unavailable',
+};
+String _pointDate(String instant) =>
+    DateFormat('d MMM yyyy').format(DateTime.parse(instant).toLocal());
+String _dateKey(String instant) =>
+    DateTime.parse(instant).toUtc().toIso8601String().substring(0, 10);
+String _dateHeading(String date) =>
+    DateFormat('d MMM yyyy')
+        .format(DateTime.parse('${date}T00:00:00.000Z').toLocal())
+        .toUpperCase();
+String _horizonText(TransitHorizon value) =>
+    'Upcoming changes through ${_pointDate(value.to)}';
+bool _hasAdditiveSpecialState(
+  List<TransitSpecialState> states,
+  SadeSatiStatus fallback,
+) => states.any((state) => state.type != 'RETROGRADE') || fallback.active;
+
+List<UpcomingTransitTransition> _displayTransitions(
+  List<UpcomingTransitTransition> source,
+) {
+  final sorted = [...source]
+    ..sort((left, right) {
+      final at = left.at.compareTo(right.at);
+      if (at != 0) return at;
+      final type = _transitionOrder(left.type)
+          .compareTo(_transitionOrder(right.type));
+      if (type != 0) return type;
+      final planet = left.planet.compareTo(right.planet);
+      return planet != 0
+          ? planet
+          : (left.targetPlanet ?? '').compareTo(right.targetPlanet ?? '');
+    });
+  final seen = <String>{};
+  var moonIngresses = 0;
+  return List.unmodifiable(
+    sorted.where((item) {
+      if (item.targetPlanet == item.planet) return false;
+      if (item.planet == 'Moon' &&
+          (item.type == 'ASSOCIATION_CHANGE' ||
+              item.type == 'DRISHTI_CHANGE')) {
+        return false;
+      }
+      if ((item.type == 'ASSOCIATION_CHANGE' ||
+              item.type == 'DRISHTI_CHANGE') &&
+          item.targetPlanet == null) {
+        return false;
+      }
+      final key = [
+        item.type,
+        item.planet,
+        item.at,
+        item.targetPlanet ?? '',
+        item.fromSign ?? '',
+        item.toSign ?? '',
+        item.motionBefore ?? '',
+        item.motionAfter ?? '',
+        item.change ?? '',
+        item.house?.toString() ?? '',
+      ].join('|');
+      if (!seen.add(key)) return false;
+      if (item.planet == 'Moon' &&
+          item.type == 'INGRESS' &&
+          ++moonIngresses > 3) {
+        return false;
+      }
+      return true;
+    }),
+  );
+}
+
+int _transitionOrder(String type) => switch (type) {
+  'INGRESS' => 0,
+  'STATION_RETROGRADE' => 1,
+  'STATION_DIRECT' => 2,
+  'SADE_SATI_PHASE_CHANGE' => 3,
+  'ASSOCIATION_CHANGE' => 4,
+  'DRISHTI_CHANGE' => 5,
+  _ => 99,
+};
+String _transitionLabel(
+  AstrologyPresentationCopy copy,
+  UpcomingTransitTransition item,
+) {
+  final planet = copy.planet(item.planet);
+  return switch (item.type) {
+    'INGRESS' => '$planet enters ${item.toSign ?? 'a new sign'}',
+    'STATION_RETROGRADE' =>
+      copy.isHinglish ? '$planet Vakri hote hain' : '$planet turns retrograde',
+    'STATION_DIRECT' =>
+      copy.isHinglish ? '$planet direct hote hain' : '$planet turns direct',
+    'DRISHTI_CHANGE' =>
+      '$planet ${copy.isHinglish ? 'Drishti' : 'aspect'} ${item.change == 'start'
+          ? 'begins'
+          : item.change == 'end'
+          ? 'ends'
+          : 'changes'} with ${copy.planet(item.targetPlanet!)}',
+    'ASSOCIATION_CHANGE' =>
+      '$planet association ${item.change == 'start'
+          ? 'begins'
+          : item.change == 'end'
+          ? 'ends'
+          : 'changes'} with ${copy.planet(item.targetPlanet!)}',
+    'SADE_SATI_PHASE_CHANGE' => 'Sade Sati phase changes',
+    _ => item.type,
+  };
 }
 
 class _TechnicalDetails extends StatelessWidget {
