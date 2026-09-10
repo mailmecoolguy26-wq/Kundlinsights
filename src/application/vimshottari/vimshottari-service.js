@@ -4,6 +4,7 @@ const { calculateVimshottariDasha, SOLAR_RETURN_VIMSHOTTARI_RULESET } = require(
 const { findActiveAt } = require('../../dasha/timeline-builder');
 const { repositoryError } = require('../../persistence/contracts');
 const { toCurrentVimshottariDto, toTimelineVimshottariDto } = require('./vimshottari-dto');
+const { adaptDashaInsight } = require('./dasha-insight-adapter');
 
 const MAX_TIMELINE_WINDOW_MILLISECONDS = 1_827 * 86_400_000;
 const LEVELS = Object.freeze(new Set(['md', 'ad', 'pd']));
@@ -48,7 +49,7 @@ function periodsAtLevel(periods, level) {
 }
 
 class VimshottariService {
-  constructor({ birthProfileService, astronomicalEngine, canonicalSiderealSunSampler } = {}) {
+  constructor({ birthProfileService, astronomicalEngine, canonicalSiderealSunSampler, careerInsightSource = null } = {}) {
     if (!birthProfileService || typeof birthProfileService.get !== 'function') {
       throw new TypeError('VimshottariService requires SecureBirthProfileService.get.');
     }
@@ -62,6 +63,8 @@ class VimshottariService {
     this.birthProfileService = birthProfileService;
     this.astronomicalEngine = astronomicalEngine;
     this.canonicalSiderealSunSampler = canonicalSiderealSunSampler;
+    if (careerInsightSource && typeof careerInsightSource.latestForProfile !== 'function') throw new TypeError('VimshottariService careerInsightSource must provide latestForProfile.');
+    this.careerInsightSource = careerInsightSource;
     Object.freeze(this);
   }
 
@@ -74,7 +77,15 @@ class VimshottariService {
     if (!active || !active.mahadasha || !active.antardasha || !active.pratyantardasha) {
       fail('VIMSHOTTARI_OUTSIDE_TIMELINE');
     }
-    return toCurrentVimshottariDto({ birthProfileId: profile.id, at: instant, dasha, active });
+    let source = null;
+    // Career context is additive. A read failure must never turn a factual
+    // Vimshottari request into a different availability result.
+    if (this.careerInsightSource) {
+      try { source = await this.careerInsightSource.latestForProfile({ principal, birthProfileId: profile.id }); }
+      catch (_) { source = null; }
+    }
+    const insightContext = adaptDashaInsight({ dasha, active, insights: source && source.birthProfileId === profile.id ? source.insights : [] });
+    return toCurrentVimshottariDto({ birthProfileId: profile.id, at: instant, dasha, active, insightContext });
   }
 
   async timeline({ principal, birthProfileId, from, to, level } = {}) {

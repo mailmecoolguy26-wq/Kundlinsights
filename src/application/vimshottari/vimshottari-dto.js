@@ -28,7 +28,7 @@ function provenance(dasha) {
   return freeze({ layer: dasha.provenance.layer, providerIndependent: dasha.provenance.providerIndependent });
 }
 
-function toCurrentVimshottariDto({ birthProfileId, at, dasha, active }) {
+function toCurrentVimshottariDto({ birthProfileId, at, dasha, active, insightContext = null }) {
   return freeze({
     birthProfileId,
     at: at.utc,
@@ -40,6 +40,7 @@ function toCurrentVimshottariDto({ birthProfileId, at, dasha, active }) {
         antardashaLord: active.antardasha.lord.id,
       }),
     }),
+    ...(insightContext ? { insightContext } : {}),
     ruleset: ruleset(dasha),
     provenance: provenance(dasha),
   });

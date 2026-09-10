@@ -5,7 +5,7 @@ const { OpenAICareerGenerationAdapter } = require('../infrastructure/ai/openai-c
 const { SecureBirthProfileService } = require('../application/birth-profiles');
 const { NatalSummaryService } = require('../application/natal-summary');
 const { DivisionalChartService } = require('../application/divisional-charts');
-const { VimshottariService } = require('../application/vimshottari');
+const { VimshottariService, LatestCareerReadingInsightSource } = require('../application/vimshottari');
 const { TransitSnapshotService } = require('../application/transit-snapshot');
 const { AshtakavargaService } = require('../application/ashtakavarga');
 const { CareerEventService, CareerEventAstrologyService, CareerPatternComparisonService, CareerFutureRecurrenceService, CareerReadingContextBuilder } = require('../application/career-events');
@@ -88,7 +88,6 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   const careerEventService = new CareerEventService({ authUserResolver: userResolver, transactionExecutor: tx, repositories, birthProfileService, idGenerator, clock });
   const natalSummaryService = new NatalSummaryService({ birthProfileService, astronomicalEngine });
   const divisionalChartService = new DivisionalChartService({ birthProfileService, astronomicalEngine });
-  const vimshottariService = new VimshottariService({ birthProfileService, astronomicalEngine, canonicalSiderealSunSampler });
   const transitSnapshotService = new TransitSnapshotService({ birthProfileService, astronomicalEngine });
   const ashtakavargaService = new AshtakavargaService({ birthProfileService, astronomicalEngine });
   const careerEventAstrologyService = new CareerEventAstrologyService({ careerEventService, birthProfileService, astronomicalEngine, canonicalSiderealSunSampler, divisionalChartService, ashtakavargaService });
@@ -111,6 +110,7 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   const readingGenerator = new CalibratedCareerReadingGenerator({ baseGenerator: baseReadingGenerator, careerReadingContextBuilder, careerReadingInterpreter });
   const { createReadingRecord, replayPersistedReading } = require('../readings');
   const secureReadingService = new SecureReadingService({ authUserResolver: userResolver, transactionExecutor: tx, repositories, secureBirthProfileLoader: birthProfileService, readingCryptoCoordinator: cryptoCoordinator, readingGenerator, readingRecordFactory: createReadingRecord, replayReading: replayPersistedReading, requiresEntitlement, idGenerator, clock });
+  const vimshottariService = new VimshottariService({ birthProfileService, astronomicalEngine, canonicalSiderealSunSampler, careerInsightSource: new LatestCareerReadingInsightSource({ secureReadingService }) });
   const paymentUnitOfWork = new PostgresPaymentUnitOfWork({ pool: db, birthProfileRepositoryFactory: (client) => repositories({ db: client }).birthProfiles });
   const appleSignedDataVerifier = apple && typeof apple.bundleId === 'string' && apple.bundleId && typeof apple.careerPremiumAnnualProductId === 'string' && apple.careerPremiumAnnualProductId && apple.rootCertificateProvider && typeof apple.rootCertificateProvider.load === 'function' && typeof apple.appAppleId === 'string' && apple.appAppleId
     ? new AppleSignedDataVerifier({ factory: new AppleSignedDataVerifierFactory({ rootCertificateProvider: apple.rootCertificateProvider, bundleId: apple.bundleId, appAppleId: apple.appAppleId, onlineChecks: apple.onlineChecks === true }) })

@@ -30,8 +30,8 @@ function engine() {
 }
 function expected() { return calculateVimshottariDasha({ birthInstant: BIRTH, moonCanonicalSiderealLongitude: MOON, natalSunCanonicalSiderealLongitude: SUN, canonicalSiderealSunSampler: sampler(), rulesetId: SOLAR_RETURN_VIMSHOTTARI_RULESET.id }); }
 function profiles() { return Object.freeze({ async get({ principal, birthProfileId }) { if (principal.subject !== 'user-a' || birthProfileId !== 'profile-a') { const error = new Error(); error.code = 'NOT_FOUND_OR_FORBIDDEN'; throw error; } return Object.freeze({ id: 'profile-a', status: 'active', birthData }); } }); }
-function app(sideEffects = { readings: 0 }) {
-  const vimshottariService = new VimshottariService({ birthProfileService: profiles(), astronomicalEngine: engine(), canonicalSiderealSunSampler: sampler() });
+function app(sideEffects = { readings: 0 }, careerInsightSource = null) {
+  const vimshottariService = new VimshottariService({ birthProfileService: profiles(), astronomicalEngine: engine(), canonicalSiderealSunSampler: sampler(), careerInsightSource });
   return createApi({ authVerifier: createTestOnlyAuthVerifier({ a, b }), userResolver: { resolve: async () => ({ id: 'internal-id', status: 'active' }) }, birthProfileService: { create: async () => null, list: async () => [], get: async () => null }, vimshottariService, secureReadingService: { async generateSecureReading() { sideEffects.readings += 1; } }, requestIdGenerator: () => 'request-1' });
 }
 function safe(value) { const text = JSON.stringify(value).toLowerCase(); for (const field of ['birthdata', 'localdate', 'timezone', 'ciphertext', 'dek', 'kms', 'subject', 'mooncanonical', 'sampler']) assert.equal(text.includes(field), false, field); }
@@ -87,5 +87,29 @@ test('requires UTC parameters, bounds requests, enforces ownership, and has no r
   assert.equal((await api.inject({ url: url('/v1/birth-profiles/profile-a/vimshottari', { at: from }), headers: { authorization: 'Bearer b' } })).statusCode, 404);
   assert.equal((await api.inject(url('/v1/birth-profiles/profile-a/vimshottari', { at: from }))).statusCode, 401);
   assert.equal(sideEffects.readings, 0);
+  await api.close();
+});
+
+test('adds only same-profile sanitized Career Dasha relevance to the factual current response', async () => {
+  const dasha = expected(); const md = dasha.periods[0]; const ad = md.children[0]; const pd = ad.children[0];
+  const source = {
+    latestForProfile: async ({ principal, birthProfileId }) => {
+      assert.equal(principal.subject, 'user-a'); assert.equal(birthProfileId, 'profile-a');
+      return { birthProfileId: 'profile-a', insights: [{
+        family: 'ACTIVE_CAREER_DASHA', status: 'SUPPORTED',
+        timing: { dashaPeriods: [{ periodLevel: 'ANTARDASHA', periodPlanet: ad.lord.id, start: ad.startInstant.utc, end: ad.endInstant.utc }] },
+      }] };
+    },
+  };
+  const api = app(undefined, source);
+  const response = await api.inject({ url: url('/v1/birth-profiles/profile-a/vimshottari', { at: pd.startInstant.utc }), headers: { authorization: 'Bearer a' } });
+  assert.equal(response.statusCode, 200);
+  const context = response.json().vimshottari.insightContext;
+  assert.equal(context.currentPhase.status, 'SUPPORTED');
+  assert.equal(context.currentPhase.timingLevel, 'ANTARDASHA');
+  assert.equal(context.careerRelevance.active, true);
+  assert.equal(context.currentPeriods.pratyantardasha.lord, pd.lord.id);
+  assert.equal(JSON.stringify(context).includes('evidenceId'), false);
+  assert.equal(JSON.stringify(context).includes('rulesetId'), false);
   await api.close();
 });
