@@ -181,6 +181,7 @@ class CareerInsight {
     required this.caveats,
     required this.evidenceTrace,
     this.calibrationContext,
+    this.technicalContext,
     this.technicalDetails = const {},
     this.rulesetVersions = const {},
   });
@@ -194,6 +195,7 @@ class CareerInsight {
   final List<CareerInsightCaveat> caveats;
   final CareerInsightEvidenceTrace evidenceTrace;
   final CareerInsightCalibrationContext? calibrationContext;
+  final CareerTechnicalContext? technicalContext;
   final Map<String, dynamic> technicalDetails;
   final Map<String, dynamic> rulesetVersions;
 
@@ -228,6 +230,7 @@ class CareerInsight {
       calibrationContext: CareerInsightCalibrationContext.tryFromJson(
         json['calibrationContext'],
       ),
+      technicalContext: CareerTechnicalContext.tryFromJson(json['technicalContext']),
       technicalDetails: json['technicalDetails'] is Map<String, dynamic>
           ? Map<String, dynamic>.unmodifiable(
               json['technicalDetails'] as Map<String, dynamic>,
@@ -240,6 +243,17 @@ class CareerInsight {
           : const {},
     );
   }
+}
+
+class CareerTechnicalContext {
+  const CareerTechnicalContext({required this.natalStructure, required this.d10CareerChart, required this.timing, required this.supportingContext, required this.careerHistory, required this.classicalRuleContext});
+  final List<Map<String, dynamic>> natalStructure, d10CareerChart, timing, supportingContext, careerHistory, classicalRuleContext;
+  static CareerTechnicalContext? tryFromJson(Object? raw) {
+    if (raw is! Map<String, dynamic>) return null;
+    List<Map<String, dynamic>> rows(String key) => (raw[key] as List? ?? const []).whereType<Map<String, dynamic>>().map(Map<String, dynamic>.unmodifiable).toList(growable: false);
+    return CareerTechnicalContext(natalStructure: rows('natalStructure'), d10CareerChart: rows('d10CareerChart'), timing: rows('timing'), supportingContext: rows('supportingContext'), careerHistory: rows('careerHistory'), classicalRuleContext: rows('classicalRuleContext'));
+  }
+  bool get isEmpty => natalStructure.isEmpty && d10CareerChart.isEmpty && timing.isEmpty && supportingContext.isEmpty && careerHistory.isEmpty && classicalRuleContext.isEmpty;
 }
 
 class CareerInsightTiming {

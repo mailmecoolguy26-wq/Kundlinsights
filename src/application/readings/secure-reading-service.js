@@ -4,6 +4,7 @@ const { verifiedPrincipal } = require('../../security/auth');
 const { repositoryError, immutableCopy, requiredString } = require('../../persistence/contracts');
 const { ReadingPayloadCodec } = require('../../security/crypto');
 const { CareerAccessResolver } = require('./career-access-resolver');
+const { buildCareerTechnicalContext } = require('../insights/career-technical-context');
 
 function fail(code) { throw repositoryError(code); }
 function requiredFunction(value, code) { if (typeof value !== 'function') fail(code); return value; }
@@ -95,20 +96,30 @@ function publicCalibrationContext(context) {
 function publicInsights(record) {
   const insights = record && record.reading && record.reading.insights;
   if (!Array.isArray(insights)) return undefined;
-  return insights.map((insight) => ({
+  return insights.map((insight) => {
+    const timing = publicInsightTiming(insight.timing);
+    const evidence = (insight.evidenceTrace && insight.evidenceTrace.signals || []).flatMap((signal) => signal.evidence || []);
+    const charts = [...new Set(evidence.map((item) => item.chart).filter((chart) => chart === 'D10'))];
+    const ashtakavarga = evidence.flatMap((item) => item.technicalContext || []).map(publicAshtakavargaContext).filter(Boolean);
+    const planetaryState = evidence.flatMap((item) => item.technicalContext || []).map(publicPlanetaryStateContext).filter(Boolean);
+    const planetaryRelationships = evidence.flatMap((item) => item.technicalContext || []).map(publicPlanetaryRelationshipContext).filter(Boolean);
+    const calibrationContext = publicCalibrationContext(insight.calibrationContext);
+    return ({
     insightId: insight.insightId,
     family: insight.family,
     titleKey: insight.titleKey,
     summaryKey: insight.summaryKey,
     displayPriority: insight.displayPriority,
     status: insight.status,
-    timing: publicInsightTiming(insight.timing),
+    timing,
     caveats: (insight.caveats || []).map((caveat) => ({ status: caveat.status })),
-    calibrationContext: publicCalibrationContext(insight.calibrationContext),
+    calibrationContext,
+    technicalContext: buildCareerTechnicalContext({ timing, charts, ashtakavarga, planetaryState, planetaryRelationships, calibrationContext, family: insight.family }),
     technicalDetails: { independentMechanismFamilies: insight.technicalDetails && insight.technicalDetails.independentMechanismFamilies || [] },
     rulesetVersions: insight.rulesetVersions || {},
-    evidenceTrace: { signals: (insight.evidenceTrace && insight.evidenceTrace.signals || []).map((signal) => ({ sourceRulesetIds: [...new Set((signal.evidence || []).map((evidence) => evidence.sourceRulesetId).filter(Boolean))], sourceRuleIds: [...new Set((signal.evidence || []).map((evidence) => evidence.sourceRuleId).filter(Boolean))], charts: [...new Set((signal.evidence || []).map((evidence) => evidence.chart).filter((chart) => chart === 'D10'))], ashtakavarga: (signal.evidence || []).flatMap((evidence) => evidence.technicalContext || []).map(publicAshtakavargaContext).filter(Boolean), planetaryState: (signal.evidence || []).flatMap((evidence) => evidence.technicalContext || []).map(publicPlanetaryStateContext).filter(Boolean), planetaryRelationships: (signal.evidence || []).flatMap((evidence) => evidence.technicalContext || []).map(publicPlanetaryRelationshipContext).filter(Boolean) })) },
-  }));
+    evidenceTrace: { signals: [] },
+  });
+  });
 }
 function publicReadingDetail(item) { const calibrated = calibratedContent(item.record), insights = publicInsights(item.record); return immutableCopy({ ...publicReadingSummary(item), content: item.record.renderedReading, ...(calibrated ? { calibratedContent: calibrated } : {}), ...(insights === undefined ? {} : { insights }) }); }
 function scopedKeyProvider(key) { return Object.freeze({ current: async () => ({ keyVersion: key.keyVersion, dek: Buffer.from(key.dek) }), forVersion: async () => ({ keyVersion: key.keyVersion, dek: Buffer.from(key.dek) }) }); }

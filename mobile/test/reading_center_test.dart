@@ -323,7 +323,7 @@ void main() {
         ..nextDetail = ReadingDetail.fromJson({
           ..._detailJson(),
           'insights': [
-            _insight('CONCURRENT_CAREER_TIMING', 0),
+            _insight('CONCURRENT_CAREER_TIMING', 0, technicalContext: {'natalStructure': [], 'd10CareerChart': [], 'timing': [{'kind': 'CONCURRENT_TIMING', 'lineageClassification': 'INDEPENDENT'}], 'supportingContext': [], 'careerHistory': [], 'classicalRuleContext': []}),
             _insight('HISTORICAL_CALIBRATION_RECURRENCE', 1, status: 'MIXED'),
             _insight(
               'FUTURE_RECURRENCE_WINDOW',
@@ -346,7 +346,9 @@ void main() {
       expect(find.text('WHAT LIMITS THIS SIGNAL'), findsOneWidget);
       await tester.tap(find.text('ASTROLOGY BEHIND THIS').first);
       await tester.pumpAndSettle();
-      expect(find.textContaining('Source rule:'), findsWidgets);
+      expect(find.text('Timing'), findsWidgets);
+      expect(find.textContaining('Independent mechanisms'), findsWidgets);
+      expect(find.textContaining('Source rule:'), findsNothing);
       controller.dispose();
       profiles.dispose();
       auth.dispose();
@@ -554,6 +556,7 @@ Map<String, dynamic> _insight(
   int priority, {
   String status = 'SUPPORTED',
   Map<String, dynamic>? timing,
+  Map<String, dynamic>? technicalContext,
 }) => {
   'insightId': 'insight-$family-$priority',
   'family': family,
@@ -579,6 +582,7 @@ Map<String, dynamic> _insight(
     'independentMechanismFamilies': ['DASHA'],
   },
   'rulesetVersions': {'insightEngine': 'v1'},
+  'technicalContext': ?technicalContext,
 };
 
 class _ReadingRepository implements ReadingRepository {

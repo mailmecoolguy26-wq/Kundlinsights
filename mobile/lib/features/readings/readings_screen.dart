@@ -980,6 +980,7 @@ class _CareerInsightCard extends StatelessWidget {
               style: _CareerReadingText.body,
             ),
           ],
+          if (insight.technicalContext != null && !insight.technicalContext!.isEmpty) ...[
           const SizedBox(height: 10),
           Material(
             color: Colors.transparent,
@@ -994,35 +995,42 @@ class _CareerInsightCard extends StatelessWidget {
                 ),
                 iconColor: _CareerReadingColors.gold,
                 collapsedIconColor: _CareerReadingColors.slate,
-                children: [
-                  if (insight.evidenceTrace.sourceRuleIds.isNotEmpty)
-                    Text(
-                      'Source rule: ${insight.evidenceTrace.sourceRuleIds.join(', ')}',
-                      style: _CareerReadingText.meta,
-                    ),
-                  if (insight.evidenceTrace.sourceRulesetIds.isNotEmpty)
-                    Text(
-                      'Ruleset: ${insight.evidenceTrace.sourceRulesetIds.join(', ')}',
-                      style: _CareerReadingText.meta,
-                    ),
-                  if (insight.technicalDetails['independentMechanismFamilies']
-                          is List &&
-                      (insight.technicalDetails['independentMechanismFamilies']
-                              as List)
-                          .isNotEmpty)
-                    Text(
-                      'Evidence families: ${(insight.technicalDetails['independentMechanismFamilies'] as List).join(', ')}',
-                      style: _CareerReadingText.meta,
-                    ),
-                ],
+                children: [_TechnicalGroups(context: insight.technicalContext!)],
               ),
             ),
           ),
+          ],
         ],
       ),
     );
   }
 }
+
+class _TechnicalGroups extends StatelessWidget {
+  const _TechnicalGroups({required this.context});
+  final CareerTechnicalContext context;
+  @override
+  Widget build(BuildContext buildContext) {
+    final groups = <(String, List<Map<String, dynamic>>)>[('Natal Structure', context.natalStructure), ('D10 Career Chart', context.d10CareerChart), ('Timing', context.timing), ('Supporting Context', context.supportingContext), ('Career History', context.careerHistory), ('Classical Rule Context', context.classicalRuleContext)];
+    return Padding(padding: const EdgeInsets.only(bottom: 8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [for (final group in groups) if (group.$2.isNotEmpty) ...[Text(group.$1, style: _CareerReadingText.source), const SizedBox(height: 4), for (final row in group.$2) Text(_technicalRow(row), style: _CareerReadingText.meta), const SizedBox(height: 9)]]));
+  }
+}
+String _technicalRow(Map<String, dynamic> row) {
+  final kind = row['kind'];
+  if (kind == 'D10_CAREER_CHART') return 'Career divisional chart included in this insight';
+  if (kind == 'DASHA') return '${_dashaLabel(row['level'])}: ${row['planet'] ?? 'Current period'}';
+  if (kind == 'TRANSIT') return '${row['transitPlanet'] ?? 'Current transit'}${row['natalHouseNumber'] is int ? ' · Natal ${row['natalHouseNumber']}th-house context' : ''}';
+  if (kind == 'CONCURRENT_TIMING') return 'Timing relationship: ${_lineageLabel(row['lineageClassification'])}';
+  if (kind == 'CAREER_HISTORY') return 'Calibration: ${row['calibrationLevel'] ?? 'Career history'}';
+  if (kind == 'CLASSICAL_RULE_CONTEXT') return 'Classical rule evidence is not a guaranteed Career outcome.';
+  if (row['sourceFamily'] == 'ASHTAKAVARGA') return '${row['houseNumber'] ?? ''}th-house ${row['scoreType'] ?? 'score'}: ${row['value'] ?? ''}';
+  if (row['sourceFamily'] == 'PLANETARY_STATE') return '${row['planet'] ?? 'Planet'} — ${_stateLabel(row['state'])}';
+  if (row['sourceFamily'] == 'PLANETARY_RELATIONSHIP') return '${row['subjectPlanet'] ?? 'Planet'} → ${row['targetPlanet'] ?? 'Planet'} · ${row['relationshipType'] ?? 'Relationship'}: ${row['relationship'] ?? ''}';
+  return '';
+}
+String _dashaLabel(Object? value) => const {'MAHADASHA':'Mahadasha','ANTARDASHA':'Antardasha','PRATYANTAR_DASHA':'Pratyantar'}[value] ?? 'Dasha';
+String _lineageLabel(Object? value) => const {'INDEPENDENT':'Independent mechanisms','PARTIALLY_OVERLAPPING':'Partially overlapping mechanisms'}[value] ?? 'Timing context';
+String _stateLabel(Object? value) => const {'RETROGRADE':'Retrograde','COMBUST':'Combust','EXALTED':'Exalted','DEBILITATED':'Debilitated','OWN_SIGN':'Own Sign','MOOLATRIKONA':'Moolatrikona'}[value] ?? 'State';
 
 String _insightFamilyLabel(String family) =>
     const {
