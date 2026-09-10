@@ -689,9 +689,11 @@ class ReadingDetailScreen extends StatefulWidget {
   const ReadingDetailScreen({
     super.key,
     required this.controller,
+    this.generation,
     required this.readingId,
   });
   final ReadingController controller;
+  final CareerReadingGenerationController? generation;
   final String readingId;
 
   @override
@@ -729,6 +731,7 @@ class _ReadingDetailScreenState extends State<ReadingDetailScreen> {
         body: SafeArea(
           child: _DetailBody(
             controller: widget.controller,
+            generation: widget.generation,
             readingId: widget.readingId,
           ),
         ),
@@ -738,8 +741,13 @@ class _ReadingDetailScreenState extends State<ReadingDetailScreen> {
 }
 
 class _DetailBody extends StatelessWidget {
-  const _DetailBody({required this.controller, required this.readingId});
+  const _DetailBody({
+    required this.controller,
+    this.generation,
+    required this.readingId,
+  });
   final ReadingController controller;
+  final CareerReadingGenerationController? generation;
   final String readingId;
 
   @override
@@ -756,13 +764,14 @@ class _DetailBody extends StatelessWidget {
         retryLabel: t.retry,
       );
     }
-    return _CareerReadingDetail(detail: detail);
+    return _CareerReadingDetail(detail: detail, generation: generation);
   }
 }
 
 class _CareerReadingDetail extends StatelessWidget {
-  const _CareerReadingDetail({required this.detail});
+  const _CareerReadingDetail({required this.detail, this.generation});
   final ReadingDetail detail;
+  final CareerReadingGenerationController? generation;
 
   @override
   Widget build(BuildContext context) {
@@ -796,6 +805,18 @@ class _CareerReadingDetail extends StatelessWidget {
                     createdAt: createdAt,
                     hasCalibrationContext: hasCalibrationContext,
                   ),
+                  if (generation != null &&
+                      generation!.activeBirthProfileId ==
+                          detail.birthProfileId) ...[
+                    const SizedBox(height: 14),
+                    ListenableBuilder(
+                      listenable: generation!,
+                      builder: (context, child) =>
+                          _GenerateUpdatedReadingAction(
+                            generation: generation!,
+                          ),
+                    ),
+                  ],
                   const SizedBox(height: 28),
                   if (insights.isNotEmpty) ...[
                     _CareerInsightExperience(insights: insights),
@@ -843,6 +864,112 @@ class _CareerReadingDetail extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _GenerateUpdatedReadingAction extends StatelessWidget {
+  const _GenerateUpdatedReadingAction({required this.generation});
+
+  final CareerReadingGenerationController generation;
+
+  @override
+  Widget build(BuildContext context) {
+    if (generation.eligibilityState != CareerEligibilityState.eligible) {
+      return const SizedBox.shrink();
+    }
+    final generating =
+        generation.generationState == CareerGenerationState.generating;
+    final failed = generation.generationState == CareerGenerationState.error;
+    if (generating) {
+      return Semantics(
+        liveRegion: true,
+        label: 'Generating updated Career Reading',
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: _CareerReadingColors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: _CareerReadingColors.goldBorder),
+          ),
+          child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Generating updated Career Reading',
+                style: TextStyle(
+                  color: _CareerReadingColors.alabaster,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              SizedBox(height: 10),
+              LinearProgressIndicator(color: _CareerReadingColors.gold),
+            ],
+          ),
+        ),
+      );
+    }
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _CareerReadingColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _CareerReadingColors.goldBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Generate a fresh reading using your current birth profile and the latest available Career analysis.',
+            style: TextStyle(color: _CareerReadingColors.slate, height: 1.4),
+          ),
+          if (failed) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'The updated reading could not be generated. Please try again.',
+              style: TextStyle(color: _CareerReadingColors.slate),
+            ),
+          ],
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: generation.canGenerate
+                ? () => _confirmGeneration(context)
+                : null,
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: const Text('GENERATE UPDATED READING'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _CareerReadingColors.alabaster,
+              side: const BorderSide(color: _CareerReadingColors.goldBorder),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmGeneration(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Generate updated Career Reading?'),
+        content: const Text(
+          'A new Career Reading will be created using your current birth profile. Your existing reading will remain available.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Generate'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && generation.canGenerate) {
+      generation.generate();
+    }
   }
 }
 

@@ -136,6 +136,43 @@ void main() {
     },
   );
 
+  test('a completed Career Reading can generate a new immutable reading with a fresh attempt key', () async {
+    final auth = AuthController(_Auth());
+    await auth.restore();
+    final profiles = ProfileController(_Profiles(), auth);
+    await Future<void>.delayed(Duration.zero);
+    final readingRepository = _SuccessfulReadings();
+    final readings = ReadingController(readingRepository, auth, profiles);
+    final generationRepository = _SuccessfulRegeneration();
+    var key = 0;
+    final controller = CareerReadingGenerationController(
+      generationRepository,
+      auth,
+      profiles,
+      readings,
+      idempotencyKey: () => 'refresh-${++key}',
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    await controller.generate();
+    expect(controller.generationState, CareerGenerationState.success);
+    expect(controller.createdReadingId, 'reading-1');
+    expect(generationRepository.profileIds, ['profile-a']);
+    expect(generationRepository.idempotencyKeys, ['refresh-1']);
+
+    await controller.generate();
+    expect(controller.generationState, CareerGenerationState.success);
+    expect(controller.createdReadingId, 'reading-2');
+    expect(generationRepository.profileIds, ['profile-a', 'profile-a']);
+    expect(generationRepository.idempotencyKeys, ['refresh-1', 'refresh-2']);
+    expect(readingRepository.readingIds, ['reading-1', 'reading-2']);
+
+    controller.dispose();
+    readings.dispose();
+    profiles.dispose();
+    auth.dispose();
+  });
+
   test('entitlement rejection refreshes availability to ineligible', () async {
     final auth = AuthController(_Auth());
     await auth.restore();
@@ -578,6 +615,65 @@ class _Generation implements CareerReadingGenerationRepository {
     return createPending
         ? createWait.future
         : Future.error(UnimplementedError());
+  }
+}
+
+class _SuccessfulRegeneration implements CareerReadingGenerationRepository {
+  final profileIds = <String>[];
+  final idempotencyKeys = <String>[];
+
+  @override
+  Future<CareerEligibility> getCareerEligibility({
+    required String birthProfileId,
+  }) async => const CareerEligibility(eligible: true);
+
+  @override
+  Future<CreatedCareerReading> createCareerReading({
+    required String birthProfileId,
+    required String idempotencyKey,
+  }) async {
+    profileIds.add(birthProfileId);
+    idempotencyKeys.add(idempotencyKey);
+    return CreatedCareerReading(readingId: 'reading-${profileIds.length}');
+  }
+}
+
+class _SuccessfulReadings implements ReadingRepository {
+  final readingIds = <String>[];
+
+  @override
+  Future<List<ReadingSummary>> getReadings({String? birthProfileId}) async =>
+      readingIds
+          .map(
+            (id) => ReadingSummary(
+              readingId: id,
+              birthProfileId: birthProfileId!,
+              domain: 'CAREER',
+              status: 'active',
+              createdAt: '2026-09-10T00:00:00.000Z',
+              readingInstant: '2026-09-10T00:00:00.000Z',
+              locale: 'en-IN',
+            ),
+          )
+          .toList(growable: false);
+
+  @override
+  Future<ReadingDetail> getReadingDetail(String id) async {
+    readingIds.add(id);
+    return ReadingDetail(
+      readingId: id,
+      birthProfileId: 'profile-a',
+      domain: 'CAREER',
+      status: 'active',
+      createdAt: '2026-09-10T00:00:00.000Z',
+      readingInstant: '2026-09-10T00:00:00.000Z',
+      locale: 'en-IN',
+      content: const ReadingContent(
+        domain: 'CAREER',
+        locale: 'en-IN',
+        sections: [],
+      ),
+    );
   }
 }
 

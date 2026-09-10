@@ -277,6 +277,7 @@ GoRouter createAppRouter(
                   name: 'reading-detail',
                   builder: (context, state) => ReadingDetailScreen(
                     controller: readings,
+                    generation: generation,
                     readingId: state.pathParameters['id']!,
                   ),
                 ),
