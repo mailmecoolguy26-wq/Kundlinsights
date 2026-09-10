@@ -1612,8 +1612,7 @@ String _insightSummary(String family) =>
       'CAREER_FOUNDATION': 'Your natal Career structure is centered on the 10th-house factors identified in your chart.',
       'ACTIVE_CAREER_DASHA': 'Your current Dasha timing connects to Career-related factors in the natal chart.',
       'CURRENT_CAREER_TRANSIT': 'A current transit is activating a Career-related natal factor used by this reading.',
-      'CONCURRENT_CAREER_TIMING':
-          'Career-related Dasha and transit evidence currently overlap.',
+      'CONCURRENT_CAREER_TIMING': 'Available Career timing evidence is insufficient to evaluate this signal fully.',
       'HISTORICAL_CALIBRATION_RECURRENCE':
           'Similar timing appeared across your saved Career events.',
       'FUTURE_RECURRENCE_WINDOW': 'An upcoming period matches a timing pattern seen in your saved Career history.',
