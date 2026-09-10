@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../readings/career_reading_generation_controller.dart';
+import '../readings/astrology_presentation_copy.dart';
 
 class InsightsScreen extends StatelessWidget {
   const InsightsScreen({super.key, required this.generation});
@@ -15,45 +16,51 @@ class InsightsScreen extends StatelessWidget {
   static const gold = Color(0xFFC5A059);
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: generation,
-    builder: (context, child) => Scaffold(
-      backgroundColor: midnight,
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
-          children: [
-            const _Header(),
-            const SizedBox(height: 28),
-            const _SectionLabel('AVAILABLE NOW'),
-            const SizedBox(height: 10),
-            _TransitCard(onTap: () => context.pushNamed('current-transits')),
-            const SizedBox(height: 12),
-            _CareerInsightCard(
-              eligibilityState: generation.eligibilityState,
-              onUnlock: () => context.push('/career-premium'),
-              onSeeCareerInsights: () => context.go('/readings'),
-              onRetryEligibility: generation.refreshEligibility,
-            ),
-            const SizedBox(height: 28),
-            const _SectionLabel('COMING NEXT'),
-            const SizedBox(height: 10),
-            const _InsightCard(
-              icon: Icons.favorite_border,
-              title: 'Marriage',
-              subtitle: 'Relationship timing and compatibility insights',
-            ),
-            const SizedBox(height: 12),
-            const _InsightCard(
-              icon: Icons.account_balance_wallet_outlined,
-              title: 'Wealth & Property',
-              subtitle: 'Financial cycles, assets, and property timing',
-            ),
-          ],
+  Widget build(BuildContext context) {
+    final copy = AstrologyPresentationCopy.of(context);
+    return ListenableBuilder(
+      listenable: generation,
+      builder: (context, child) => Scaffold(
+        backgroundColor: midnight,
+        body: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
+            children: [
+              const _Header(),
+              const SizedBox(height: 28),
+              const _SectionLabel('AVAILABLE NOW'),
+              const SizedBox(height: 10),
+              _TransitCard(
+                copy: copy,
+                onTap: () => context.pushNamed('current-transits'),
+              ),
+              const SizedBox(height: 12),
+              _CareerInsightCard(
+                eligibilityState: generation.eligibilityState,
+                onUnlock: () => context.push('/career-premium'),
+                onSeeCareerInsights: () => context.go('/readings'),
+                onRetryEligibility: generation.refreshEligibility,
+              ),
+              const SizedBox(height: 28),
+              const _SectionLabel('COMING NEXT'),
+              const SizedBox(height: 10),
+              const _InsightCard(
+                icon: Icons.favorite_border,
+                title: 'Marriage',
+                subtitle: 'Relationship timing and compatibility insights',
+              ),
+              const SizedBox(height: 12),
+              const _InsightCard(
+                icon: Icons.account_balance_wallet_outlined,
+                title: 'Wealth & Property',
+                subtitle: 'Financial cycles, assets, and property timing',
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _Header extends StatelessWidget {
@@ -82,7 +89,8 @@ class _SectionLabel extends StatelessWidget {
 }
 
 class _TransitCard extends StatelessWidget {
-  const _TransitCard({required this.onTap});
+  const _TransitCard({required this.copy, required this.onTap});
+  final AstrologyPresentationCopy copy;
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) => Semantics(
@@ -105,7 +113,7 @@ class _TransitCard extends StatelessWidget {
             children: [
               const _IconTile(Icons.public_outlined, size: 46),
               const SizedBox(width: 14),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -116,7 +124,7 @@ class _TransitCard extends StatelessWidget {
                     Text('Gochar', style: _Styles.goldSubheading),
                     SizedBox(height: 7),
                     Text(
-                      'See how today’s planetary movements interact with your birth chart.',
+                      copy.insightsTransitDescription,
                       style: _Styles.cardBody,
                     ),
                   ],

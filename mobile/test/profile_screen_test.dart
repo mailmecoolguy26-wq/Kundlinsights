@@ -66,7 +66,7 @@ void main() {
   ) async {
     final language = CareerExplanationLanguageController(_LanguageStorage());
     await tester.pumpWidget(_app(profileController, authController, language));
-    expect(find.text('Career Reading Language'), findsOneWidget);
+    expect(find.text('Astrology Language'), findsOneWidget);
     expect(find.text('English'), findsOneWidget);
     expect(find.text('Hinglish'), findsOneWidget);
     await tester.tap(find.text('Hinglish'));

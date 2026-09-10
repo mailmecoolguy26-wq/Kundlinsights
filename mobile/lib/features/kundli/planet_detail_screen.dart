@@ -5,6 +5,7 @@ import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/app_card.dart';
 import '../natal/domain/natal_summary.dart';
 import '../natal/natal_summary_controller.dart';
+import '../readings/astrology_presentation_copy.dart';
 
 class PlanetDetailScreen extends StatelessWidget {
   const PlanetDetailScreen({
@@ -43,8 +44,9 @@ class _PlanetFacts extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
+    final copy = AstrologyPresentationCopy.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(position.body)),
+      appBar: AppBar(title: Text(copy.planet(position.body))),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.md),
@@ -53,7 +55,10 @@ class _PlanetFacts extends StatelessWidget {
               child: Column(
                 children: [
                   _Fact(label: t.sign, value: position.sign.englishName),
-                  _Fact(label: t.house, value: '${position.house}'),
+                  _Fact(
+                    label: copy.isHinglish ? 'Bhav' : t.house,
+                    value: '${position.house}',
+                  ),
                   _Fact(
                     label: t.longitude,
                     value: '${position.longitude.toStringAsFixed(4)}°',
@@ -67,7 +72,7 @@ class _PlanetFacts extends StatelessWidget {
                   _Fact(label: t.motion, value: position.motion ?? '—'),
                   _Fact(
                     label: t.retrograde,
-                    value: position.retrograde ? t.retrograde : '—',
+                    value: position.retrograde ? copy.retrograde : '—',
                   ),
                 ],
               ),

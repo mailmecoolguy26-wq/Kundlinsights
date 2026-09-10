@@ -10,6 +10,8 @@ import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile.dart
 import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile_repository.dart';
 import 'package:kundlinsights_mobile/features/profiles/profile_controller.dart';
 import 'package:kundlinsights_mobile/features/readings/career_reading_generation_controller.dart';
+import 'package:kundlinsights_mobile/features/readings/astrology_presentation_copy.dart';
+import 'package:kundlinsights_mobile/features/readings/career_explanation_language.dart';
 import 'package:kundlinsights_mobile/features/readings/domain/career_reading_generation.dart';
 import 'package:kundlinsights_mobile/features/readings/domain/reading.dart';
 import 'package:kundlinsights_mobile/features/readings/domain/reading_repository.dart';
@@ -101,9 +103,36 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Current Transits destination'), findsOneWidget);
   });
+
+  testWidgets(
+    'Hinglish changes only the audited Current Transits description',
+    (tester) async {
+      final scope = await _InsightsScope.start(
+        eligibility: const {'profile-a': CareerEligibility(eligible: false)},
+      );
+      addTearDown(scope.dispose);
+      final language = CareerExplanationLanguageController(_LanguageStorage());
+      await language.setLanguage(CareerExplanationLanguage.hinglish);
+      await tester.pumpWidget(_app(scope, language: language));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'Dekhiye aaj ke planetary Gochar aapki Janam Kundli ke saath kaise interact kar rahe hain.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Insights'), findsNothing);
+      expect(find.text('Current Transits'), findsOneWidget);
+      expect(find.text('UNLOCK'), findsOneWidget);
+    },
+  );
 }
 
-Widget _app(_InsightsScope scope) {
+Widget _app(
+  _InsightsScope scope, {
+  CareerExplanationLanguageController? language,
+}) {
   final router = GoRouter(
     initialLocation: '/insights',
     routes: [
@@ -128,13 +157,23 @@ Widget _app(_InsightsScope scope) {
       ),
     ],
   );
-  return MaterialApp.router(routerConfig: router);
+  final app = MaterialApp.router(routerConfig: router);
+  return language == null
+      ? app
+      : AstrologyPresentationScope(controller: language, child: app);
 }
 
 Future<void> _pumpInsights(WidgetTester tester, _InsightsScope scope) async {
   await tester.pumpWidget(_app(scope));
   await tester.pump();
   await tester.pump();
+}
+
+class _LanguageStorage implements CareerExplanationLanguageStorage {
+  @override
+  Future<String?> readLanguage() async => null;
+  @override
+  Future<void> writeLanguage(CareerExplanationLanguage language) async {}
 }
 
 class _InsightsScope {

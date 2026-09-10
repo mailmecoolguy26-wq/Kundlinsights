@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../profiles/profile_controller.dart';
+import '../../readings/astrology_presentation_copy.dart';
 import '../domain/transit_snapshot.dart';
 import '../transit_snapshot_controller.dart';
 
@@ -209,8 +210,8 @@ class _SnapshotCard extends StatelessWidget {
         const SizedBox(height: 8),
         const Text('Your Transit Snapshot', style: _Styles.cardTitle),
         const SizedBox(height: 5),
-        const Text(
-          'These are the planetary movements currently active against your natal chart.',
+        Text(
+          AstrologyPresentationCopy.of(context).transitSnapshotDescription,
           style: _Styles.cardBody,
         ),
         const SizedBox(height: 14),
@@ -224,39 +225,33 @@ class _HousesCard extends StatelessWidget {
   const _HousesCard({required this.houses});
   final Map<int, List<TransitPlanet>> houses;
   @override
-  Widget build(BuildContext context) => _DarkCard(
-    child: Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: houses.entries.map((entry) {
-        final names = entry.value.map((planet) => planet.planet).join(', ');
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            color: CurrentTransitsScreen.violet,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Text(
-            '${_ordinal(entry.key)} House · $names',
-            style: const TextStyle(
-              color: CurrentTransitsScreen.alabaster,
-              fontSize: 12,
+  Widget build(BuildContext context) {
+    final copy = AstrologyPresentationCopy.of(context);
+    return _DarkCard(
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: houses.entries.map((entry) {
+          final names = entry.value
+              .map((planet) => copy.planet(planet.planet))
+              .join(', ');
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: CurrentTransitsScreen.violet,
+              borderRadius: BorderRadius.circular(10),
             ),
-          ),
-        );
-      }).toList(),
-    ),
-  );
-
-  static String _ordinal(int value) {
-    final lastTwo = value % 100;
-    if (lastTwo >= 11 && lastTwo <= 13) return '${value}th';
-    return switch (value % 10) {
-      1 => '${value}st',
-      2 => '${value}nd',
-      3 => '${value}rd',
-      _ => '${value}th',
-    };
+            child: Text(
+              '${copy.houseContext(entry.key)} · $names',
+              style: const TextStyle(
+                color: CurrentTransitsScreen.alabaster,
+                fontSize: 12,
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
   }
 }
 
@@ -283,16 +278,17 @@ class _TransitRow extends StatelessWidget {
   final TransitPlanet planet;
   @override
   Widget build(BuildContext context) {
+    final copy = AstrologyPresentationCopy.of(context);
     final degree = '${planet.degreeWithinSign.toStringAsFixed(2)}°';
     final motion = planet.retrograde
-        ? 'Retrograde'
+        ? copy.retrograde
         : planet.motion == 'direct'
         ? 'Direct'
         : planet.motion;
     return Semantics(
       button: true,
       label:
-          '${planet.planet}, ${planet.sign.englishName}, $degree, house ${planet.natalHouse}, $motion',
+          '${copy.planet(planet.planet)}, ${planet.sign.englishName}, $degree, ${copy.house(planet.natalHouse)}, $motion',
       child: InkWell(
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute<void>(
@@ -309,10 +305,10 @@ class _TransitRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(planet.planet, style: _Styles.cardTitle),
+                    Text(copy.planet(planet.planet), style: _Styles.cardTitle),
                     const SizedBox(height: 2),
                     Text(
-                      '${planet.sign.englishName} · $degree · House ${planet.natalHouse}',
+                      '${planet.sign.englishName} · $degree · ${copy.house(planet.natalHouse)}',
                       style: _Styles.cardBody,
                     ),
                   ],
@@ -387,44 +383,47 @@ class _TechnicalDetails extends StatelessWidget {
   final TransitSnapshot snapshot;
   final String timestamp;
   @override
-  Widget build(BuildContext context) => Theme(
-    data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-    child: _DarkCard(
-      child: Material(
-        color: Colors.transparent,
-        child: ExpansionTile(
-          tilePadding: EdgeInsets.zero,
-          childrenPadding: const EdgeInsets.only(bottom: 4),
-          iconColor: CurrentTransitsScreen.gold,
-          collapsedIconColor: CurrentTransitsScreen.gold,
-          title: const Text(
-            'View Technical Transit Details',
-            style: _Styles.cardTitle,
-          ),
-          children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Snapshot: $timestamp', style: _Styles.cardBody),
-                  const SizedBox(height: 8),
-                  for (final planet in snapshot.planets)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Text(
-                        '${planet.planet}: ${planet.longitude.toStringAsFixed(2)}° · ${planet.sign.englishName} · House ${planet.natalHouse} · ${planet.retrograde ? 'Retrograde' : planet.motion}',
-                        style: _Styles.cardBody,
-                      ),
-                    ),
-                ],
-              ),
+  Widget build(BuildContext context) {
+    final copy = AstrologyPresentationCopy.of(context);
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: _DarkCard(
+        child: Material(
+          color: Colors.transparent,
+          child: ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: const EdgeInsets.only(bottom: 4),
+            iconColor: CurrentTransitsScreen.gold,
+            collapsedIconColor: CurrentTransitsScreen.gold,
+            title: const Text(
+              'View Technical Transit Details',
+              style: _Styles.cardTitle,
             ),
-          ],
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Snapshot: $timestamp', style: _Styles.cardBody),
+                    const SizedBox(height: 8),
+                    for (final planet in snapshot.planets)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text(
+                          '${copy.planet(planet.planet)}: ${planet.longitude.toStringAsFixed(2)}° · ${planet.sign.englishName} · ${copy.house(planet.natalHouse)} · ${planet.retrograde ? copy.retrograde : planet.motion}',
+                          style: _Styles.cardBody,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _DarkCard extends StatelessWidget {
@@ -494,37 +493,40 @@ class TransitPlanetDetailScreen extends StatelessWidget {
   const TransitPlanetDetailScreen({super.key, required this.planet});
   final TransitPlanet planet;
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: CurrentTransitsScreen.midnight,
-    appBar: AppBar(title: Text(planet.planet)),
-    body: SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: _DarkCard(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Transit sign: ${planet.sign.englishName}',
-                style: _Styles.cardBody,
-              ),
-              Text(
-                'Degree in sign: ${planet.degreeWithinSign.toStringAsFixed(2)}°',
-                style: _Styles.cardBody,
-              ),
-              Text(
-                'Natal house: ${planet.natalHouse}',
-                style: _Styles.cardBody,
-              ),
-              Text(
-                'Motion: ${planet.retrograde ? 'Retrograde' : planet.motion}',
-                style: _Styles.cardBody,
-              ),
-            ],
+  Widget build(BuildContext context) {
+    final copy = AstrologyPresentationCopy.of(context);
+    return Scaffold(
+      backgroundColor: CurrentTransitsScreen.midnight,
+      appBar: AppBar(title: Text(copy.planet(planet.planet))),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: _DarkCard(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Transit sign: ${planet.sign.englishName}',
+                  style: _Styles.cardBody,
+                ),
+                Text(
+                  'Degree in sign: ${planet.degreeWithinSign.toStringAsFixed(2)}°',
+                  style: _Styles.cardBody,
+                ),
+                Text(
+                  'Natal ${copy.house(planet.natalHouse)}',
+                  style: _Styles.cardBody,
+                ),
+                Text(
+                  'Motion: ${planet.retrograde ? copy.retrograde : planet.motion}',
+                  style: _Styles.cardBody,
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }

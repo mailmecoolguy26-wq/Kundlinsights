@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../profiles/profile_controller.dart';
+import '../../readings/astrology_presentation_copy.dart';
 import '../domain/vimshottari.dart';
 import '../vimshottari_controller.dart';
 
@@ -28,78 +29,85 @@ class _VimshottariTimelineScreenState extends State<VimshottariTimelineScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: Listenable.merge([widget.controller, widget.profileController]),
-    builder: (_, child) => Scaffold(
-      backgroundColor: _C.midnight,
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-          children: [
-            Row(
-              children: [
-                Material(
-                  color: _C.violet,
-                  shape: const CircleBorder(),
-                  child: IconButton(
-                    onPressed: () => Navigator.of(context).maybePop(),
-                    icon: const Icon(Icons.arrow_back, color: _C.alabaster),
+  Widget build(BuildContext context) {
+    final copy = AstrologyPresentationCopy.of(context);
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        widget.controller,
+        widget.profileController,
+      ]),
+      builder: (_, child) => Scaffold(
+        backgroundColor: _C.midnight,
+        body: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+            children: [
+              Row(
+                children: [
+                  Material(
+                    color: _C.violet,
+                    shape: const CircleBorder(),
+                    child: IconButton(
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      icon: const Icon(Icons.arrow_back, color: _C.alabaster),
+                    ),
                   ),
-                ),
-                const Spacer(),
-                _ProfilePill(
-                  widget.profileController.activeProfile?.label ??
-                      'Active profile',
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            const Text('DASHA', style: _S.eyebrow),
-            const SizedBox(height: 5),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    widget.controller.timelineLevel == VimshottariLevel.ad
-                        ? 'Antardasha Timeline'
-                        : widget.controller.timelineLevel == VimshottariLevel.pd
-                        ? 'Pratyantar Timeline'
-                        : 'Vimshottari',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: _S.title,
+                  const Spacer(),
+                  _ProfilePill(
+                    widget.profileController.activeProfile?.label ??
+                        'Active profile',
                   ),
-                ),
-                const SizedBox(width: 10),
-                const _Chip('VIMSHOTTARI'),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              widget.controller.timelineLevel == VimshottariLevel.ad &&
-                      widget.controller.current != null
-                  ? 'WITHIN ${widget.controller.current!.mahadasha.lord.toUpperCase()} MAHADASHA'
-                  : widget.controller.timelineLevel == VimshottariLevel.pd &&
+                ],
+              ),
+              const SizedBox(height: 24),
+              const Text('DASHA', style: _S.eyebrow),
+              const SizedBox(height: 5),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.controller.timelineLevel == VimshottariLevel.ad
+                          ? 'Antardasha Timeline'
+                          : widget.controller.timelineLevel ==
+                                VimshottariLevel.pd
+                          ? 'Pratyantar Timeline'
+                          : 'Vimshottari',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _S.title,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const _Chip('VIMSHOTTARI'),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                widget.controller.timelineLevel == VimshottariLevel.ad &&
                         widget.controller.current != null
-                  ? 'WITHIN ${widget.controller.current!.antardasha.lord.toUpperCase()} ANTARDASHA'
-                  : 'Planetary Timing Cycles',
-              style: _S.body,
-            ),
-            const SizedBox(height: 22),
-            _ActivePeriods(current: widget.controller.current),
-            const SizedBox(height: 22),
-            _Selectors(controller: widget.controller),
-            const SizedBox(height: 22),
-            widget.controller.timelineLevel == VimshottariLevel.ad
-                ? _AntardashaTimeline(controller: widget.controller)
-                : widget.controller.timelineLevel == VimshottariLevel.pd
-                ? _PratyantarTimeline(controller: widget.controller)
-                : _Timeline(controller: widget.controller),
-          ],
+                    ? 'WITHIN ${copy.planet(widget.controller.current!.mahadasha.lord).toUpperCase()} MAHADASHA'
+                    : widget.controller.timelineLevel == VimshottariLevel.pd &&
+                          widget.controller.current != null
+                    ? 'WITHIN ${copy.planet(widget.controller.current!.antardasha.lord).toUpperCase()} ANTARDASHA'
+                    : 'Planetary Timing Cycles',
+                style: _S.body,
+              ),
+              const SizedBox(height: 22),
+              _ActivePeriods(current: widget.controller.current),
+              const SizedBox(height: 22),
+              _Selectors(controller: widget.controller),
+              const SizedBox(height: 22),
+              widget.controller.timelineLevel == VimshottariLevel.ad
+                  ? _AntardashaTimeline(controller: widget.controller)
+                  : widget.controller.timelineLevel == VimshottariLevel.pd
+                  ? _PratyantarTimeline(controller: widget.controller)
+                  : _Timeline(controller: widget.controller),
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _AntardashaTimeline extends StatelessWidget {
@@ -107,6 +115,7 @@ class _AntardashaTimeline extends StatelessWidget {
   final VimshottariController controller;
   @override
   Widget build(BuildContext context) {
+    final copy = AstrologyPresentationCopy.of(context);
     final current = controller.current;
     final timeline = controller.timeline;
     if (current == null || timeline == null) {
@@ -123,14 +132,17 @@ class _AntardashaTimeline extends StatelessWidget {
             children: [
               const Text('PARENT CYCLE', style: _S.eyebrow),
               const SizedBox(height: 8),
-              Text('${current.mahadasha.lord} Mahadasha', style: _S.cardTitle),
+              Text(
+                '${copy.planet(current.mahadasha.lord)} Mahadasha',
+                style: _S.cardTitle,
+              ),
               Text(
                 '${_date(current.mahadasha.startUtc)} — ${_date(current.mahadasha.endUtc)}',
                 style: _S.body,
               ),
               const Divider(color: Color(0x335E4A87), height: 22),
               Text(
-                'Currently in ${current.antardasha.lord} Antardasha',
+                'Currently in ${copy.planet(current.antardasha.lord)} Antardasha',
                 style: _S.gold,
               ),
             ],
@@ -156,6 +168,7 @@ class _PratyantarTimeline extends StatelessWidget {
   final VimshottariController controller;
   @override
   Widget build(BuildContext context) {
+    final copy = AstrologyPresentationCopy.of(context);
     final current = controller.current;
     final timeline = controller.timeline;
     if (current == null || timeline == null) {
@@ -172,14 +185,17 @@ class _PratyantarTimeline extends StatelessWidget {
             children: [
               const Text('PARENT CYCLE CONTEXT', style: _S.eyebrow),
               const SizedBox(height: 8),
-              Text('${current.mahadasha.lord} Mahadasha', style: _S.cardTitle),
+              Text(
+                '${copy.planet(current.mahadasha.lord)} Mahadasha',
+                style: _S.cardTitle,
+              ),
               Text(
                 '${_date(current.mahadasha.startUtc)} — ${_date(current.mahadasha.endUtc)}',
                 style: _S.body,
               ),
               const Divider(color: Color(0x335E4A87), height: 20),
               Text(
-                '${current.antardasha.lord} Antardasha',
+                '${copy.planet(current.antardasha.lord)} Antardasha',
                 style: _S.cardTitle,
               ),
               Text(
@@ -188,7 +204,7 @@ class _PratyantarTimeline extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'You are currently in ${current.pratyantardasha.lord} Pratyantar',
+                'You are currently in ${copy.planet(current.pratyantardasha.lord)} Pratyantar',
                 style: _S.gold,
               ),
             ],
@@ -218,6 +234,7 @@ class _PratyantarPeriod extends StatelessWidget {
   final DateTime at;
   @override
   Widget build(BuildContext context) {
+    final copy = AstrologyPresentationCopy.of(context);
     final currentPeriod =
         period.lord == current.lord &&
         period.start == current.start &&
@@ -253,7 +270,7 @@ class _PratyantarPeriod extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          '${period.lord} Pratyantar',
+                          '${copy.planet(period.lord)} Pratyantar',
                           style: _S.cardTitle,
                         ),
                       ),
@@ -289,6 +306,7 @@ class _AntardashaPeriod extends StatelessWidget {
   final DateTime at;
   @override
   Widget build(BuildContext context) {
+    final copy = AstrologyPresentationCopy.of(context);
     final isCurrent =
         period.lord == current.lord &&
         period.start == current.start &&
@@ -322,7 +340,7 @@ class _AntardashaPeriod extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          '${period.lord} Antardasha',
+                          '${copy.planet(period.lord)} Antardasha',
                           style: _S.cardTitle,
                         ),
                       ),
@@ -339,7 +357,7 @@ class _AntardashaPeriod extends StatelessWidget {
                     _Progress(period: period, at: at),
                     const SizedBox(height: 6),
                     Text(
-                      'Active window: ${pratyantar.lord} Pratyantar',
+                      'Active window: ${copy.planet(pratyantar.lord)} Pratyantar',
                       style: _S.gold,
                     ),
                   ],
@@ -394,35 +412,38 @@ class _Period extends StatelessWidget {
   final DashaPeriod period;
   final bool active;
   @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.only(bottom: 8),
-    padding: const EdgeInsets.all(11),
-    decoration: BoxDecoration(
-      color: active ? _C.violet : Colors.transparent,
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(
-        color: active ? const Color(0x77C5A059) : const Color(0x335E4A87),
-      ),
-    ),
-    child: Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: _S.body),
-              Text(period.lord, style: _S.cardTitle),
-              Text(
-                '${_date(period.startUtc)} — ${_date(period.endUtc)}',
-                style: _S.body,
-              ),
-            ],
-          ),
+  Widget build(BuildContext context) {
+    final copy = AstrologyPresentationCopy.of(context);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+        color: active ? _C.violet : Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: active ? const Color(0x77C5A059) : const Color(0x335E4A87),
         ),
-        if (active) const _Chip('ACTIVE'),
-      ],
-    ),
-  );
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: _S.body),
+                Text(copy.planet(period.lord), style: _S.cardTitle),
+                Text(
+                  '${_date(period.startUtc)} — ${_date(period.endUtc)}',
+                  style: _S.body,
+                ),
+              ],
+            ),
+          ),
+          if (active) const _Chip('ACTIVE'),
+        ],
+      ),
+    );
+  }
 }
 
 class _Progress extends StatelessWidget {
@@ -431,13 +452,14 @@ class _Progress extends StatelessWidget {
   final DateTime at;
   @override
   Widget build(BuildContext context) {
+    final copy = AstrologyPresentationCopy.of(context);
     final total = period.endUtc.difference(period.startUtc).inMilliseconds;
     final elapsed = at.difference(period.startUtc).inMilliseconds;
     final progress = total <= 0 ? 0.0 : (elapsed / total).clamp(0.0, 1.0);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('${period.lord} timing progress', style: _S.gold),
+        Text('${copy.planet(period.lord)} timing progress', style: _S.gold),
         const SizedBox(height: 6),
         LinearProgressIndicator(
           value: progress,

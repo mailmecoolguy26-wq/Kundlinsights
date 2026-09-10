@@ -18,6 +18,7 @@ import '../features/transits/transit_snapshot_controller.dart';
 import '../features/ashtakavarga/ashtakavarga_controller.dart';
 import '../features/readings/reading_controller.dart';
 import '../features/readings/career_explanation_language.dart';
+import '../features/readings/astrology_presentation_copy.dart';
 import '../features/readings/career_reading_generation_controller.dart';
 import '../features/career_events/career_event_controller.dart';
 import '../features/payments/career_premium_product_controller.dart';
@@ -136,18 +137,21 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'KundlInsights',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      routerConfig: _router,
-      localizationsDelegates: const [
-        AppLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: AppLocalizations.supportedLocales,
+    return AstrologyPresentationScope(
+      controller: _careerExplanationLanguage,
+      child: MaterialApp.router(
+        title: 'KundlInsights',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light,
+        routerConfig: _router,
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
+      ),
     );
   }
 }

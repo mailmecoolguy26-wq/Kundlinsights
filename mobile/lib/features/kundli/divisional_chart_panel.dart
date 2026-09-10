@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
+import '../readings/astrology_presentation_copy.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/section_header.dart';
 import '../divisional/divisional_chart_controller.dart';
@@ -25,6 +26,7 @@ class DivisionalChartPanel extends StatelessWidget {
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: controller,
     builder: (context, child) {
+      final copy = AstrologyPresentationCopy.of(context);
       final chart = controller.chart(type);
       final state = controller.state(type);
       final t = AppLocalizations.of(context)!;
@@ -76,11 +78,11 @@ class DivisionalChartPanel extends StatelessWidget {
                 (planet) => AppCard(
                   padding: EdgeInsets.zero,
                   child: ListTile(
-                    title: Text(planet.body),
+                    title: Text(copy.planet(planet.body)),
                     subtitle: Text(
                       '${planet.sign.englishName} · '
                       '${planet.degreeWithinSign.toStringAsFixed(2)}° · '
-                      '${t.house} ${planet.house}',
+                      '${copy.isHinglish ? '${planet.house}th Bhav' : '${t.house} ${planet.house}'}',
                     ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => _showPlanet(
@@ -127,6 +129,7 @@ void _showHouse(
   FixedChartHouse house,
 ) {
   final t = AppLocalizations.of(context)!;
+  final copy = AstrologyPresentationCopy.of(context);
   showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
@@ -138,7 +141,7 @@ void _showHouse(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${type.apiName} · ${t.house} ${house.house}',
+              '${type.apiName} · ${copy.isHinglish ? '${house.house}th Bhav' : '${t.house} ${house.house}'}',
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -147,7 +150,9 @@ void _showHouse(
             Text(
               house.planets.isEmpty
                   ? t.noPlanets
-                  : house.planets.map((item) => item.body).join(', '),
+                  : house.planets
+                        .map((item) => copy.planet(item.body))
+                        .join(', '),
             ),
           ],
         ),
@@ -166,6 +171,7 @@ void _showPlanet(
     (item) => item.body == selected.body,
   );
   final t = AppLocalizations.of(context)!;
+  final copy = AstrologyPresentationCopy.of(context);
   showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
@@ -177,7 +183,7 @@ void _showPlanet(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${type.apiName} · ${position.body}',
+              '${type.apiName} · ${copy.planet(position.body)}',
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -185,7 +191,7 @@ void _showPlanet(
             Text(
               '${t.degreeInSign}: ${position.degreeWithinSign.toStringAsFixed(2)}°',
             ),
-            Text('${t.house}: ${position.house}'),
+            Text('${copy.isHinglish ? 'Bhav' : t.house}: ${position.house}'),
           ],
         ),
       ),

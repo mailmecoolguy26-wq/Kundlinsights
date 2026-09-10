@@ -10,6 +10,7 @@ import '../profiles/profile_controller.dart';
 import '../profiles/domain/birth_profile.dart';
 import '../divisional/divisional_chart_controller.dart';
 import '../divisional/domain/divisional_chart.dart';
+import '../readings/astrology_presentation_copy.dart';
 import 'divisional_chart_panel.dart';
 import 'north_indian_chart.dart';
 
@@ -124,6 +125,7 @@ class _D1KundliContent extends StatelessWidget {
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: natalController,
     builder: (context, child) {
+      final copy = AstrologyPresentationCopy.of(context);
       final summary = natalController.summary;
       return RefreshIndicator(
         onRefresh: natalController.refresh,
@@ -166,7 +168,7 @@ class _D1KundliContent extends StatelessWidget {
               const Text('PLANETARY POSITIONS', style: _KundliStyle.eyebrow),
               const SizedBox(height: 10),
               ...summary.planets.map(
-                (position) => _PlanetRow(position: position),
+                (position) => _PlanetRow(position: position, copy: copy),
               ),
             ],
           ],
@@ -339,6 +341,7 @@ abstract final class _KundliStyle {
 
 void _showHouseDetails(BuildContext context, D1ChartHouse house) {
   final t = AppLocalizations.of(context)!;
+  final copy = AstrologyPresentationCopy.of(context);
   showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
@@ -350,7 +353,9 @@ void _showHouseDetails(BuildContext context, D1ChartHouse house) {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${t.house} ${house.house}',
+              copy.isHinglish
+                  ? '${house.house}th Bhav'
+                  : '${t.house} ${house.house}',
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -362,7 +367,7 @@ void _showHouseDetails(BuildContext context, D1ChartHouse house) {
                   : house.planets
                         .map(
                           (planet) =>
-                              '${planet.body}${planet.retrograde ? ' (${t.retrograde})' : ''}',
+                              '${copy.planet(planet.body)}${planet.retrograde ? ' (${copy.retrograde})' : ''}',
                         )
                         .join(', '),
             ),
@@ -381,6 +386,7 @@ class _HouseAccessibilityFallback extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
+    final copy = AstrologyPresentationCopy.of(context);
     return Material(
       color: const Color(0xFF120D29),
       borderRadius: BorderRadius.circular(16),
@@ -400,7 +406,7 @@ class _HouseAccessibilityFallback extends StatelessWidget {
               (house) => ListTile(
                 dense: true,
                 title: Text(
-                  '${t.house} ${house.house} — ${house.sign.englishName}',
+                  '${copy.isHinglish ? '${house.house}th Bhav' : '${t.house} ${house.house}'} — ${house.sign.englishName}',
                   style: const TextStyle(color: Color(0xFFFAF7F2)),
                 ),
                 subtitle: Text(
@@ -409,7 +415,7 @@ class _HouseAccessibilityFallback extends StatelessWidget {
                       : house.planets
                             .map(
                               (planet) =>
-                                  '${planet.body}${planet.retrograde ? ' (${t.retrograde})' : ''}',
+                                  '${copy.planet(planet.body)}${planet.retrograde ? ' (${copy.retrograde})' : ''}',
                             )
                             .join(', '),
                   style: const TextStyle(color: Color(0xFF9E9AA9)),
@@ -457,12 +463,13 @@ class _IdentityCards extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
+    final copy = AstrologyPresentationCopy.of(context);
     final identity = summary.summary;
     return AppCard(
       child: Column(
         children: [
           _Value(
-            label: t.ascendant,
+            label: copy.isHinglish ? copy.ascendant : t.ascendant,
             value: identity.ascendant.sign.englishName,
           ),
           _Value(label: t.moonSign, value: identity.moonSign.englishName),
@@ -500,8 +507,9 @@ class _Value extends StatelessWidget {
 }
 
 class _PlanetRow extends StatelessWidget {
-  const _PlanetRow({required this.position});
+  const _PlanetRow({required this.position, required this.copy});
   final NatalPosition position;
+  final AstrologyPresentationCopy copy;
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
@@ -509,26 +517,26 @@ class _PlanetRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Semantics(
         label:
-            '${position.body}, ${position.sign.englishName}, ${t.house} ${position.house}${position.retrograde ? ', ${t.retrograde}' : ''}',
+            '${copy.planet(position.body)}, ${position.sign.englishName}, ${copy.isHinglish ? '${position.house}th Bhav' : '${t.house} ${position.house}'}${position.retrograde ? ', ${copy.retrograde}' : ''}',
         button: true,
         child: AppCard(
           padding: EdgeInsets.zero,
           child: ListTile(
             title: Text(
-              position.body,
+              copy.planet(position.body),
               style: const TextStyle(
                 color: Color(0xFFFAF7F2),
                 fontWeight: FontWeight.w600,
               ),
             ),
             subtitle: Text(
-              '${position.sign.englishName} · ${position.degreeWithinSign.toStringAsFixed(2)}° · ${t.house} ${position.house}\n${position.nakshatra.name} · ${t.pada} ${position.pada}',
+              '${position.sign.englishName} · ${position.degreeWithinSign.toStringAsFixed(2)}° · ${copy.isHinglish ? '${position.house}th Bhav' : '${t.house} ${position.house}'}\n${position.nakshatra.name} · ${t.pada} ${position.pada}',
               style: const TextStyle(color: Color(0xFF9E9AA9), height: 1.35),
             ),
             trailing: position.retrograde
                 ? Chip(
                     label: Text(
-                      t.retrograde,
+                      copy.retrograde,
                       style: const TextStyle(
                         color: Color(0xFFC5A059),
                         fontSize: 11,

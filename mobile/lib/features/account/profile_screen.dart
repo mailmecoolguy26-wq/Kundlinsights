@@ -154,7 +154,7 @@ class _CareerReadingLanguageSelector extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Career Reading Language',
+          'Astrology Language',
           style: TextStyle(
             color: Color(0xFFFAF7F2),
             fontSize: 15,
