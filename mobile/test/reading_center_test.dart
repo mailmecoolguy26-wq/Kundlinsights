@@ -539,6 +539,60 @@ void main() {
     },
   );
 
+  testWidgets('structured readings do not append legacy calibration or notes', (
+    tester,
+  ) async {
+    final authSource = _AuthSource();
+    final auth = AuthController(authSource);
+    await auth.restore();
+    final profiles = ProfileController(_Profiles(authSource), auth);
+    await tester.pump();
+    final detail = ReadingDetail.fromJson({
+      ..._detailJson(),
+      'insights': [_insight('CAREER_FOUNDATION', 0)],
+      'calibrationContext': {'calibrationLevel': 'CALIBRATED', 'eventCount': 3},
+      'calibratedContent': _calibratedContent([
+        _section(
+          'calibration',
+          'Calibration',
+          'This context deserves attention.',
+        ),
+        _section(
+          'calculation-note',
+          'Calculation note',
+          'Some calculations use a provisional calculation basis.',
+        ),
+      ]),
+    });
+    final repository = _ReadingRepository()..nextDetail = detail;
+    final controller = ReadingController(repository, auth, profiles);
+    await tester.pumpWidget(
+      _localized(
+        ReadingDetailScreen(controller: controller, readingId: 'reading-a'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        '3 saved Career events available for recurring-pattern comparison.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('This context deserves attention.'), findsNothing);
+    expect(find.text('CAREER HISTORY CALIBRATION'), findsNothing);
+    expect(find.text('Calculation note'), findsNothing);
+    expect(find.text('TECHNICAL NOTE'), findsOneWidget);
+    expect(
+      find.text('Some calculations use a provisional calculation basis.'),
+      findsOneWidget,
+    );
+    expect(find.text('Update Career History'), findsOneWidget);
+    controller.dispose();
+    profiles.dispose();
+    auth.dispose();
+  });
+
   testWidgets('renders returned NONE and LIMITED calibrated sections only', (
     tester,
   ) async {

@@ -835,7 +835,9 @@ class _CareerReadingDetail extends StatelessWidget {
                   if (insights.isNotEmpty && structuredCalibration != null) ...[
                     const SizedBox(height: 18),
                     _CareerHistorySummary(summary: structuredCalibration),
-                  ] else if (hasCalibrationContext) ...[
+                    const SizedBox(height: 8),
+                    _UpdateCareerHistoryAction(),
+                  ] else if (insights.isEmpty && hasCalibrationContext) ...[
                     const SizedBox(height: 12),
                     const _CareerReadingSectionLabel(
                       'CAREER HISTORY CALIBRATION',
@@ -1209,6 +1211,20 @@ class _CareerHistorySummary extends StatelessWidget {
       ],
     );
   }
+}
+
+class _UpdateCareerHistoryAction extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => OutlinedButton.icon(
+    onPressed: () => context.push('/career-calibration'),
+    icon: const Icon(Icons.tune_rounded, size: 18),
+    label: const Text('Update Career History'),
+    style: OutlinedButton.styleFrom(
+      foregroundColor: _CareerReadingColors.alabaster,
+      side: const BorderSide(color: _CareerReadingColors.goldBorder),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+    ),
+  );
 }
 
 bool _hasCalculationNote(ReadingContent? content) =>
