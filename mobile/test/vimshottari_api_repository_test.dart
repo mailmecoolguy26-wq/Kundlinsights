@@ -67,6 +67,60 @@ void main() {
     );
   });
 
+  test('parses the additive safe Dasha insight context defensively', () async {
+    final adapter = _Adapter([
+      _json(200, {
+        'vimshottari': _current('profile-a', insightContext: _insightContext()),
+      }),
+    ]);
+    final current = await VimshottariApiRepository(_client(config, adapter))
+        .getCurrent(birthProfileId: 'profile-a', atUtc: DateTime.utc(2027));
+
+    final context = current.insightContext!;
+    expect(context.currentPeriods.mahadasha.lord, 'Mercury');
+    expect(context.currentPhase!.status, 'SUPPORTED');
+    expect(context.currentPhase!.presentation.hinglish, contains('Dasha'));
+    expect(context.nextTransition!.level, 'PRATYANTAR');
+    expect(context.careerRelevance!.active, isTrue);
+    expect(
+      context.classicalContext!.caution.english,
+      contains('not a guaranteed'),
+    );
+  });
+
+  test(
+    'keeps Dasha facts when optional insight details are malformed',
+    () async {
+      final insight = _insightContext()
+        ..['currentPhase'] = {'status': 'NOT_A_STATUS'}
+        ..['nextTransition'] = {'level': 'UNKNOWN', 'lord': 'Ketu'};
+      final adapter = _Adapter([
+        _json(200, {
+          'vimshottari': _current('profile-a', insightContext: insight),
+        }),
+      ]);
+      final current = await VimshottariApiRepository(_client(config, adapter))
+          .getCurrent(birthProfileId: 'profile-a', atUtc: DateTime.utc(2027));
+
+      expect(current.mahadasha.lord, 'Mercury');
+      expect(current.insightContext, isNotNull);
+      expect(current.insightContext!.currentPhase, isNull);
+      expect(current.insightContext!.nextTransition, isNull);
+      expect(current.insightContext!.careerRelevance, isNotNull);
+    },
+  );
+
+  test('tolerates legacy current responses without insight context', () async {
+    final adapter = _Adapter([
+      _json(200, {'vimshottari': _current('profile-a')}),
+    ]);
+    final current = await VimshottariApiRepository(_client(config, adapter))
+        .getCurrent(birthProfileId: 'profile-a', atUtc: DateTime.utc(2027));
+
+    expect(current.insightContext, isNull);
+    expect(current.pratyantardasha.lord, 'Sun');
+  });
+
   test(
     'preserves flat chronological MD AD PD timelines and parent context',
     () async {
@@ -108,6 +162,86 @@ void main() {
       }
     },
   );
+
+  test(
+    'requests and parses the canonical Mahadasha root without a legacy window',
+    () async {
+      final adapter = _Adapter([
+        _json(200, {'vimshottariTimeline': _scoped('profile-a', 'md')}),
+      ]);
+      final timeline = await VimshottariApiRepository(_client(config, adapter))
+          .getMahadashaTimeline(birthProfileId: 'profile-a');
+      expect(adapter.requests.single.queryParameters, {
+        'level': 'md',
+        'root': 'true',
+      });
+      expect(timeline.periods.first, isA<DashaTimelinePeriod>());
+      expect(timeline.periods[1].status, 'CURRENT');
+      expect(timeline.periods.last.lord, 'Saturn');
+    },
+  );
+
+  test('preserves exact canonical selectors and backend parents for scoped child timelines', () async {
+    const md = '2024-01-01T00:00:00.123Z';
+    const ad = '2025-02-03T04:05:06.789Z';
+    final adapter = _Adapter([
+      _json(200, {'vimshottariTimeline': _scoped('profile-a', 'ad', md: md)}),
+      _json(200, {
+        'vimshottariTimeline': _scoped('profile-a', 'pd', md: md, ad: ad),
+      }),
+    ]);
+    final repository = VimshottariApiRepository(_client(config, adapter));
+    final antardasha = await repository.getAntardashaTimeline(
+      birthProfileId: 'profile-a',
+      mahadashaStartUtc: DateTime.parse(md),
+    );
+    final pratyantar = await repository.getPratyantarTimeline(
+      birthProfileId: 'profile-a',
+      mahadashaStartUtc: DateTime.parse(md),
+      antardashaStartUtc: DateTime.parse(ad),
+    );
+    expect(adapter.requests[0].queryParameters, {
+      'level': 'ad',
+      'mahadashaStart': md,
+    });
+    expect(adapter.requests[1].queryParameters, {
+      'level': 'pd',
+      'mahadashaStart': md,
+      'antardashaStart': ad,
+    });
+    expect(antardasha.parent!.start, md);
+    expect(antardasha.periods, hasLength(9));
+    expect(pratyantar.mahadashaParent!.start, md);
+    expect(pratyantar.antardashaParent!.start, ad);
+    expect(pratyantar.periods, hasLength(9));
+  });
+
+  test('scoped timeline parsing ignores unknown fields but rejects malformed required data', () {
+    final valid = _scoped('profile-a', 'pd')
+      ..['unrecognized'] = {'future': true};
+    final parsed = DashaScopedTimeline.fromJson(valid);
+    expect(parsed.periods, hasLength(9));
+    expect(parsed.mahadashaParent!.lord, 'Jupiter');
+
+    final empty = _scoped('profile-a', 'md')..['periods'] = [];
+    expect(DashaScopedTimeline.fromJson(empty).periods, isEmpty);
+
+    final missingParent = _scoped('profile-a', 'pd')
+      ..['parents'] = {'mahadasha': _scoped('profile-a', 'ad')['parent']};
+    expect(
+      () => DashaScopedTimeline.fromJson(missingParent),
+      throwsFormatException,
+    );
+
+    final invalidChild = _scoped('profile-a', 'md')
+      ..['periods'] = [
+        {'level': 'MAHADASHA', 'lord': 'Jupiter', 'start': 'not-a-date'},
+      ];
+    expect(
+      () => DashaScopedTimeline.fromJson(invalidChild),
+      throwsFormatException,
+    );
+  });
 }
 
 ApiClient _client(AppConfig config, _Adapter adapter) => ApiClient(
@@ -116,28 +250,98 @@ ApiClient _client(AppConfig config, _Adapter adapter) => ApiClient(
   dio: Dio()..httpClientAdapter = adapter,
 );
 
-Map<String, dynamic> _current(String id) => {
-  'birthProfileId': id,
-  'at': '2027-01-01T00:00:00.000Z',
-  'current': {
-    'mahadasha': _period(
-      'Mercury',
-      '2026-01-01T00:00:00.000Z',
-      '2043-01-01T00:00:00.000Z',
-    ),
-    'antardasha': _period(
-      'Venus',
-      '2027-01-01T00:00:00.000Z',
-      '2029-01-01T00:00:00.000Z',
-      md: 'Mercury',
-    ),
-    'pratyantardasha': _period(
-      'Sun',
-      '2027-01-01T00:00:00.000Z',
-      '2027-02-01T00:00:00.000Z',
-      md: 'Mercury',
-      ad: 'Venus',
-    ),
+Map<String, dynamic> _current(
+  String id, {
+  Map<String, dynamic>? insightContext,
+}) {
+  final current = <String, dynamic>{
+    'birthProfileId': id,
+    'at': '2027-01-01T00:00:00.000Z',
+    'current': {
+      'mahadasha': _period(
+        'Mercury',
+        '2026-01-01T00:00:00.000Z',
+        '2043-01-01T00:00:00.000Z',
+      ),
+      'antardasha': _period(
+        'Venus',
+        '2027-01-01T00:00:00.000Z',
+        '2029-01-01T00:00:00.000Z',
+        md: 'Mercury',
+      ),
+      'pratyantardasha': _period(
+        'Sun',
+        '2027-01-01T00:00:00.000Z',
+        '2027-02-01T00:00:00.000Z',
+        md: 'Mercury',
+        ad: 'Venus',
+      ),
+    },
+  };
+  if (insightContext != null) current['insightContext'] = insightContext;
+  return current;
+}
+
+Map<String, dynamic> _insightContext() => {
+  'currentPeriods': {
+    'mahadasha': {
+      ..._period(
+        'Mercury',
+        '2026-01-01T00:00:00.000Z',
+        '2043-01-01T00:00:00.000Z',
+      ),
+      'isCurrent': true,
+    },
+    'antardasha': {
+      ..._period(
+        'Venus',
+        '2027-01-01T00:00:00.000Z',
+        '2029-01-01T00:00:00.000Z',
+      ),
+      'isCurrent': true,
+    },
+    'pratyantardasha': {
+      ..._period('Sun', '2027-01-01T00:00:00.000Z', '2027-02-01T00:00:00.000Z'),
+      'isCurrent': true,
+    },
+  },
+  'currentPhase': {
+    'status': 'SUPPORTED',
+    'timingLevel': 'ANTARDASHA',
+    'lord': 'Venus',
+    'presentation': {
+      'english':
+          'Career-related Dasha evidence is active in the current period.',
+      'hinglish': 'Current Dasha mein Career-related evidence active hai.',
+    },
+  },
+  'nextTransition': {
+    'level': 'PRATYANTAR',
+    'lord': 'Ketu',
+    'starts': '2027-02-01T00:00:00.000Z',
+  },
+  'careerRelevance': {
+    'active': true,
+    'status': 'MIXED',
+    'presentation': {
+      'english': 'This Dasha period contributes to your current Career timing analysis.',
+      'hinglish':
+          'Yeh Dasha period aapki current Career timing analysis ka hissa hai.',
+    },
+  },
+  'classicalContext': {
+    'active': true,
+    'status': 'SUPPORTED',
+    'presentation': {
+      'english': 'An audited classical Career rule is active in the current Dasha sequence.',
+      'hinglish': 'Current Dasha sequence mein audited classical Career rule active hai.',
+    },
+    'cautionPresentation': {
+      'english':
+          'This is classical rule evidence, not a guaranteed Career outcome.',
+      'hinglish':
+          'Yeh classical rule evidence hai, guaranteed Career outcome nahi.',
+    },
   },
 };
 
@@ -163,6 +367,64 @@ Map<String, dynamic> _timeline(String id, VimshottariLevel level) => {
     ),
   ],
 };
+
+Map<String, dynamic> _scoped(
+  String id,
+  String level, {
+  String md = '2024-01-01T00:00:00.123Z',
+  String ad = '2025-02-03T04:05:06.789Z',
+}) {
+  final childLevel = level == 'md'
+      ? 'MAHADASHA'
+      : level == 'ad'
+      ? 'ANTARDASHA'
+      : 'PRATYANTAR';
+  final periods = List.generate(
+    9,
+    (index) => {
+      'level': childLevel,
+      'lord': ['Jupiter', 'Rahu', 'Saturn'][index % 3],
+      'start': DateTime.utc(2024 + index, 1, 1).toIso8601String(),
+      'end': DateTime.utc(2025 + index, 1, 1).toIso8601String(),
+      'status': index == 1
+          ? 'CURRENT'
+          : index < 1
+          ? 'COMPLETED'
+          : 'UPCOMING',
+    },
+  );
+  return {
+    'birthProfileId': id,
+    'level': level,
+    'count': periods.length,
+    'periods': periods,
+    if (level == 'ad')
+      'parent': {
+        'level': 'MAHADASHA',
+        'lord': 'Jupiter',
+        'start': md,
+        'end': '2040-01-01T00:00:00.000Z',
+        'status': 'CURRENT',
+      },
+    if (level == 'pd')
+      'parents': {
+        'mahadasha': {
+          'level': 'MAHADASHA',
+          'lord': 'Jupiter',
+          'start': md,
+          'end': '2040-01-01T00:00:00.000Z',
+          'status': 'CURRENT',
+        },
+        'antardasha': {
+          'level': 'ANTARDASHA',
+          'lord': 'Rahu',
+          'start': ad,
+          'end': '2027-01-01T00:00:00.000Z',
+          'status': 'CURRENT',
+        },
+      },
+  };
+}
 
 Map<String, dynamic> _period(
   String lord,

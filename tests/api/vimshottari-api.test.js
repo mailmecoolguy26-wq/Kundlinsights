@@ -30,8 +30,8 @@ function engine() {
 }
 function expected() { return calculateVimshottariDasha({ birthInstant: BIRTH, moonCanonicalSiderealLongitude: MOON, natalSunCanonicalSiderealLongitude: SUN, canonicalSiderealSunSampler: sampler(), rulesetId: SOLAR_RETURN_VIMSHOTTARI_RULESET.id }); }
 function profiles() { return Object.freeze({ async get({ principal, birthProfileId }) { if (principal.subject !== 'user-a' || birthProfileId !== 'profile-a') { const error = new Error(); error.code = 'NOT_FOUND_OR_FORBIDDEN'; throw error; } return Object.freeze({ id: 'profile-a', status: 'active', birthData }); } }); }
-function app(sideEffects = { readings: 0 }, careerInsightSource = null) {
-  const vimshottariService = new VimshottariService({ birthProfileService: profiles(), astronomicalEngine: engine(), canonicalSiderealSunSampler: sampler(), careerInsightSource });
+function app(sideEffects = { readings: 0 }, careerInsightSource = null, clock = () => '2026-09-10T00:00:00.000Z') {
+  const vimshottariService = new VimshottariService({ birthProfileService: profiles(), astronomicalEngine: engine(), canonicalSiderealSunSampler: sampler(), careerInsightSource, clock });
   return createApi({ authVerifier: createTestOnlyAuthVerifier({ a, b }), userResolver: { resolve: async () => ({ id: 'internal-id', status: 'active' }) }, birthProfileService: { create: async () => null, list: async () => [], get: async () => null }, vimshottariService, secureReadingService: { async generateSecureReading() { sideEffects.readings += 1; } }, requestIdGenerator: () => 'request-1' });
 }
 function safe(value) { const text = JSON.stringify(value).toLowerCase(); for (const field of ['birthdata', 'localdate', 'timezone', 'ciphertext', 'dek', 'kms', 'subject', 'mooncanonical', 'sampler']) assert.equal(text.includes(field), false, field); }
@@ -111,5 +111,74 @@ test('adds only same-profile sanitized Career Dasha relevance to the factual cur
   assert.equal(context.currentPeriods.pratyantardasha.lord, pd.lord.id);
   assert.equal(JSON.stringify(context).includes('evidenceId'), false);
   assert.equal(JSON.stringify(context).includes('rulesetId'), false);
+  await api.close();
+});
+
+test('period insight resolves only an exact canonical Pratyantar boundary, derives parents, and exposes factual-only context', async () => {
+  const dasha = expected(); const md = dasha.periods[0]; const ad = md.children[0]; const pd = ad.children[0];
+  const api = app(undefined, null, () => pd.startInstant.utc);
+  const response = await api.inject({ url: url('/v1/birth-profiles/profile-a/vimshottari/period-insight', { pratyantarStart: pd.startInstant.utc }), headers: { authorization: 'Bearer a' } });
+  assert.equal(response.statusCode, 200);
+  const detail = response.json().periodInsight;
+  assert.deepEqual([detail.hierarchy.mahadasha.lord, detail.hierarchy.antardasha.lord, detail.hierarchy.pratyantar.lord], [md.lord.id, ad.lord.id, pd.lord.id]);
+  assert.equal(detail.hierarchy.pratyantar.status, 'CURRENT');
+  assert.equal(detail.periodContext.status, 'CURRENT');
+  assert.equal(detail.nextPeriod?.lord, ad.children[1]?.lord.id || null);
+  assert.ok(detail.natalFacts.every((fact) => Number.isInteger(fact.house) && Array.isArray(fact.ownsHouses)));
+  assert.ok(detail.d10Facts.every((fact) => Number.isInteger(fact.house)));
+  assert.ok(detail.relationshipFacts.every((fact) => ['FRIEND', 'NEUTRAL', 'ENEMY', 'GREAT_FRIEND', 'GREAT_ENEMY'].includes(fact.relationship)));
+  safe(detail);
+  const text = JSON.stringify(detail).toLowerCase();
+  for (const unsafe of ['ruleid', 'rulesetid', 'evidenceid', 'sourceid', 'rawfacts', 'promotion', 'salary', 'best used', 'watch out']) assert.equal(text.includes(unsafe), false, unsafe);
+  await api.close();
+});
+
+test('period insight has exact UTC selector and half-open server-clock status semantics', async () => {
+  const dasha = expected(); const pd = dasha.periods[0].children[0].children[0];
+  const atStart = app(undefined, null, () => pd.startInstant.utc);
+  const current = await atStart.inject({ url: url('/v1/birth-profiles/profile-a/vimshottari/period-insight', { pratyantarStart: pd.startInstant.utc }), headers: { authorization: 'Bearer a' } });
+  assert.equal(current.statusCode, 200); assert.equal(current.json().periodInsight.periodContext.status, 'CURRENT'); await atStart.close();
+  const atEnd = app(undefined, null, () => pd.endInstant.utc);
+  const past = await atEnd.inject({ url: url('/v1/birth-profiles/profile-a/vimshottari/period-insight', { pratyantarStart: pd.startInstant.utc }), headers: { authorization: 'Bearer a' } });
+  assert.equal(past.statusCode, 200); assert.equal(past.json().periodInsight.periodContext.status, 'PAST'); await atEnd.close();
+  const before = app(undefined, null, () => new Date(new Date(pd.startInstant.utc).getTime() - 1).toISOString());
+  const upcoming = await before.inject({ url: url('/v1/birth-profiles/profile-a/vimshottari/period-insight', { pratyantarStart: pd.startInstant.utc }), headers: { authorization: 'Bearer a' } });
+  assert.equal(upcoming.statusCode, 200); assert.equal(upcoming.json().periodInsight.periodContext.status, 'UPCOMING'); await before.close();
+  const api = app();
+  assert.equal((await api.inject({ url: '/v1/birth-profiles/profile-a/vimshottari/period-insight', headers: { authorization: 'Bearer a' } })).statusCode, 400);
+  assert.equal((await api.inject({ url: url('/v1/birth-profiles/profile-a/vimshottari/period-insight', { pratyantarStart: '2000-01-01T00:00:00.0000Z' }), headers: { authorization: 'Bearer a' } })).statusCode, 400);
+  assert.equal((await api.inject({ url: url('/v1/birth-profiles/profile-a/vimshottari/period-insight', { pratyantarStart: '2000-01-01T00:00:00.000Z' }), headers: { authorization: 'Bearer a' } })).statusCode, 404);
+  assert.equal((await api.inject({ url: url('/v1/birth-profiles/profile-a/vimshottari/period-insight', { pratyantarStart: '2000-01-01T00:00:00.000Z' }), headers: { authorization: 'Bearer b' } })).statusCode, 404);
+  await api.close();
+});
+
+test('parent-scoped timeline returns complete canonical direct children beyond the legacy window', async () => {
+  const dasha = expected(); const md = dasha.periods[0]; const ad = md.children[0];
+  const api = app(undefined, null, () => ad.startInstant.utc);
+  const adResponse = await api.inject({ url: url('/v1/birth-profiles/profile-a/vimshottari/timeline', { level: 'ad', mahadashaStart: md.startInstant.utc }), headers: { authorization: 'Bearer a' } });
+  assert.equal(adResponse.statusCode, 200);
+  const adTimeline = adResponse.json().vimshottariTimeline;
+  assert.equal(adTimeline.count, md.children.length); assert.equal(adTimeline.parent.start, md.startInstant.utc);
+  assert.equal(adTimeline.periods[0].start, md.children[0].startInstant.utc); assert.equal(adTimeline.periods.at(-1).end, md.children.at(-1).endInstant.utc);
+  assert.ok(adTimeline.periods.every((period) => period.start >= md.startInstant.utc && period.end <= md.endInstant.utc));
+  const pdResponse = await api.inject({ url: url('/v1/birth-profiles/profile-a/vimshottari/timeline', { level: 'pd', mahadashaStart: md.startInstant.utc, antardashaStart: ad.startInstant.utc }), headers: { authorization: 'Bearer a' } });
+  assert.equal(pdResponse.statusCode, 200);
+  const pdTimeline = pdResponse.json().vimshottariTimeline;
+  assert.equal(pdTimeline.count, ad.children.length); assert.deepEqual([pdTimeline.parents.mahadasha.start, pdTimeline.parents.antardasha.start], [md.startInstant.utc, ad.startInstant.utc]);
+  assert.ok(pdTimeline.periods.every((period) => period.start >= ad.startInstant.utc && period.end <= ad.endInstant.utc));
+  assert.ok(md.endInstant.epochMilliseconds - md.startInstant.epochMilliseconds > BigInt(MAX_TIMELINE_WINDOW_MILLISECONDS));
+  await api.close();
+});
+
+test('parent-scoped selectors are exact, authenticated, and leave legacy timeline validation unchanged', async () => {
+  const dasha = expected(); const md = dasha.periods[0]; const ad = md.children[0]; const api = app();
+  const base = '/v1/birth-profiles/profile-a/vimshottari/timeline';
+  assert.equal((await api.inject({ url: url(base, { level: 'ad' }), headers: { authorization: 'Bearer a' } })).statusCode, 400);
+  assert.equal((await api.inject({ url: url(base, { level: 'ad', mahadashaStart: new Date(new Date(md.startInstant.utc).getTime() + 1).toISOString() }), headers: { authorization: 'Bearer a' } })).statusCode, 404);
+  assert.equal((await api.inject({ url: url(base, { level: 'pd', mahadashaStart: md.startInstant.utc }), headers: { authorization: 'Bearer a' } })).statusCode, 400);
+  assert.equal((await api.inject({ url: url(base, { level: 'pd', mahadashaStart: md.startInstant.utc, antardashaStart: new Date(new Date(ad.startInstant.utc).getTime() - 1).toISOString() }), headers: { authorization: 'Bearer a' } })).statusCode, 404);
+  assert.equal((await api.inject({ url: url(base, { level: 'ad', mahadashaStart: md.startInstant.utc }), headers: { authorization: 'Bearer b' } })).statusCode, 404);
+  const root = await api.inject({ url: url(base, { level: 'md', root: 'true' }), headers: { authorization: 'Bearer a' } });
+  assert.equal(root.statusCode, 200); assert.equal(root.json().vimshottariTimeline.count, dasha.periods.length);
   await api.close();
 });

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../profiles/profile_controller.dart';
@@ -23,9 +24,6 @@ class _VimshottariTimelineScreenState extends State<VimshottariTimelineScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) widget.controller.loadTimeline();
-    });
   }
 
   @override
@@ -36,80 +34,100 @@ class _VimshottariTimelineScreenState extends State<VimshottariTimelineScreen> {
         widget.controller,
         widget.profileController,
       ]),
-      builder: (_, child) => Scaffold(
-        backgroundColor: _C.midnight,
-        body: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-            children: [
-              Row(
-                children: [
-                  Material(
-                    color: _C.violet,
-                    shape: const CircleBorder(),
-                    child: IconButton(
-                      onPressed: () => Navigator.of(context).maybePop(),
-                      icon: const Icon(Icons.arrow_back, color: _C.alabaster),
+      builder: (_, child) {
+        final insightContext = widget.controller.current?.insightContext;
+        return Scaffold(
+          backgroundColor: _C.midnight,
+          body: SafeArea(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+              children: [
+                Row(
+                  children: [
+                    Material(
+                      color: _C.violet,
+                      shape: const CircleBorder(),
+                      child: IconButton(
+                        onPressed: () => Navigator.of(context).maybePop(),
+                        icon: const Icon(Icons.arrow_back, color: _C.alabaster),
+                      ),
                     ),
-                  ),
-                  const Spacer(),
-                  _ProfilePill(
-                    widget.profileController.activeProfile?.label ??
-                        'Active profile',
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              const Text('DASHA', style: _S.eyebrow),
-              const SizedBox(height: 5),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      widget.controller.timelineLevel == VimshottariLevel.ad
-                          ? 'Antardasha Timeline'
-                          : widget.controller.timelineLevel ==
-                                VimshottariLevel.pd
-                          ? 'Pratyantar Timeline'
-                          : 'Vimshottari',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: _S.title,
+                    const Spacer(),
+                    _ProfilePill(
+                      widget.profileController.activeProfile?.label ??
+                          'Active profile',
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  const _Chip('VIMSHOTTARI'),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                widget.controller.timelineLevel == VimshottariLevel.ad &&
-                        widget.controller.current != null
-                    ? 'WITHIN ${copy.planet(widget.controller.current!.mahadasha.lord).toUpperCase()} MAHADASHA'
-                    : widget.controller.timelineLevel == VimshottariLevel.pd &&
+                  ],
+                ),
+                const SizedBox(height: 24),
+                const Text('DASHA', style: _S.eyebrow),
+                const SizedBox(height: 5),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        widget.controller.timelineLevel == VimshottariLevel.ad
+                            ? 'Antardasha Timeline'
+                            : widget.controller.timelineLevel ==
+                                  VimshottariLevel.pd
+                            ? 'Pratyantar Timeline'
+                            : 'Vimshottari',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: _S.title,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    const _Chip('VIMSHOTTARI'),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  widget.controller.timelineLevel == VimshottariLevel.ad &&
                           widget.controller.current != null
-                    ? 'WITHIN ${copy.planet(widget.controller.current!.antardasha.lord).toUpperCase()} ANTARDASHA'
-                    : 'Planetary Timing Cycles',
-                style: _S.body,
-              ),
-              const SizedBox(height: 22),
-              _ActivePeriods(current: widget.controller.current),
-              const SizedBox(height: 22),
-              _Selectors(controller: widget.controller),
-              const SizedBox(height: 22),
-              widget.controller.timelineLevel == VimshottariLevel.ad
-                  ? _AntardashaTimeline(controller: widget.controller)
-                  : widget.controller.timelineLevel == VimshottariLevel.pd
-                  ? _PratyantarTimeline(controller: widget.controller)
-                  : _Timeline(controller: widget.controller),
-            ],
+                      ? 'WITHIN ${copy.planet(widget.controller.current!.mahadasha.lord).toUpperCase()} MAHADASHA'
+                      : widget.controller.timelineLevel ==
+                                VimshottariLevel.pd &&
+                            widget.controller.current != null
+                      ? 'WITHIN ${copy.planet(widget.controller.current!.antardasha.lord).toUpperCase()} ANTARDASHA'
+                      : 'Planetary Timing Cycles',
+                  style: _S.body,
+                ),
+                const SizedBox(height: 22),
+                _ActivePeriods(current: widget.controller.current),
+                if (insightContext?.currentPhase case final phase?) ...[
+                  const SizedBox(height: 20),
+                  _CurrentPhase(phase: phase),
+                ],
+                const SizedBox(height: 22),
+                _OverviewTimeline(
+                  onViewMahadasha: () => context.push('/vimshottari/mahadasha'),
+                ),
+                if (insightContext?.nextTransition case final transition?) ...[
+                  const SizedBox(height: 20),
+                  _NextTransition(transition: transition),
+                ],
+                if (insightContext?.careerRelevance case final relevance?) ...[
+                  const SizedBox(height: 20),
+                  _CareerRelevance(
+                    relevance: relevance,
+                    onSeeCareerTiming: () => context.go('/readings'),
+                  ),
+                ],
+                if (insightContext?.classicalContext case final classical?) ...[
+                  const SizedBox(height: 20),
+                  _ClassicalContext(context: classical),
+                ],
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
 
+// ignore: unused_element
 class _AntardashaTimeline extends StatelessWidget {
   const _AntardashaTimeline({required this.controller});
   final VimshottariController controller;
@@ -163,6 +181,7 @@ class _AntardashaTimeline extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _PratyantarTimeline extends StatelessWidget {
   const _PratyantarTimeline({required this.controller});
   final VimshottariController controller;
@@ -261,31 +280,36 @@ class _PratyantarPeriod extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: _DarkCard(
-              emphasis: currentPeriod,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '${copy.planet(period.lord)} Pratyantar',
-                          style: _S.cardTitle,
+            child: InkWell(
+              onTap: () => context.push(
+                '/vimshottari/period-insight?pratyantarStart=${Uri.encodeComponent(period.start)}',
+              ),
+              child: _DarkCard(
+                emphasis: currentPeriod,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${copy.planet(period.lord)} Pratyantar',
+                            style: _S.cardTitle,
+                          ),
                         ),
-                      ),
-                      _Chip(status),
+                        _Chip(status),
+                      ],
+                    ),
+                    Text(
+                      '${_date(period.startUtc)} — ${_date(period.endUtc)}',
+                      style: _S.body,
+                    ),
+                    if (currentPeriod) ...[
+                      const SizedBox(height: 10),
+                      _Progress(period: period, at: at),
                     ],
-                  ),
-                  Text(
-                    '${_date(period.startUtc)} — ${_date(period.endUtc)}',
-                    style: _S.body,
-                  ),
-                  if (currentPeriod) ...[
-                    const SizedBox(height: 10),
-                    _Progress(period: period, at: at),
                   ],
-                ],
+                ),
               ),
             ),
           ),
@@ -388,12 +412,17 @@ class _ActivePeriods extends StatelessWidget {
         children: [
           const Text('ACTIVE PLANETARY PERIOD', style: _S.eyebrow),
           const SizedBox(height: 12),
-          _Period('Mahadasha · Major Cycle', current!.mahadasha),
-          _Period('Antardasha · Sub-period', current!.antardasha),
-          _Period(
-            'Pratyantar · Active Now',
-            current!.pratyantardasha,
-            active: true,
+          _Period('Mahadasha', current!.mahadasha),
+          _Period('Antardasha', current!.antardasha),
+          InkWell(
+            onTap: () => context.push(
+              '/vimshottari/period-insight?pratyantarStart=${Uri.encodeComponent(current!.pratyantardasha.start)}',
+            ),
+            child: _Period(
+              'Pratyantar · Active Now',
+              current!.pratyantardasha,
+              active: true,
+            ),
           ),
           const SizedBox(height: 10),
           _Progress(
@@ -405,6 +434,224 @@ class _ActivePeriods extends StatelessWidget {
     );
   }
 }
+
+class _OverviewTimeline extends StatelessWidget {
+  const _OverviewTimeline({required this.onViewMahadasha});
+  final VoidCallback onViewMahadasha;
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text('YOUR DASHA TIMELINE', style: _S.eyebrow),
+      const SizedBox(height: 10),
+      SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: onViewMahadasha,
+          icon: const Icon(Icons.timeline_outlined),
+          label: const Text('View Mahadasha Timeline'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: _C.gold,
+            side: const BorderSide(color: _C.gold),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+class _CurrentPhase extends StatelessWidget {
+  const _CurrentPhase({required this.phase});
+  final DashaCurrentPhase phase;
+
+  @override
+  Widget build(BuildContext context) {
+    final copy = AstrologyPresentationCopy.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('YOUR CURRENT PHASE', style: _S.eyebrow),
+        const SizedBox(height: 10),
+        _DarkCard(
+          emphasis: true,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${_timingLevelLabel(phase.timingLevel)} · ${copy.planet(phase.lord)}',
+                      style: _S.cardTitle,
+                    ),
+                  ),
+                  _StatusChip(phase.status),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(_presentation(context, phase.presentation), style: _S.body),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _NextTransition extends StatelessWidget {
+  const _NextTransition({required this.transition});
+  final DashaNextTransition transition;
+
+  @override
+  Widget build(BuildContext context) {
+    final copy = AstrologyPresentationCopy.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('WHAT COMES NEXT', style: _S.eyebrow),
+        const SizedBox(height: 10),
+        _DarkCard(
+          child: Row(
+            children: [
+              const Icon(Icons.schedule_outlined, color: _C.gold),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'NEXT ${_timingLevelLabel(transition.level).toUpperCase()}',
+                      style: _S.body,
+                    ),
+                    Text(copy.planet(transition.lord), style: _S.cardTitle),
+                    Text(
+                      'Starts ${_date(DateTime.parse(transition.starts).toUtc())}',
+                      style: _S.body,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CareerRelevance extends StatelessWidget {
+  const _CareerRelevance({
+    required this.relevance,
+    required this.onSeeCareerTiming,
+  });
+  final DashaCareerRelevance relevance;
+  final VoidCallback onSeeCareerTiming;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text('CAREER RELEVANCE', style: _S.eyebrow),
+      const SizedBox(height: 10),
+      _DarkCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.work_outline, color: _C.gold, size: 19),
+                const SizedBox(width: 8),
+                _StatusChip(relevance.status),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              _presentation(context, relevance.presentation),
+              style: _S.body,
+            ),
+            const SizedBox(height: 6),
+            TextButton.icon(
+              onPressed: onSeeCareerTiming,
+              icon: const Icon(Icons.arrow_forward, size: 16),
+              label: const Text('See Career Timing'),
+              style: TextButton.styleFrom(foregroundColor: _C.gold),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
+class _ClassicalContext extends StatelessWidget {
+  const _ClassicalContext({required this.context});
+  final DashaClassicalContext context;
+
+  @override
+  Widget build(BuildContext buildContext) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text('CLASSICAL CONTEXT', style: _S.eyebrow),
+      const SizedBox(height: 10),
+      _DarkCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.auto_awesome_outlined,
+                  color: _C.gold,
+                  size: 19,
+                ),
+                const SizedBox(width: 8),
+                _StatusChip(context.status),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              _presentation(buildContext, context.presentation),
+              style: _S.body,
+            ),
+            const SizedBox(height: 8),
+            Text(_presentation(buildContext, context.caution), style: _S.muted),
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip(this.status);
+  final String status;
+
+  @override
+  Widget build(BuildContext context) => _Chip(_statusLabel(status));
+}
+
+String _presentation(
+  BuildContext context,
+  DashaPresentationCopy presentation,
+) => AstrologyPresentationCopy.of(context).isHinglish
+    ? presentation.hinglish
+    : presentation.english;
+
+String _statusLabel(String status) => switch (status) {
+  'SUPPORTED' => 'Supported',
+  'MIXED' => 'Mixed evidence',
+  'CONTRADICTED' => 'Not consistently supported',
+  'INSUFFICIENT_EVIDENCE' => 'Limited evidence',
+  _ => 'Status unavailable',
+};
+
+String _timingLevelLabel(String level) => switch (level) {
+  'MAHADASHA' => 'Mahadasha',
+  'ANTARDASHA' => 'Antardasha',
+  'PRATYANTAR' => 'Pratyantar',
+  _ => level,
+};
 
 class _Period extends StatelessWidget {
   const _Period(this.label, this.period, {this.active = false});
@@ -456,6 +703,8 @@ class _Progress extends StatelessWidget {
     final total = period.endUtc.difference(period.startUtc).inMilliseconds;
     final elapsed = at.difference(period.startUtc).inMilliseconds;
     final progress = total <= 0 ? 0.0 : (elapsed / total).clamp(0.0, 1.0);
+    final remaining = period.endUtc.difference(at).inDays;
+    final remainingDays = remaining < 0 ? 0 : remaining;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -468,7 +717,7 @@ class _Progress extends StatelessWidget {
         ),
         const SizedBox(height: 5),
         Text(
-          'Started ${_date(period.startUtc)} · Ends ${_date(period.endUtc)}',
+          '$remainingDays days remaining · Ends ${_date(period.endUtc)}',
           style: _S.body,
         ),
       ],
@@ -476,6 +725,7 @@ class _Progress extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _Selectors extends StatelessWidget {
   const _Selectors({required this.controller});
   final VimshottariController controller;
@@ -655,6 +905,7 @@ abstract final class _S {
         fontSize: 12,
         fontWeight: FontWeight.w600,
       ),
+      muted = TextStyle(color: _C.slate, fontSize: 11.5, height: 1.35),
       chip = TextStyle(
         color: _C.gold,
         fontSize: 9,

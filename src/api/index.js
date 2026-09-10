@@ -80,7 +80,16 @@ function createApi({ authVerifier, userResolver, birthProfileService, careerEven
   if (vimshottariService) {
     if (typeof vimshottariService.current !== 'function' || typeof vimshottariService.timeline !== 'function') throw new TypeError('INVALID_VIMSHOTTARI_SERVICE');
     app.get('/v1/birth-profiles/:id/vimshottari', async (request) => ({ vimshottari: await vimshottariService.current({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), at: request.query.at }), requestId: request.id }));
-    app.get('/v1/birth-profiles/:id/vimshottari/timeline', async (request) => ({ vimshottariTimeline: await vimshottariService.timeline({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), from: request.query.from, to: request.query.to, level: request.query.level }), requestId: request.id }));
+    app.get('/v1/birth-profiles/:id/vimshottari/timeline', async (request) => {
+      const scoped = request.query.mahadashaStart !== undefined || request.query.antardashaStart !== undefined;
+      const timeline = scoped
+        ? await vimshottariService.parentTimeline({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), level: request.query.level, mahadashaStart: request.query.mahadashaStart, antardashaStart: request.query.antardashaStart })
+        : await vimshottariService.timeline({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), from: request.query.from, to: request.query.to, level: request.query.level, root: request.query.root === 'true' });
+      return { vimshottariTimeline: timeline, requestId: request.id };
+    });
+    if (typeof vimshottariService.periodInsight === 'function') {
+      app.get('/v1/birth-profiles/:id/vimshottari/period-insight', async (request) => ({ periodInsight: await vimshottariService.periodInsight({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), pratyantarStart: request.query.pratyantarStart }), requestId: request.id }));
+    }
   }
   if (transitSnapshotService) {
     if (typeof transitSnapshotService.get !== 'function') throw new TypeError('INVALID_TRANSIT_SNAPSHOT_SERVICE');

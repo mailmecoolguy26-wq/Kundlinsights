@@ -25,6 +25,8 @@ import '../../features/payments/presentation/career_premium_paywall.dart';
 import '../../features/career_events/career_event_controller.dart';
 import '../../features/career_events/presentation/career_calibration_screen.dart';
 import '../../features/vimshottari/presentation/vimshottari_timeline_screen.dart';
+import '../../features/vimshottari/presentation/dasha_period_insight_screen.dart';
+import '../../features/vimshottari/presentation/dasha_hierarchy_screen.dart';
 import '../../features/vimshottari/vimshottari_controller.dart';
 import '../../features/transits/presentation/current_transits_screen.dart';
 import '../../features/transits/transit_snapshot_controller.dart';
@@ -112,6 +114,63 @@ GoRouter createAppRouter(
     GoRoute(
       path: '/splash',
       builder: (context, state) => const StitchSplashScreen(),
+    ),
+    GoRoute(
+      path: '/vimshottari/mahadasha',
+      builder: (context, state) => DashaHierarchyScreen(
+        profileController: profiles,
+        controller: vimshottari,
+        level: DashaHierarchyLevel.mahadasha,
+      ),
+    ),
+    GoRoute(
+      path: '/vimshottari/antardasha',
+      builder: (context, state) {
+        final value = state.uri.queryParameters['mahadashaStart'];
+        final start = value == null ? null : DateTime.tryParse(value)?.toUtc();
+        return start == null
+            ? const _LoadingScreen()
+            : DashaHierarchyScreen(
+                profileController: profiles,
+                controller: vimshottari,
+                level: DashaHierarchyLevel.antardasha,
+                mahadashaStart: start,
+              );
+      },
+    ),
+    GoRoute(
+      path: '/vimshottari/pratyantar',
+      builder: (context, state) {
+        final md = state.uri.queryParameters['mahadashaStart'];
+        final ad = state.uri.queryParameters['antardashaStart'];
+        final mdStart = md == null ? null : DateTime.tryParse(md)?.toUtc();
+        final adStart = ad == null ? null : DateTime.tryParse(ad)?.toUtc();
+        return mdStart == null || adStart == null
+            ? const _LoadingScreen()
+            : DashaHierarchyScreen(
+                profileController: profiles,
+                controller: vimshottari,
+                level: DashaHierarchyLevel.pratyantar,
+                mahadashaStart: mdStart,
+                antardashaStart: adStart,
+              );
+      },
+    ),
+    GoRoute(
+      path: '/vimshottari/period-insight',
+      builder: (context, state) {
+        final value = state.uri.queryParameters['pratyantarStart'];
+        final instant = value == null
+            ? null
+            : DateTime.tryParse(value)?.toUtc();
+        return instant == null
+            ? const _LoadingScreen()
+            : DashaPeriodInsightScreen(
+                profileController: profiles,
+                controller: vimshottari,
+                pratyantarStart: instant,
+              );
+      },
     ),
     GoRoute(
       path: '/vimshottari',

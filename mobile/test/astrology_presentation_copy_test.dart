@@ -11,6 +11,8 @@ void main() {
   test('English remains the default factual presentation', () {
     expect(english.planet('Saturn'), 'Saturn');
     expect(english.planet('Jupiter'), 'Jupiter');
+    expect(english.planet('jupiter'), 'Jupiter');
+    expect(english.planet('SATURN'), 'Saturn');
     expect(english.houseContext(10), '10th House');
     expect(english.retrograde, 'Retrograde');
     expect(
@@ -27,6 +29,8 @@ void main() {
     expect(hinglish.planet('Saturn'), 'Shani Dev');
     expect(hinglish.planet('Jupiter'), 'Guru Dev');
     expect(hinglish.planet('Mercury'), 'Budh');
+    expect(hinglish.planet('jupiter'), 'Guru Dev');
+    expect(hinglish.planet('SATURN'), 'Shani Dev');
     expect(hinglish.houseContext(10), '10th Bhav');
     expect(hinglish.ascendant, 'Lagna');
     expect(hinglish.retrograde, 'Vakri');

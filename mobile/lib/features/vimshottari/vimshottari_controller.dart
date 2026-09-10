@@ -32,8 +32,10 @@ class VimshottariController extends ChangeNotifier {
   VimshottariLoadState _timelineState = VimshottariLoadState.initial;
   VimshottariCurrent? _current;
   VimshottariTimeline? _timeline;
+  DashaPeriodInsight? _periodInsight;
   Object? _currentError;
   Object? _timelineError;
+  Object? _periodInsightError;
   String? _subject;
   String? _birthProfileId;
   VimshottariLevel _timelineLevel = VimshottariLevel.md;
@@ -47,8 +49,10 @@ class VimshottariController extends ChangeNotifier {
   VimshottariLoadState get timelineState => _timelineState;
   VimshottariCurrent? get current => _current;
   VimshottariTimeline? get timeline => _timeline;
+  DashaPeriodInsight? get periodInsight => _periodInsight;
   Object? get currentError => _currentError;
   Object? get timelineError => _timelineError;
+  Object? get periodInsightError => _periodInsightError;
   VimshottariLevel get timelineLevel => _timelineLevel;
   int get timelineWindowDays => _timelineWindowDays;
 
@@ -66,8 +70,10 @@ class VimshottariController extends ChangeNotifier {
     _birthProfileId = profileId;
     _current = null;
     _timeline = null;
+    _periodInsight = null;
     _currentError = null;
     _timelineError = null;
+    _periodInsightError = null;
     if (subject == null || profileId == null) {
       _currentState = VimshottariLoadState.initial;
       _timelineState = VimshottariLoadState.initial;
@@ -123,6 +129,73 @@ class VimshottariController extends ChangeNotifier {
     _timelineState = VimshottariLoadState.loading;
     notifyListeners();
     await _loadTimeline(subject, profileId);
+  }
+
+  Future<DashaPeriodInsight?> loadPeriodInsight(
+    DateTime pratyantarStartUtc,
+  ) async {
+    final subject = _subject;
+    final profileId = _birthProfileId;
+    final generation = _currentGeneration;
+    if (subject == null || profileId == null) return null;
+    _periodInsight = null;
+    _periodInsightError = null;
+    notifyListeners();
+    try {
+      final result = await repository.getPeriodInsight(
+        birthProfileId: profileId,
+        pratyantarStartUtc: pratyantarStartUtc,
+      );
+      if (!_isCurrentRequest(generation, subject, profileId)) return null;
+      _periodInsight = result;
+      notifyListeners();
+      return result;
+    } catch (error) {
+      if (_isCurrentRequest(generation, subject, profileId)) {
+        _periodInsightError = error;
+        notifyListeners();
+      }
+      return null;
+    }
+  }
+
+  Future<DashaScopedTimeline?> loadMahadashaTimeline() =>
+      _scoped((id) => repository.getMahadashaTimeline(birthProfileId: id));
+  Future<DashaScopedTimeline?> loadAntardashaTimeline(
+    DateTime mahadashaStartUtc,
+  ) => _scoped(
+    (id) => repository.getAntardashaTimeline(
+      birthProfileId: id,
+      mahadashaStartUtc: mahadashaStartUtc,
+    ),
+  );
+  Future<DashaScopedTimeline?> loadPratyantarTimeline(
+    DateTime mahadashaStartUtc,
+    DateTime antardashaStartUtc,
+  ) => _scoped(
+    (id) => repository.getPratyantarTimeline(
+      birthProfileId: id,
+      mahadashaStartUtc: mahadashaStartUtc,
+      antardashaStartUtc: antardashaStartUtc,
+    ),
+  );
+
+  Future<DashaScopedTimeline?> _scoped(
+    Future<DashaScopedTimeline> Function(String id) request,
+  ) async {
+    final subject = _subject;
+    final profileId = _birthProfileId;
+    final generation = _currentGeneration;
+    if (subject == null || profileId == null) return null;
+    try {
+      final result = await request(profileId);
+      return _isCurrentRequest(generation, subject, profileId) &&
+              result.birthProfileId == profileId
+          ? result
+          : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> _loadCurrent(

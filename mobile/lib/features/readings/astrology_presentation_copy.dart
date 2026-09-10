@@ -18,20 +18,25 @@ class AstrologyPresentationCopy {
     );
   }
 
-  String planet(String value) => isHinglish
-      ? const {
-              'Saturn': 'Shani Dev',
-              'Jupiter': 'Guru Dev',
-              'Mars': 'Mangal',
-              'Mercury': 'Budh',
-              'Venus': 'Shukra',
-              'Sun': 'Surya Dev',
-              'Moon': 'Chandra Dev',
-              'Rahu': 'Rahu',
-              'Ketu': 'Ketu',
-            }[value] ??
-            value
-      : value;
+  /// Backend identifiers are factual transport values. Canonicalize only for
+  /// display so casing never leaks into user-facing astrology terminology.
+  String planet(String value) {
+    final canonical = _canonicalPlanets[value.trim().toLowerCase()] ?? value;
+    return isHinglish
+        ? const {
+                'Saturn': 'Shani Dev',
+                'Jupiter': 'Guru Dev',
+                'Mars': 'Mangal',
+                'Mercury': 'Budh',
+                'Venus': 'Shukra',
+                'Sun': 'Surya Dev',
+                'Moon': 'Chandra Dev',
+                'Rahu': 'Rahu',
+                'Ketu': 'Ketu',
+              }[canonical] ??
+              canonical
+        : canonical;
+  }
 
   String house(int value) => isHinglish ? '${value}th Bhav' : 'House $value';
   String houseContext(int value) =>
@@ -63,6 +68,18 @@ class AstrologyPresentationCopy {
     };
   }
 }
+
+const _canonicalPlanets = {
+  'sun': 'Sun',
+  'moon': 'Moon',
+  'mars': 'Mars',
+  'mercury': 'Mercury',
+  'jupiter': 'Jupiter',
+  'venus': 'Venus',
+  'saturn': 'Saturn',
+  'rahu': 'Rahu',
+  'ketu': 'Ketu',
+};
 
 /// Reuses the existing app-owned explanation-language preference without
 /// changing Flutter's global locale.
