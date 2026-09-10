@@ -230,7 +230,9 @@ class CareerInsight {
       calibrationContext: CareerInsightCalibrationContext.tryFromJson(
         json['calibrationContext'],
       ),
-      technicalContext: CareerTechnicalContext.tryFromJson(json['technicalContext']),
+      technicalContext: CareerTechnicalContext.tryFromJson(
+        json['technicalContext'],
+      ),
       technicalDetails: json['technicalDetails'] is Map<String, dynamic>
           ? Map<String, dynamic>.unmodifiable(
               json['technicalDetails'] as Map<String, dynamic>,
@@ -246,14 +248,44 @@ class CareerInsight {
 }
 
 class CareerTechnicalContext {
-  const CareerTechnicalContext({required this.natalStructure, required this.d10CareerChart, required this.timing, required this.supportingContext, required this.careerHistory, required this.classicalRuleContext});
-  final List<Map<String, dynamic>> natalStructure, d10CareerChart, timing, supportingContext, careerHistory, classicalRuleContext;
+  const CareerTechnicalContext({
+    required this.natalStructure,
+    required this.d10CareerChart,
+    required this.timing,
+    required this.supportingContext,
+    required this.careerHistory,
+    required this.classicalRuleContext,
+  });
+  final List<Map<String, dynamic>> natalStructure,
+      d10CareerChart,
+      timing,
+      supportingContext,
+      careerHistory,
+      classicalRuleContext;
   static CareerTechnicalContext? tryFromJson(Object? raw) {
     if (raw is! Map<String, dynamic>) return null;
-    List<Map<String, dynamic>> rows(String key) => (raw[key] as List? ?? const []).whereType<Map<String, dynamic>>().map(Map<String, dynamic>.unmodifiable).toList(growable: false);
-    return CareerTechnicalContext(natalStructure: rows('natalStructure'), d10CareerChart: rows('d10CareerChart'), timing: rows('timing'), supportingContext: rows('supportingContext'), careerHistory: rows('careerHistory'), classicalRuleContext: rows('classicalRuleContext'));
+    List<Map<String, dynamic>> rows(String key) =>
+        (raw[key] as List? ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .map(Map<String, dynamic>.unmodifiable)
+            .toList(growable: false);
+    return CareerTechnicalContext(
+      natalStructure: rows('natalStructure'),
+      d10CareerChart: rows('d10CareerChart'),
+      timing: rows('timing'),
+      supportingContext: rows('supportingContext'),
+      careerHistory: rows('careerHistory'),
+      classicalRuleContext: rows('classicalRuleContext'),
+    );
   }
-  bool get isEmpty => natalStructure.isEmpty && d10CareerChart.isEmpty && timing.isEmpty && supportingContext.isEmpty && careerHistory.isEmpty && classicalRuleContext.isEmpty;
+
+  bool get isEmpty =>
+      natalStructure.isEmpty &&
+      d10CareerChart.isEmpty &&
+      timing.isEmpty &&
+      supportingContext.isEmpty &&
+      careerHistory.isEmpty &&
+      classicalRuleContext.isEmpty;
 }
 
 class CareerInsightTiming {
@@ -261,23 +293,104 @@ class CareerInsightTiming {
     this.instant,
     this.from,
     this.to,
-    this.dashaIntervals = const [],
+    this.dashaPeriods = const [],
+    this.transitContexts = const [],
+    this.timingWindow,
+    this.timingState,
+    this.lineageClassification,
   });
   final String? instant;
   final String? from;
   final String? to;
-  final List<Map<String, dynamic>> dashaIntervals;
+  final List<CareerDashaPeriod> dashaPeriods;
+  final List<CareerTransitTiming> transitContexts;
+  final CareerTimingWindow? timingWindow;
+  final String? timingState;
+  final String? lineageClassification;
   factory CareerInsightTiming.fromJson(Object? raw) {
     final json = raw is Map<String, dynamic> ? raw : const <String, dynamic>{};
-    final intervals = (json['dashaIntervals'] as List? ?? const [])
-        .whereType<Map<String, dynamic>>()
-        .map(Map<String, dynamic>.unmodifiable)
-        .toList(growable: false);
+    final periods =
+        (json['dashaPeriods'] ?? json['dashaIntervals']) as List? ?? const [];
     return CareerInsightTiming(
-      instant: json['instant'] as String?,
-      from: json['from'] as String?,
-      to: json['to'] as String?,
-      dashaIntervals: List.unmodifiable(intervals),
+      instant: _optionalTimestamp(json['instant']),
+      from: _optionalTimestamp(json['from']),
+      to: _optionalTimestamp(json['to']),
+      dashaPeriods: periods
+          .whereType<Map<String, dynamic>>()
+          .map(CareerDashaPeriod.tryFromJson)
+          .whereType<CareerDashaPeriod>()
+          .toList(growable: false),
+      transitContexts: (json['transitContexts'] as List? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(CareerTransitTiming.tryFromJson)
+          .whereType<CareerTransitTiming>()
+          .toList(growable: false),
+      timingWindow: CareerTimingWindow.tryFromJson(json['timingWindow']),
+      timingState: _timingState(json['timingState']),
+      lineageClassification: _lineageClassification(
+        json['lineageClassification'],
+      ),
+    );
+  }
+}
+
+class CareerDashaPeriod {
+  const CareerDashaPeriod({
+    required this.level,
+    required this.planet,
+    required this.start,
+    required this.end,
+    required this.isCurrent,
+  });
+  final String level, planet, start, end;
+  final bool isCurrent;
+  static CareerDashaPeriod? tryFromJson(Map<String, dynamic> json) {
+    final level = json['periodLevel'] ?? json['level'];
+    final planet = json['periodPlanet'] ?? json['planet'];
+    final start = _optionalTimestamp(json['start']);
+    final end = _optionalTimestamp(json['end']);
+    if (level is! String || planet is! String || start == null || end == null) {
+      return null;
+    }
+    return CareerDashaPeriod(
+      level: level,
+      planet: planet,
+      start: start,
+      end: end,
+      isCurrent: json['isCurrent'] == true,
+    );
+  }
+}
+
+class CareerTransitTiming {
+  const CareerTransitTiming({this.planet, this.start, this.end});
+  final String? planet, start, end;
+  static CareerTransitTiming? tryFromJson(Map<String, dynamic> json) {
+    final planet = json['transitPlanet'];
+    final start = _optionalTimestamp(json['start']);
+    final end = _optionalTimestamp(json['end']);
+    if (planet is! String || start == null) return null;
+    return CareerTransitTiming(planet: planet, start: start, end: end);
+  }
+}
+
+class CareerTimingWindow {
+  const CareerTimingWindow({
+    required this.start,
+    required this.end,
+    required this.isCurrent,
+  });
+  final String start, end;
+  final bool isCurrent;
+  static CareerTimingWindow? tryFromJson(Object? raw) {
+    if (raw is! Map<String, dynamic>) return null;
+    final start = _optionalTimestamp(raw['start']);
+    final end = _optionalTimestamp(raw['end']);
+    if (start == null || end == null) return null;
+    return CareerTimingWindow(
+      start: start,
+      end: end,
+      isCurrent: raw['isCurrent'] == true,
     );
   }
 }
@@ -354,7 +467,10 @@ class CareerInsightCalibrationContext {
 }
 
 class CareerInsightMatchedEvent {
-  const CareerInsightMatchedEvent({required this.eventType, required this.eventDate});
+  const CareerInsightMatchedEvent({
+    required this.eventType,
+    required this.eventDate,
+  });
   final String eventType;
   final Map<String, dynamic> eventDate;
   static CareerInsightMatchedEvent? tryFromJson(Map<String, dynamic> json) {
@@ -383,3 +499,24 @@ String _timestamp(Map<String, dynamic> json, String key) {
   }
   return value;
 }
+
+String? _optionalTimestamp(Object? value) {
+  if (value is! String || DateTime.tryParse(value) == null) return null;
+  return value;
+}
+
+String? _timingState(Object? value) =>
+    const {'CURRENT', 'UPCOMING', 'PAST'}.contains(value)
+    ? value as String
+    : null;
+
+String? _lineageClassification(Object? value) =>
+    const {
+      'INDEPENDENT',
+      'PARTIALLY_OVERLAPPING',
+      'FULLY_DEPENDENT',
+      'IDENTICAL',
+      'CONTRADICTORY',
+    }.contains(value)
+    ? value as String
+    : null;

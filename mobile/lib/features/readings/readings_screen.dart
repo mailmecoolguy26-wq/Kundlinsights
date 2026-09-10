@@ -804,6 +804,14 @@ class _CareerReadingDetail extends StatelessWidget {
                     const SizedBox(height: 12),
                     _CareerReadingContentSections(content: detail.content),
                   ],
+                  if (_CareerTimingSection.hasContent(insights)) ...[
+                    const SizedBox(height: 18),
+                    _CareerTimingSection(insights: insights),
+                  ],
+                  if (_CareerHistorySummary.hasContent(insights)) ...[
+                    const SizedBox(height: 18),
+                    _CareerHistorySummary(insights: insights),
+                  ],
                   if (hasCalibrationContext) ...[
                     const SizedBox(height: 12),
                     const _CareerReadingSectionLabel(
@@ -855,9 +863,13 @@ class _CareerInsightExperience extends StatelessWidget {
           const _CareerReadingSectionLabel('MATCHED WITH YOUR CAREER HISTORY'),
         );
       } else if (insight.family == 'FUTURE_RECURRENCE_WINDOW') {
-        trailingWidgets.add(const _CareerReadingSectionLabel('FUTURE CAREER TIMING'));
+        trailingWidgets.add(
+          const _CareerReadingSectionLabel('FUTURE CAREER TIMING'),
+        );
       } else if (!supportingLabelShown) {
-        trailingWidgets.add(const _CareerReadingSectionLabel('SUPPORTING INSIGHTS'));
+        trailingWidgets.add(
+          const _CareerReadingSectionLabel('SUPPORTING INSIGHTS'),
+        );
         supportingLabelShown = true;
       }
       trailingWidgets.add(const SizedBox(height: 12));
@@ -883,6 +895,176 @@ class _CareerInsightExperience extends StatelessWidget {
         const SizedBox(height: 12),
         _CareerInsightCard(insight: primary, primary: true),
         ...trailingWidgets,
+      ],
+    );
+  }
+}
+
+class _CareerTimingSection extends StatelessWidget {
+  const _CareerTimingSection({required this.insights});
+  final List<CareerInsight> insights;
+
+  static bool hasContent(List<CareerInsight> insights) => insights.any(
+    (insight) =>
+        insight.timing.dashaPeriods.isNotEmpty ||
+        insight.timing.transitContexts.isNotEmpty ||
+        insight.timing.timingWindow != null,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final dashas = <CareerDashaPeriod>[];
+    final transits = <CareerTransitTiming>[];
+    final windows = <(CareerTimingWindow, String?, String?)>[];
+    final seen = <String>{};
+    for (final insight in insights) {
+      for (final period in insight.timing.dashaPeriods) {
+        if (seen.add(
+          'dasha:${period.level}:${period.planet}:${period.start}:${period.end}',
+        )) {
+          dashas.add(period);
+        }
+      }
+      for (final transit in insight.timing.transitContexts) {
+        if (seen.add(
+          'transit:${transit.planet}:${transit.start}:${transit.end}',
+        )) {
+          transits.add(transit);
+        }
+      }
+      final window = insight.timing.timingWindow;
+      if (window != null &&
+          seen.add(
+            'window:${window.start}:${window.end}:${insight.timing.timingState}',
+          )) {
+        windows.add((
+          window,
+          insight.timing.timingState,
+          insight.timing.lineageClassification,
+        ));
+      }
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _CareerReadingSectionLabel('CAREER TIMING'),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(17),
+          decoration: BoxDecoration(
+            color: _CareerReadingColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _CareerReadingColors.cardBorder),
+          ),
+          child: Column(
+            children: [
+              for (final period in dashas)
+                _TimingRow(
+                  title: _dashaLabel(period.level),
+                  value: period.planet,
+                  date: _dateRange(period.start, period.end),
+                  state: period.isCurrent ? 'Active now' : null,
+                ),
+              for (final transit in transits)
+                _TimingRow(
+                  title: 'Current Transit',
+                  value: transit.planet ?? 'Transit timing',
+                  date: _dateRangeOrPoint(transit.start, transit.end),
+                ),
+              for (final window in windows)
+                _TimingRow(
+                  title: 'Timing Overlap',
+                  date: _dateRange(window.$1.start, window.$1.end),
+                  state: _timingStateLabel(
+                    window.$2,
+                    isCurrent: window.$1.isCurrent,
+                  ),
+                  detail: _lineageDetail(window.$3),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TimingRow extends StatelessWidget {
+  const _TimingRow({
+    required this.title,
+    this.value,
+    required this.date,
+    this.state,
+    this.detail,
+  });
+  final String title;
+  final String? value, state, detail;
+  final String date;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 13),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: _CareerReadingText.source),
+        if (value != null) ...[
+          const SizedBox(height: 3),
+          Text(value!, style: _CareerReadingText.itemTitle),
+        ],
+        const SizedBox(height: 3),
+        Text(date, style: _CareerReadingText.body),
+        if (state != null || detail != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            [state, detail].whereType<String>().join(' · '),
+            style: _CareerReadingText.meta,
+          ),
+        ],
+      ],
+    ),
+  );
+}
+
+class _CareerHistorySummary extends StatelessWidget {
+  const _CareerHistorySummary({required this.insights});
+  final List<CareerInsight> insights;
+  static bool hasContent(List<CareerInsight> insights) => insights.any(
+    (insight) => insight.calibrationContext?.calibrationLevel != null,
+  );
+  @override
+  Widget build(BuildContext context) {
+    final calibration = insights
+        .map((insight) => insight.calibrationContext)
+        .whereType<CareerInsightCalibrationContext>()
+        .firstWhere((value) => value.calibrationLevel != null);
+    final count = calibration.eventCount;
+    final level = calibration.calibrationLevel;
+    final text = switch (level) {
+      'NONE' => 'Add Career History to compare timing patterns.',
+      'LIMITED' =>
+        '${count ?? 1} saved Career event${count == 1 ? '' : 's'}. Add more history for recurring-pattern comparison.',
+      'CALIBRATED' =>
+        count == null
+            ? 'Career History is available for recurring-pattern comparison.'
+            : '$count saved Career event${count == 1 ? '' : 's'} available for recurring-pattern comparison.',
+      _ => 'Career History is available for this reading.',
+    };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _CareerReadingSectionLabel('CAREER HISTORY'),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(17),
+          decoration: BoxDecoration(
+            color: _CareerReadingColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _CareerReadingColors.cardBorder),
+          ),
+          child: Text(text, style: _CareerReadingText.body),
+        ),
       ],
     );
   }
@@ -920,6 +1102,8 @@ class _CareerInsightCard extends StatelessWidget {
             _insightFamilyLabel(insight.family).toUpperCase(),
             style: _CareerReadingText.eyebrow,
           ),
+          const SizedBox(height: 7),
+          _CareerInsightStatusChip(status: insight.status),
           const SizedBox(height: 9),
           Text(
             _insightTitle(insight.family),
@@ -957,7 +1141,10 @@ class _CareerInsightCard extends StatelessWidget {
               ),
             if (insight.calibrationContext!.composite) ...[
               const SizedBox(height: 6),
-              Text('Two historical pattern matches overlap in this period.', style: _CareerReadingText.meta),
+              Text(
+                'Two historical pattern matches overlap in this period.',
+                style: _CareerReadingText.meta,
+              ),
             ],
           ],
           if (caveat) ...[
@@ -969,25 +1156,28 @@ class _CareerInsightCard extends StatelessWidget {
               style: _CareerReadingText.body,
             ),
           ],
-          if (insight.technicalContext != null && !insight.technicalContext!.isEmpty) ...[
-          const SizedBox(height: 10),
-          Material(
-            color: Colors.transparent,
-            child: Theme(
-              data: Theme.of(context)
-                  .copyWith(dividerColor: Colors.transparent),
-              child: ExpansionTile(
-                tilePadding: EdgeInsets.zero,
-                title: Text(
-                  'ASTROLOGY BEHIND THIS',
-                  style: _CareerReadingText.source,
+          if (insight.technicalContext != null &&
+              !insight.technicalContext!.isEmpty) ...[
+            const SizedBox(height: 10),
+            Material(
+              color: Colors.transparent,
+              child: Theme(
+                data: Theme.of(context)
+                    .copyWith(dividerColor: Colors.transparent),
+                child: ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  title: Text(
+                    'ASTROLOGY BEHIND THIS',
+                    style: _CareerReadingText.source,
+                  ),
+                  iconColor: _CareerReadingColors.gold,
+                  collapsedIconColor: _CareerReadingColors.slate,
+                  children: [
+                    _TechnicalGroups(context: insight.technicalContext!),
+                  ],
                 ),
-                iconColor: _CareerReadingColors.gold,
-                collapsedIconColor: _CareerReadingColors.slate,
-                children: [_TechnicalGroups(context: insight.technicalContext!)],
               ),
             ),
-          ),
           ],
         ],
       ),
@@ -1000,26 +1190,88 @@ class _TechnicalGroups extends StatelessWidget {
   final CareerTechnicalContext context;
   @override
   Widget build(BuildContext buildContext) {
-    final groups = <(String, List<Map<String, dynamic>>)>[('Natal Structure', context.natalStructure), ('D10 Career Chart', context.d10CareerChart), ('Timing', context.timing), ('Supporting Context', context.supportingContext), ('Career History', context.careerHistory), ('Classical Rule Context', context.classicalRuleContext)];
-    return Padding(padding: const EdgeInsets.only(bottom: 8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [for (final group in groups) if (group.$2.isNotEmpty) ...[Text(group.$1, style: _CareerReadingText.source), const SizedBox(height: 4), for (final row in group.$2) Text(_technicalRow(row), style: _CareerReadingText.meta), const SizedBox(height: 9)]]));
+    final groups = <(String, List<Map<String, dynamic>>)>[
+      ('Natal Structure', context.natalStructure),
+      ('D10 Career Chart', context.d10CareerChart),
+      ('Timing', context.timing),
+      ('Supporting Context', context.supportingContext),
+      ('Career History', context.careerHistory),
+      ('Classical Rule Context', context.classicalRuleContext),
+    ];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final group in groups)
+            if (group.$2.isNotEmpty) ...[
+              Text(group.$1, style: _CareerReadingText.source),
+              const SizedBox(height: 4),
+              for (final row in group.$2)
+                Text(_technicalRow(row), style: _CareerReadingText.meta),
+              const SizedBox(height: 9),
+            ],
+        ],
+      ),
+    );
   }
 }
+
 String _technicalRow(Map<String, dynamic> row) {
   final kind = row['kind'];
-  if (kind == 'D10_CAREER_CHART') return 'Career divisional chart included in this insight';
-  if (kind == 'DASHA') return '${_dashaLabel(row['level'])}: ${row['planet'] ?? 'Current period'}';
-  if (kind == 'TRANSIT') return '${row['transitPlanet'] ?? 'Current transit'}${row['natalHouseNumber'] is int ? ' · Natal ${row['natalHouseNumber']}th-house context' : ''}';
-  if (kind == 'CONCURRENT_TIMING') return 'Timing relationship: ${_lineageLabel(row['lineageClassification'])}';
-  if (kind == 'CAREER_HISTORY') return 'Calibration: ${row['calibrationLevel'] ?? 'Career history'}';
-  if (kind == 'CLASSICAL_RULE_CONTEXT') return 'Classical rule evidence is not a guaranteed Career outcome.';
-  if (row['sourceFamily'] == 'ASHTAKAVARGA') return '${row['houseNumber'] ?? ''}th-house ${row['scoreType'] ?? 'score'}: ${row['value'] ?? ''}';
-  if (row['sourceFamily'] == 'PLANETARY_STATE') return '${row['planet'] ?? 'Planet'} — ${_stateLabel(row['state'])}';
-  if (row['sourceFamily'] == 'PLANETARY_RELATIONSHIP') return '${row['subjectPlanet'] ?? 'Planet'} → ${row['targetPlanet'] ?? 'Planet'} · ${row['relationshipType'] ?? 'Relationship'}: ${row['relationship'] ?? ''}';
+  if (kind == 'D10_CAREER_CHART') {
+    return 'Career divisional chart included in this insight';
+  }
+  if (kind == 'DASHA') {
+    return '${_dashaLabel(row['level'])}: ${row['planet'] ?? 'Current period'}';
+  }
+  if (kind == 'TRANSIT') {
+    return '${row['transitPlanet'] ?? 'Current transit'}${row['natalHouseNumber'] is int ? ' · Natal ${row['natalHouseNumber']}th-house context' : ''}';
+  }
+  if (kind == 'CONCURRENT_TIMING') {
+    return 'Timing relationship: ${_lineageLabel(row['lineageClassification'])}';
+  }
+  if (kind == 'CAREER_HISTORY') {
+    return 'Calibration: ${row['calibrationLevel'] ?? 'Career history'}';
+  }
+  if (kind == 'CLASSICAL_RULE_CONTEXT') {
+    return 'Classical rule evidence is not a guaranteed Career outcome.';
+  }
+  if (row['sourceFamily'] == 'ASHTAKAVARGA') {
+    return '${row['houseNumber'] ?? ''}th-house ${row['scoreType'] ?? 'score'}: ${row['value'] ?? ''}';
+  }
+  if (row['sourceFamily'] == 'PLANETARY_STATE') {
+    return '${row['planet'] ?? 'Planet'} — ${_stateLabel(row['state'])}';
+  }
+  if (row['sourceFamily'] == 'PLANETARY_RELATIONSHIP') {
+    return '${row['subjectPlanet'] ?? 'Planet'} → ${row['targetPlanet'] ?? 'Planet'} · ${row['relationshipType'] ?? 'Relationship'}: ${row['relationship'] ?? ''}';
+  }
   return '';
 }
-String _dashaLabel(Object? value) => const {'MAHADASHA':'Mahadasha','ANTARDASHA':'Antardasha','PRATYANTAR_DASHA':'Pratyantar'}[value] ?? 'Dasha';
-String _lineageLabel(Object? value) => const {'INDEPENDENT':'Independent mechanisms','PARTIALLY_OVERLAPPING':'Partially overlapping mechanisms'}[value] ?? 'Timing context';
-String _stateLabel(Object? value) => const {'RETROGRADE':'Retrograde','COMBUST':'Combust','EXALTED':'Exalted','DEBILITATED':'Debilitated','OWN_SIGN':'Own Sign','MOOLATRIKONA':'Moolatrikona'}[value] ?? 'State';
+
+String _dashaLabel(Object? value) =>
+    const {
+      'MAHADASHA': 'Mahadasha',
+      'ANTARDASHA': 'Antardasha',
+      'PRATYANTAR_DASHA': 'Pratyantar',
+    }[value] ??
+    'Dasha';
+String _lineageLabel(Object? value) =>
+    const {
+      'INDEPENDENT': 'Independent mechanisms',
+      'PARTIALLY_OVERLAPPING': 'Partially overlapping mechanisms',
+    }[value] ??
+    'Timing context';
+String _stateLabel(Object? value) =>
+    const {
+      'RETROGRADE': 'Retrograde',
+      'COMBUST': 'Combust',
+      'EXALTED': 'Exalted',
+      'DEBILITATED': 'Debilitated',
+      'OWN_SIGN': 'Own Sign',
+      'MOOLATRIKONA': 'Moolatrikona',
+    }[value] ??
+    'State';
 
 String _insightFamilyLabel(String family) =>
     const {
@@ -1038,8 +1290,10 @@ String _insightSummary(String family) =>
       'CAREER_FOUNDATION': 'Your natal Career structure is centered on the 10th-house factors identified in your chart.',
       'ACTIVE_CAREER_DASHA': 'Your current Dasha timing connects to Career-related factors in the natal chart.',
       'CURRENT_CAREER_TRANSIT': 'A current transit is activating a Career-related natal factor used by this reading.',
-      'CONCURRENT_CAREER_TIMING': 'Career-related Dasha and transit evidence currently overlap.',
-      'HISTORICAL_CALIBRATION_RECURRENCE': 'Similar timing appeared across your saved Career events.',
+      'CONCURRENT_CAREER_TIMING':
+          'Career-related Dasha and transit evidence currently overlap.',
+      'HISTORICAL_CALIBRATION_RECURRENCE':
+          'Similar timing appeared across your saved Career events.',
       'FUTURE_RECURRENCE_WINDOW': 'An upcoming period matches a timing pattern seen in your saved Career history.',
       'AUDITED_CLASSICAL_PREDICATE': 'The supplied evidence satisfies the existing audited classical predicate; this does not establish an outcome.',
     }[family] ??
@@ -1052,25 +1306,93 @@ String _insightCaveat(String status) =>
     }[status] ??
     'Additional deterministic context is available.';
 String? _insightTiming(CareerInsightTiming timing) {
-  if (timing.instant != null) {
-    return 'Timing: ${timing.instant}';
+  final current = timing.dashaPeriods
+      .where((period) => period.isCurrent)
+      .toList();
+  if (current.isNotEmpty) {
+    return 'Active through ${_formatTimingDate(current.first.end)}';
+  }
+  if (timing.timingWindow != null) {
+    return _dateRange(timing.timingWindow!.start, timing.timingWindow!.end);
   }
   if (timing.from != null && timing.to != null) {
-    return 'Timing: ${timing.from} to ${timing.to}';
+    return _dateRange(timing.from, timing.to);
   }
-  if (timing.dashaIntervals.isNotEmpty) {
-    return 'Current timing context is included in this reading.';
+  if (timing.instant != null) return _formatTimingDate(timing.instant!);
+  if (timing.transitContexts.isNotEmpty) {
+    return _dateRangeOrPoint(
+      timing.transitContexts.first.start,
+      timing.transitContexts.first.end,
+    );
   }
   return null;
 }
 
-String _calibrationMechanismLabel(String value) => const {
-  'DASHA_RECURRENCE': 'Dasha timing',
-  'TRANSIT_RECURRENCE': 'Transit timing',
-  'DASHA_TRANSIT_COACTIVATION_RECURRENCE': 'Dasha and transit timing',
-  'CAREER_SUBJECT_RECURRENCE': 'Career subject timing',
-  'STRUCTURAL_CONTEXT': 'Structural context',
-}[value] ?? 'Timing pattern';
+class _CareerInsightStatusChip extends StatelessWidget {
+  const _CareerInsightStatusChip({required this.status});
+  final String status;
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: _CareerReadingColors.midnight,
+      borderRadius: BorderRadius.circular(999),
+      border: Border.all(color: _CareerReadingColors.cardBorder),
+    ),
+    child: Text(_statusLabel(status), style: _CareerReadingText.chip),
+  );
+}
+
+String _statusLabel(String value) =>
+    const {
+      'SUPPORTED': 'Supported',
+      'MIXED': 'Mixed evidence',
+      'CONTRADICTED': 'Not consistently supported',
+      'INSUFFICIENT_EVIDENCE': 'Limited evidence',
+    }[value] ??
+    'Context available';
+
+String _formatTimingDate(String value) {
+  final parsed = DateTime.tryParse(value);
+  return parsed == null
+      ? value
+      : DateFormat('d MMM y').format(parsed.toLocal());
+}
+
+String _dateRange(String? start, String? end) {
+  if (start != null && end != null) {
+    return '${_formatTimingDate(start)} – ${_formatTimingDate(end)}';
+  }
+  if (start != null) return _formatTimingDate(start);
+  if (end != null) return _formatTimingDate(end);
+  return 'Timing context available';
+}
+
+String _dateRangeOrPoint(String? start, String? end) => _dateRange(start, end);
+
+String? _timingStateLabel(String? state, {required bool isCurrent}) {
+  if (isCurrent) return 'Active now';
+  return const {
+    'UPCOMING': 'Upcoming',
+    'PAST': 'Past',
+    'CURRENT': 'Active now',
+  }[state];
+}
+
+String? _lineageDetail(String? value) => const {
+  'INDEPENDENT': 'Independent timing mechanisms',
+  'PARTIALLY_OVERLAPPING': 'Partially overlapping timing mechanisms',
+}[value];
+
+String _calibrationMechanismLabel(String value) =>
+    const {
+      'DASHA_RECURRENCE': 'Dasha timing',
+      'TRANSIT_RECURRENCE': 'Transit timing',
+      'DASHA_TRANSIT_COACTIVATION_RECURRENCE': 'Dasha and transit timing',
+      'CAREER_SUBJECT_RECURRENCE': 'Career subject timing',
+      'STRUCTURAL_CONTEXT': 'Structural context',
+    }[value] ??
+    'Timing pattern';
 
 String _calibrationEventDate(Map<String, dynamic> date) {
   final year = date['year'];
@@ -1078,9 +1400,24 @@ String _calibrationEventDate(Map<String, dynamic> date) {
   final day = date['day'];
   if (year is! int) return 'Saved Career event';
   if (month is! int) return '$year';
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
   if (month < 1 || month > 12) return '$year';
-  return day is int ? '${months[month - 1]} $day, $year' : '${months[month - 1]} $year';
+  return day is int
+      ? '${months[month - 1]} $day, $year'
+      : '${months[month - 1]} $year';
 }
 
 class _CareerReadingHero extends StatelessWidget {

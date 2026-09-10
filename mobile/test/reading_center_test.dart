@@ -323,7 +323,23 @@ void main() {
         ..nextDetail = ReadingDetail.fromJson({
           ..._detailJson(),
           'insights': [
-            _insight('CONCURRENT_CAREER_TIMING', 0, technicalContext: {'natalStructure': [], 'd10CareerChart': [], 'timing': [{'kind': 'CONCURRENT_TIMING', 'lineageClassification': 'INDEPENDENT'}], 'supportingContext': [], 'careerHistory': [], 'classicalRuleContext': []}),
+            _insight(
+              'CONCURRENT_CAREER_TIMING',
+              0,
+              technicalContext: {
+                'natalStructure': [],
+                'd10CareerChart': [],
+                'timing': [
+                  {
+                    'kind': 'CONCURRENT_TIMING',
+                    'lineageClassification': 'INDEPENDENT',
+                  },
+                ],
+                'supportingContext': [],
+                'careerHistory': [],
+                'classicalRuleContext': [],
+              },
+            ),
             _insight('HISTORICAL_CALIBRATION_RECURRENCE', 1, status: 'MIXED'),
             _insight(
               'FUTURE_RECURRENCE_WINDOW',
@@ -346,9 +362,7 @@ void main() {
         tester
             .getTopLeft(find.text('MATCHED WITH YOUR CAREER HISTORY').first)
             .dy,
-        lessThan(
-          tester.getTopLeft(find.text('FUTURE CAREER TIMING').first).dy,
-        ),
+        lessThan(tester.getTopLeft(find.text('FUTURE CAREER TIMING').first).dy),
       );
       expect(find.text('Career structure'), findsNothing);
       expect(find.text('WHAT LIMITS THIS SIGNAL'), findsOneWidget);
@@ -362,6 +376,141 @@ void main() {
       auth.dispose();
     },
   );
+
+  testWidgets('renders only safe backend Career timing and history facts', (
+    tester,
+  ) async {
+    final authSource = _AuthSource();
+    final auth = AuthController(authSource);
+    await auth.restore();
+    final profiles = ProfileController(_Profiles(authSource), auth);
+    await tester.pump();
+    final detailJson = {
+      ..._detailJson(),
+      'insights': [
+        _insight(
+          'ACTIVE_CAREER_DASHA',
+          0,
+          timing: {
+            'dashaPeriods': [
+              {
+                'periodLevel': 'MAHADASHA',
+                'periodPlanet': 'Venus',
+                'start': '2025-01-01T00:00:00.000Z',
+                'end': '2027-01-01T00:00:00.000Z',
+                'isCurrent': true,
+              },
+              {
+                'periodLevel': 'ANTARDASHA',
+                'periodPlanet': 'Saturn',
+                'start': '2026-09-01T00:00:00.000Z',
+                'end': '2026-10-01T00:00:00.000Z',
+                'isCurrent': true,
+              },
+              {
+                'periodLevel': 'PRATYANTAR_DASHA',
+                'periodPlanet': 'Mercury',
+                'start': '2026-09-15T00:00:00.000Z',
+                'end': '2026-09-20T00:00:00.000Z',
+                'isCurrent': false,
+              },
+            ],
+          },
+        ),
+        _insight(
+          'CURRENT_CAREER_TRANSIT',
+          1,
+          timing: {
+            'transitContexts': [
+              {
+                'transitPlanet': 'Saturn',
+                'start': '2026-09-01T00:00:00.000Z',
+                'end': '2026-11-15T00:00:00.000Z',
+                'eventType': 'rashiIngress',
+                'motion': 'DIRECT',
+                'natalBody': 'Moon',
+              },
+            ],
+          },
+        ),
+        _insight(
+          'CONCURRENT_CAREER_TIMING',
+          2,
+          timing: {
+            'timingWindow': {
+              'start': '2026-09-15T00:00:00.000Z',
+              'end': '2026-10-01T00:00:00.000Z',
+              'isCurrent': false,
+            },
+            'timingState': 'UPCOMING',
+            'lineageClassification': 'INDEPENDENT',
+          },
+        ),
+        _insight(
+          'FUTURE_RECURRENCE_WINDOW',
+          3,
+          timing: {
+            'from': '2026-10-15T00:00:00.000Z',
+            'to': '2026-11-20T00:00:00.000Z',
+          },
+          calibrationContext: {
+            'calibrationLevel': 'CALIBRATED',
+            'eventCount': 3,
+            'matchedEventCount': 2,
+            'matchedEvents': [],
+            'mechanismFamilies': [],
+            'patternCount': 99,
+            'composite': false,
+          },
+        ),
+      ],
+    };
+    final detail = ReadingDetail.fromJson(detailJson);
+    expect(detail.insights[2].timing.timingState, 'UPCOMING');
+    expect(detail.insights[2].timing.timingWindow, isNotNull);
+    final repository = _ReadingRepository()..nextDetail = detail;
+    final controller = ReadingController(repository, auth, profiles);
+    await tester.pumpWidget(
+      _localized(
+        ReadingDetailScreen(controller: controller, readingId: 'reading-a'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('CAREER TIMING'), findsOneWidget);
+    expect(find.text('Mahadasha'), findsOneWidget);
+    expect(find.text('Antardasha'), findsOneWidget);
+    expect(find.text('Pratyantar'), findsOneWidget);
+    expect(find.text('Saturn'), findsWidgets);
+    expect(find.text('1 Sep 2026 – 1 Oct 2026'), findsOneWidget);
+    expect(find.text('Active now'), findsWidgets);
+    expect(
+      find.textContaining('Upcoming', skipOffstage: false),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Independent timing mechanisms', skipOffstage: false),
+      findsOneWidget,
+    );
+    expect(
+      find.text('15 Oct 2026 – 20 Nov 2026', skipOffstage: false),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        '3 saved Career events available for recurring-pattern comparison.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Supported'), findsWidgets);
+    expect(find.text('rashiIngress'), findsNothing);
+    expect(find.text('DIRECT'), findsNothing);
+    expect(find.text('Moon'), findsNothing);
+    expect(find.text('99'), findsNothing);
+    controller.dispose();
+    profiles.dispose();
+    auth.dispose();
+  });
 
   testWidgets(
     'renders the safe detail error without retaining stored content',
@@ -565,6 +714,7 @@ Map<String, dynamic> _insight(
   String status = 'SUPPORTED',
   Map<String, dynamic>? timing,
   Map<String, dynamic>? technicalContext,
+  Map<String, dynamic>? calibrationContext,
 }) => {
   'insightId': 'insight-$family-$priority',
   'family': family,
@@ -591,6 +741,7 @@ Map<String, dynamic> _insight(
   },
   'rulesetVersions': {'insightEngine': 'v1'},
   'technicalContext': ?technicalContext,
+  'calibrationContext': ?calibrationContext,
 };
 
 class _ReadingRepository implements ReadingRepository {
