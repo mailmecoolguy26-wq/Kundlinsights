@@ -1004,51 +1004,126 @@ class _CareerInsightExperience extends StatelessWidget {
   Widget build(BuildContext context) {
     final primary = insights.first;
     final trailing = insights.skip(1).toList(growable: false);
-    final trailingWidgets = <Widget>[];
-    var supportingLabelShown = false;
-    for (final insight in trailing) {
-      trailingWidgets.add(const SizedBox(height: 18));
-      if (insight.family == 'HISTORICAL_CALIBRATION_RECURRENCE') {
-        trailingWidgets.add(
-          const _CareerReadingSectionLabel('MATCHED WITH YOUR CAREER HISTORY'),
-        );
-      } else if (insight.family == 'FUTURE_RECURRENCE_WINDOW') {
-        trailingWidgets.add(
-          const _CareerReadingSectionLabel('FUTURE CAREER TIMING'),
-        );
-      } else if (!supportingLabelShown) {
-        trailingWidgets.add(
-          const _CareerReadingSectionLabel('SUPPORTING INSIGHTS'),
-        );
-        supportingLabelShown = true;
-      }
-      trailingWidgets.add(const SizedBox(height: 12));
-      trailingWidgets.add(_CareerInsightCard(insight: insight));
-      if (insight.family == 'HISTORICAL_CALIBRATION_RECURRENCE') {
-        trailingWidgets.add(
-          OutlinedButton.icon(
-            onPressed: () => context.push('/career-calibration'),
-            icon: const Icon(Icons.tune_rounded, size: 18),
-            label: const Text('Update Career History'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: _CareerReadingColors.alabaster,
-              side: const BorderSide(color: _CareerReadingColors.goldBorder),
-            ),
-          ),
-        );
-      }
-    }
+    final reasons = trailing
+        .where(
+          (insight) =>
+              insight.family != 'FUTURE_RECURRENCE_WINDOW' &&
+              insight.family != 'HISTORICAL_CALIBRATION_RECURRENCE',
+        )
+        .toList(growable: false);
+    final history = trailing
+        .where(
+          (insight) => insight.family == 'HISTORICAL_CALIBRATION_RECURRENCE',
+        )
+        .toList(growable: false);
+    final future = trailing
+        .where((insight) => insight.family == 'FUTURE_RECURRENCE_WINDOW')
+        .toList(growable: false);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _CareerReadingSectionLabel('CAREER INSIGHTS'),
+        _CareerReadingSectionLabel(_primaryTimingLabel(primary.family)),
         const SizedBox(height: 12),
         _CareerInsightCard(insight: primary, primary: true),
-        ...trailingWidgets,
+        if (reasons.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          const _CareerReadingSectionLabel('WHY THIS PERIOD STANDS OUT'),
+          const SizedBox(height: 10),
+          Container(
+            decoration: BoxDecoration(
+              color: _CareerReadingColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _CareerReadingColors.cardBorder),
+            ),
+            child: Column(
+              children: [
+                for (var index = 0; index < reasons.length; index++) ...[
+                  _CareerReasonRow(insight: reasons[index]),
+                  if (index < reasons.length - 1)
+                    const Divider(
+                      color: _CareerReadingColors.cardBorder,
+                      height: 1,
+                    ),
+                ],
+              ],
+            ),
+          ),
+        ],
+        if (history.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          const _CareerReadingSectionLabel('MATCHED WITH YOUR CAREER HISTORY'),
+          const SizedBox(height: 10),
+          _CareerReasonRow(insight: history.first),
+        ],
+        if (future.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          const _CareerReadingSectionLabel('UPCOMING CAREER TIMING'),
+          const SizedBox(height: 10),
+          _CareerInsightCard(insight: future.first),
+        ],
       ],
     );
   }
 }
+
+class _CareerReasonRow extends StatelessWidget {
+  const _CareerReasonRow({required this.insight});
+  final CareerInsight insight;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          Icons.auto_awesome_rounded,
+          size: 16,
+          color: _CareerReadingColors.gold,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _insightFamilyLabel(insight.family),
+                style: _CareerReadingText.itemTitle,
+              ),
+              const SizedBox(height: 3),
+              Text(
+                _insightSummary(insight.family),
+                style: _CareerReadingText.meta,
+              ),
+              const SizedBox(height: 6),
+              _CareerInsightStatusChip(status: insight.status),
+              if (insight.status != 'SUPPORTED') ...[
+                const SizedBox(height: 8),
+                const Text(
+                  'WHAT LIMITS THIS SIGNAL',
+                  style: _CareerReadingText.source,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  _insightCaveat(insight.status),
+                  style: _CareerReadingText.meta,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+String _primaryTimingLabel(String family) =>
+    const {
+      'CURRENT_CAREER_TRANSIT': 'CURRENT CAREER TRANSITS',
+      'ACTIVE_CAREER_DASHA': 'CURRENT CAREER DASHA',
+      'CONCURRENT_CAREER_TIMING': 'CAREER TIMING ALIGNMENT',
+      'FUTURE_RECURRENCE_WINDOW': 'UPCOMING CAREER TIMING',
+    }[family] ??
+    'CAREER INSIGHT';
 
 class _CareerTimingSection extends StatelessWidget {
   const _CareerTimingSection({required this.insights});
