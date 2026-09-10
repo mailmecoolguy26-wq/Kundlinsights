@@ -458,16 +458,25 @@ class _UpcomingTransitionsCard extends StatefulWidget {
 
 class _UpcomingTransitionsCardState extends State<_UpcomingTransitionsCard> {
   static const _initialLimit = 12;
-  var _expanded = false;
+  var _globallyExpanded = false;
+  final _expandedDates = <String>{};
   @override
   Widget build(BuildContext context) {
     final all = _displayTransitions(widget.items);
-    final compact = _compactTransitionGroups(all, limit: _initialLimit);
-    final groups = _expanded ? _expandedTransitionGroups(all) : compact;
-    final compactRowCount = compact.fold<int>(
-      0,
-      (count, group) => count + group.items.length,
+    final dateGroups = _timelineDateGroups(all);
+    final compact = _visibleCompactGroups(
+      dateGroups,
+      expandedDates: _expandedDates,
+      limit: _initialLimit,
     );
+    final groups = _globallyExpanded
+        ? _expandedTimelineGroups(dateGroups)
+        : compact;
+    final compactRowCount = _visibleCompactGroups(
+      dateGroups,
+      expandedDates: const {},
+      limit: _initialLimit,
+    ).fold<int>(0, (count, group) => count + group.items.length);
     return _DarkCard(
       padding: EdgeInsets.zero,
       child: Column(
@@ -488,23 +497,51 @@ class _UpcomingTransitionsCardState extends State<_UpcomingTransitionsCard> {
             ),
             for (final item in entry.items)
               _UpcomingTransitionRow(item: item, showDate: false),
-            if (!_expanded && entry.hiddenCount > 0)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(43, 0, 14, 8),
-                child: Text(
-                  '+${entry.hiddenCount} more ${entry.hiddenCount == 1 ? 'change' : 'changes'}',
-                  style: _Styles.cardBody,
+            if (!_globallyExpanded && entry.hiddenCount > 0)
+              Semantics(
+                button: true,
+                label: entry.isDateExpanded
+                    ? 'Show fewer transit changes for ${_dateHeading(entry.date)}'
+                    : 'Show ${entry.hiddenCount} more transit changes for ${_dateHeading(entry.date)}',
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(35, 0, 8, 6),
+                  child: TextButton.icon(
+                    onPressed: () => setState(() {
+                      if (!_expandedDates.add(entry.date)) {
+                        _expandedDates.remove(entry.date);
+                      }
+                    }),
+                    icon: Icon(
+                      entry.isDateExpanded
+                          ? Icons.keyboard_arrow_up
+                          : Icons.keyboard_arrow_down,
+                      size: 16,
+                    ),
+                    label: Text(
+                      entry.isDateExpanded
+                          ? 'Show less'
+                          : '+${entry.hiddenCount} more ${entry.hiddenCount == 1 ? 'change' : 'changes'}',
+                    ),
+                    style: TextButton.styleFrom(
+                      foregroundColor: CurrentTransitsScreen.gold,
+                      minimumSize: const Size(44, 40),
+                      alignment: Alignment.centerLeft,
+                    ),
+                  ),
                 ),
               ),
           ],
           if (all.length > compactRowCount)
             TextButton(
-              onPressed: () => setState(() => _expanded = !_expanded),
+              onPressed: () => setState(() {
+                if (_globallyExpanded) _expandedDates.clear();
+                _globallyExpanded = !_globallyExpanded;
+              }),
               style: TextButton.styleFrom(
                 foregroundColor: CurrentTransitsScreen.gold,
               ),
               child: Text(
-                _expanded ? 'Show Less' : 'View More Transit Changes',
+                _globallyExpanded ? 'Show Less' : 'View More Transit Changes',
               ),
             ),
         ],
@@ -746,13 +783,28 @@ class _TimelineDateGroup {
     required this.date,
     required this.items,
     required this.hiddenCount,
+    this.isDateExpanded = false,
   });
   final String date;
   final List<UpcomingTransitTransition> items;
   final int hiddenCount;
+  final bool isDateExpanded;
 }
 
-List<_TimelineDateGroup> _expandedTransitionGroups(
+class _TimelineDateSourceGroup {
+  const _TimelineDateSourceGroup({
+    required this.date,
+    required this.items,
+    required this.compactItems,
+    required this.hiddenCount,
+  });
+  final String date;
+  final List<UpcomingTransitTransition> items;
+  final List<UpcomingTransitTransition> compactItems;
+  final int hiddenCount;
+}
+
+List<_TimelineDateSourceGroup> _timelineDateGroups(
   List<UpcomingTransitTransition> items,
 ) {
   final groups = <String, List<UpcomingTransitTransition>>{};
@@ -760,54 +812,69 @@ List<_TimelineDateGroup> _expandedTransitionGroups(
     (groups[_dateKey(item.at)] ??= []).add(item);
   }
   return List.unmodifiable(
-    groups.entries
-        .map(
-          (entry) => _TimelineDateGroup(
-            date: entry.key,
-            items: List.unmodifiable(entry.value),
-            hiddenCount: 0,
-          ),
-        )
-        .toList(),
+    groups.entries.map((entry) {
+      final relationKeys = <String>{};
+      final compact = <UpcomingTransitTransition>[];
+      var hiddenCount = 0;
+      for (final item in entry.value) {
+        final isRelation =
+            item.type == 'ASSOCIATION_CHANGE' || item.type == 'DRISHTI_CHANGE';
+        if (isRelation && !relationKeys.add('${item.type}|${item.planet}')) {
+          hiddenCount++;
+          continue;
+        }
+        compact.add(item);
+      }
+      return _TimelineDateSourceGroup(
+        date: entry.key,
+        items: List.unmodifiable(entry.value),
+        compactItems: List.unmodifiable(compact),
+        hiddenCount: hiddenCount,
+      );
+    }).toList(),
   );
 }
 
-List<_TimelineDateGroup> _compactTransitionGroups(
-  List<UpcomingTransitTransition> items, {
+List<_TimelineDateGroup> _expandedTimelineGroups(
+  List<_TimelineDateSourceGroup> groups,
+) => List.unmodifiable(
+  groups
+      .map(
+        (group) => _TimelineDateGroup(
+          date: group.date,
+          items: group.items,
+          hiddenCount: 0,
+        ),
+      )
+      .toList(),
+);
+
+List<_TimelineDateGroup> _visibleCompactGroups(
+  List<_TimelineDateSourceGroup> groups, {
+  required Set<String> expandedDates,
   required int limit,
 }) {
-  final grouped = _expandedTransitionGroups(items);
-  final compacted = <_TimelineDateGroup>[];
+  final visible = <_TimelineDateGroup>[];
   var remaining = limit;
-  for (final group in grouped) {
-    final relationKeys = <String>{};
-    final selected = <UpcomingTransitTransition>[];
-    var relationHidden = 0;
-    for (final item in group.items) {
-      final relation =
-          item.type == 'ASSOCIATION_CHANGE' || item.type == 'DRISHTI_CHANGE';
-      final relationKey = '${item.type}|${item.planet}';
-      if (relation && !relationKeys.add(relationKey)) {
-        relationHidden++;
-        continue;
-      }
-      selected.add(item);
-    }
-    final visibleCount = remaining < selected.length
+  for (final group in groups) {
+    final baseCount = remaining < group.compactItems.length
         ? remaining
-        : selected.length;
-    final visible = selected.take(visibleCount).toList(growable: false);
-    remaining -= visible.length;
-    if (visible.isEmpty) continue;
-    compacted.add(
+        : group.compactItems.length;
+    if (baseCount == 0) break;
+    remaining -= baseCount;
+    final isExpanded = expandedDates.contains(group.date);
+    visible.add(
       _TimelineDateGroup(
         date: group.date,
-        items: List.unmodifiable(visible),
-        hiddenCount: relationHidden + selected.length - visible.length,
+        items: isExpanded
+            ? group.items
+            : List.unmodifiable(group.compactItems.take(baseCount)),
+        hiddenCount: group.hiddenCount,
+        isDateExpanded: isExpanded,
       ),
     );
   }
-  return List.unmodifiable(compacted);
+  return List.unmodifiable(visible);
 }
 
 int _transitionOrder(String type) => switch (type) {

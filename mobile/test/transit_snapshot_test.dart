@@ -291,19 +291,34 @@ void main() {
       expect(find.text('Mars aspect begins with Rahu'), findsNothing);
       expect(find.text('Sun association begins with Venus'), findsNothing);
 
-      await tester.ensureVisible(find.text('View More Transit Changes'));
+      await tester.ensureVisible(find.text('+4 more changes'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('View More Transit Changes'));
+      await tester.tap(find.text('+4 more changes'));
       await tester.pumpAndSettle();
       expect(find.text('Mars association begins with Mercury'), findsOneWidget);
       expect(find.text('Mars aspect begins with Rahu'), findsOneWidget);
       expect(find.text('Sun association begins with Venus'), findsOneWidget);
+      expect(find.text('Show less'), findsOneWidget);
+      expect(find.text('+2 more changes'), findsOneWidget);
 
-      await tester.ensureVisible(find.text('Show Less'));
+      await tester.ensureVisible(find.text('+2 more changes'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Show Less'));
+      await tester.tap(find.text('+2 more changes'));
+      await tester.pumpAndSettle();
+      expect(find.text('Jupiter association begins with Mars'), findsOneWidget);
+      expect(find.text('Jupiter association begins with Moon'), findsOneWidget);
+      expect(find.text('Show less'), findsNWidgets(2));
+
+      await tester.drag(find.byType(ListView).first, const Offset(0, 650));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.bySemanticsLabel('Show fewer transit changes for 18 SEP 2027'),
+      );
       await tester.pumpAndSettle();
       expect(find.text('+4 more changes'), findsOneWidget);
+      expect(find.text('Jupiter association begins with Moon'), findsOneWidget);
+      expect(find.text('Show less'), findsOneWidget);
+
     },
   );
 }
@@ -463,6 +478,14 @@ Map<String, dynamic> _denseTimelineInsightContext() => {
       'planet': 'Saturn',
       'at': '2027-09-18T00:00:00.000Z',
     },
+    for (final target in ['Ketu', 'Mars', 'Moon'])
+      {
+        'type': 'ASSOCIATION_CHANGE',
+        'planet': 'Jupiter',
+        'targetPlanet': target,
+        'change': 'start',
+        'at': '2027-09-19T00:00:00.000Z',
+      },
   ],
 };
 
