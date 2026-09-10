@@ -462,12 +462,12 @@ class _UpcomingTransitionsCardState extends State<_UpcomingTransitionsCard> {
   @override
   Widget build(BuildContext context) {
     final all = _displayTransitions(widget.items);
-    final shown = _expanded ? all : all.take(_initialLimit).toList();
-    final groups = <String, List<UpcomingTransitTransition>>{};
-    for (final item in shown) {
-      final date = _dateKey(item.at);
-      (groups[date] ??= []).add(item);
-    }
+    final compact = _compactTransitionGroups(all, limit: _initialLimit);
+    final groups = _expanded ? _expandedTransitionGroups(all) : compact;
+    final compactRowCount = compact.fold<int>(
+      0,
+      (count, group) => count + group.items.length,
+    );
     return _DarkCard(
       padding: EdgeInsets.zero,
       child: Column(
@@ -481,15 +481,23 @@ class _UpcomingTransitionsCardState extends State<_UpcomingTransitionsCard> {
                 style: _Styles.cardBody,
               ),
             ),
-          for (final entry in groups.entries) ...[
+          for (final entry in groups) ...[
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 12, 14, 2),
-              child: Text(_dateHeading(entry.key), style: _Styles.eyebrow),
+              child: Text(_dateHeading(entry.date), style: _Styles.eyebrow),
             ),
-            for (final item in entry.value)
+            for (final item in entry.items)
               _UpcomingTransitionRow(item: item, showDate: false),
+            if (!_expanded && entry.hiddenCount > 0)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(43, 0, 14, 8),
+                child: Text(
+                  '+${entry.hiddenCount} more ${entry.hiddenCount == 1 ? 'change' : 'changes'}',
+                  style: _Styles.cardBody,
+                ),
+              ),
           ],
-          if (all.length > _initialLimit)
+          if (all.length > compactRowCount)
             TextButton(
               onPressed: () => setState(() => _expanded = !_expanded),
               style: TextButton.styleFrom(
@@ -668,7 +676,7 @@ String _statusLabel(String status) => switch (status) {
 String _pointDate(String instant) =>
     DateFormat('d MMM yyyy').format(DateTime.parse(instant).toLocal());
 String _dateKey(String instant) =>
-    DateTime.parse(instant).toUtc().toIso8601String().substring(0, 10);
+    DateFormat('yyyy-MM-dd').format(DateTime.parse(instant).toLocal());
 String _dateHeading(String date) =>
     DateFormat('d MMM yyyy')
         .format(DateTime.parse('${date}T00:00:00.000Z').toLocal())
@@ -731,6 +739,75 @@ List<UpcomingTransitTransition> _displayTransitions(
       return true;
     }),
   );
+}
+
+class _TimelineDateGroup {
+  const _TimelineDateGroup({
+    required this.date,
+    required this.items,
+    required this.hiddenCount,
+  });
+  final String date;
+  final List<UpcomingTransitTransition> items;
+  final int hiddenCount;
+}
+
+List<_TimelineDateGroup> _expandedTransitionGroups(
+  List<UpcomingTransitTransition> items,
+) {
+  final groups = <String, List<UpcomingTransitTransition>>{};
+  for (final item in items) {
+    (groups[_dateKey(item.at)] ??= []).add(item);
+  }
+  return List.unmodifiable(
+    groups.entries
+        .map(
+          (entry) => _TimelineDateGroup(
+            date: entry.key,
+            items: List.unmodifiable(entry.value),
+            hiddenCount: 0,
+          ),
+        )
+        .toList(),
+  );
+}
+
+List<_TimelineDateGroup> _compactTransitionGroups(
+  List<UpcomingTransitTransition> items, {
+  required int limit,
+}) {
+  final grouped = _expandedTransitionGroups(items);
+  final compacted = <_TimelineDateGroup>[];
+  var remaining = limit;
+  for (final group in grouped) {
+    final relationKeys = <String>{};
+    final selected = <UpcomingTransitTransition>[];
+    var relationHidden = 0;
+    for (final item in group.items) {
+      final relation =
+          item.type == 'ASSOCIATION_CHANGE' || item.type == 'DRISHTI_CHANGE';
+      final relationKey = '${item.type}|${item.planet}';
+      if (relation && !relationKeys.add(relationKey)) {
+        relationHidden++;
+        continue;
+      }
+      selected.add(item);
+    }
+    final visibleCount = remaining < selected.length
+        ? remaining
+        : selected.length;
+    final visible = selected.take(visibleCount).toList(growable: false);
+    remaining -= visible.length;
+    if (visible.isEmpty) continue;
+    compacted.add(
+      _TimelineDateGroup(
+        date: group.date,
+        items: List.unmodifiable(visible),
+        hiddenCount: relationHidden + selected.length - visible.length,
+      ),
+    );
+  }
+  return List.unmodifiable(compacted);
 }
 
 int _transitionOrder(String type) => switch (type) {

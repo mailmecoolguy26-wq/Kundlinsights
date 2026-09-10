@@ -238,6 +238,7 @@ void main() {
       expect(find.text('Jupiter aspect ends with Sun'), findsOneWidget);
       expect(find.text('Moon association changes with Moon'), findsNothing);
       expect(find.text('Moon aspect changes'), findsNothing);
+      expect(find.text('Saturn enters Pisces'), findsNothing);
       expect(find.text('View More Transit Changes'), findsOneWidget);
       await tester.drag(find.byType(ListView).first, const Offset(0, -1100));
       await tester.pumpAndSettle();
@@ -245,6 +246,64 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Show Less'), findsOneWidget);
       expect(find.text('Saturn enters Pisces'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'compacts same-date relations while keeping the complete factual list expandable',
+    (tester) async {
+      final auth = AuthController(_Auth());
+      await auth.restore();
+      final profiles = ProfileController(_Profiles(_Auth()), auth);
+      await profiles.load();
+      final controller = TransitSnapshotController(
+        _ImmediateRepo(
+          TransitSnapshot.fromJson(
+            _json('a', insightContext: _denseTimelineInsightContext()),
+          ),
+        ),
+        auth,
+        profiles,
+      );
+      addTearDown(() {
+        controller.dispose();
+        profiles.dispose();
+        auth.dispose();
+      });
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CurrentTransitsScreen(
+            profileController: profiles,
+            controller: controller,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Mars enters Cancer'), findsOneWidget);
+      expect(find.text('Mars association begins with Ketu'), findsOneWidget);
+      expect(find.text('Mars aspect begins with Moon'), findsOneWidget);
+      expect(find.text('Sun association begins with Jupiter'), findsOneWidget);
+      expect(find.text('Saturn turns direct'), findsOneWidget);
+      expect(find.text('Sade Sati phase changes'), findsOneWidget);
+      expect(find.text('+4 more changes'), findsOneWidget);
+      expect(find.text('Mars association begins with Mercury'), findsNothing);
+      expect(find.text('Mars aspect begins with Rahu'), findsNothing);
+      expect(find.text('Sun association begins with Venus'), findsNothing);
+
+      await tester.ensureVisible(find.text('View More Transit Changes'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('View More Transit Changes'));
+      await tester.pumpAndSettle();
+      expect(find.text('Mars association begins with Mercury'), findsOneWidget);
+      expect(find.text('Mars aspect begins with Rahu'), findsOneWidget);
+      expect(find.text('Sun association begins with Venus'), findsOneWidget);
+
+      await tester.ensureVisible(find.text('Show Less'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Show Less'));
+      await tester.pumpAndSettle();
+      expect(find.text('+4 more changes'), findsOneWidget);
     },
   );
 }
@@ -358,6 +417,52 @@ Map<String, dynamic> _timelineInsightContext() => {
             '2027-09-${(12 + index).toString().padLeft(2, '0')}T00:00:00.000Z',
         'toSign': index == 12 ? 'Pisces' : 'Aries',
       },
+  ],
+};
+
+Map<String, dynamic> _denseTimelineInsightContext() => {
+  ..._insightContext(),
+  'upcomingTransitions': [
+    {
+      'type': 'INGRESS',
+      'planet': 'Mars',
+      'at': '2027-09-18T00:00:00.000Z',
+      'toSign': 'Cancer',
+    },
+    for (final target in ['Ketu', 'Mercury', 'Sun'])
+      {
+        'type': 'ASSOCIATION_CHANGE',
+        'planet': 'Mars',
+        'targetPlanet': target,
+        'change': 'start',
+        'at': '2027-09-18T00:00:00.000Z',
+      },
+    for (final target in ['Moon', 'Rahu'])
+      {
+        'type': 'DRISHTI_CHANGE',
+        'planet': 'Mars',
+        'targetPlanet': target,
+        'change': 'start',
+        'at': '2027-09-18T00:00:00.000Z',
+      },
+    for (final target in ['Venus', 'Jupiter'])
+      {
+        'type': 'ASSOCIATION_CHANGE',
+        'planet': 'Sun',
+        'targetPlanet': target,
+        'change': 'start',
+        'at': '2027-09-18T00:00:00.000Z',
+      },
+    {
+      'type': 'STATION_DIRECT',
+      'planet': 'Saturn',
+      'at': '2027-09-18T00:00:00.000Z',
+    },
+    {
+      'type': 'SADE_SATI_PHASE_CHANGE',
+      'planet': 'Saturn',
+      'at': '2027-09-18T00:00:00.000Z',
+    },
   ],
 };
 
