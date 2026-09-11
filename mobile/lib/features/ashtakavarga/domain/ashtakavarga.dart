@@ -61,6 +61,8 @@ class Ashtakavarga {
     required this.sav,
     required this.bav,
     required this.lagnaBav,
+    this.lagnaRashiIndex,
+    this.careerContext,
   });
 
   final String birthProfileId;
@@ -68,6 +70,8 @@ class Ashtakavarga {
   final List<SignScore> sav;
   final List<Bav> bav;
   final Bav lagnaBav;
+  final int? lagnaRashiIndex;
+  final AshtakavargaCareerContext? careerContext;
 
   factory Ashtakavarga.fromJson(Map<String, dynamic> json) {
     final birthProfileId = _requiredString(json, 'birthProfileId');
@@ -118,9 +122,83 @@ class Ashtakavarga {
       sav: sav,
       bav: bav,
       lagnaBav: lagnaBav,
+      lagnaRashiIndex: _optionalRashiIndex(json['lagnaRashiIndex']),
+      careerContext: AshtakavargaCareerContext.tryFromJson(
+        json['careerContext'],
+      ),
+    );
+  }
+
+  List<SignScore> byHouse(List<SignScore> values) {
+    final lagna = lagnaRashiIndex;
+    if (lagna == null) return values;
+    final bySign = {for (final value in values) value.rashiIndex: value};
+    return List.unmodifiable(
+      List.generate(12, (index) {
+        final sign = ((lagna - 1 + index) % 12) + 1;
+        return bySign[sign]!;
+      }),
     );
   }
 }
+
+class AshtakavargaCareerValue {
+  const AshtakavargaCareerValue({
+    required this.house,
+    required this.bindu,
+    this.planet,
+  });
+  final int house, bindu;
+  final String? planet;
+  static AshtakavargaCareerValue? tryFromJson(Object? raw) {
+    if (raw is! Map<String, dynamic>) return null;
+    final house = raw['house'], bindu = raw['bindu'], planet = raw['planet'];
+    if (house is! int ||
+        house < 1 ||
+        house > 12 ||
+        bindu is! int ||
+        (planet != null && planet is! String)) {
+      return null;
+    }
+    return AshtakavargaCareerValue(
+      house: house,
+      bindu: bindu,
+      planet: planet as String?,
+    );
+  }
+}
+
+class AshtakavargaCareerContext {
+  const AshtakavargaCareerContext({
+    required this.h2Sav,
+    required this.h10Sav,
+    required this.h11Sav,
+    required this.h10LagnaBav,
+    this.h10LordBav,
+  });
+  final AshtakavargaCareerValue h2Sav, h10Sav, h11Sav, h10LagnaBav;
+  final AshtakavargaCareerValue? h10LordBav;
+  static AshtakavargaCareerContext? tryFromJson(Object? raw) {
+    if (raw is! Map<String, dynamic>) return null;
+    final h2 = AshtakavargaCareerValue.tryFromJson(raw['h2Sav']),
+        h10 = AshtakavargaCareerValue.tryFromJson(raw['h10Sav']),
+        h11 = AshtakavargaCareerValue.tryFromJson(raw['h11Sav']),
+        lagna = AshtakavargaCareerValue.tryFromJson(raw['h10LagnaBav']);
+    if (h2 == null || h10 == null || h11 == null || lagna == null) {
+      return null;
+    }
+    return AshtakavargaCareerContext(
+      h2Sav: h2,
+      h10Sav: h10,
+      h11Sav: h11,
+      h10LagnaBav: lagna,
+      h10LordBav: AshtakavargaCareerValue.tryFromJson(raw['h10LordBav']),
+    );
+  }
+}
+
+int? _optionalRashiIndex(Object? value) =>
+    value is int && value >= 1 && value <= 12 ? value : null;
 
 Map<String, dynamic> _requiredMap(Map<String, dynamic> json, String key) {
   final value = json[key];

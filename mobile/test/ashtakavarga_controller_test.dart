@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kundlinsights_mobile/features/ashtakavarga/ashtakavarga_controller.dart';
 import 'package:kundlinsights_mobile/features/ashtakavarga/domain/ashtakavarga.dart';
 import 'package:kundlinsights_mobile/features/ashtakavarga/domain/ashtakavarga_repository.dart';
+import 'package:kundlinsights_mobile/features/ashtakavarga/presentation/ashtakavarga_screen.dart';
 import 'package:kundlinsights_mobile/features/auth/auth_controller.dart';
 import 'package:kundlinsights_mobile/features/auth/domain/auth_repository.dart';
 import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile.dart';
@@ -84,14 +86,67 @@ void main() {
     profiles.dispose();
     auth.dispose();
   });
+
+  testWidgets('renders the factual Bhav-first Ashtakavarga screen', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(402, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final authSource = _AuthSource();
+    final auth = AuthController(authSource);
+    await auth.restore();
+    final profiles = ProfileController(_Profiles(authSource), auth);
+    await tester.pump();
+    final controller = AshtakavargaController(
+      _Repository(bhavFirst: true),
+      auth,
+      profiles,
+    );
+    await tester.pump();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AshtakavargaScreen(
+          profileController: profiles,
+          controller: controller,
+        ),
+      ),
+    );
+    // The loaded screen contains Material/refresh animations that can keep
+    // scheduling frames. The controller data is already deterministic here,
+    // so advance only the frames needed to render it.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('ASHTAKAVARGA'), findsOneWidget);
+    expect(find.text('Planetary Point Distribution'), findsOneWidget);
+    expect(find.text('SARVASHTAKAVARGA'), findsOneWidget);
+    expect(find.text('1st Bhav'), findsNWidgets(3));
+    expect(find.text('12th Bhav'), findsNWidgets(3));
+    expect(find.text('Lagna BAV 5'), findsNWidgets(12));
+    expect(find.text('Sun'), findsOneWidget);
+    expect(find.text('Rahu'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('ashtakavarga_back_button')),
+      findsOneWidget,
+    );
+    final rect = tester.getRect(
+      find.byKey(const ValueKey('ashtakavarga_back_button')),
+    );
+    expect(rect.left, closeTo(20, 2));
+    expect(rect.width, closeTo(48, .1));
+    controller.dispose();
+    profiles.dispose();
+    auth.dispose();
+  });
 }
 
 Future<void> _settle() => Future<void>.delayed(Duration.zero);
 
 class _Repository implements AshtakavargaRepository {
-  _Repository({Set<int>? deferCalls}) : _deferCalls = deferCalls ?? const {};
+  _Repository({Set<int>? deferCalls, this.bhavFirst = false})
+    : _deferCalls = deferCalls ?? const {};
 
   final Set<int> _deferCalls;
+  final bool bhavFirst;
   final Map<int, Completer<Ashtakavarga>> _pending = {};
   int calls = 0;
   bool failNext = false;
@@ -108,9 +163,16 @@ class _Repository implements AshtakavargaRepository {
       _pending[calls] = completer;
       return completer.future;
     }
-    return Future.value(
-      Ashtakavarga.fromJson(ashtakavargaFixture(profileId: birthProfileId)),
-    );
+    final data = ashtakavargaFixture(profileId: birthProfileId);
+    if (bhavFirst) {
+      data['lagnaRashiIndex'] = 1;
+      for (final score
+          in (data['lagnaBav'] as Map<String, dynamic>)['signScores']
+              as List<dynamic>) {
+        (score as Map<String, dynamic>)['score'] = 5;
+      }
+    }
+    return Future.value(Ashtakavarga.fromJson(data));
   }
 
   void complete(int call, String profileId) => _pending

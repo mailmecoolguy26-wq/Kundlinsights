@@ -80,6 +80,42 @@ void main() {
     };
     expect(() => Ashtakavarga.fromJson(missingSign), throwsFormatException);
   });
+
+  test('parses additive Lagna and factual Career context defensively', () {
+    final value = fixture()
+      ..['lagnaRashiIndex'] = 6
+      ..['careerContext'] = {
+        'h2Sav': {'house': 2, 'bindu': 21},
+        'h10Sav': {'house': 10, 'bindu': 29},
+        'h11Sav': {'house': 11, 'bindu': 27},
+        'h10LagnaBav': {'house': 10, 'bindu': 3},
+        'h10LordBav': {'planet': 'Jupiter', 'house': 10, 'bindu': 5},
+        'unknown': true,
+      };
+    final parsed = Ashtakavarga.fromJson(value);
+    expect(parsed.lagnaRashiIndex, 6);
+    expect(parsed.careerContext!.h10LordBav!.planet, 'Jupiter');
+    expect(parsed.careerContext!.h10LordBav!.bindu, 5);
+
+    final legacy = Ashtakavarga.fromJson(fixture());
+    expect(legacy.lagnaRashiIndex, isNull);
+    expect(legacy.careerContext, isNull);
+  });
+
+  test('rotates sign scores into canonical one-based Bhav order', () {
+    for (final lagna in [1, 6, 12]) {
+      final value = fixture()..['lagnaRashiIndex'] = lagna;
+      final parsed = Ashtakavarga.fromJson(value);
+      final ordered = parsed.byHouse(parsed.sav);
+      expect(ordered, hasLength(12));
+      expect(ordered.map((score) => score.rashiIndex).toSet(), hasLength(12));
+      expect(ordered.first.rashiIndex, lagna);
+      expect(ordered.last.rashiIndex, ((lagna + 10) % 12) + 1);
+      for (final score in ordered) {
+        expect(score.score, 16 + score.rashiIndex);
+      }
+    }
+  });
 }
 
 Map<String, dynamic> fixture() {
