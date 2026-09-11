@@ -148,4 +148,35 @@ void main() {
       'Check job-switch timing',
     ]);
   });
+
+  test(
+    'uses a valid optional rendered answer and otherwise keeps fallback data',
+    () {
+      final response = CareerChatResponse.fromJson({
+        'profileId': 'profile-a',
+        'domain': 'CAREER',
+        'language': 'HINGLISH',
+        'intent': {'type': 'NEXT_JOB_TIMING'},
+        'answer': {
+          'answerability': 'SUPPORTED',
+          'headlineFact': 'Fallback.',
+          'followUpOptions': ['Show my next Career timing window'],
+        },
+        'renderedAnswer': {
+          'message': 'Natural Hinglish response.',
+          'followUpLabels': ['Mera next Career timing window dikhao'],
+        },
+      });
+      final presentation = CareerChatPresentation.fromResponse(response);
+      expect(presentation.headline, 'Natural Hinglish response.');
+      expect(
+        presentation.followUps.single.requestText,
+        'Show my next Career timing window',
+      );
+      expect(
+        presentation.followUps.single.label,
+        'Mera next Career timing window dikhao',
+      );
+    },
+  );
 }

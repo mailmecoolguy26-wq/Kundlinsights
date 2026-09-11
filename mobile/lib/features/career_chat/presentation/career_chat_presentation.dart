@@ -9,6 +9,7 @@ class CareerChatPresentation {
     CareerChatResponse response,
   ) {
     final answer = response.answer;
+    final rendered = response.renderedAnswer;
     final hinglish = response.language == CareerChatLanguage.hinglish;
     final clarification = response.intent.clarificationNeeded;
     final isNoReadingOutcome = answer.followUpOptions.contains(
@@ -24,17 +25,19 @@ class CareerChatPresentation {
         )
         .toList(growable: false);
     return CareerChatAssistantPresentation(
-      headline: switch (answer.answerability) {
-        CareerChatAnswerability.insufficientEvidence =>
-          hinglish
-              ? 'Abhi enough Career timing evidence available nahi hai'
-              : "There isn't enough Career timing evidence available yet.",
-        CareerChatAnswerability.unsupported =>
-          hinglish
-              ? 'Career Chat abhi job, promotion, role, salary, switch aur Career timing questions par focused hai.'
-              : 'Career Chat currently focuses on job, promotion, role, salary, switch, and Career timing questions.',
-        _ => answer.headlineFact,
-      },
+      headline:
+          rendered?.message ??
+          switch (answer.answerability) {
+            CareerChatAnswerability.insufficientEvidence =>
+              hinglish
+                  ? 'Abhi enough Career timing evidence available nahi hai'
+                  : "There isn't enough Career timing evidence available yet.",
+            CareerChatAnswerability.unsupported =>
+              hinglish
+                  ? 'Career Chat abhi job, promotion, role, salary, switch aur Career timing questions par focused hai.'
+                  : 'Career Chat currently focuses on job, promotion, role, salary, switch, and Career timing questions.',
+            _ => answer.headlineFact,
+          },
       body: switch (answer.answerability) {
         CareerChatAnswerability.insufficientEvidence =>
           hinglish
@@ -49,7 +52,16 @@ class CareerChatPresentation {
       timingWindows: answer.timingWindows,
       evidence: _safeHumanStrings(answer.evidenceSummary),
       caveats: _safeHumanStrings(answer.caveats),
-      followUps: followUps,
+      followUps:
+          rendered != null && rendered.followUpLabels.length == followUps.length
+          ? List.generate(
+              followUps.length,
+              (index) => CareerChatFollowUp(
+                requestText: followUps[index].requestText,
+                label: rendered.followUpLabels[index],
+              ),
+            )
+          : followUps,
       shouldOfferGeneration: isNoReadingOutcome,
     );
   }

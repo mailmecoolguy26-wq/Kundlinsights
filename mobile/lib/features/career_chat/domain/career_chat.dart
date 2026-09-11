@@ -106,12 +106,14 @@ class CareerChatResponse {
     required this.intent,
     required this.answer,
     required this.language,
+    this.renderedAnswer,
   });
   final String profileId;
   final String domain;
   final CareerChatIntent intent;
   final CareerChatAnswer answer;
   final CareerChatLanguage language;
+  final CareerChatRenderedAnswer? renderedAnswer;
 
   factory CareerChatResponse.fromJson(Map<String, dynamic> json) {
     final profileId = json['profileId'];
@@ -134,6 +136,37 @@ class CareerChatResponse {
       language: language == 'HINGLISH'
           ? CareerChatLanguage.hinglish
           : CareerChatLanguage.english,
+      renderedAnswer: json['renderedAnswer'] is Map<String, dynamic>
+          ? CareerChatRenderedAnswer.tryFromJson(
+              json['renderedAnswer'] as Map<String, dynamic>,
+            )
+          : null,
+    );
+  }
+}
+
+class CareerChatRenderedAnswer {
+  const CareerChatRenderedAnswer({
+    required this.message,
+    required this.followUpLabels,
+  });
+  final String message;
+  final List<String> followUpLabels;
+  static CareerChatRenderedAnswer? tryFromJson(Map<String, dynamic> json) {
+    final message = json['message'];
+    final labels = json['followUpLabels'];
+    if (message is! String ||
+        message.trim().isEmpty ||
+        message.length > 1500 ||
+        labels is! List ||
+        !labels.every(
+          (x) => x is String && x.trim().isNotEmpty && x.length <= 160,
+        )) {
+      return null;
+    }
+    return CareerChatRenderedAnswer(
+      message: message,
+      followUpLabels: List.unmodifiable(labels.cast<String>()),
     );
   }
 }

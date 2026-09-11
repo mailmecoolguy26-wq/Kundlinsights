@@ -1,0 +1,5 @@
+'use strict';
+const test = require('node:test'); const assert = require('node:assert/strict');
+const { validOutput } = require('../../src/infrastructure/ai/openai-career-chat-renderer');
+const input = Object.freeze({ language: 'HINGLISH', userQuestion: 'job kab milegi?', answerability: 'INSUFFICIENT_EVIDENCE', timingWindows: [], followUpOptions: ['Show my next Career timing window'], prohibitedClaims: ['EXACT_JOB_DATE', 'GUARANTEED_JOB', 'GUARANTEED_PROMOTION', 'PROBABILITY', 'PLANET_CAUSED_OFFICE_POLITICS'] });
+test('rejects unsafe provider claims and accepts grounded Roman Hinglish', () => { for (const message of ['You will get a job by November.', 'Promotion pakki hai.', 'There is an 80% chance.', 'Shani ki wajah se office politics hai.']) assert.equal(validOutput({ message, followUpLabels: ['x'] }, input), null); const accepted = validOutput({ message: 'Abhi supported timing evidence enough nahi hai.', followUpLabels: ['Mera next Career timing window dikhao'] }, input); assert.equal(accepted.message.includes('Devanagari'), false); assert.deepEqual(accepted.followUpLabels, ['Mera next Career timing window dikhao']); });

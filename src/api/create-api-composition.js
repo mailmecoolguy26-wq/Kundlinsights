@@ -2,6 +2,7 @@
 
 const { PostgresApplicationTransactionExecutor, SecureReadingService, CareerReadingInterpreter, CalibratedCareerReadingGenerator, CareerReadingPromptBuilder, ProviderBackedCareerGenerator } = require('../application/readings');
 const { OpenAICareerGenerationAdapter } = require('../infrastructure/ai/openai-career-generation-adapter');
+const { OpenAICareerChatRenderer } = require('../infrastructure/ai/openai-career-chat-renderer');
 const { SecureBirthProfileService } = require('../application/birth-profiles');
 const { NatalSummaryService } = require('../application/natal-summary');
 const { DivisionalChartService } = require('../application/divisional-charts');
@@ -36,7 +37,7 @@ function req(value, name) {
   return value;
 }
 
-function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canonicalSiderealSunSampler, placeResolver = null, openai = null, apple = null, google = null, razorpay = null, idGenerator, clock, requiresEntitlement = () => true, corsAllowlist, isReady, logger, bodyLimit, transactionDiagnosticObserver } = {}) {
+function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canonicalSiderealSunSampler, placeResolver = null, openai = null, careerChat = null, apple = null, google = null, razorpay = null, idGenerator, clock, requiresEntitlement = () => true, corsAllowlist, isReady, logger, bodyLimit, transactionDiagnosticObserver } = {}) {
   const { createApi } = require('./index');
   req(db, 'DB'); req(authVerifier, 'AUTH_VERIFIER'); req(kms, 'KMS');
   req(astronomicalEngine, 'ASTRONOMICAL_ENGINE'); req(canonicalSiderealSunSampler, 'SUN_SAMPLER');
@@ -110,7 +111,8 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   const { createReadingRecord, replayPersistedReading } = require('../readings');
   const secureReadingService = new SecureReadingService({ authUserResolver: userResolver, transactionExecutor: tx, repositories, secureBirthProfileLoader: birthProfileService, readingCryptoCoordinator: cryptoCoordinator, readingGenerator, readingRecordFactory: createReadingRecord, replayReading: replayPersistedReading, requiresEntitlement, idGenerator, clock });
   const { CareerChatOrchestrator } = require('../application/career-chat');
-  const careerChatOrchestrator = new CareerChatOrchestrator({ secureReadingService });
+  const careerChatRenderer = careerChat && careerChat.enabled === true ? new OpenAICareerChatRenderer({ apiKey: careerChat.apiKey, model: careerChat.model, timeoutMilliseconds: careerChat.timeoutMilliseconds }) : null;
+  const careerChatOrchestrator = new CareerChatOrchestrator({ secureReadingService, languageModel: careerChatRenderer });
   const transitSnapshotService = new TransitSnapshotService({ birthProfileService, astronomicalEngine, careerInsightSource: new LatestCareerReadingTransitSource({ secureReadingService }) });
   const vimshottariService = new VimshottariService({ birthProfileService, astronomicalEngine, canonicalSiderealSunSampler, careerInsightSource: new LatestCareerReadingInsightSource({ secureReadingService }), clock });
   const paymentUnitOfWork = new PostgresPaymentUnitOfWork({ pool: db, birthProfileRepositoryFactory: (client) => repositories({ db: client }).birthProfiles });
