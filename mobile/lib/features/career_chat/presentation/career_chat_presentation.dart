@@ -10,6 +10,7 @@ class CareerChatPresentation {
   ) {
     final answer = response.answer;
     final rendered = response.renderedAnswer;
+    final hasRenderedMessage = rendered?.message.trim().isNotEmpty ?? false;
     final hinglish = response.language == CareerChatLanguage.hinglish;
     final clarification = response.intent.clarificationNeeded;
     final isNoReadingOutcome = answer.followUpOptions.contains(
@@ -25,43 +26,44 @@ class CareerChatPresentation {
         )
         .toList(growable: false);
     return CareerChatAssistantPresentation(
-      headline:
-          rendered?.message ??
-          switch (answer.answerability) {
-            CareerChatAnswerability.insufficientEvidence =>
-              hinglish
-                  ? 'Abhi enough Career timing evidence available nahi hai'
-                  : "There isn't enough Career timing evidence available yet.",
-            CareerChatAnswerability.unsupported =>
-              hinglish
-                  ? 'Career Chat abhi job, promotion, role, salary, switch aur Career timing questions par focused hai.'
-                  : 'Career Chat currently focuses on job, promotion, role, salary, switch, and Career timing questions.',
-            _ => answer.headlineFact,
-          },
-      body: switch (answer.answerability) {
-        CareerChatAnswerability.insufficientEvidence =>
-          hinglish
-              ? 'Aapke available Career data se is question ka supported timing window abhi determine nahi kiya ja sakta.'
-              : 'Your available Career data is not enough to determine a supported timing window for this question.',
-        CareerChatAnswerability.partiallySupported when !clarification =>
-          hinglish
-              ? 'Kuch relevant Career evidence available hai, lekin full conclusion ko support karne ke liye evidence enough nahi hai.'
-              : 'Some relevant Career evidence is available, but it does not support the full conclusion.',
-        _ => null,
-      },
+      headline: hasRenderedMessage
+          ? rendered!.message
+          : switch (answer.answerability) {
+              CareerChatAnswerability.insufficientEvidence =>
+                hinglish
+                    ? 'Abhi enough Career timing evidence available nahi hai'
+                    : "There isn't enough Career timing evidence available yet.",
+              CareerChatAnswerability.unsupported =>
+                hinglish
+                    ? 'Career Chat abhi job, promotion, role, salary, switch aur Career timing questions par focused hai.'
+                    : 'Career Chat currently focuses on job, promotion, role, salary, switch, and Career timing questions.',
+              _ => answer.headlineFact,
+            },
+      // A validated provider rendering is the user-facing explanation. The
+      // deterministic contract remains the authority for timing, evidence,
+      // caveats, and canonical follow-up intent, but its generic fallback
+      // paragraph would otherwise repeat the rendered explanation.
+      body: hasRenderedMessage
+          ? null
+          : switch (answer.answerability) {
+              CareerChatAnswerability.insufficientEvidence =>
+                hinglish
+                    ? 'Aapke available Career data se is question ka supported timing window abhi determine nahi kiya ja sakta.'
+                    : 'Your available Career data is not enough to determine a supported timing window for this question.',
+              CareerChatAnswerability.partiallySupported when !clarification =>
+                hinglish
+                    ? 'Kuch relevant Career evidence available hai, lekin full conclusion ko support karne ke liye evidence enough nahi hai.'
+                    : 'Some relevant Career evidence is available, but it does not support the full conclusion.',
+              _ => null,
+            },
       timingWindows: answer.timingWindows,
       evidence: _safeHumanStrings(answer.evidenceSummary),
       caveats: _safeHumanStrings(answer.caveats),
-      followUps:
-          rendered != null && rendered.followUpLabels.length == followUps.length
-          ? List.generate(
-              followUps.length,
-              (index) => CareerChatFollowUp(
-                requestText: followUps[index].requestText,
-                label: rendered.followUpLabels[index],
-              ),
-            )
-          : followUps,
+      // Canonical backend follow-ups own both intent and localized display.
+      // Provider labels are optional prose, not a second intent contract.
+      // This keeps known Hinglish labels stable even when the renderer returns
+      // English labels, while unknown canonical options remain unchanged.
+      followUps: followUps,
       shouldOfferGeneration: isNoReadingOutcome,
     );
   }

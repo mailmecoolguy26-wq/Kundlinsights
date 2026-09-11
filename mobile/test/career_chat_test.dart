@@ -150,7 +150,7 @@ void main() {
   });
 
   test(
-    'uses a valid optional rendered answer and otherwise keeps fallback data',
+    'uses a valid rendered Hinglish answer without duplicate fallback copy',
     () {
       final response = CareerChatResponse.fromJson({
         'profileId': 'profile-a',
@@ -158,25 +158,96 @@ void main() {
         'language': 'HINGLISH',
         'intent': {'type': 'NEXT_JOB_TIMING'},
         'answer': {
-          'answerability': 'SUPPORTED',
+          'answerability': 'INSUFFICIENT_EVIDENCE',
           'headlineFact': 'Fallback.',
-          'followUpOptions': ['Show my next Career timing window'],
+          'followUpOptions': [
+            'Show my next Career timing window',
+            'Compare current vs upcoming Career period',
+          ],
         },
         'renderedAnswer': {
-          'message': 'Natural Hinglish response.',
-          'followUpLabels': ['Mera next Career timing window dikhao'],
+          'message': 'Available Career timing evidence insufficient hai.',
+          'followUpLabels': [
+            'Show my next Career timing window',
+            'Compare current vs upcoming Career period',
+          ],
         },
       });
       final presentation = CareerChatPresentation.fromResponse(response);
-      expect(presentation.headline, 'Natural Hinglish response.');
       expect(
-        presentation.followUps.single.requestText,
+        presentation.headline,
+        'Available Career timing evidence insufficient hai.',
+      );
+      expect(presentation.body, isNull);
+      expect(
+        presentation.followUps.first.requestText,
         'Show my next Career timing window',
       );
       expect(
-        presentation.followUps.single.label,
+        presentation.followUps.first.label,
         'Mera next Career timing window dikhao',
       );
+      expect(
+        presentation.followUps.last.label,
+        'Current aur upcoming Career period compare karo',
+      );
+    },
+  );
+
+  test(
+    'keeps deterministic insufficient-evidence fallback without rendering',
+    () {
+      final response = CareerChatResponse.fromJson({
+        'profileId': 'profile-a',
+        'domain': 'CAREER',
+        'language': 'HINGLISH',
+        'intent': {'type': 'NEXT_JOB_TIMING'},
+        'answer': {
+          'answerability': 'INSUFFICIENT_EVIDENCE',
+          'headlineFact': 'Fallback.',
+        },
+      });
+
+      final presentation = CareerChatPresentation.fromResponse(response);
+      expect(
+        presentation.headline,
+        'Abhi enough Career timing evidence available nahi hai',
+      );
+      expect(
+        presentation.body,
+        'Aapke available Career data se is question ka supported timing window abhi determine nahi kiya ja sakta.',
+      );
+    },
+  );
+
+  test(
+    'keeps distinct deterministic timing windows with a rendered answer',
+    () {
+      final response = CareerChatResponse.fromJson({
+        'profileId': 'profile-a',
+        'domain': 'CAREER',
+        'language': 'ENGLISH',
+        'intent': {'type': 'NEXT_JOB_TIMING'},
+        'answer': {
+          'answerability': 'SUPPORTED',
+          'headlineFact': 'Fallback.',
+          'timingWindows': [
+            {'start': '2026-10-01T00:00:00.000Z'},
+          ],
+        },
+        'renderedAnswer': {
+          'message': 'A supported Career timing window is available.',
+          'followUpLabels': [],
+        },
+      });
+
+      final presentation = CareerChatPresentation.fromResponse(response);
+      expect(
+        presentation.headline,
+        'A supported Career timing window is available.',
+      );
+      expect(presentation.body, isNull);
+      expect(presentation.timingWindows, hasLength(1));
     },
   );
 }
