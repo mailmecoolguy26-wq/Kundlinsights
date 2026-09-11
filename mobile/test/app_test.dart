@@ -537,6 +537,26 @@ class _Natal implements NatalSummaryRepository {
 
 class _Dasha implements VimshottariRepository {
   @override
+  Future<DashaScopedTimeline> getMahadashaTimeline({
+    required String birthProfileId,
+  }) => Future.error(UnimplementedError());
+  @override
+  Future<DashaScopedTimeline> getAntardashaTimeline({
+    required String birthProfileId,
+    required DateTime mahadashaStartUtc,
+  }) => Future.error(UnimplementedError());
+  @override
+  Future<DashaScopedTimeline> getPratyantarTimeline({
+    required String birthProfileId,
+    required DateTime mahadashaStartUtc,
+    required DateTime antardashaStartUtc,
+  }) => Future.error(UnimplementedError());
+  @override
+  Future<DashaPeriodInsight> getPeriodInsight({
+    required String birthProfileId,
+    required DateTime pratyantarStartUtc,
+  }) => Future.error(UnimplementedError());
+  @override
   Future<VimshottariCurrent> getCurrent({
     required String birthProfileId,
     required DateTime atUtc,
