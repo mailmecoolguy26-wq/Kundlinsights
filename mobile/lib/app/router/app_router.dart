@@ -35,6 +35,8 @@ import '../../features/ashtakavarga/ashtakavarga_controller.dart';
 import '../../features/ashtakavarga/presentation/ashtakavarga_screen.dart';
 import '../../features/splash/splash_launch_gate.dart';
 import '../../features/splash/presentation/stitch_splash_screen.dart';
+import '../../features/career_chat/career_chat_controller.dart';
+import '../../features/career_chat/presentation/career_chat_screen.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/app_page_scaffold.dart';
 import '../../shared/widgets/states.dart';
@@ -52,6 +54,7 @@ GoRouter createAppRouter(
   CareerPremiumProductController premiumProduct,
   CareerPremiumPurchaseController premiumPurchase,
   CareerEventController careerEvents, {
+  required CareerChatController careerChat,
   RazorpayCareerPremiumController? razorpayPremium,
   required CareerExplanationLanguageController careerExplanationLanguage,
   required SplashLaunchGate splashLaunchGate,
@@ -96,6 +99,11 @@ GoRouter createAppRouter(
     return null;
   },
   routes: [
+    GoRoute(
+      path: '/career-chat',
+      name: 'career-chat',
+      builder: (context, state) => CareerChatScreen(controller: careerChat),
+    ),
     GoRoute(
       path: '/ashtakavarga',
       name: 'ashtakavarga',
@@ -321,8 +329,10 @@ GoRouter createAppRouter(
             GoRoute(
               path: '/insights',
               name: 'insights',
-              builder: (context, state) =>
-                  InsightsScreen(generation: generation),
+              builder: (context, state) => InsightsScreen(
+                generation: generation,
+                onOpenCareerChat: () => context.push('/career-chat'),
+              ),
             ),
           ],
         ),

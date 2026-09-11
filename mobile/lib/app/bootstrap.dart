@@ -46,6 +46,9 @@ import '../features/payments/data/google_play_purchase_service.dart';
 import '../features/payments/data/career_premium_product_loader.dart';
 import '../features/payments/career_premium_product_controller.dart';
 import '../features/payments/data/payment_api_client.dart';
+import '../features/career_chat/data/career_chat_api_repository.dart';
+import '../features/career_chat/career_chat_controller.dart';
+import '../features/career_chat/domain/career_chat_repository.dart';
 import 'app.dart';
 
 Future<void> bootstrap() async {
@@ -62,6 +65,7 @@ Future<void> bootstrap() async {
   final CareerReadingGenerationRepository generationRepository;
   final CareerEventRepository careerEventRepository;
   final PaymentApiClient paymentApi;
+  final CareerChatRepository careerChatRepository;
   final storePurchaseService = AppleStorePurchaseService(
     client: InAppPurchaseStorePurchaseClient(InAppPurchase.instance),
     careerPremiumAnnualAppleProductId:
@@ -93,6 +97,7 @@ Future<void> bootstrap() async {
     generationRepository = _UnavailableGenerationRepository();
     careerEventRepository = const UnavailableCareerEventRepository();
     paymentApi = const UnavailablePaymentApiClient();
+    careerChatRepository = const UnavailableCareerChatRepository();
   } else {
     await Supabase.initialize(
       url: config.supabaseUrl,
@@ -113,6 +118,7 @@ Future<void> bootstrap() async {
     generationRepository = CareerReadingGenerationApiRepository(apiClient);
     careerEventRepository = CareerEventApiRepository(apiClient);
     paymentApi = AuthenticatedPaymentApiClient(apiClient);
+    careerChatRepository = CareerChatApiRepository(apiClient);
   }
   final controller = AuthController(repository);
   await controller.restore();
@@ -149,6 +155,7 @@ Future<void> bootstrap() async {
           premiumProductLoader,
         ),
         paymentApiClientProvider.overrideWithValue(paymentApi),
+        careerChatRepositoryProvider.overrideWithValue(careerChatRepository),
       ],
       child: KundlInsightsApp(authController: controller),
     ),

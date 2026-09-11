@@ -5,8 +5,13 @@ import '../readings/career_reading_generation_controller.dart';
 import '../readings/astrology_presentation_copy.dart';
 
 class InsightsScreen extends StatelessWidget {
-  const InsightsScreen({super.key, required this.generation});
+  const InsightsScreen({
+    super.key,
+    required this.generation,
+    this.onOpenCareerChat,
+  });
   final CareerReadingGenerationController generation;
+  final VoidCallback? onOpenCareerChat;
 
   static const midnight = Color(0xFF0B071B);
   static const abyss = Color(0xFF120D29);
@@ -41,6 +46,10 @@ class InsightsScreen extends StatelessWidget {
                 onSeeCareerInsights: () => context.go('/readings'),
                 onRetryEligibility: generation.refreshEligibility,
               ),
+              if (onOpenCareerChat != null) ...[
+                const SizedBox(height: 12),
+                _CareerChatCard(onTap: onOpenCareerChat!),
+              ],
               const SizedBox(height: 28),
               const _SectionLabel('COMING NEXT'),
               const SizedBox(height: 10),
@@ -61,6 +70,52 @@ class InsightsScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CareerChatCard extends StatelessWidget {
+  const _CareerChatCard({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: 'Career Chat',
+    child: Material(
+      color: InsightsScreen.abyss,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0x66C5A059)),
+          ),
+          child: const Row(
+            children: [
+              _IconTile(Icons.forum_outlined),
+              SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Career Chat', style: _Styles.cardTitle),
+                    SizedBox(height: 3),
+                    Text(
+                      'Ask about your Career timing',
+                      style: _Styles.cardBody,
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: InsightsScreen.gold),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class _Header extends StatelessWidget {
