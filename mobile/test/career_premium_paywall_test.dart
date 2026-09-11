@@ -300,10 +300,7 @@ void main() {
       expect(find.textContaining('₹499 / year'), findsOneWidget);
       expect(find.textContaining('+ GST @ 18%'), findsOneWidget);
       expect(find.textContaining('Total payable: ₹588.82'), findsOneWidget);
-      expect(
-        find.text('UNLOCK CAREER PREMIUM — ₹588.82 →'),
-        findsOneWidget,
-      );
+      expect(find.text('UNLOCK CAREER PREMIUM — ₹588.82 →'), findsOneWidget);
       expect(find.textContaining(r'$7.99'), findsNothing);
       expect(find.text('Restore Purchases'), findsNothing);
       expect(find.textContaining('Apple ID'), findsNothing);
@@ -336,6 +333,128 @@ void main() {
     expect(find.text('CHECK PAYMENT STATUS'), findsOneWidget);
     expect(find.text('Try Again'), findsNothing);
     expect(find.text('Unlock Career Premium — ₹588.82'), findsNothing);
+    razorpay.dispose();
+    product.dispose();
+  });
+
+  testWidgets('Razorpay retry-safe failure shows only Try Again', (
+    tester,
+  ) async {
+    final product = _controller();
+    final api = _RazorpayApi(false)..failCreate = true;
+    final razorpay = RazorpayCareerPremiumController(
+      api: api,
+      checkout: _RazorpayCheckout(),
+      entitlements: _RazorpayEntitlements(),
+    );
+    await razorpay.start(birthProfileId: 'profile-a');
+    var starts = 0;
+
+    await tester.pumpWidget(
+      _app(
+        CareerPremiumPaywall(
+          productController: product,
+          razorpayController: razorpay,
+          razorpayProfileId: 'profile-a',
+          razorpayState: RazorpayCareerPremiumState.definitiveFailure,
+          hasAccess: false,
+          entitlementMode: 'NONE',
+          onSubscribePressed: () {},
+          onContinuePressed: () {},
+          onRazorpayStart: () => starts++,
+        ),
+      ),
+    );
+
+    expect(find.text('TRY AGAIN'), findsOneWidget);
+    expect(find.text('CHECK PAYMENT STATUS'), findsNothing);
+    await tester.tap(find.text('TRY AGAIN'));
+    expect(starts, 1);
+    expect(api.statusCalls, 0);
+    razorpay.dispose();
+    product.dispose();
+  });
+
+  testWidgets('known-order Razorpay failure only offers safe status recovery', (
+    tester,
+  ) async {
+    final product = _controller();
+    final api = _RazorpayApi(false);
+    final entitlements = _RazorpayEntitlements();
+    final razorpay = RazorpayCareerPremiumController(
+      api: api,
+      checkout: _RazorpayCheckout(cancelled: true),
+      entitlements: entitlements,
+    );
+    await razorpay.start(birthProfileId: 'profile-a');
+    expect(razorpay.canRetryFor('profile-a'), isFalse);
+
+    await tester.pumpWidget(
+      _app(
+        CareerPremiumPaywall(
+          productController: product,
+          razorpayController: razorpay,
+          razorpayProfileId: 'profile-a',
+          razorpayState: RazorpayCareerPremiumState.definitiveFailure,
+          hasAccess: false,
+          entitlementMode: 'NONE',
+          onSubscribePressed: () {},
+          onContinuePressed: () {},
+          onRazorpayRecover: () =>
+              unawaited(razorpay.recover(birthProfileId: 'profile-a')),
+        ),
+      ),
+    );
+
+    expect(find.text('TRY AGAIN'), findsNothing);
+    expect(find.text('CHECK PAYMENT STATUS'), findsOneWidget);
+    expect(find.text('Choose Another Payment Method'), findsNothing);
+    await tester.tap(find.text('CHECK PAYMENT STATUS'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(api.statusCalls, 1);
+    expect(api.createCalls, 1);
+    expect(
+      razorpay.stateFor('profile-a'),
+      RazorpayCareerPremiumState.paymentStatusUnknown,
+    );
+    razorpay.dispose();
+    product.dispose();
+  });
+
+  testWidgets('known-order recovery shows success without another order', (
+    tester,
+  ) async {
+    final product = _controller();
+    final api = _RazorpayApi(false);
+    final entitlements = _RazorpayEntitlements();
+    final razorpay = RazorpayCareerPremiumController(
+      api: api,
+      checkout: _RazorpayCheckout(cancelled: true),
+      entitlements: entitlements,
+    );
+    await razorpay.start(birthProfileId: 'profile-a');
+    entitlements.value = CareerEligibilityState.eligible;
+    await razorpay.recover(birthProfileId: 'profile-a');
+
+    await tester.pumpWidget(
+      _app(
+        CareerPremiumPaywall(
+          productController: product,
+          razorpayController: razorpay,
+          razorpayProfileId: 'profile-a',
+          dedicatedRazorpaySurface: true,
+          hasAccess: false,
+          entitlementMode: 'NONE',
+          onSubscribePressed: () {},
+          onContinuePressed: () {},
+        ),
+      ),
+    );
+
+    expect(find.text('Career Premium is now unlocked'), findsOneWidget);
+    expect(find.text('View My Career Forecast'), findsOneWidget);
+    expect(api.createCalls, 1);
     razorpay.dispose();
     product.dispose();
   });
@@ -495,6 +614,9 @@ class _RazorpayApi extends PaymentApiClient {
   _RazorpayApi(this.verifyFails);
 
   final bool verifyFails;
+  bool failCreate = false;
+  int createCalls = 0;
+  int statusCalls = 0;
 
   @override
   Future<void> verifyApplePurchase({
@@ -520,12 +642,16 @@ class _RazorpayApi extends PaymentApiClient {
   Future<Map<String, dynamic>> createRazorpayOrder({
     required String logicalSku,
     String? birthProfileId,
-  }) async => const {
-    'orderId': 'order_1',
-    'keyId': 'rzp_test_public',
-    'amountMinor': 58882,
-    'currency': 'INR',
-  };
+  }) async {
+    createCalls++;
+    if (failCreate) throw StateError('synthetic order failure');
+    return const {
+      'orderId': 'order_1',
+      'keyId': 'rzp_test_public',
+      'amountMinor': 58882,
+      'currency': 'INR',
+    };
+  }
 
   @override
   Future<void> verifyRazorpayPayment({
@@ -535,29 +661,40 @@ class _RazorpayApi extends PaymentApiClient {
   }) async {
     if (verifyFails) throw StateError('synthetic verification failure');
   }
+
+  @override
+  Future<Map<String, dynamic>> getRazorpayOrderStatus(String orderId) async {
+    statusCalls++;
+    return const {'status': 'CREATED', 'finalized': false};
+  }
 }
 
 class _RazorpayCheckout implements RazorpayCheckout {
+  _RazorpayCheckout({this.cancelled = false});
+  final bool cancelled;
   @override
   Future<RazorpayPaymentEvidence> open({
     required String keyId,
     required String orderId,
     required int amountMinor,
     required String currency,
-  }) async => const RazorpayPaymentEvidence(
-    orderId: 'order_1',
-    paymentId: 'payment_1',
-    signature: 'signature_1',
-  );
+  }) async {
+    if (cancelled) throw const RazorpayCheckoutCancelled();
+    return const RazorpayPaymentEvidence(
+      orderId: 'order_1',
+      paymentId: 'payment_1',
+      signature: 'signature_1',
+    );
+  }
 
   @override
   void dispose() {}
 }
 
 class _RazorpayEntitlements implements CareerPremiumEntitlementRefresher {
+  CareerEligibilityState value = CareerEligibilityState.ineligible;
   @override
-  CareerEligibilityState get eligibilityState =>
-      CareerEligibilityState.ineligible;
+  CareerEligibilityState get eligibilityState => value;
 
   @override
   Future<void> refreshEligibility() async {}

@@ -109,7 +109,11 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
                             widget.razorpayProfileId!,
                           ),
                     onRazorpayRecover: widget.onRazorpayRecover,
-                    onRazorpayReset: widget.onRazorpayReset,
+                    razorpayCanRetry:
+                        widget.razorpayProfileId != null &&
+                        widget.razorpayController!.canRetryFor(
+                          widget.razorpayProfileId!,
+                        ),
                     generationState:
                         widget.generationController?.generationState,
                   ),
@@ -171,7 +175,11 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
               onRazorpayStart: widget.onRazorpayStart,
               razorpayState: widget.razorpayState,
               onRazorpayRecover: widget.onRazorpayRecover,
-              onRazorpayReset: widget.onRazorpayReset,
+              razorpayCanRetry:
+                  widget.razorpayProfileId != null &&
+                  widget.razorpayController!.canRetryFor(
+                    widget.razorpayProfileId!,
+                  ),
             ),
             if (widget.purchaseController != null && !usesRazorpay)
               TextButton(
@@ -251,7 +259,7 @@ class _ProductAction extends StatelessWidget {
     this.onRazorpayStart,
     this.razorpayState,
     this.onRazorpayRecover,
-    this.onRazorpayReset,
+    this.razorpayCanRetry = false,
     this.generationState,
   });
   final CareerPremiumProductController controller;
@@ -263,7 +271,7 @@ class _ProductAction extends StatelessWidget {
   final VoidCallback? onRazorpayStart;
   final RazorpayCareerPremiumState? razorpayState;
   final VoidCallback? onRazorpayRecover;
-  final VoidCallback? onRazorpayReset;
+  final bool razorpayCanRetry;
   final CareerGenerationState? generationState;
 
   @override
@@ -289,8 +297,10 @@ class _ProductAction extends StatelessWidget {
           );
         case RazorpayCareerPremiumState.definitiveFailure:
           return _RazorpayFailure(
+            canRetry: razorpayCanRetry,
             onRetry: onRazorpayStart ?? () {},
-            onReset: onRazorpayReset ?? () {},
+            onCheck: onRazorpayRecover ?? () {},
+            onHome: onBackHomePressed ?? () {},
           );
         case RazorpayCareerPremiumState.paymentStatusUnknown:
           return _RazorpayUnknown(
@@ -615,9 +625,16 @@ class _RazorpaySuccess extends StatelessWidget {
 }
 
 class _RazorpayFailure extends StatelessWidget {
-  const _RazorpayFailure({required this.onRetry, required this.onReset});
+  const _RazorpayFailure({
+    required this.canRetry,
+    required this.onRetry,
+    required this.onCheck,
+    required this.onHome,
+  });
+  final bool canRetry;
   final VoidCallback onRetry;
-  final VoidCallback onReset;
+  final VoidCallback onCheck;
+  final VoidCallback onHome;
   @override
   Widget build(BuildContext c) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -628,42 +645,37 @@ class _RazorpayFailure extends StatelessWidget {
       ),
       const SizedBox(height: 10),
       const Icon(Icons.error_outline, color: Color(0xFFC5A059), size: 36),
-      const Text(
-        'Your payment couldn’t be completed',
+      Text(
+        canRetry
+            ? 'Your payment couldn’t be completed'
+            : 'Payment needs verification',
         style: TextStyle(color: Color(0xFFFAF7F2), fontSize: 22),
       ),
-      const Text(
-        'Career Premium has not been activated. You can safely try the payment again.',
+      Text(
+        canRetry ? 'The payment was not completed.' : 'We already have a payment order for this attempt. Check its status before trying again.',
         style: TextStyle(color: Color(0xFF9E9AA9)),
       ),
       const Text(
         '₹588.82',
         style: TextStyle(color: Color(0xFFFAF7F2), fontSize: 20),
       ),
-      const Text(
-        'If money was deducted, we’ll verify the payment status before asking you to pay again.',
-        style: TextStyle(color: Color(0xFF9E9AA9)),
-      ),
+      if (canRetry)
+        const Text(
+          'If money was deducted, we’ll verify the payment status before asking you to pay again.',
+          style: TextStyle(color: Color(0xFF9E9AA9)),
+        ),
       FilledButton(
-        onPressed: onRetry,
+        onPressed: canRetry ? onRetry : onCheck,
         style: FilledButton.styleFrom(
           backgroundColor: const Color(0xFFF4BF50),
           foregroundColor: const Color(0xFF0B071B),
         ),
-        child: const Text('TRY AGAIN'),
+        child: Text(canRetry ? 'TRY AGAIN' : 'CHECK PAYMENT STATUS'),
       ),
       TextButton(
-        onPressed: onReset,
-        style: TextButton.styleFrom(
-          foregroundColor: const Color(0xFFFAF7F2),
-          side: const BorderSide(color: Color(0xFFC5A059)),
-        ),
-        child: const Text('Choose Another Payment Method'),
-      ),
-      TextButton(
-        onPressed: onReset,
+        onPressed: onHome,
         style: TextButton.styleFrom(foregroundColor: const Color(0xFFF4BF50)),
-        child: const Text('Back to Career Premium'),
+        child: const Text('BACK TO HOME'),
       ),
     ],
   );
