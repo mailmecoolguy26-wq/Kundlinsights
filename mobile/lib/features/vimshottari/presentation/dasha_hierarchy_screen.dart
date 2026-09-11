@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../../profiles/profile_controller.dart';
 import '../../readings/astrology_presentation_copy.dart';
+import 'dasha_back_button.dart';
 import '../domain/vimshottari.dart';
 import '../vimshottari_controller.dart';
 
@@ -30,6 +31,9 @@ class DashaHierarchyScreen extends StatefulWidget {
 
 class _DashaHierarchyScreenState extends State<DashaHierarchyScreen> {
   late Future<DashaScopedTimeline?> _future;
+  final _scrollController = ScrollController();
+  final _currentRowKey = GlobalKey();
+  bool _didAutoScroll = false;
   @override
   void initState() {
     super.initState();
@@ -46,6 +50,30 @@ class _DashaHierarchyScreenState extends State<DashaHierarchyScreen> {
       widget.antardashaStart!,
     ),
   };
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _revealCurrent(DashaScopedTimeline timeline) {
+    if (_didAutoScroll || !timeline.periods.any((p) => p.status == 'CURRENT')) {
+      return;
+    }
+    _didAutoScroll = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final context = _currentRowKey.currentContext;
+      if (mounted && context != null) {
+        Scrollable.ensureVisible(
+          context,
+          alignment: .2,
+          duration: Duration.zero,
+        );
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: _C.midnight,
@@ -65,9 +93,19 @@ class _DashaHierarchyScreenState extends State<DashaHierarchyScreen> {
                 child: const Text('Retry'),
               ),
             );
+          _revealCurrent(timeline);
           return _Body(
             timeline: timeline,
             level: widget.level,
+            scrollController: _scrollController,
+            currentRowKey: _currentRowKey,
+            backButtonKey: ValueKey(switch (widget.level) {
+              DashaHierarchyLevel.mahadasha => 'mahadasha_timeline_back_button',
+              DashaHierarchyLevel.antardasha =>
+                'antardasha_timeline_back_button',
+              DashaHierarchyLevel.pratyantar =>
+                'pratyantar_timeline_back_button',
+            }),
             onTap: (period) {
               switch (widget.level) {
                 case DashaHierarchyLevel.mahadasha:
@@ -95,10 +133,16 @@ class _Body extends StatelessWidget {
   const _Body({
     required this.timeline,
     required this.level,
+    required this.scrollController,
+    required this.currentRowKey,
+    required this.backButtonKey,
     required this.onTap,
   });
   final DashaScopedTimeline timeline;
   final DashaHierarchyLevel level;
+  final ScrollController scrollController;
+  final GlobalKey currentRowKey;
+  final ValueKey<String> backButtonKey;
   final ValueChanged<DashaTimelinePeriod> onTap;
   @override
   Widget build(BuildContext context) {
@@ -110,12 +154,17 @@ class _Body extends StatelessWidget {
     };
     final parent = timeline.parent ?? timeline.antardashaParent;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      controller: scrollController,
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
       children: [
-        IconButton(
-          onPressed: () => Navigator.of(context).maybePop(),
-          icon: const Icon(Icons.arrow_back, color: _C.alabaster),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: DashaBackButton(
+            key: backButtonKey,
+            onPressed: () => Navigator.of(context).maybePop(),
+          ),
         ),
+        const SizedBox(height: 12),
         Text(heading, style: _S.eyebrow),
         const SizedBox(height: 6),
         Text(
@@ -123,14 +172,14 @@ class _Body extends StatelessWidget {
               ? 'Vimshottari major periods'
               : parent == null
               ? 'Vimshottari timeline'
-              : 'WITHIN ${copy.planet(parent.lord).toUpperCase()} ${parent.level}',
-          style: _S.title,
+              : 'Within ${copy.planet(parent.lord)} ${_levelLabel(parent.level)}',
+          style: _S.subtitle,
         ),
         if (timeline.parent != null || timeline.parentsOrNull != null) ...[
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
           _ParentCard(timeline: timeline),
         ],
-        const SizedBox(height: 22),
+        const SizedBox(height: 18),
         Text(switch (level) {
           DashaHierarchyLevel.mahadasha => 'MAHADASHA SEQUENCE',
           DashaHierarchyLevel.antardasha => 'ANTARDASHA SEQUENCE',
@@ -139,6 +188,7 @@ class _Body extends StatelessWidget {
         const SizedBox(height: 10),
         for (final period in timeline.periods)
           _Row(
+            key: period.status == 'CURRENT' ? currentRowKey : null,
             period: period,
             label:
                 '${copy.planet(period.lord)} ${period.level[0]}${period.level.substring(1).toLowerCase()}',
@@ -165,19 +215,28 @@ class _ParentCard extends StatelessWidget {
       if (timeline.antardashaParent != null) timeline.antardashaParent!,
     ];
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: _box(true),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text('PARENT CYCLE', style: _S.eyebrow),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           for (final p in ps)
             Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Text(
-                '${copy.planet(p.lord)} ${p.level[0]}${p.level.substring(1).toLowerCase()} · ${_date(p.startUtc)} — ${_date(p.endUtc)}',
-                style: _S.body,
+              padding: const EdgeInsets.only(bottom: 5),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${copy.planet(p.lord)} ${_levelLabel(p.level)}',
+                    style: _S.card,
+                  ),
+                  Text(
+                    '${_date(p.startUtc)} — ${_date(p.endUtc)}',
+                    style: _S.body,
+                  ),
+                ],
               ),
             ),
         ],
@@ -187,7 +246,12 @@ class _ParentCard extends StatelessWidget {
 }
 
 class _Row extends StatelessWidget {
-  const _Row({required this.period, required this.label, required this.onTap});
+  const _Row({
+    super.key,
+    required this.period,
+    required this.label,
+    required this.onTap,
+  });
   final DashaTimelinePeriod period;
   final String label;
   final VoidCallback onTap;
@@ -243,6 +307,9 @@ class _Badge extends StatelessWidget {
   );
 }
 
+String _levelLabel(String value) =>
+    '${value[0]}${value.substring(1).toLowerCase()}';
+
 BoxDecoration _box(bool current) => BoxDecoration(
   color: current ? _C.violet : _C.abyss,
   borderRadius: BorderRadius.circular(14),
@@ -268,11 +335,7 @@ abstract final class _S {
         fontWeight: FontWeight.w700,
         letterSpacing: 1.4,
       ),
-      title = TextStyle(
-        color: _C.alabaster,
-        fontFamily: 'EB Garamond',
-        fontSize: 28,
-      ),
+      subtitle = TextStyle(color: _C.slate, fontSize: 15, height: 1.3),
       card = TextStyle(
         color: _C.alabaster,
         fontSize: 16,

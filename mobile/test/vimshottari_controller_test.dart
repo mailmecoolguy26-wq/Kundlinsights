@@ -94,16 +94,82 @@ void main() {
       auth.dispose();
     },
   );
+
+  test(
+    'loads the overview insight with the canonical current PD start',
+    () async {
+      final authSource = _AuthSource();
+      final auth = AuthController(authSource);
+      await auth.restore();
+      final profiles = ProfileController(_Profiles(authSource), auth);
+      await profiles.load();
+      final repository = _Repository();
+      final controller = VimshottariController(repository, auth, profiles);
+      await _settle();
+
+      await controller.loadOverviewPeriodInsight(
+        controller.current!.pratyantardasha.startUtc,
+      );
+
+      expect(repository.periodInsightStart, '2027-01-01T00:00:00.000Z');
+      expect(controller.overviewPeriodInsight, isNotNull);
+      controller.dispose();
+      profiles.dispose();
+      auth.dispose();
+    },
+  );
 }
 
 Future<void> _settle() => Future<void>.delayed(Duration.zero);
 
 class _Repository implements VimshottariRepository {
+  @override
+  Future<DashaScopedTimeline> getMahadashaTimeline({
+    required String birthProfileId,
+  }) => Future.error(UnimplementedError());
+  @override
+  Future<DashaScopedTimeline> getAntardashaTimeline({
+    required String birthProfileId,
+    required DateTime mahadashaStartUtc,
+  }) => Future.error(UnimplementedError());
+  @override
+  Future<DashaScopedTimeline> getPratyantarTimeline({
+    required String birthProfileId,
+    required DateTime mahadashaStartUtc,
+    required DateTime antardashaStartUtc,
+  }) => Future.error(UnimplementedError());
+  @override
+  Future<DashaPeriodInsight> getPeriodInsight({
+    required String birthProfileId,
+    required DateTime pratyantarStartUtc,
+  }) {
+    periodInsightStart = pratyantarStartUtc.toIso8601String();
+    return Future.value(
+      DashaPeriodInsight(
+        mahadasha: _period('Mercury'),
+        antardasha: _period('Venus'),
+        pratyantar: _period('Sun'),
+        status: 'CURRENT',
+        summary: 'Factual context.',
+        presentation: const DashaPresentationCopy(
+          english: 'Factual context.',
+          hinglish: 'Factual context.',
+        ),
+        nextPeriod: null,
+        natalFacts: const [],
+        stateFacts: const [],
+        relationshipFacts: const [],
+        d10Facts: const [],
+      ),
+    );
+  }
+
   _Repository({this.deferFirstTimeline = false});
   final bool deferFirstTimeline;
   final firstTimeline = Completer<VimshottariTimeline>();
   int currentCalls = 0;
   int timelineCalls = 0;
+  String? periodInsightStart;
   @override
   Future<VimshottariCurrent> getCurrent({
     required String birthProfileId,

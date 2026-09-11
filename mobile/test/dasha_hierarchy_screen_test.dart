@@ -27,6 +27,17 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('View Mahadasha Timeline'), findsOneWidget);
+    expect(find.text('VIMSHOTTARI'), findsNothing);
+    expect(find.text('Pratyantar · Active Now'), findsNothing);
+    _expectBackGeometry(
+      tester,
+      buttonKey: const ValueKey('dasha_overview_back_button'),
+      title: 'Vimshottari',
+    );
+    expect(
+      tester.getTopLeft(find.byKey(const ValueKey('dasha-profile-pill'))).dx,
+      greaterThan(180),
+    );
     expect(find.text('Mahadasha'), findsOneWidget);
     expect(find.text('Antardasha'), findsOneWidget);
     expect(find.text('Pratyantar · Active Now'), findsOneWidget);
@@ -35,6 +46,11 @@ void main() {
     await tester.tap(find.text('View Mahadasha Timeline'));
     await tester.pumpAndSettle();
     expect(find.text('MAHADASHA TIMELINE'), findsOneWidget);
+    _expectBackGeometry(
+      tester,
+      buttonKey: const ValueKey('mahadasha_timeline_back_button'),
+      title: 'MAHADASHA TIMELINE',
+    );
     expect(find.text('CURRENT'), findsOneWidget);
     expect(find.text('COMPLETED'), findsOneWidget);
     expect(find.text('UPCOMING'), findsWidgets);
@@ -46,11 +62,14 @@ void main() {
     await tester.tap(find.text('Jupiter Mahadasha'));
     await tester.pumpAndSettle();
     expect(find.text('ANTARDASHA TIMELINE'), findsOneWidget);
-    expect(find.text('WITHIN JUPITER MAHADASHA'), findsOneWidget);
-    expect(
-      find.text('Jupiter Mahadasha · 1 Jan 2024 — 1 Jan 2040'),
-      findsOneWidget,
+    _expectBackGeometry(
+      tester,
+      buttonKey: const ValueKey('antardasha_timeline_back_button'),
+      title: 'ANTARDASHA TIMELINE',
     );
+    expect(find.text('Within Jupiter Mahadasha'), findsOneWidget);
+    expect(find.text('Jupiter Mahadasha'), findsOneWidget);
+    expect(find.text('1 Jan 2024 — 1 Jan 2040'), findsOneWidget);
     expect(find.text('Rahu Antardasha'), findsOneWidget);
     expect(find.byType(InkWell), findsNWidgets(9));
     expect(harness.repository.adSelector, _mdStart);
@@ -58,14 +77,13 @@ void main() {
     await tester.tap(find.text('Rahu Antardasha'));
     await tester.pumpAndSettle();
     expect(find.text('PRATYANTAR TIMELINE'), findsOneWidget);
-    expect(
-      find.text('Jupiter Mahadasha · 1 Jan 2024 — 1 Jan 2040'),
-      findsOneWidget,
+    _expectBackGeometry(
+      tester,
+      buttonKey: const ValueKey('pratyantar_timeline_back_button'),
+      title: 'PRATYANTAR TIMELINE',
     );
-    expect(
-      find.text('Rahu Antardasha · 3 Feb 2025 — 1 Jan 2027'),
-      findsOneWidget,
-    );
+    expect(find.text('Jupiter Mahadasha'), findsOneWidget);
+    expect(find.text('Rahu Antardasha'), findsOneWidget);
     expect(find.text('Jupiter Pratyantar'), findsOneWidget);
     expect(find.byType(InkWell), findsNWidgets(9));
     expect(harness.repository.pdMdSelector, _mdStart);
@@ -74,6 +92,11 @@ void main() {
     await tester.tap(find.text('Jupiter Pratyantar'));
     await tester.pumpAndSettle();
     expect(find.text('JUPITER PRATYANTAR'), findsOneWidget);
+    _expectBackGeometry(
+      tester,
+      buttonKey: const ValueKey('dasha_period_detail_back_button'),
+      title: 'JUPITER PRATYANTAR',
+    );
     expect(find.text('CURRENT'), findsOneWidget);
     expect(harness.repository.detailSelector, _pdStart);
 
@@ -116,11 +139,8 @@ void main() {
 
       await tester.tap(find.text('Guru Dev Mahadasha'));
       await tester.pumpAndSettle();
-      expect(find.text('WITHIN GURU DEV MAHADASHA'), findsOneWidget);
-      expect(
-        find.text('Guru Dev Mahadasha · 1 Jan 2024 — 1 Jan 2040'),
-        findsOneWidget,
-      );
+      expect(find.text('Within Guru Dev Mahadasha'), findsOneWidget);
+      expect(find.text('Guru Dev Mahadasha'), findsOneWidget);
       expect(find.text('Shani Dev Antardasha'), findsOneWidget);
       expect(find.text('Budh Antardasha'), findsOneWidget);
       expect(find.text('Shukra Antardasha'), findsOneWidget);
@@ -130,7 +150,7 @@ void main() {
 
       await tester.tap(find.text('Rahu Antardasha'));
       await tester.pumpAndSettle();
-      expect(find.text('WITHIN RAHU ANTARDASHA'), findsOneWidget);
+      expect(find.text('Within Rahu Antardasha'), findsOneWidget);
       expect(find.text('Guru Dev Pratyantar'), findsOneWidget);
       expect(find.text('Shani Dev Pratyantar'), findsOneWidget);
     },
@@ -180,12 +200,117 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('WITHIN JUPITER MAHADASHA'), findsOneWidget);
-    expect(
-      find.text('Jupiter Mahadasha · 1 Jan 2024 — 1 Jan 2040'),
-      findsOneWidget,
-    );
+    expect(find.text('Within Jupiter Mahadasha'), findsOneWidget);
+    expect(find.text('Jupiter Mahadasha'), findsOneWidget);
   });
+
+  testWidgets('renders factual current-period detail in Hinglish', (
+    tester,
+  ) async {
+    final harness = await _Harness.create(
+      language: CareerExplanationLanguage.hinglish,
+    );
+    addTearDown(harness.dispose);
+    harness.repository.detailOverride = _richDetail();
+    await tester.pumpWidget(
+      AstrologyPresentationScope(
+        controller: harness.language,
+        child: MaterialApp(
+          home: DashaPeriodInsightScreen(
+            profileController: harness.profiles,
+            controller: harness.controller,
+            pratyantarStart: DateTime.parse(_pdStart),
+            now: () => DateTime.utc(2026, 9, 10),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    _expectBackGeometry(
+      tester,
+      buttonKey: const ValueKey('dasha_period_detail_back_button'),
+      title: 'GURU DEV PRATYANTAR',
+    );
+    expect(find.text('GURU DEV PRATYANTAR'), findsOneWidget);
+    expect(find.text('Within Rahu Antardasha'), findsOneWidget);
+    expect(find.text('PRATYANTAR'), findsOneWidget);
+    expect(find.text('CURRENT'), findsOneWidget);
+    expect(find.text('21 days remaining'), findsOneWidget);
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    expect(find.text('Guru Dev'), findsWidgets);
+    expect(find.text('11th Bhav · Cancer'), findsOneWidget);
+    expect(find.text('Vakri · Asta'), findsOneWidget);
+    expect(find.text('Guru Dev → Shukra'), findsOneWidget);
+    expect(find.text('D10 · 10th Bhav · Leo'), findsOneWidget);
+    expect(find.text('CAREER RELEVANCE'), findsOneWidget);
+    expect(find.text('Supported'), findsOneWidget);
+    expect(find.text('See Career Timing'), findsOneWidget);
+    expect(find.text('Shani Dev'), findsOneWidget);
+    expect(find.text('Favorable'), findsNothing);
+    expect(find.text('Best Used For'), findsNothing);
+    expect(find.text('Promotion'), findsNothing);
+
+    await tester.tap(find.text('ASTROLOGY BEHIND THIS'));
+    await tester.pumpAndSettle();
+    expect(find.text('CAREER HISTORY CONTEXT'), findsOneWidget);
+    expect(find.text('CLASSICAL CONTEXT'), findsOneWidget);
+    expect(find.text('Internal rule'), findsNothing);
+  });
+
+  testWidgets('shows lifecycle-specific detail hero without unsafe progress', (
+    tester,
+  ) async {
+    final harness = await _Harness.create();
+    addTearDown(harness.dispose);
+    for (final status in const ['PAST', 'UPCOMING']) {
+      harness.repository.detailOverride = _richDetail(status: status);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DashaPeriodInsightScreen(
+            profileController: harness.profiles,
+            controller: harness.controller,
+            pratyantarStart: DateTime.parse(_pdStart),
+            now: () => DateTime.utc(2026, 9, 10),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.text(status == 'PAST' ? 'COMPLETED' : 'UPCOMING'),
+        findsOneWidget,
+      );
+      expect(find.byType(LinearProgressIndicator), findsNothing);
+      if (status == 'UPCOMING') {
+        expect(find.textContaining('Starts '), findsOneWidget);
+      }
+    }
+  });
+}
+
+void _expectBackGeometry(
+  WidgetTester tester, {
+  required ValueKey<String> buttonKey,
+  required String title,
+}) {
+  final backFinder = find.byKey(buttonKey);
+  final titleFinder = find.text(title);
+  expect(backFinder, findsOneWidget);
+  expect(titleFinder, findsOneWidget);
+
+  final backTopLeft = tester.getTopLeft(backFinder);
+  final backSize = tester.getSize(backFinder);
+  final titleTopLeft = tester.getTopLeft(titleFinder);
+  final screenWidth =
+      tester.view.physicalSize.width / tester.view.devicePixelRatio;
+  final backCenterX = backTopLeft.dx + backSize.width / 2;
+
+  expect(backTopLeft.dx, closeTo(20, 2));
+  expect(backSize.width, closeTo(48, .1));
+  expect(backSize.height, closeTo(48, .1));
+  expect(titleTopLeft.dx, closeTo(20, 2));
+  expect(backTopLeft.dx, lessThan(screenWidth * .2));
+  expect((backCenterX - screenWidth / 2).abs(), greaterThan(screenWidth * .2));
 }
 
 const _mdStart = '2024-01-01T00:00:00.123Z';
@@ -305,6 +430,7 @@ class _Repository implements VimshottariRepository {
   final bool failFirstAd;
   int mdCalls = 0, adCalls = 0;
   String? adSelector, pdMdSelector, pdAdSelector, detailSelector;
+  DashaPeriodInsight? detailOverride;
 
   @override
   Future<DashaScopedTimeline> getMahadashaTimeline({
@@ -342,22 +468,23 @@ class _Repository implements VimshottariRepository {
     required DateTime pratyantarStartUtc,
   }) async {
     detailSelector = pratyantarStartUtc.toIso8601String();
-    return DashaPeriodInsight(
-      mahadasha: _period('jupiter', _mdStart, '2040-01-01T00:00:00.000Z'),
-      antardasha: _period('rahu', _adStart, '2027-01-01T00:00:00.000Z'),
-      pratyantar: _period('jupiter', _pdStart, '2025-03-01T00:00:00.000Z'),
-      status: 'CURRENT',
-      summary: 'Safe factual summary.',
-      presentation: const DashaPresentationCopy(
-        english: 'Safe factual summary.',
-        hinglish: 'Safe factual summary.',
-      ),
-      nextPeriod: null,
-      natalFacts: const [],
-      stateFacts: const [],
-      relationshipFacts: const [],
-      d10Facts: const [],
-    );
+    return detailOverride ??
+        DashaPeriodInsight(
+          mahadasha: _period('jupiter', _mdStart, '2040-01-01T00:00:00.000Z'),
+          antardasha: _period('rahu', _adStart, '2027-01-01T00:00:00.000Z'),
+          pratyantar: _period('jupiter', _pdStart, '2025-03-01T00:00:00.000Z'),
+          status: 'CURRENT',
+          summary: 'Safe factual summary.',
+          presentation: const DashaPresentationCopy(
+            english: 'Safe factual summary.',
+            hinglish: 'Safe factual summary.',
+          ),
+          nextPeriod: null,
+          natalFacts: const [],
+          stateFacts: const [],
+          relationshipFacts: const [],
+          d10Facts: const [],
+        );
   }
 
   @override
@@ -462,6 +589,84 @@ class _Repository implements VimshottariRepository {
     );
   }
 }
+
+DashaPeriodInsight _richDetail({String status = 'CURRENT'}) =>
+    DashaPeriodInsight(
+      mahadasha: _period(
+        'jupiter',
+        '2024-01-01T00:00:00.000Z',
+        '2040-01-01T00:00:00.000Z',
+      ),
+      antardasha: _period(
+        'rahu',
+        '2026-01-01T00:00:00.000Z',
+        '2027-01-01T00:00:00.000Z',
+      ),
+      pratyantar: _period(
+        'jupiter',
+        '2026-09-01T00:00:00.000Z',
+        '2026-10-01T00:00:00.000Z',
+      ),
+      status: status,
+      summary: 'Backend factual copy.',
+      presentation: const DashaPresentationCopy(
+        english: 'This Jupiter Pratyantar is factual context.',
+        hinglish: 'Yeh Guru Dev Pratyantar factual context hai.',
+      ),
+      nextPeriod: _period(
+        'saturn',
+        '2026-10-01T00:00:00.000Z',
+        '2026-11-01T00:00:00.000Z',
+      ),
+      natalFacts: const [
+        DashaFact({
+          'planet': 'jupiter',
+          'role': 'PRATYANTAR',
+          'sign': 'Cancer',
+          'house': 11,
+          'ownsHouses': [10],
+        }),
+      ],
+      stateFacts: const [
+        DashaFact({
+          'planet': 'jupiter',
+          'role': 'PRATYANTAR',
+          'states': ['RETROGRADE', 'COMBUST'],
+        }),
+      ],
+      relationshipFacts: const [
+        DashaFact({'from': 'jupiter', 'to': 'venus', 'relationship': 'FRIEND'}),
+      ],
+      d10Facts: const [
+        DashaFact({
+          'planet': 'jupiter',
+          'role': 'PRATYANTAR',
+          'sign': 'Leo',
+          'house': 10,
+        }),
+      ],
+      careerRelevance: const DashaOptionalContext(
+        status: 'SUPPORTED',
+        presentation: DashaPresentationCopy(
+          english: 'Exact Career timing context.',
+          hinglish: 'Exact Career timing context.',
+        ),
+      ),
+      calibrationContext: const DashaOptionalContext(
+        status: 'MIXED',
+        presentation: DashaPresentationCopy(
+          english: 'Recorded Career history context.',
+          hinglish: 'Recorded Career history context.',
+        ),
+      ),
+      classicalContext: const DashaOptionalContext(
+        status: 'SUPPORTED',
+        presentation: DashaPresentationCopy(
+          english: 'Audited classical context.',
+          hinglish: 'Audited classical context.',
+        ),
+      ),
+    );
 
 DashaPeriod _period(String lord, String start, String end) =>
     DashaPeriod(lord: lord, start: start, end: end);

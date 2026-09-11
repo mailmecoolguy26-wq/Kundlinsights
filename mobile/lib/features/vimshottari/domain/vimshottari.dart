@@ -90,6 +90,7 @@ class DashaPeriodInsight {
     required this.relationshipFacts,
     required this.d10Facts,
     this.careerRelevance,
+    this.calibrationContext,
     this.classicalContext,
   });
   final DashaPeriod mahadasha, antardasha, pratyantar;
@@ -97,7 +98,9 @@ class DashaPeriodInsight {
   final DashaPresentationCopy presentation;
   final DashaPeriod? nextPeriod;
   final List<DashaFact> natalFacts, stateFacts, relationshipFacts, d10Facts;
-  final DashaOptionalContext? careerRelevance, classicalContext;
+  final DashaOptionalContext? careerRelevance,
+      calibrationContext,
+      classicalContext;
   factory DashaPeriodInsight.fromJson(Map<String, dynamic> json) {
     final hierarchy = _map(json, 'hierarchy');
     final context = _map(json, 'periodContext');
@@ -122,6 +125,9 @@ class DashaPeriodInsight {
       d10Facts: _facts(json['d10Facts']),
       careerRelevance: DashaOptionalContext.tryFromJson(
         _optionalMap(json, 'careerRelevance'),
+      ),
+      calibrationContext: DashaOptionalContext.tryFromJson(
+        _optionalMap(json, 'calibrationContext'),
       ),
       classicalContext: DashaOptionalContext.tryFromJson(
         _optionalMap(json, 'classicalContext'),

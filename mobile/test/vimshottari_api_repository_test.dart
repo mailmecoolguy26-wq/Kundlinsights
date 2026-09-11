@@ -242,6 +242,53 @@ void main() {
       throwsFormatException,
     );
   });
+
+  test(
+    'preserves supplied optional period-detail contexts without inferring them',
+    () {
+      final detail = DashaPeriodInsight.fromJson({
+        'hierarchy': {
+          'mahadasha': _period(
+            'jupiter',
+            '2024-01-01T00:00:00.000Z',
+            '2040-01-01T00:00:00.000Z',
+          ),
+          'antardasha': _period(
+            'rahu',
+            '2026-01-01T00:00:00.000Z',
+            '2027-01-01T00:00:00.000Z',
+          ),
+          'pratyantar': _period(
+            'jupiter',
+            '2026-09-01T00:00:00.000Z',
+            '2026-10-01T00:00:00.000Z',
+          ),
+        },
+        'periodContext': {
+          'status': 'CURRENT',
+          'summary': 'Safe factual copy.',
+          'presentation': {
+            'english': 'Safe factual copy.',
+            'hinglish': 'Safe factual copy.',
+          },
+        },
+        'natalFacts': const [],
+        'stateFacts': const [],
+        'relationshipFacts': const [],
+        'd10Facts': const [],
+        'calibrationContext': {
+          'status': 'MIXED',
+          'presentation': {
+            'english': 'Recorded facts.',
+            'hinglish': 'Recorded facts.',
+          },
+        },
+      });
+      expect(detail.calibrationContext!.status, 'MIXED');
+      expect(detail.careerRelevance, isNull);
+      expect(detail.classicalContext, isNull);
+    },
+  );
 }
 
 ApiClient _client(AppConfig config, _Adapter adapter) => ApiClient(

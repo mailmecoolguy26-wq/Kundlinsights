@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../profiles/profile_controller.dart';
 import '../../readings/astrology_presentation_copy.dart';
+import 'dasha_back_button.dart';
 import '../domain/vimshottari.dart';
 import '../vimshottari_controller.dart';
 
@@ -21,6 +24,7 @@ class VimshottariTimelineScreen extends StatefulWidget {
 }
 
 class _VimshottariTimelineScreenState extends State<VimshottariTimelineScreen> {
+  String? _overviewInsightScope;
   @override
   void initState() {
     super.initState();
@@ -36,21 +40,19 @@ class _VimshottariTimelineScreenState extends State<VimshottariTimelineScreen> {
       ]),
       builder: (_, child) {
         final insightContext = widget.controller.current?.insightContext;
+        final current = widget.controller.current;
+        _requestOverviewInsight(current);
         return Scaffold(
           backgroundColor: _C.midnight,
           body: SafeArea(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
               children: [
                 Row(
                   children: [
-                    Material(
-                      color: _C.violet,
-                      shape: const CircleBorder(),
-                      child: IconButton(
-                        onPressed: () => Navigator.of(context).maybePop(),
-                        icon: const Icon(Icons.arrow_back, color: _C.alabaster),
-                      ),
+                    DashaBackButton(
+                      key: const ValueKey('dasha_overview_back_button'),
+                      onPressed: () => Navigator.of(context).maybePop(),
                     ),
                     const Spacer(),
                     _ProfilePill(
@@ -62,24 +64,15 @@ class _VimshottariTimelineScreenState extends State<VimshottariTimelineScreen> {
                 const SizedBox(height: 24),
                 const Text('DASHA', style: _S.eyebrow),
                 const SizedBox(height: 5),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        widget.controller.timelineLevel == VimshottariLevel.ad
-                            ? 'Antardasha Timeline'
-                            : widget.controller.timelineLevel ==
-                                  VimshottariLevel.pd
-                            ? 'Pratyantar Timeline'
-                            : 'Vimshottari',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: _S.title,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    const _Chip('VIMSHOTTARI'),
-                  ],
+                Text(
+                  widget.controller.timelineLevel == VimshottariLevel.ad
+                      ? 'Antardasha Timeline'
+                      : widget.controller.timelineLevel == VimshottariLevel.pd
+                      ? 'Pratyantar Timeline'
+                      : 'Vimshottari',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _S.title,
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -95,9 +88,12 @@ class _VimshottariTimelineScreenState extends State<VimshottariTimelineScreen> {
                 ),
                 const SizedBox(height: 22),
                 _ActivePeriods(current: widget.controller.current),
-                if (insightContext?.currentPhase case final phase?) ...[
+                if (current != null) ...[
                   const SizedBox(height: 20),
-                  _CurrentPhase(phase: phase),
+                  _CurrentDashaInsight(
+                    current: current,
+                    controller: widget.controller,
+                  ),
                 ],
                 const SizedBox(height: 22),
                 _OverviewTimeline(
@@ -107,23 +103,28 @@ class _VimshottariTimelineScreenState extends State<VimshottariTimelineScreen> {
                   const SizedBox(height: 20),
                   _NextTransition(transition: transition),
                 ],
-                if (insightContext?.careerRelevance case final relevance?) ...[
-                  const SizedBox(height: 20),
-                  _CareerRelevance(
-                    relevance: relevance,
-                    onSeeCareerTiming: () => context.go('/readings'),
-                  ),
-                ],
-                if (insightContext?.classicalContext case final classical?) ...[
-                  const SizedBox(height: 20),
-                  _ClassicalContext(context: classical),
-                ],
               ],
             ),
           ),
         );
       },
     );
+  }
+
+  void _requestOverviewInsight(VimshottariCurrent? current) {
+    if (current == null) return;
+    final scope = '${current.birthProfileId}:${current.pratyantardasha.start}';
+    if (_overviewInsightScope == scope) return;
+    _overviewInsightScope = scope;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _overviewInsightScope == scope) {
+        unawaited(
+          widget.controller.loadOverviewPeriodInsight(
+            current.pratyantardasha.startUtc,
+          ),
+        );
+      }
+    });
   }
 }
 
@@ -419,7 +420,7 @@ class _ActivePeriods extends StatelessWidget {
               '/vimshottari/period-insight?pratyantarStart=${Uri.encodeComponent(current!.pratyantardasha.start)}',
             ),
             child: _Period(
-              'Pratyantar · Active Now',
+              'Pratyantar',
               current!.pratyantardasha,
               active: true,
             ),
@@ -461,42 +462,144 @@ class _OverviewTimeline extends StatelessWidget {
   );
 }
 
-class _CurrentPhase extends StatelessWidget {
-  const _CurrentPhase({required this.phase});
-  final DashaCurrentPhase phase;
+class _CurrentDashaInsight extends StatelessWidget {
+  const _CurrentDashaInsight({required this.current, required this.controller});
+  final VimshottariCurrent current;
+  final VimshottariController controller;
 
   @override
   Widget build(BuildContext context) {
     final copy = AstrologyPresentationCopy.of(context);
+    final insight = controller.overviewPeriodInsight;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('YOUR CURRENT PHASE', style: _S.eyebrow),
+        const Text('YOUR CURRENT DASHA PHASE', style: _S.eyebrow),
         const SizedBox(height: 10),
         _DarkCard(
           emphasis: true,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      '${_timingLevelLabel(phase.timingLevel)} · ${copy.planet(phase.lord)}',
-                      style: _S.cardTitle,
-                    ),
+              if (controller.overviewPeriodInsightLoading)
+                const SizedBox(
+                  height: 28,
+                  child: Center(
+                    child: CircularProgressIndicator(color: _C.gold),
                   ),
-                  _StatusChip(phase.status),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(_presentation(context, phase.presentation), style: _S.body),
+                )
+              else if (controller.overviewPeriodInsightError != null)
+                _InsightRetry(
+                  onRetry: () => controller.loadOverviewPeriodInsight(
+                    current.pratyantardasha.startUtc,
+                  ),
+                )
+              else if (insight != null) ...[
+                Text(
+                  _presentation(context, insight.presentation),
+                  style: _S.body,
+                ),
+                ..._previewRows(copy, insight),
+                const SizedBox(height: 12),
+                TextButton.icon(
+                  onPressed: () => context.push(
+                    '/vimshottari/period-insight?pratyantarStart=${Uri.encodeComponent(current.pratyantardasha.start)}',
+                  ),
+                  icon: const Icon(Icons.arrow_forward),
+                  label: const Text('View Full Dasha Insight'),
+                ),
+              ] else
+                const Text('Dasha insight unavailable', style: _S.body),
             ],
           ),
         ),
       ],
     );
   }
+}
+
+class _InsightRetry extends StatelessWidget {
+  const _InsightRetry({required this.onRetry});
+  final VoidCallback onRetry;
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      const Expanded(child: Text('Dasha insight unavailable', style: _S.body)),
+      TextButton(onPressed: onRetry, child: const Text('Retry')),
+    ],
+  );
+}
+
+List<Widget> _previewRows(
+  AstrologyPresentationCopy copy,
+  DashaPeriodInsight insight,
+) {
+  final rows = <Widget>[];
+  if (insight.careerRelevance case final relevance?) {
+    rows.add(
+      _PreviewRow(
+        title: 'CAREER RELEVANCE',
+        detail:
+            '${_statusLabel(relevance.status)}\n${copy.isHinglish ? relevance.presentation.hinglish : relevance.presentation.english}',
+      ),
+    );
+  }
+  final facts = [
+    ...insight.natalFacts,
+    ...insight.stateFacts,
+    ...insight.d10Facts,
+    ...insight.relationshipFacts,
+  ];
+  for (final fact in facts.take(3 - rows.length)) {
+    final text = _factText(copy, fact);
+    if (text != null) {
+      rows.add(_PreviewRow(title: 'ASTROLOGY CONTEXT', detail: text));
+    }
+  }
+  return rows;
+}
+
+class _PreviewRow extends StatelessWidget {
+  const _PreviewRow({required this.title, required this.detail});
+  final String title, detail;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 12),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Divider(color: Color(0x335E4A87), height: 1),
+        const SizedBox(height: 10),
+        Text(title, style: _S.eyebrow),
+        const SizedBox(height: 4),
+        Text(detail, style: _S.body),
+      ],
+    ),
+  );
+}
+
+String? _factText(AstrologyPresentationCopy copy, DashaFact fact) {
+  final value = fact.values;
+  if (value['planet'] is String &&
+      value['house'] is int &&
+      value['sign'] is String) {
+    return '${copy.planet(value['planet'] as String)} · ${copy.house(value['house'] as int)} · ${value['sign']}';
+  }
+  if (value['planet'] is String && value['states'] is List) {
+    final states = (value['states'] as List)
+        .whereType<String>()
+        .map(copy.state)
+        .join(' · ');
+    return states.isEmpty
+        ? null
+        : '${copy.planet(value['planet'] as String)} · $states';
+  }
+  if (value['from'] is String &&
+      value['to'] is String &&
+      value['relationship'] is String) {
+    return '${copy.planet(value['from'] as String)} → ${copy.planet(value['to'] as String)}\n${value['relationship']}';
+  }
+  return null;
 }
 
 class _NextTransition extends StatelessWidget {
@@ -538,97 +641,6 @@ class _NextTransition extends StatelessWidget {
       ],
     );
   }
-}
-
-class _CareerRelevance extends StatelessWidget {
-  const _CareerRelevance({
-    required this.relevance,
-    required this.onSeeCareerTiming,
-  });
-  final DashaCareerRelevance relevance;
-  final VoidCallback onSeeCareerTiming;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const Text('CAREER RELEVANCE', style: _S.eyebrow),
-      const SizedBox(height: 10),
-      _DarkCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.work_outline, color: _C.gold, size: 19),
-                const SizedBox(width: 8),
-                _StatusChip(relevance.status),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              _presentation(context, relevance.presentation),
-              style: _S.body,
-            ),
-            const SizedBox(height: 6),
-            TextButton.icon(
-              onPressed: onSeeCareerTiming,
-              icon: const Icon(Icons.arrow_forward, size: 16),
-              label: const Text('See Career Timing'),
-              style: TextButton.styleFrom(foregroundColor: _C.gold),
-            ),
-          ],
-        ),
-      ),
-    ],
-  );
-}
-
-class _ClassicalContext extends StatelessWidget {
-  const _ClassicalContext({required this.context});
-  final DashaClassicalContext context;
-
-  @override
-  Widget build(BuildContext buildContext) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const Text('CLASSICAL CONTEXT', style: _S.eyebrow),
-      const SizedBox(height: 10),
-      _DarkCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(
-                  Icons.auto_awesome_outlined,
-                  color: _C.gold,
-                  size: 19,
-                ),
-                const SizedBox(width: 8),
-                _StatusChip(context.status),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              _presentation(buildContext, context.presentation),
-              style: _S.body,
-            ),
-            const SizedBox(height: 8),
-            Text(_presentation(buildContext, context.caution), style: _S.muted),
-          ],
-        ),
-      ),
-    ],
-  );
-}
-
-class _StatusChip extends StatelessWidget {
-  const _StatusChip(this.status);
-  final String status;
-
-  @override
-  Widget build(BuildContext context) => _Chip(_statusLabel(status));
 }
 
 String _presentation(
@@ -840,6 +852,7 @@ class _Chip extends StatelessWidget {
   final String label;
   @override
   Widget build(BuildContext context) => Container(
+    key: const ValueKey('dasha-profile-pill'),
     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
     decoration: BoxDecoration(
       color: const Color(0x332F2413),
@@ -905,7 +918,6 @@ abstract final class _S {
         fontSize: 12,
         fontWeight: FontWeight.w600,
       ),
-      muted = TextStyle(color: _C.slate, fontSize: 11.5, height: 1.35),
       chip = TextStyle(
         color: _C.gold,
         fontSize: 9,

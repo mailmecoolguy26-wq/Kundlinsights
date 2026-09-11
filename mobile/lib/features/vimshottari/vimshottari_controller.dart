@@ -33,9 +33,12 @@ class VimshottariController extends ChangeNotifier {
   VimshottariCurrent? _current;
   VimshottariTimeline? _timeline;
   DashaPeriodInsight? _periodInsight;
+  DashaPeriodInsight? _overviewPeriodInsight;
   Object? _currentError;
   Object? _timelineError;
   Object? _periodInsightError;
+  Object? _overviewPeriodInsightError;
+  bool _overviewPeriodInsightLoading = false;
   String? _subject;
   String? _birthProfileId;
   VimshottariLevel _timelineLevel = VimshottariLevel.md;
@@ -50,9 +53,12 @@ class VimshottariController extends ChangeNotifier {
   VimshottariCurrent? get current => _current;
   VimshottariTimeline? get timeline => _timeline;
   DashaPeriodInsight? get periodInsight => _periodInsight;
+  DashaPeriodInsight? get overviewPeriodInsight => _overviewPeriodInsight;
   Object? get currentError => _currentError;
   Object? get timelineError => _timelineError;
   Object? get periodInsightError => _periodInsightError;
+  Object? get overviewPeriodInsightError => _overviewPeriodInsightError;
+  bool get overviewPeriodInsightLoading => _overviewPeriodInsightLoading;
   VimshottariLevel get timelineLevel => _timelineLevel;
   int get timelineWindowDays => _timelineWindowDays;
 
@@ -71,9 +77,12 @@ class VimshottariController extends ChangeNotifier {
     _current = null;
     _timeline = null;
     _periodInsight = null;
+    _overviewPeriodInsight = null;
     _currentError = null;
     _timelineError = null;
     _periodInsightError = null;
+    _overviewPeriodInsightError = null;
+    _overviewPeriodInsightLoading = false;
     if (subject == null || profileId == null) {
       _currentState = VimshottariLoadState.initial;
       _timelineState = VimshottariLoadState.initial;
@@ -156,6 +165,34 @@ class VimshottariController extends ChangeNotifier {
         notifyListeners();
       }
       return null;
+    }
+  }
+
+  Future<void> loadOverviewPeriodInsight(DateTime pratyantarStartUtc) async {
+    final subject = _subject;
+    final profileId = _birthProfileId;
+    final generation = _currentGeneration;
+    if (subject == null || profileId == null) return;
+    _overviewPeriodInsight = null;
+    _overviewPeriodInsightError = null;
+    _overviewPeriodInsightLoading = true;
+    notifyListeners();
+    try {
+      final result = await repository.getPeriodInsight(
+        birthProfileId: profileId,
+        pratyantarStartUtc: pratyantarStartUtc,
+      );
+      if (!_isCurrentRequest(generation, subject, profileId)) return;
+      _overviewPeriodInsight = result;
+    } catch (error) {
+      if (_isCurrentRequest(generation, subject, profileId)) {
+        _overviewPeriodInsightError = error;
+      }
+    } finally {
+      if (_isCurrentRequest(generation, subject, profileId)) {
+        _overviewPeriodInsightLoading = false;
+        notifyListeners();
+      }
     }
   }
 
