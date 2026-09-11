@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../profiles/profile_controller.dart';
 import '../../readings/astrology_presentation_copy.dart';
 import 'dasha_back_button.dart';
+import 'dasha_status_view.dart';
 import '../domain/vimshottari.dart';
 import '../vimshottari_controller.dart';
 
@@ -40,12 +41,22 @@ class _DashaPeriodInsightScreenState extends State<DashaPeriodInsightScreen> {
     listenable: widget.controller,
     builder: (_, _) {
       final detail = widget.controller.periodInsight;
+      final failed = widget.controller.periodInsightError != null;
       return Scaffold(
         backgroundColor: _C.midnight,
         body: SafeArea(
-          child: detail == null
-              ? const Center(child: CircularProgressIndicator(color: _C.gold))
-              : _Detail(detail: detail, now: widget._now().toUtc()),
+          child: detail != null
+              ? _Detail(detail: detail, now: widget._now().toUtc())
+              : failed
+              ? DashaStatusView.error(
+                  title: 'Dasha unavailable',
+                  body: 'We couldn\'t load this Dasha period right now.',
+                  actionLabel: 'Retry',
+                  onAction: () => widget.controller.loadPeriodInsight(
+                    widget.pratyantarStart,
+                  ),
+                )
+              : const DashaStatusView.loading(),
         ),
       );
     },
@@ -312,27 +323,30 @@ class _TechnicalContext extends StatelessWidget {
     final copy = AstrologyPresentationCopy.of(context);
     return Container(
       decoration: _box(false),
-      child: ExpansionTile(
-        collapsedIconColor: _C.gold,
-        iconColor: _C.gold,
-        title: const Text('ASTROLOGY BEHIND THIS', style: _S.eyebrow),
-        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        children: [
-          Text(
-            '${copy.planet(detail.mahadasha.lord)} Mahadasha → '
-            '${copy.planet(detail.antardasha.lord)} Antardasha → '
-            '${copy.planet(detail.pratyantar.lord)} Pratyantar',
-            style: _S.body,
-          ),
-          if (detail.calibrationContext case final context?) ...[
-            const SizedBox(height: 14),
-            _ContextCopy(title: 'CAREER HISTORY CONTEXT', context: context),
+      child: Material(
+        color: Colors.transparent,
+        child: ExpansionTile(
+          collapsedIconColor: _C.gold,
+          iconColor: _C.gold,
+          title: const Text('ASTROLOGY BEHIND THIS', style: _S.eyebrow),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          children: [
+            Text(
+              '${copy.planet(detail.mahadasha.lord)} Mahadasha → '
+              '${copy.planet(detail.antardasha.lord)} Antardasha → '
+              '${copy.planet(detail.pratyantar.lord)} Pratyantar',
+              style: _S.body,
+            ),
+            if (detail.calibrationContext case final context?) ...[
+              const SizedBox(height: 14),
+              _ContextCopy(title: 'CAREER HISTORY CONTEXT', context: context),
+            ],
+            if (detail.classicalContext case final context?) ...[
+              const SizedBox(height: 14),
+              _ContextCopy(title: 'CLASSICAL CONTEXT', context: context),
+            ],
           ],
-          if (detail.classicalContext case final context?) ...[
-            const SizedBox(height: 14),
-            _ContextCopy(title: 'CLASSICAL CONTEXT', context: context),
-          ],
-        ],
+        ),
       ),
     );
   }

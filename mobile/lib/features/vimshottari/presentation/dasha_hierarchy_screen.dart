@@ -89,7 +89,11 @@ class _DashaHierarchyScreenState extends State<DashaHierarchyScreen> {
           if (timeline == null)
             return Center(
               child: TextButton(
-                onPressed: () => setState(() => _future = _load()),
+                onPressed: () {
+                  setState(() {
+                    _future = _load();
+                  });
+                },
                 child: const Text('Retry'),
               ),
             );

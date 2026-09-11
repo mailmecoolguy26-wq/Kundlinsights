@@ -27,6 +27,7 @@ import '../../features/career_events/presentation/career_calibration_screen.dart
 import '../../features/vimshottari/presentation/vimshottari_timeline_screen.dart';
 import '../../features/vimshottari/presentation/dasha_period_insight_screen.dart';
 import '../../features/vimshottari/presentation/dasha_hierarchy_screen.dart';
+import '../../features/vimshottari/presentation/dasha_status_view.dart';
 import '../../features/vimshottari/vimshottari_controller.dart';
 import '../../features/transits/presentation/current_transits_screen.dart';
 import '../../features/transits/transit_snapshot_controller.dart';
@@ -129,7 +130,9 @@ GoRouter createAppRouter(
         final value = state.uri.queryParameters['mahadashaStart'];
         final start = value == null ? null : DateTime.tryParse(value)?.toUtc();
         return start == null
-            ? const _LoadingScreen()
+            ? DashaInvalidLinkScreen(
+                onBackToDasha: () => context.go('/vimshottari'),
+              )
             : DashaHierarchyScreen(
                 profileController: profiles,
                 controller: vimshottari,
@@ -146,7 +149,9 @@ GoRouter createAppRouter(
         final mdStart = md == null ? null : DateTime.tryParse(md)?.toUtc();
         final adStart = ad == null ? null : DateTime.tryParse(ad)?.toUtc();
         return mdStart == null || adStart == null
-            ? const _LoadingScreen()
+            ? DashaInvalidLinkScreen(
+                onBackToDasha: () => context.go('/vimshottari'),
+              )
             : DashaHierarchyScreen(
                 profileController: profiles,
                 controller: vimshottari,
@@ -164,7 +169,9 @@ GoRouter createAppRouter(
             ? null
             : DateTime.tryParse(value)?.toUtc();
         return instant == null
-            ? const _LoadingScreen()
+            ? DashaInvalidLinkScreen(
+                onBackToDasha: () => context.go('/vimshottari'),
+              )
             : DashaPeriodInsightScreen(
                 profileController: profiles,
                 controller: vimshottari,

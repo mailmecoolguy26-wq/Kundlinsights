@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../profiles/profile_controller.dart';
 import '../../readings/astrology_presentation_copy.dart';
 import 'dasha_back_button.dart';
+import 'dasha_status_view.dart';
 import '../domain/vimshottari.dart';
 import '../vimshottari_controller.dart';
 
@@ -87,7 +88,11 @@ class _VimshottariTimelineScreenState extends State<VimshottariTimelineScreen> {
                   style: _S.body,
                 ),
                 const SizedBox(height: 22),
-                _ActivePeriods(current: widget.controller.current),
+                _ActivePeriods(
+                  current: widget.controller.current,
+                  loadState: widget.controller.currentState,
+                  onRetry: widget.controller.refreshCurrent,
+                ),
                 if (current != null) ...[
                   const SizedBox(height: 20),
                   _CurrentDashaInsight(
@@ -397,14 +402,28 @@ class _AntardashaPeriod extends StatelessWidget {
 }
 
 class _ActivePeriods extends StatelessWidget {
-  const _ActivePeriods({required this.current});
+  const _ActivePeriods({
+    required this.current,
+    required this.loadState,
+    required this.onRetry,
+  });
   final VimshottariCurrent? current;
+  final VimshottariLoadState loadState;
+  final Future<void> Function() onRetry;
   @override
   Widget build(BuildContext context) {
     if (current == null) {
-      return const _DarkCard(
-        child: Center(child: CircularProgressIndicator(color: _C.gold)),
-      );
+      if (loadState == VimshottariLoadState.error) {
+        return _DarkCard(
+          child: DashaStatusView.error(
+            title: 'Dasha unavailable',
+            body: 'We couldn\'t load your current Dasha right now.',
+            actionLabel: 'Retry',
+            onAction: () => onRetry(),
+          ),
+        );
+      }
+      return const _DarkCard(child: DashaStatusView.loading());
     }
     return _DarkCard(
       emphasis: true,
