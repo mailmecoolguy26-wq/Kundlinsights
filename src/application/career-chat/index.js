@@ -36,6 +36,7 @@ function classifyCareerIntent({ userText, conversationContext = [] } = {}) {
   else if (/switch jobs?|change jobs?/.test(text)) intent = INTENTS.JOB_SWITCH_TIMING;
   else if (/next\s*(\d+)?\s*(day|month)|agle?\s*\d+|career timing/.test(text)) intent = INTENTS.CAREER_TIMING_WINDOW;
   else if (/new job|next job|job kab|job milegi|job mil/.test(text)) intent = INTENTS.NEXT_JOB_TIMING;
+  else if (/^job\??$/.test(text)) intent = INTENTS.NEEDS_CLARIFICATION;
   else if (/kya chal raha|how.*career|career.*now/.test(text)) intent = INTENTS.CAREER_STATUS;
   else if (/uncertain|samajh nahi|unstable|what.*career.*do/.test(text)) intent = INTENTS.CAREER_UNCERTAINTY;
   else intent = INTENTS.UNSUPPORTED_CAREER_QUESTION;
@@ -54,3 +55,4 @@ function buildEvidencePacket({ birthProfileId, intent, careerReading = null } = 
 function answerContract(packet) { const policy = policyFor(packet.intent.intent); const timing = [...packet.currentTiming, ...packet.upcomingTiming]; const answerability = policy.answerability || (timing.length ? ANSWERABILITY.SUPPORTED : ANSWERABILITY.INSUFFICIENT_EVIDENCE); return Object.freeze({ intent: packet.intent.intent, answerability, headlineFact: answerability === ANSWERABILITY.INSUFFICIENT_EVIDENCE ? 'Available Career timing evidence is insufficient to estimate a supported window.' : answerability === ANSWERABILITY.UNSUPPORTED ? 'This question is outside the current Career Chat scope.' : 'Available Career timing evidence can be described without guaranteeing an outcome.', timingWindows: timing, evidenceSummary: policy.required, caveats: policy.unsupported, followUpOptions: packet.intent.intent === INTENTS.WORKPLACE_PRESSURE ? ['Show current Career timing', 'Check job-switch timing'] : ['Show my next Career timing window', 'Compare current vs upcoming Career period'], prohibitedClaims: policy.unsupported }); }
 class CareerChatLanguageModel { async classifyIntent() { throw new Error('CAREER_CHAT_LANGUAGE_MODEL_NOT_CONFIGURED'); } async renderAnswer() { throw new Error('CAREER_CHAT_LANGUAGE_MODEL_NOT_CONFIGURED'); } }
 module.exports = { DOMAIN, INTENTS, ANSWERABILITY, classifyCareerIntent, policyFor, buildEvidencePacket, answerContract, CareerChatLanguageModel };
+Object.assign(module.exports, require('./career-chat-orchestrator'));
