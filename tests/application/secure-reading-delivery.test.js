@@ -96,6 +96,27 @@ test('Career Insight delivery exposes a safe structured trace without internal e
   assert.deepEqual(detail.insights[0].timing.to, '2026-10-01T00:00:00.000Z');
   assert.equal(JSON.stringify(detail.insights).match(/evidence:private|signal:private|fact:private|privateBlob|career-h10-connected|ruleset/i), null);
 });
+test('Career Ashtakavarga structure delivery is additive, factual, and excludes internal or interpretive fields', async () => {
+  const { service, readings } = setup();
+  const snapshot = record('reading-ashtakavarga', '2026-08-23T00:00:00.000Z', 'Insight content.');
+  snapshot.reading.careerAshtakavargaStructure = {
+    h10: { house: 10, sav: 31, threshold: 'private' },
+    h10Lord: { planet: 'Mars', house: 7, houseSav: 31, sourceId: 'private' },
+    h7: { house: 7, sav: 25 },
+    h7Lord: { planet: 'Saturn', house: 6, houseSav: 23 },
+    tenthFromH10Lord: { house: 4, sav: 35, rank: 1 },
+  };
+  readings.insertReadingRecord({ userId: 'user-a', birthProfileId: 'profile-a', record: snapshot });
+  const detail = await service.getSecureReadingDetail({ principal: principal('subject-a'), readingId: 'reading-ashtakavarga' });
+  assert.deepEqual(detail.careerAshtakavargaStructure, {
+    h10: { house: 10, sav: 31 },
+    h10Lord: { planet: 'Mars', house: 7, houseSav: 31 },
+    h7: { house: 7, sav: 25 },
+    h7Lord: { planet: 'Saturn', house: 6, houseSav: 23 },
+    tenthFromH10Lord: { house: 4, sav: 35 },
+  });
+  assert.equal(JSON.stringify(detail.careerAshtakavargaStructure).match(/threshold|rank|sourceId|strong|weak|favorable/i), null);
+});
 test('Career Insight delivery omits absent optional transit and concurrent fields without rejecting the detail DTO', async () => {
   const { service, readings } = setup();
   const insights = [{

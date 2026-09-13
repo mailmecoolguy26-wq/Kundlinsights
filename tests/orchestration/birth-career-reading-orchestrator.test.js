@@ -39,6 +39,14 @@ test('builds the Hyderabad development fixture through Layer 15A using injected 
   assert.equal(ashtakavarga.some((item) => item.scoreType === 'SAV' && item.houseNumber === 10), true);
   assert.equal(ashtakavarga.some((item) => item.scoreType === 'BAV' && item.houseNumber === 10), true);
   assert.equal(ashtakavarga.some((item) => item.scoreType === 'LAGNA_BAV' && item.houseNumber === 10), true);
+  const structure = result.reading.careerAshtakavargaStructure;
+  assert.equal(structure.h10.house, 10);
+  assert.equal(Number.isInteger(structure.h10.sav), true);
+  assert.equal(['Sun', 'Moon', 'Mars', 'Mercury', 'Jupiter', 'Venus', 'Saturn'].includes(structure.h10Lord.planet), true);
+  assert.equal(Number.isInteger(structure.h10Lord.house), true);
+  assert.equal(structure.h7.house, 7);
+  assert.equal(Number.isInteger(structure.tenthFromH10Lord.house), true);
+  assert.equal(JSON.stringify(structure).match(/threshold|rank|strong|weak|favorable|d10/i), null);
   assert.equal(foundation.technicalDetails.independentMechanismFamilies.includes('D10_DIVISIONAL'), true);
   const serialized = JSON.stringify(result);
   for (const forbidden of ['1990-11-26', '13:40:00', '17.385', '78.4867', 'siderealLongitudeDegrees', 'ephemerisPath', 'manifest']) assert.equal(serialized.includes(forbidden), false, forbidden);

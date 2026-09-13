@@ -46,6 +46,36 @@ function publicCalibrationSummary(record) {
     ...(Number.isInteger(summary.eventCount) ? { eventCount: summary.eventCount } : {}),
   };
 }
+function publicCareerAshtakavargaStructure(record) {
+  const value = record && record.reading && record.reading.careerAshtakavargaStructure;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const houseValue = (item) => {
+    if (!item || typeof item !== 'object' || !Number.isInteger(item.house) || item.house < 1 || item.house > 12) return null;
+    const output = { house: item.house };
+    if (Number.isInteger(item.sav) && item.sav >= 0) output.sav = item.sav;
+    return output;
+  };
+  const lordValue = (item) => {
+    if (!item || typeof item !== 'object' || !Number.isInteger(item.house) || item.house < 1 || item.house > 12) return null;
+    if (typeof item.planet !== 'string' || !['Sun', 'Moon', 'Mars', 'Mercury', 'Jupiter', 'Venus', 'Saturn'].includes(item.planet)) return null;
+    const output = { planet: item.planet, house: item.house };
+    if (Number.isInteger(item.houseSav) && item.houseSav >= 0) output.houseSav = item.houseSav;
+    return output;
+  };
+  const h10 = houseValue(value.h10);
+  const h10Lord = lordValue(value.h10Lord);
+  const h7 = houseValue(value.h7);
+  const h7Lord = lordValue(value.h7Lord);
+  const tenthFromH10Lord = houseValue(value.tenthFromH10Lord);
+  const structure = {
+    ...(h10 ? { h10 } : {}),
+    ...(h10Lord ? { h10Lord } : {}),
+    ...(h7 ? { h7 } : {}),
+    ...(h7Lord ? { h7Lord } : {}),
+    ...(tenthFromH10Lord ? { tenthFromH10Lord } : {}),
+  };
+  return Object.keys(structure).length ? structure : undefined;
+}
 function publicAshtakavargaContext(context) {
   if (!context || context.sourceFamily !== 'ASHTAKAVARGA' || !['SAV', 'BAV', 'LAGNA_BAV'].includes(context.scoreType)) return null;
   if (!Number.isInteger(context.houseNumber) || context.houseNumber < 1 || context.houseNumber > 12 || !Number.isInteger(context.rashiIndex) || context.rashiIndex < 1 || context.rashiIndex > 12 || !Number.isInteger(context.value)) return null;
@@ -128,7 +158,7 @@ function publicInsights(record) {
   });
   });
 }
-function publicReadingDetail(item) { const calibrated = calibratedContent(item.record), calibrationContext = publicCalibrationSummary(item.record), insights = publicInsights(item.record); return immutableCopy({ ...publicReadingSummary(item), content: item.record.renderedReading, ...(calibrated ? { calibratedContent: calibrated } : {}), ...(calibrationContext === undefined ? {} : { calibrationContext }), ...(insights === undefined ? {} : { insights }) }); }
+function publicReadingDetail(item) { const calibrated = calibratedContent(item.record), calibrationContext = publicCalibrationSummary(item.record), careerAshtakavargaStructure = publicCareerAshtakavargaStructure(item.record), insights = publicInsights(item.record); return immutableCopy({ ...publicReadingSummary(item), content: item.record.renderedReading, ...(calibrated ? { calibratedContent: calibrated } : {}), ...(calibrationContext === undefined ? {} : { calibrationContext }), ...(careerAshtakavargaStructure === undefined ? {} : { careerAshtakavargaStructure }), ...(insights === undefined ? {} : { insights }) }); }
 function scopedKeyProvider(key) { return Object.freeze({ current: async () => ({ keyVersion: key.keyVersion, dek: Buffer.from(key.dek) }), forVersion: async () => ({ keyVersion: key.keyVersion, dek: Buffer.from(key.dek) }) }); }
 function rawRecord(raw, record) { return { readingId: raw.readingId, userId: raw.userId, birthProfileId: raw.birthProfileId, status: raw.status, archivedAt: raw.archivedAt, idempotencyKey: raw.idempotencyKey, record }; }
 

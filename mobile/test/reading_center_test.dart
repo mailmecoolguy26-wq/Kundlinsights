@@ -11,6 +11,7 @@ import 'package:kundlinsights_mobile/features/profiles/profile_controller.dart';
 import 'package:kundlinsights_mobile/features/readings/domain/reading.dart';
 import 'package:kundlinsights_mobile/features/readings/domain/reading_repository.dart';
 import 'package:kundlinsights_mobile/features/readings/reading_controller.dart';
+import 'package:kundlinsights_mobile/features/readings/career_explanation_language.dart';
 import 'package:kundlinsights_mobile/features/readings/readings_screen.dart';
 import 'package:kundlinsights_mobile/l10n/app_localizations.dart';
 
@@ -30,6 +31,36 @@ void main() {
     expect(
       () => ReadingDetail.fromJson({..._detailJson(), 'content': null}),
       throwsFormatException,
+    );
+  });
+
+  test('parses Career Ashtakavarga structure defensively without affecting legacy details', () {
+    final full = ReadingDetail.fromJson({
+      ..._detailJson(),
+      'careerAshtakavargaStructure': {
+        'h10': {'house': 10, 'sav': 31},
+        'h10Lord': {'planet': 'Mars', 'house': 7, 'houseSav': 31},
+        'h7': {'house': 7, 'sav': 25},
+        'h7Lord': {'planet': 'Saturn', 'house': 6, 'houseSav': 23},
+        'tenthFromH10Lord': {'house': 4, 'sav': 35},
+      },
+    });
+    expect(full.careerAshtakavargaStructure!.h10!.sav, 31);
+    expect(full.careerAshtakavargaStructure!.h10Lord!.planet, 'Mars');
+    expect(full.careerAshtakavargaStructure!.tenthFromH10Lord!.house, 4);
+
+    final partial = ReadingDetail.fromJson({
+      ..._detailJson(),
+      'careerAshtakavargaStructure': {
+        'h10': {'house': 10, 'sav': null},
+        'h10Lord': {'planet': null, 'house': 7, 'houseSav': null},
+      },
+    });
+    expect(partial.careerAshtakavargaStructure!.h10!.sav, isNull);
+    expect(partial.careerAshtakavargaStructure!.h10Lord, isNull);
+    expect(
+      ReadingDetail.fromJson(_detailJson()).careerAshtakavargaStructure,
+      isNull,
     );
   });
 
@@ -540,6 +571,71 @@ void main() {
     },
   );
 
+  testWidgets(
+    'renders factual Career Ashtakavarga structure in English and Hinglish',
+    (tester) async {
+      tester.view.physicalSize = const Size(375, 700);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final authSource = _AuthSource();
+      final auth = AuthController(authSource);
+      await auth.restore();
+      final profiles = ProfileController(_Profiles(authSource), auth);
+      await tester.pump();
+      final language = CareerExplanationLanguageController(_LanguageStorage());
+      final detail = ReadingDetail.fromJson({
+        ..._detailJson(),
+        'insights': [_insight('CAREER_FOUNDATION', 0)],
+        'careerAshtakavargaStructure': {
+          'h10': {'house': 10, 'sav': 31},
+          'h10Lord': {'planet': 'Mars', 'house': 7, 'houseSav': 31},
+          'h7': {'house': 7, 'sav': 25},
+          'h7Lord': {'planet': 'Saturn', 'house': 6, 'houseSav': 23},
+          'tenthFromH10Lord': {'house': 4, 'sav': 35},
+        },
+      });
+      final repository = _ReadingRepository()..nextDetail = detail;
+      final controller = ReadingController(repository, auth, profiles);
+      await tester.pumpWidget(
+        _localized(
+          ReadingDetailScreen(
+            controller: controller,
+            readingId: 'reading-a',
+            careerExplanationLanguage: language,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('CAREER ASHTAKAVARGA STRUCTURE'), findsOneWidget);
+      expect(find.text('10th House'), findsOneWidget);
+      expect(find.text('Mars'), findsOneWidget);
+      expect(find.text('31 SAV bindus'), findsOneWidget);
+      expect(
+        find.textContaining('Placed in 7th House · 31 SAV bindus'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          RegExp('strong|weak|favorable|promotion|score', caseSensitive: false),
+        ),
+        findsNothing,
+      );
+
+      await language.setLanguage(CareerExplanationLanguage.hinglish);
+      await tester.pump();
+      expect(find.text('10th Bhav'), findsOneWidget);
+      expect(find.text('Mangal'), findsOneWidget);
+      expect(find.text('Shani Dev'), findsOneWidget);
+      expect(find.text('10th House'), findsNothing);
+      expect(tester.takeException(), isNull);
+      controller.dispose();
+      profiles.dispose();
+      auth.dispose();
+      language.dispose();
+    },
+  );
+
   testWidgets('structured readings do not append legacy calibration or notes', (
     tester,
   ) async {
@@ -841,6 +937,14 @@ class _ReadingRepository implements ReadingRepository {
   }
 
   void completeDetail(ReadingDetail value) => _pendingDetail!.complete(value);
+}
+
+class _LanguageStorage implements CareerExplanationLanguageStorage {
+  @override
+  Future<String?> readLanguage() async => null;
+
+  @override
+  Future<void> writeLanguage(CareerExplanationLanguage language) async {}
 }
 
 class _AuthSource implements AuthRepository {

@@ -15,12 +15,12 @@ function assertSafe(value) {
   for (const [key, child] of Object.entries(value)) { assert.equal(prohibited.has(key), false, `prohibited field ${key}`); assertSafe(child); }
 }
 function summary(id, createdAt, profile = 'profile-a') { return { readingId: id, birthProfileId: profile, domain: 'CAREER', status: 'active', createdAt, readingInstant: '2026-08-17T00:00:00.000Z', locale: 'en-IN' }; }
-function detail(id, profile = 'profile-a', calibratedContent = undefined) { return { ...summary(id, '2026-08-17T00:00:00.000Z', profile), content: { domain: 'CAREER', locale: 'en-IN', sections: [{ section: 'CAREER_STRUCTURE', headline: 'Career structure', items: [{ topic: 'H10', sentence: 'Stored reading content.' }] }] }, ...(calibratedContent === undefined ? {} : { calibratedContent }) }; }
+function detail(id, profile = 'profile-a', calibratedContent = undefined, careerAshtakavargaStructure = undefined) { return { ...summary(id, '2026-08-17T00:00:00.000Z', profile), content: { domain: 'CAREER', locale: 'en-IN', sections: [{ section: 'CAREER_STRUCTURE', headline: 'Career structure', items: [{ topic: 'H10', sentence: 'Stored reading content.' }] }] }, ...(calibratedContent === undefined ? {} : { calibratedContent }), ...(careerAshtakavargaStructure === undefined ? {} : { careerAshtakavargaStructure }) }; }
 function buildApi(calls) {
   const service = {
     async generateSecureReading() { throw new Error('not used'); },
     async listSecureReadings(input) { calls.list.push(input); if (input.principal.subject !== 'subject-a') return []; return [summary('reading-new', '2026-08-18T00:00:00.000Z'), summary('reading-old', '2026-08-17T00:00:00.000Z')]; },
-    async getSecureReadingDetail(input) { calls.detail.push(input); if (input.principal.subject !== 'subject-a' || input.readingId === 'reading-b') { const error = new Error(); error.code = 'NOT_FOUND_OR_FORBIDDEN'; throw error; } return detail(input.readingId, 'profile-a', input.readingId === 'reading-calibrated' ? { domain: 'CAREER', locale: 'en-IN', sections: [{ section: 'calibration', headline: 'Calibration', items: [{ headline: 'Career calibration', sentence: 'Calibration is limited.' }] }] } : undefined); },
+    async getSecureReadingDetail(input) { calls.detail.push(input); if (input.principal.subject !== 'subject-a' || input.readingId === 'reading-b') { const error = new Error(); error.code = 'NOT_FOUND_OR_FORBIDDEN'; throw error; } return detail(input.readingId, 'profile-a', input.readingId === 'reading-calibrated' ? { domain: 'CAREER', locale: 'en-IN', sections: [{ section: 'calibration', headline: 'Calibration', items: [{ headline: 'Career calibration', sentence: 'Calibration is limited.' }] }] } : undefined, input.readingId === 'reading-ashtakavarga' ? { h10: { house: 10, sav: 31 }, h10Lord: { planet: 'Mars', house: 7, houseSav: 31 }, h7: { house: 7, sav: 25 }, h7Lord: { planet: 'Saturn', house: 6, houseSav: 23 }, tenthFromH10Lord: { house: 4, sav: 35 } } : undefined); },
     async replaySecureReading() { calls.replay += 1; throw new Error('replay must not run'); },
   };
   return createApi({ authVerifier: createTestOnlyAuthVerifier({ a, b }), userResolver: { resolve: async () => ({ id: 'internal-user', status: 'active' }) }, birthProfileService: { create: async () => null, list: async () => [], get: async () => null }, secureReadingService: service, requestIdGenerator: () => 'request-1' });
@@ -50,5 +50,14 @@ test('P7B passes the optional normalized calibrated detail through GET while pre
   assert.equal(response.statusCode, 200); assert.equal(response.json().reading.content.sections[0].items[0].sentence, 'Stored reading content.');
   assert.equal(response.json().reading.calibratedContent.sections[0].items[0].sentence, 'Calibration is limited.');
   assert.equal(JSON.stringify(response.json().reading.calibratedContent).match(/evidenceId|patternKey|provenance|schemaVersion|private/), null);
+  assertSafe(response.json()); await api.close();
+});
+
+test('Phase 16B passes optional factual Career Ashtakavarga structure through GET unchanged', async () => {
+  const calls = { list: [], detail: [], replay: 0 }; const api = buildApi(calls);
+  const response = await api.inject(request('a', '/v1/readings/reading-ashtakavarga'));
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.json().reading.careerAshtakavargaStructure, { h10: { house: 10, sav: 31 }, h10Lord: { planet: 'Mars', house: 7, houseSav: 31 }, h7: { house: 7, sav: 25 }, h7Lord: { planet: 'Saturn', house: 6, houseSav: 23 }, tenthFromH10Lord: { house: 4, sav: 35 } });
+  assert.equal(JSON.stringify(response.json().reading.careerAshtakavargaStructure).match(/threshold|rank|score|strong|weak|favorable/i), null);
   assertSafe(response.json()); await api.close();
 });

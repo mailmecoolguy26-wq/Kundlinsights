@@ -127,12 +127,14 @@ class ReadingDetail extends ReadingSummary {
     required this.content,
     this.calibratedContent,
     this.calibrationContext,
+    this.careerAshtakavargaStructure,
     this.insights = const [],
   });
 
   final ReadingContent content;
   final ReadingContent? calibratedContent;
   final CareerReadingCalibrationSummary? calibrationContext;
+  final CareerAshtakavargaStructure? careerAshtakavargaStructure;
   final List<CareerInsight> insights;
 
   factory ReadingDetail.fromJson(Map<String, dynamic> json) {
@@ -169,7 +171,107 @@ class ReadingDetail extends ReadingSummary {
       calibrationContext: CareerReadingCalibrationSummary.tryFromJson(
         json['calibrationContext'],
       ),
+      careerAshtakavargaStructure: CareerAshtakavargaStructure.tryFromJson(
+        json['careerAshtakavargaStructure'],
+      ),
       insights: List<CareerInsight>.unmodifiable(insights),
+    );
+  }
+}
+
+/// Safe, factual D1 SAV structure. These values are server-derived snapshots;
+/// Flutter only formats them and never derives a score or interpretation.
+class CareerAshtakavargaStructure {
+  const CareerAshtakavargaStructure({
+    this.h10,
+    this.h10Lord,
+    this.h7,
+    this.h7Lord,
+    this.tenthFromH10Lord,
+  });
+
+  final CareerAshtakavargaHouseFact? h10;
+  final CareerAshtakavargaLordFact? h10Lord;
+  final CareerAshtakavargaHouseFact? h7;
+  final CareerAshtakavargaLordFact? h7Lord;
+  final CareerAshtakavargaHouseFact? tenthFromH10Lord;
+
+  bool get isEmpty =>
+      h10 == null &&
+      h10Lord == null &&
+      h7 == null &&
+      h7Lord == null &&
+      tenthFromH10Lord == null;
+
+  static CareerAshtakavargaStructure? tryFromJson(Object? raw) {
+    if (raw is! Map<String, dynamic>) return null;
+    final structure = CareerAshtakavargaStructure(
+      h10: CareerAshtakavargaHouseFact.tryFromJson(raw['h10']),
+      h10Lord: CareerAshtakavargaLordFact.tryFromJson(raw['h10Lord']),
+      h7: CareerAshtakavargaHouseFact.tryFromJson(raw['h7']),
+      h7Lord: CareerAshtakavargaLordFact.tryFromJson(raw['h7Lord']),
+      tenthFromH10Lord: CareerAshtakavargaHouseFact.tryFromJson(
+        raw['tenthFromH10Lord'],
+      ),
+    );
+    return structure.isEmpty ? null : structure;
+  }
+}
+
+class CareerAshtakavargaHouseFact {
+  const CareerAshtakavargaHouseFact({required this.house, this.sav});
+  final int house;
+  final int? sav;
+
+  static CareerAshtakavargaHouseFact? tryFromJson(Object? raw) {
+    if (raw is! Map<String, dynamic>) return null;
+    final house = raw['house'];
+    final sav = raw['sav'];
+    if (house is! int ||
+        house < 1 ||
+        house > 12 ||
+        (sav != null && (sav is! int || sav < 0))) {
+      return null;
+    }
+    return CareerAshtakavargaHouseFact(house: house, sav: sav as int?);
+  }
+}
+
+class CareerAshtakavargaLordFact extends CareerAshtakavargaHouseFact {
+  const CareerAshtakavargaLordFact({
+    required this.planet,
+    required super.house,
+    this.houseSav,
+  }) : super(sav: null);
+
+  final String planet;
+  final int? houseSav;
+
+  static CareerAshtakavargaLordFact? tryFromJson(Object? raw) {
+    if (raw is! Map<String, dynamic>) return null;
+    final planet = raw['planet'];
+    final house = raw['house'];
+    final houseSav = raw['houseSav'];
+    if (planet is! String ||
+        !const {
+          'Sun',
+          'Moon',
+          'Mars',
+          'Mercury',
+          'Jupiter',
+          'Venus',
+          'Saturn',
+        }.contains(planet) ||
+        house is! int ||
+        house < 1 ||
+        house > 12 ||
+        (houseSav != null && (houseSav is! int || houseSav < 0))) {
+      return null;
+    }
+    return CareerAshtakavargaLordFact(
+      planet: planet,
+      house: house,
+      houseSav: houseSav as int?,
     );
   }
 }

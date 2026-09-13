@@ -855,6 +855,13 @@ class _CareerReadingDetail extends StatelessWidget {
                     const SizedBox(height: 12),
                     _CareerReadingContentSections(content: detail.content),
                   ],
+                  if (detail.careerAshtakavargaStructure != null) ...[
+                    const SizedBox(height: 18),
+                    _CareerAshtakavargaStructureSection(
+                      structure: detail.careerAshtakavargaStructure!,
+                      copy: copy,
+                    ),
+                  ],
                   if (_CareerTimingSection.hasContent(insights)) ...[
                     const SizedBox(height: 18),
                     _CareerTimingSection(insights: insights, copy: copy),
@@ -916,6 +923,112 @@ class _CareerReadingDetail extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CareerAshtakavargaStructureSection extends StatelessWidget {
+  const _CareerAshtakavargaStructureSection({
+    required this.structure,
+    required this.copy,
+  });
+
+  final CareerAshtakavargaStructure structure;
+  final CareerReadingPresentationCopy copy;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <Widget>[
+      if (structure.h10 != null)
+        _AshtakavargaStructureRow(
+          label: copy.house(structure.h10!.house),
+          value: _sav(structure.h10!.sav),
+        ),
+      if (structure.h10Lord != null)
+        _AshtakavargaStructureRow(
+          label: '10th ${copy.isHinglish ? 'Bhav' : 'House'} Lord',
+          value: copy.planet(structure.h10Lord!.planet),
+          detail: _placedIn(copy, structure.h10Lord!),
+        ),
+      if (structure.h7 != null)
+        _AshtakavargaStructureRow(
+          label: copy.house(structure.h7!.house),
+          value: _sav(structure.h7!.sav),
+        ),
+      if (structure.h7Lord != null)
+        _AshtakavargaStructureRow(
+          label: '7th ${copy.isHinglish ? 'Bhav' : 'House'} Lord',
+          value: copy.planet(structure.h7Lord!.planet),
+          detail: _placedIn(copy, structure.h7Lord!),
+        ),
+      if (structure.tenthFromH10Lord != null)
+        _AshtakavargaStructureRow(
+          label: '10th from 10th ${copy.isHinglish ? 'Bhav' : 'House'} Lord',
+          value: copy.house(structure.tenthFromH10Lord!.house),
+          detail: _sav(structure.tenthFromH10Lord!.sav),
+        ),
+    ];
+    if (rows.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _CareerReadingSectionLabel('CAREER ASHTAKAVARGA STRUCTURE'),
+        const SizedBox(height: 8),
+        const Text(
+          'These are factual Ashtakavarga values for key Career-linked Bhavs in your D1 chart.',
+          style: _CareerReadingText.body,
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(15, 8, 15, 8),
+          decoration: BoxDecoration(
+            color: _CareerReadingColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _CareerReadingColors.cardBorder),
+          ),
+          child: Column(children: rows),
+        ),
+      ],
+    );
+  }
+
+  String _sav(int? value) =>
+      value == null ? 'SAV unavailable' : '$value SAV bindus';
+
+  String _placedIn(
+    CareerReadingPresentationCopy copy,
+    CareerAshtakavargaLordFact fact,
+  ) {
+    final suffix = _sav(fact.houseSav);
+    return '${copy.isHinglish ? 'Placed in' : 'Placed in'} ${copy.house(fact.house)} · $suffix';
+  }
+}
+
+class _AshtakavargaStructureRow extends StatelessWidget {
+  const _AshtakavargaStructureRow({
+    required this.label,
+    required this.value,
+    this.detail,
+  });
+  final String label;
+  final String value;
+  final String? detail;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 7),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: _CareerReadingText.source),
+        const SizedBox(height: 3),
+        Text(value, style: _CareerReadingText.itemTitle),
+        if (detail != null) ...[
+          const SizedBox(height: 3),
+          Text(detail!, style: _CareerReadingText.meta),
+        ],
+      ],
+    ),
+  );
 }
 
 class _GenerateUpdatedReadingAction extends StatelessWidget {
@@ -1780,15 +1893,15 @@ class _CareerReadingHero extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: _CareerReadingColors.cardBorder),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
+          child: Wrap(
+            spacing: 7,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               const Icon(
                 Icons.schedule_rounded,
                 color: _CareerReadingColors.gold,
                 size: 15,
               ),
-              const SizedBox(width: 7),
               Text('Created $createdAt', style: _CareerReadingText.meta),
             ],
           ),
@@ -1816,7 +1929,9 @@ class _CareerReadingSectionLabel extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 9),
-        Text(label, style: _CareerReadingText.eyebrow),
+        Expanded(
+          child: Text(label, maxLines: 2, style: _CareerReadingText.eyebrow),
+        ),
       ],
     ),
   );
