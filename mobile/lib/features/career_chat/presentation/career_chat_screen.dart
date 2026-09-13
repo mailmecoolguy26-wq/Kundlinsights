@@ -112,9 +112,9 @@ class _CareerChatScreenState extends State<CareerChatScreen> {
                       ),
                     ],
                     if (widget.controller.isSending)
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.only(top: 14),
-                        child: _SendingBubble(),
+                        child: _SendingBubble(hinglish: hinglish),
                       ),
                   ],
                 ),
@@ -327,17 +327,23 @@ class _TimingWindow extends StatelessWidget {
 }
 
 class _SendingBubble extends StatelessWidget {
-  const _SendingBubble();
+  const _SendingBubble({required this.hinglish});
+  final bool hinglish;
   @override
-  Widget build(BuildContext context) => const Row(
+  Widget build(BuildContext context) => Row(
     children: [
-      SizedBox(
+      const SizedBox(
         width: 16,
         height: 16,
         child: CircularProgressIndicator(strokeWidth: 2, color: _Colors.gold),
       ),
-      SizedBox(width: 10),
-      Text('Checking your Career context…', style: _Styles.body),
+      const SizedBox(width: 10),
+      Text(
+        hinglish
+            ? 'Aapki Career evidence check ho rahi hai…'
+            : 'Checking your Career evidence…',
+        style: _Styles.body,
+      ),
     ],
   );
 }
