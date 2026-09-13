@@ -310,6 +310,64 @@ void main() {
     },
   );
 
+  testWidgets(
+    'renders safely when a Razorpay profile is present before its controller',
+    (tester) async {
+      final product = _controller(localizedPrice: r'$7.99');
+      await product.load();
+
+      await tester.pumpWidget(
+        _app(
+          CareerPremiumPaywall(
+            productController: product,
+            hasAccess: false,
+            entitlementMode: 'NONE',
+            razorpayProfileId: 'new-profile',
+            dedicatedRazorpaySurface: true,
+            onSubscribePressed: () {},
+            onContinuePressed: () {},
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Career Premium'), findsOneWidget);
+      expect(find.text('Unlock Career Premium — \$7.99/year'), findsOneWidget);
+      product.dispose();
+    },
+  );
+
+  testWidgets(
+    'dedicated Razorpay paywall safely evaluates a controller for its profile',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 1000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final product = _controller();
+      final razorpay = _razorpayController();
+
+      await tester.pumpWidget(
+        _app(
+          CareerPremiumPaywall(
+            productController: product,
+            razorpayController: razorpay,
+            razorpayProfileId: 'profile-a',
+            dedicatedRazorpaySurface: true,
+            hasAccess: false,
+            entitlementMode: 'NONE',
+            onSubscribePressed: () {},
+            onContinuePressed: () {},
+            onRazorpayStart: () {},
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('UNLOCK CAREER PREMIUM — ₹588.82 →'), findsOneWidget);
+      razorpay.dispose();
+      product.dispose();
+    },
+  );
+
   testWidgets('Razorpay unknown state has recovery but no retry action', (
     tester,
   ) async {

@@ -345,9 +345,11 @@ void _showHouseDetails(BuildContext context, D1ChartHouse house) {
   showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
+    backgroundColor: const Color(0xFF120D29),
     builder: (context) => SafeArea(
+      top: false,
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -356,13 +358,25 @@ void _showHouseDetails(BuildContext context, D1ChartHouse house) {
               copy.isHinglish
                   ? '${house.house}th Bhav'
                   : '${t.house} ${house.house}',
-              style: Theme.of(context).textTheme.headlineSmall,
+              style: const TextStyle(
+                color: Color(0xFFFAF7F2),
+                fontFamily: 'EBGaramond',
+                fontSize: 25,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: AppSpacing.sm),
-            Text('${t.sign}: ${house.sign.englishName}'),
+            _SheetFact(
+              label: t.sign,
+              value: copy.sign(
+                sanskritName: house.sign.sanskritName,
+                englishName: house.sign.englishName,
+              ),
+            ),
             const SizedBox(height: AppSpacing.sm),
-            Text(
-              house.planets.isEmpty
+            _SheetFact(
+              label: t.planetaryPositions,
+              value: house.planets.isEmpty
                   ? t.noPlanets
                   : house.planets
                         .map(
@@ -375,6 +389,33 @@ void _showHouseDetails(BuildContext context, D1ChartHouse house) {
         ),
       ),
     ),
+  );
+}
+
+class _SheetFact extends StatelessWidget {
+  const _SheetFact({required this.label, required this.value});
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Expanded(
+        child: Text(label, style: const TextStyle(color: Color(0xFF9E9AA9))),
+      ),
+      const SizedBox(width: 16),
+      Flexible(
+        child: Text(
+          value,
+          textAlign: TextAlign.end,
+          style: const TextStyle(
+            color: Color(0xFFFAF7F2),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    ],
   );
 }
 

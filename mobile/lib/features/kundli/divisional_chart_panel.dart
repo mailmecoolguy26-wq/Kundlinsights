@@ -5,6 +5,7 @@ import '../../l10n/app_localizations.dart';
 import '../readings/astrology_presentation_copy.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/section_header.dart';
+import '../../shared/widgets/states.dart';
 import '../divisional/divisional_chart_controller.dart';
 import '../divisional/domain/divisional_chart.dart';
 import '../profiles/profile_controller.dart';
@@ -30,7 +31,9 @@ class DivisionalChartPanel extends StatelessWidget {
       final chart = controller.chart(type);
       final state = controller.state(type);
       final t = AppLocalizations.of(context)!;
-      final title = type == DivisionalChartType.d9 ? t.navamsa : t.dasamsa;
+      final title = type == DivisionalChartType.d9
+          ? t.navamsa
+          : 'D10 Career Chart';
       return RefreshIndicator(
         onRefresh: () => controller.load(type, refresh: true),
         child: ListView(
@@ -62,7 +65,8 @@ class DivisionalChartPanel extends StatelessWidget {
                 child: NorthIndianFixedHouseChart(
                   chartLabel: type.apiName,
                   houses: _chartHouses(chart),
-                  onHouseTap: (house) => _showHouse(context, type, house),
+                  onHouseTap: (house) =>
+                      _showHouse(context, type, chart, house),
                   onPlanetTap: (planet) =>
                       _showPlanet(context, type, chart, planet),
                 ),
@@ -78,13 +82,20 @@ class DivisionalChartPanel extends StatelessWidget {
                 (planet) => AppCard(
                   padding: EdgeInsets.zero,
                   child: ListTile(
-                    title: Text(copy.planet(planet.body)),
-                    subtitle: Text(
-                      '${planet.sign.englishName} · '
-                      '${planet.degreeWithinSign.toStringAsFixed(2)}° · '
-                      '${copy.isHinglish ? '${planet.house}th Bhav' : '${t.house} ${planet.house}'}',
+                    title: Text(
+                      copy.planet(planet.body),
+                      style: _DivisionalStyle.planetName,
                     ),
-                    trailing: const Icon(Icons.chevron_right),
+                    subtitle: Text(
+                      '${copy.sign(sanskritName: planet.sign.sanskritName, englishName: planet.sign.englishName)} · '
+                      '${planet.degreeWithinSign.toStringAsFixed(2)}° · '
+                      '${copy.house(planet.house)}',
+                      style: _DivisionalStyle.planetSubtitle,
+                    ),
+                    trailing: const Icon(
+                      Icons.chevron_right,
+                      color: Color(0xFFC5A059),
+                    ),
                     onTap: () => _showPlanet(
                       context,
                       type,
@@ -126,33 +137,43 @@ List<FixedChartHouse> _chartHouses(DivisionalChart chart) => chart.houses
 void _showHouse(
   BuildContext context,
   DivisionalChartType type,
-  FixedChartHouse house,
+  DivisionalChart chart,
+  FixedChartHouse selected,
 ) {
   final t = AppLocalizations.of(context)!;
   final copy = AstrologyPresentationCopy.of(context);
+  final house = chart.houses.firstWhere((item) => item.house == selected.house);
+  final planets = chart.planets.where((item) => item.house == house.house);
   showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
+    backgroundColor: const Color(0xFF120D29),
     builder: (context) => SafeArea(
+      top: false,
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${type.apiName} · ${copy.isHinglish ? '${house.house}th Bhav' : '${t.house} ${house.house}'}',
-              style: Theme.of(context).textTheme.headlineSmall,
+              '${type.apiName} · ${copy.house(house.house)}',
+              style: _DivisionalStyle.title,
             ),
             const SizedBox(height: AppSpacing.sm),
-            Text('${t.sign}: ${house.sign.englishName}'),
+            _DivisionalFact(
+              label: t.sign,
+              value: copy.sign(
+                sanskritName: house.sign.sanskritName,
+                englishName: house.sign.englishName,
+              ),
+            ),
             const SizedBox(height: AppSpacing.sm),
-            Text(
-              house.planets.isEmpty
+            _DivisionalFact(
+              label: t.planetaryPositions,
+              value: planets.isEmpty
                   ? t.noPlanets
-                  : house.planets
-                        .map((item) => copy.planet(item.body))
-                        .join(', '),
+                  : planets.map((item) => copy.planet(item.body)).join(', '),
             ),
           ],
         ),
@@ -175,27 +196,60 @@ void _showPlanet(
   showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
+    backgroundColor: const Color(0xFF120D29),
     builder: (context) => SafeArea(
+      top: false,
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               '${type.apiName} · ${copy.planet(position.body)}',
-              style: Theme.of(context).textTheme.headlineSmall,
+              style: _DivisionalStyle.title,
             ),
             const SizedBox(height: AppSpacing.sm),
-            Text('${t.sign}: ${position.sign.englishName}'),
-            Text(
-              '${t.degreeInSign}: ${position.degreeWithinSign.toStringAsFixed(2)}°',
+            _DivisionalFact(
+              label: t.sign,
+              value: copy.sign(
+                sanskritName: position.sign.sanskritName,
+                englishName: position.sign.englishName,
+              ),
             ),
-            Text('${copy.isHinglish ? 'Bhav' : t.house}: ${position.house}'),
+            const SizedBox(height: AppSpacing.sm),
+            _DivisionalFact(
+              label: t.degreeInSign,
+              value: '${position.degreeWithinSign.toStringAsFixed(2)}°',
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            _DivisionalFact(label: t.house, value: copy.house(position.house)),
           ],
         ),
       ),
     ),
+  );
+}
+
+class _DivisionalFact extends StatelessWidget {
+  const _DivisionalFact({required this.label, required this.value});
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Expanded(child: Text(label, style: _DivisionalStyle.label)),
+      const SizedBox(width: 16),
+      Flexible(
+        child: Text(
+          value,
+          textAlign: TextAlign.end,
+          style: _DivisionalStyle.value,
+        ),
+      ),
+    ],
   );
 }
 
@@ -210,6 +264,7 @@ class _DivisionalAccessibilityFallback extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
+    final copy = AstrologyPresentationCopy.of(context);
     return ExpansionTile(
       title: Text('${type.apiName} · ${t.chartAccessibleHouseList}'),
       children: houses
@@ -217,7 +272,7 @@ class _DivisionalAccessibilityFallback extends StatelessWidget {
             (house) => ListTile(
               dense: true,
               title: Text(
-                '${t.house} ${house.house} — ${house.sign.englishName}',
+                '${copy.house(house.house)} — ${house.sign.englishName}',
               ),
               subtitle: Text(
                 house.planets.isEmpty
@@ -234,11 +289,9 @@ class _DivisionalAccessibilityFallback extends StatelessWidget {
 class _DivisionalLoading extends StatelessWidget {
   const _DivisionalLoading();
   @override
-  Widget build(BuildContext context) => const AppCard(
-    child: SizedBox(
-      height: 220,
-      child: Center(child: CircularProgressIndicator()),
-    ),
+  Widget build(BuildContext context) => const SizedBox(
+    height: 220,
+    child: LoadingState(label: 'Loading chart facts'),
   );
 }
 
@@ -248,14 +301,36 @@ class _DivisionalError extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
-    return AppCard(
-      child: Column(
-        children: [
-          Text(t.divisionalChartUnavailable, textAlign: TextAlign.center),
-          const SizedBox(height: AppSpacing.md),
-          FilledButton(onPressed: onRetry, child: Text(t.retry)),
-        ],
+    return SizedBox(
+      height: 260,
+      child: ErrorState(
+        title: 'Chart unavailable',
+        message: t.divisionalChartUnavailable,
+        onRetry: () => onRetry(),
       ),
     );
   }
+}
+
+abstract final class _DivisionalStyle {
+  static const planetName = TextStyle(
+    color: Color(0xFFFAF7F2),
+    fontWeight: FontWeight.w600,
+  );
+  static const planetSubtitle = TextStyle(
+    color: Color(0xFF9E9AA9),
+    height: 1.35,
+  );
+  static const title = TextStyle(
+    color: Color(0xFFFAF7F2),
+    fontFamily: 'EBGaramond',
+    fontSize: 25,
+    fontWeight: FontWeight.w600,
+  );
+  static const label = TextStyle(color: Color(0xFF9E9AA9), fontSize: 13);
+  static const value = TextStyle(
+    color: Color(0xFFFAF7F2),
+    fontSize: 13,
+    fontWeight: FontWeight.w600,
+  );
 }

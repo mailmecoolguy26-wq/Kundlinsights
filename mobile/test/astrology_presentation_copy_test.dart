@@ -14,7 +14,11 @@ void main() {
     expect(english.planet('jupiter'), 'Jupiter');
     expect(english.planet('SATURN'), 'Saturn');
     expect(english.houseContext(10), '10th House');
+    expect(english.sign(sanskritName: 'Kanya', englishName: 'Virgo'), 'Virgo');
     expect(english.retrograde, 'Retrograde');
+    expect(english.transit, 'Transit');
+    expect(english.aspect, 'Aspect');
+    expect(english.motion('STATION_DIRECT'), 'Direct');
     expect(
       english.insightsTransitDescription,
       'See how today’s planetary movements interact with your birth chart.',
@@ -35,6 +39,10 @@ void main() {
     expect(hinglish.ascendant, 'Lagna');
     expect(hinglish.retrograde, 'Vakri');
     expect(hinglish.combust, 'Asta');
+    expect(hinglish.transit, 'Gochar');
+    expect(hinglish.aspect, 'Drishti');
+    expect(hinglish.motion('STATION_RETROGRADE'), 'Vakri');
+    expect(hinglish.sign(sanskritName: 'Kanya', englishName: 'Virgo'), 'Kanya');
     expect(hinglish.state('unknown backend state'), 'unknown backend state');
     expect(hinglish.planet('Unknown planet'), 'Unknown planet');
   });

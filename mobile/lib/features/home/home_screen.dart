@@ -8,6 +8,7 @@ import '../kundli/north_indian_chart.dart';
 import '../natal/natal_summary_controller.dart';
 import '../profiles/domain/birth_profile.dart';
 import '../profiles/profile_controller.dart';
+import '../readings/astrology_presentation_copy.dart';
 import '../readings/reading_controller.dart';
 import '../vimshottari/vimshottari_controller.dart';
 
@@ -423,6 +424,7 @@ class _CareerPhaseCard extends StatelessWidget {
   final VimshottariController controller;
   @override
   Widget build(BuildContext context) {
+    final copy = AstrologyPresentationCopy.of(context);
     if (controller.currentState == VimshottariLoadState.initial ||
         controller.currentState == VimshottariLoadState.loading) {
       return const _StateCard(label: 'Loading your current dasha…');
@@ -445,7 +447,7 @@ class _CareerPhaseCard extends StatelessWidget {
           ),
           const SizedBox(height: 11),
           Text(
-            '${current.mahadasha.lord} → ${current.antardasha.lord}',
+            '${copy.planet(current.mahadasha.lord)} → ${copy.planet(current.antardasha.lord)}',
             style: _headlineStyle(fontSize: 28),
           ),
           const SizedBox(height: 7),

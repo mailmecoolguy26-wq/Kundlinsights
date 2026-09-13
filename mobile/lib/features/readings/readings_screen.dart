@@ -723,15 +723,15 @@ class _ReadingDetailScreenState extends State<ReadingDetailScreen> {
           widget.controller.detailState == ReadingDetailState.loaded &&
           widget.controller.detail != null;
       return Scaffold(
-        backgroundColor: isLoaded ? _CareerReadingColors.midnight : null,
-        appBar: isLoaded
-            ? AppBar(
-                backgroundColor: _CareerReadingColors.midnight,
-                foregroundColor: _CareerReadingColors.alabaster,
-                surfaceTintColor: Colors.transparent,
-                title: const Text('Career Timing Forecast'),
-              )
-            : AppBar(title: Text(t.careerReading)),
+        backgroundColor: _CareerReadingColors.midnight,
+        appBar: AppBar(
+          backgroundColor: _CareerReadingColors.midnight,
+          foregroundColor: _CareerReadingColors.alabaster,
+          surfaceTintColor: Colors.transparent,
+          title: isLoaded
+              ? const Text('Career Timing Forecast')
+              : Text(t.careerReading),
+        ),
         body: SafeArea(
           child: _DetailBody(
             controller: widget.controller,
@@ -760,12 +760,14 @@ class _DetailBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
-    if (controller.detailState == ReadingDetailState.loading) {
+    if (controller.detailState == ReadingDetailState.initial ||
+        controller.detailState == ReadingDetailState.loading) {
       return const LoadingState();
     }
     final detail = controller.detail;
     if (controller.detailState != ReadingDetailState.loaded || detail == null) {
       return ErrorState(
+        title: 'Couldn\'t load your reading',
         message: t.readingUnavailable,
         onRetry: () => controller.loadDetail(readingId),
         retryLabel: t.retry,

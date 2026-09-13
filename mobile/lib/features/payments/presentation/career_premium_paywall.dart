@@ -111,6 +111,7 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
                     onRazorpayRecover: widget.onRazorpayRecover,
                     razorpayCanRetry:
                         widget.razorpayProfileId != null &&
+                        widget.razorpayController != null &&
                         widget.razorpayController!.canRetryFor(
                           widget.razorpayProfileId!,
                         ),
@@ -177,6 +178,7 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
               onRazorpayRecover: widget.onRazorpayRecover,
               razorpayCanRetry:
                   widget.razorpayProfileId != null &&
+                  widget.razorpayController != null &&
                   widget.razorpayController!.canRetryFor(
                     widget.razorpayProfileId!,
                   ),

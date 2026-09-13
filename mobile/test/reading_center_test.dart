@@ -249,12 +249,7 @@ void main() {
       expect(controller.detail, isNull);
       expect(controller.detailState, ReadingDetailState.initial);
       expect(find.text('Stored text.'), findsNothing);
-      expect(
-        find.text(
-          'This saved reading is unavailable right now. Please return to My Readings and try again.',
-        ),
-        findsOneWidget,
-      );
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
       controller.dispose();
       profiles.dispose();
@@ -530,7 +525,13 @@ void main() {
       await tester.pumpAndSettle();
       expect(controller.detailState, ReadingDetailState.error);
       expect(controller.detail, isNull);
-      expect(find.text('Something went wrong'), findsOneWidget);
+      expect(find.text("Couldn't load your reading"), findsOneWidget);
+      expect(
+        find.text(
+          'This saved reading is unavailable right now. Please return to My Readings and try again.',
+        ),
+        findsOneWidget,
+      );
       expect(find.text('Stored text.'), findsNothing);
       expect(repository.detailCalls, 1);
       controller.dispose();

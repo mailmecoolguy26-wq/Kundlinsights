@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kundlinsights_mobile/features/auth/auth_controller.dart';
 import 'package:kundlinsights_mobile/features/auth/domain/auth_repository.dart';
@@ -9,6 +10,8 @@ import 'package:kundlinsights_mobile/features/divisional/domain/divisional_chart
 import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile.dart';
 import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile_repository.dart';
 import 'package:kundlinsights_mobile/features/profiles/profile_controller.dart';
+import 'package:kundlinsights_mobile/features/kundli/divisional_chart_panel.dart';
+import 'package:kundlinsights_mobile/l10n/app_localizations.dart';
 
 void main() {
   test(
@@ -66,6 +69,60 @@ void main() {
     profiles.dispose();
     auth.dispose();
   });
+
+  testWidgets(
+    'D9 and D10 planet rows use explicit readable dark-surface foregrounds',
+    (tester) async {
+      final source = _AuthSource();
+      final auth = AuthController(source);
+      await auth.restore();
+      final profiles = ProfileController(_Profiles(source), auth);
+      await profiles.load();
+      final controller = DivisionalChartController(_Charts(), auth, profiles);
+
+      for (final type in const [
+        DivisionalChartType.d9,
+        DivisionalChartType.d10,
+      ]) {
+        await controller.load(type);
+        await tester.pumpWidget(
+          MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: DivisionalChartPanel(
+                profileController: profiles,
+                controller: controller,
+                type: type,
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.scrollUntilVisible(find.text('Sun'), 240);
+
+        final sun = tester.widget<Text>(find.text('Sun'));
+        final subtitle = tester.widget<Text>(
+          find.text(
+            type == DivisionalChartType.d9
+                ? 'Virgo · 12.35° · House 7'
+                : 'Aries · 0.50° · House 4',
+          ),
+        );
+        final chevron = tester.widget<Icon>(
+          find.byIcon(Icons.chevron_right).first,
+        );
+
+        expect(sun.style?.color, const Color(0xFFFAF7F2));
+        expect(subtitle.style?.color, const Color(0xFF9E9AA9));
+        expect(chevron.color, const Color(0xFFC5A059));
+      }
+
+      controller.dispose();
+      profiles.dispose();
+      auth.dispose();
+    },
+  );
 }
 
 Future<void> _settle() => Future<void>.delayed(Duration.zero);

@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../profiles/profile_controller.dart';
 import '../../readings/astrology_presentation_copy.dart';
 import 'dasha_back_button.dart';
+import 'dasha_status_view.dart';
 import '../domain/vimshottari.dart';
 import '../vimshottari_controller.dart';
 
@@ -82,20 +83,18 @@ class _DashaHierarchyScreenState extends State<DashaHierarchyScreen> {
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done)
-            return const Center(
-              child: CircularProgressIndicator(color: _C.gold),
-            );
+            return const DashaStatusView.loading();
           final timeline = snapshot.data;
           if (timeline == null)
-            return Center(
-              child: TextButton(
-                onPressed: () {
-                  setState(() {
-                    _future = _load();
-                  });
-                },
-                child: const Text('Retry'),
-              ),
+            return DashaStatusView.error(
+              title: 'Dasha unavailable',
+              body: 'We couldn\'t load this Dasha timeline right now.',
+              actionLabel: 'Retry',
+              onAction: () {
+                setState(() {
+                  _future = _load();
+                });
+              },
             );
           _revealCurrent(timeline);
           return _Body(

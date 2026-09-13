@@ -41,9 +41,23 @@ class AstrologyPresentationCopy {
   String house(int value) => isHinglish ? '${value}th Bhav' : 'House $value';
   String houseContext(int value) =>
       isHinglish ? '${value}th Bhav' : '${ordinal(value)} House';
+
+  /// Uses the backend-provided Sanskrit sign label only in Hinglish mode.
+  /// This is display terminology, not a sign conversion or interpretation.
+  String sign({required String sanskritName, required String englishName}) =>
+      isHinglish ? sanskritName : englishName;
   String get ascendant => isHinglish ? 'Lagna' : 'Ascendant';
   String get retrograde => isHinglish ? 'Vakri' : 'Retrograde';
   String get combust => isHinglish ? 'Asta' : 'Combust';
+  String get transit => isHinglish ? 'Gochar' : 'Transit';
+  String get aspect => isHinglish ? 'Drishti' : 'Aspect';
+
+  /// Canonicalizes known factual motion transport values for display only.
+  String motion(String value) => switch (value.trim().toUpperCase()) {
+    'RETROGRADE' || 'STATION_RETROGRADE' => retrograde,
+    'DIRECT' || 'STATION_DIRECT' => 'Direct',
+    _ => value,
+  };
   String state(String value) => switch (value) {
     'Retrograde' || 'RETROGRADE' => retrograde,
     'Combust' || 'COMBUST' => combust,

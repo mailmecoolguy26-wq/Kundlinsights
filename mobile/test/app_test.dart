@@ -326,7 +326,7 @@ void main() {
 
     await tester.tap(find.text('D10'));
     await tester.pumpAndSettle();
-    expect(find.text('Dasamsa (D10)'), findsOneWidget);
+    expect(find.text('D10 Career Chart'), findsOneWidget);
     expect(find.text('Navamsa (D9)'), findsNothing);
 
     await tester.tap(find.text('D1'));

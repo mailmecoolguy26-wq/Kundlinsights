@@ -7,6 +7,8 @@ import 'package:kundlinsights_mobile/features/auth/domain/auth_repository.dart';
 import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile.dart';
 import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile_repository.dart';
 import 'package:kundlinsights_mobile/features/profiles/profile_controller.dart';
+import 'package:kundlinsights_mobile/features/readings/astrology_presentation_copy.dart';
+import 'package:kundlinsights_mobile/features/readings/career_explanation_language.dart';
 import 'package:kundlinsights_mobile/features/transits/domain/transit_snapshot.dart';
 import 'package:kundlinsights_mobile/features/transits/domain/transit_snapshot_repository.dart';
 import 'package:kundlinsights_mobile/features/transits/presentation/current_transits_screen.dart';
@@ -142,6 +144,70 @@ void main() {
     expect(find.text('Transit Timeline'), findsNothing);
     expect(find.text('Career Impact'), findsNothing);
     expect(find.text('What to Watch'), findsNothing);
+
+    await tester.drag(find.byType(ListView).first, const Offset(0, -180));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Moon').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Current Transit'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.byType(CurrentTransitsScreen), findsOneWidget);
+  });
+
+  testWidgets(
+    'renders a dark factual transit planet detail without raw motion enums',
+    (tester) async {
+      final planet = _snapshot('a').planets[1];
+      await tester.pumpWidget(
+        MaterialApp(home: TransitPlanetDetailScreen(planet: planet)),
+      );
+
+      final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).first);
+      expect(scaffold.backgroundColor, const Color(0xFF0B071B));
+      expect(find.text('Moon'), findsWidgets);
+      expect(find.text('Current Transit'), findsOneWidget);
+      expect(find.text('CURRENT POSITION'), findsOneWidget);
+      expect(find.text('Sign'), findsOneWidget);
+      expect(find.text('House'), findsOneWidget);
+      expect(find.text('Test'), findsOneWidget);
+      expect(find.text('House 1'), findsOneWidget);
+      expect(find.text('Direct'), findsOneWidget);
+      expect(find.text('DIRECT'), findsNothing);
+      for (final unsupported in const [
+        'favorable',
+        'unfavorable',
+        'strong',
+        'weak',
+        'promotion',
+        'salary',
+      ]) {
+        expect(
+          find.textContaining(unsupported, findRichText: true),
+          findsNothing,
+        );
+      }
+    },
+  );
+
+  testWidgets('uses shared Hinglish terminology in transit planet detail', (
+    tester,
+  ) async {
+    final language = CareerExplanationLanguageController(_LanguageStorage());
+    await language.setLanguage(CareerExplanationLanguage.hinglish);
+    final planet = _snapshot('a').planets[1];
+    await tester.pumpWidget(
+      AstrologyPresentationScope(
+        controller: language,
+        child: MaterialApp(home: TransitPlanetDetailScreen(planet: planet)),
+      ),
+    );
+
+    expect(find.text('Chandra Dev'), findsWidgets);
+    expect(find.text('Current Gochar'), findsOneWidget);
+    expect(find.text('Rashi'), findsOneWidget);
+    expect(find.text('Bhav'), findsOneWidget);
+    expect(find.text('Test'), findsOneWidget);
   });
 
   testWidgets('renders only supplied safe transit insight sections', (
@@ -318,7 +384,6 @@ void main() {
       expect(find.text('+4 more changes'), findsOneWidget);
       expect(find.text('Jupiter association begins with Moon'), findsOneWidget);
       expect(find.text('Show less'), findsOneWidget);
-
     },
   );
 }
@@ -515,6 +580,14 @@ class _ImmediateRepo implements TransitSnapshotRepository {
     required String birthProfileId,
     required DateTime atUtc,
   }) async => snapshot;
+}
+
+class _LanguageStorage implements CareerExplanationLanguageStorage {
+  @override
+  Future<String?> readLanguage() async => null;
+
+  @override
+  Future<void> writeLanguage(CareerExplanationLanguage language) async {}
 }
 
 class _Auth implements AuthRepository {

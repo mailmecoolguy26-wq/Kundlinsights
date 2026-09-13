@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../profiles/profile_controller.dart';
 import '../../readings/astrology_presentation_copy.dart';
+import '../../../shared/widgets/states.dart';
 import '../domain/transit_snapshot.dart';
 import '../transit_snapshot_controller.dart';
 
@@ -136,33 +137,19 @@ class _TransitBody extends StatelessWidget {
   Widget build(BuildContext context) {
     if (controller.state == TransitSnapshotLoadState.loading ||
         controller.state == TransitSnapshotLoadState.initial) {
-      return const Padding(
-        padding: EdgeInsets.all(36),
-        child: Center(
-          child: CircularProgressIndicator(color: CurrentTransitsScreen.gold),
-        ),
+      return const SizedBox(
+        height: 220,
+        child: LoadingState(label: 'Loading current transits'),
       );
     }
     if (controller.state == TransitSnapshotLoadState.error ||
         controller.snapshot == null) {
-      return _DarkCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Current transits are unavailable right now.',
-              style: _Styles.cardBody,
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: controller.refresh,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: CurrentTransitsScreen.alabaster,
-                side: const BorderSide(color: CurrentTransitsScreen.gold),
-              ),
-              child: const Text('Retry'),
-            ),
-          ],
+      return SizedBox(
+        height: 280,
+        child: ErrorState(
+          title: 'Current transits unavailable',
+          message: 'Current transits are unavailable right now.',
+          onRetry: () => controller.refresh(),
         ),
       );
     }
@@ -311,13 +298,11 @@ class _TransitRow extends StatelessWidget {
     final degree = '${planet.degreeWithinSign.toStringAsFixed(2)}°';
     final motion = planet.retrograde
         ? copy.retrograde
-        : planet.motion == 'direct'
-        ? 'Direct'
-        : planet.motion;
+        : copy.motion(planet.motion);
     return Semantics(
       button: true,
       label:
-          '${copy.planet(planet.planet)}, ${planet.sign.englishName}, $degree, ${copy.house(planet.natalHouse)}, $motion',
+          '${copy.planet(planet.planet)}, ${copy.sign(sanskritName: planet.sign.sanskritName, englishName: planet.sign.englishName)}, $degree, ${copy.house(planet.natalHouse)}, $motion',
       child: InkWell(
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute<void>(
@@ -337,7 +322,7 @@ class _TransitRow extends StatelessWidget {
                     Text(copy.planet(planet.planet), style: _Styles.cardTitle),
                     const SizedBox(height: 2),
                     Text(
-                      '${planet.sign.englishName} · $degree · ${copy.house(planet.natalHouse)}',
+                      '${copy.sign(sanskritName: planet.sign.sanskritName, englishName: planet.sign.englishName)} · $degree · ${copy.house(planet.natalHouse)}',
                       style: _Styles.cardBody,
                     ),
                   ],
@@ -634,7 +619,7 @@ class _SpecialStatesCard extends StatelessWidget {
                         Text(
                           resolved[index].type == 'SADE_SATI'
                               ? 'Sade Sati'
-                              : '${AstrologyPresentationCopy.of(context).planet(resolved[index].planet)} · Retrograde',
+                              : '${AstrologyPresentationCopy.of(context).planet(resolved[index].planet)} · ${AstrologyPresentationCopy.of(context).retrograde}',
                           style: _Styles.cardTitle,
                         ),
                         if (resolved[index].phase != null)
@@ -898,7 +883,7 @@ String _transitionLabel(
     'STATION_DIRECT' =>
       copy.isHinglish ? '$planet direct hote hain' : '$planet turns direct',
     'DRISHTI_CHANGE' =>
-      '$planet ${copy.isHinglish ? 'Drishti' : 'aspect'} ${item.change == 'start'
+      '$planet ${copy.isHinglish ? copy.aspect : copy.aspect.toLowerCase()} ${item.change == 'start'
           ? 'begins'
           : item.change == 'end'
           ? 'ends'
@@ -910,7 +895,7 @@ String _transitionLabel(
           ? 'ends'
           : 'changes'} with ${copy.planet(item.targetPlanet!)}',
     'SADE_SATI_PHASE_CHANGE' => 'Sade Sati phase changes',
-    _ => item.type,
+    _ => '${copy.transit} update',
   };
 }
 
@@ -947,7 +932,7 @@ class _TechnicalDetails extends StatelessWidget {
                       Padding(
                         padding: const EdgeInsets.only(bottom: 4),
                         child: Text(
-                          '${copy.planet(planet.planet)}: ${planet.longitude.toStringAsFixed(2)}° · ${planet.sign.englishName} · ${copy.house(planet.natalHouse)} · ${planet.retrograde ? copy.retrograde : planet.motion}',
+                          '${copy.planet(planet.planet)}: ${planet.longitude.toStringAsFixed(2)}° · ${copy.sign(sanskritName: planet.sign.sanskritName, englishName: planet.sign.englishName)} · ${copy.house(planet.natalHouse)} · ${planet.retrograde ? copy.retrograde : copy.motion(planet.motion)}',
                           style: _Styles.cardBody,
                         ),
                       ),
@@ -1033,36 +1018,82 @@ class TransitPlanetDetailScreen extends StatelessWidget {
     final copy = AstrologyPresentationCopy.of(context);
     return Scaffold(
       backgroundColor: CurrentTransitsScreen.midnight,
-      appBar: AppBar(title: Text(copy.planet(planet.planet))),
+      appBar: AppBar(
+        backgroundColor: CurrentTransitsScreen.midnight,
+        foregroundColor: CurrentTransitsScreen.alabaster,
+        elevation: 0,
+        title: Text(copy.planet(planet.planet)),
+      ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: _DarkCard(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Transit sign: ${planet.sign.englishName}',
-                  style: _Styles.cardBody,
-                ),
-                Text(
-                  'Degree in sign: ${planet.degreeWithinSign.toStringAsFixed(2)}°',
-                  style: _Styles.cardBody,
-                ),
-                Text(
-                  'Natal ${copy.house(planet.natalHouse)}',
-                  style: _Styles.cardBody,
-                ),
-                Text(
-                  'Motion: ${planet.retrograde ? copy.retrograde : planet.motion}',
-                  style: _Styles.cardBody,
-                ),
-              ],
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 112),
+          children: [
+            Text(copy.planet(planet.planet), style: _Styles.title),
+            const SizedBox(height: 4),
+            Text('Current ${copy.transit}', style: _Styles.cardBody),
+            const SizedBox(height: 20),
+            const Text('CURRENT POSITION', style: _Styles.eyebrow),
+            const SizedBox(height: 10),
+            _DarkCard(
+              child: Column(
+                children: [
+                  _TransitFact(
+                    label: copy.isHinglish ? 'Rashi' : 'Sign',
+                    value: copy.sign(
+                      sanskritName: planet.sign.sanskritName,
+                      englishName: planet.sign.englishName,
+                    ),
+                  ),
+                  _TransitFact(
+                    label: copy.isHinglish ? 'Bhav' : 'House',
+                    value: copy.house(planet.natalHouse),
+                  ),
+                  _TransitFact(
+                    label: 'Degree',
+                    value: '${planet.degreeWithinSign.toStringAsFixed(2)}°',
+                  ),
+                ],
+              ),
             ),
-          ),
+            const SizedBox(height: 22),
+            const Text('STATUS', style: _Styles.eyebrow),
+            const SizedBox(height: 10),
+            _DarkCard(
+              child: _TransitFact(
+                label: 'Motion',
+                value: planet.retrograde
+                    ? copy.retrograde
+                    : copy.motion(planet.motion),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
+}
+
+class _TransitFact extends StatelessWidget {
+  const _TransitFact({required this.label, required this.value});
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: Text(label, style: _Styles.cardBody)),
+        const SizedBox(width: 16),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: _Styles.cardTitle,
+          ),
+        ),
+      ],
+    ),
+  );
 }

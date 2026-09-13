@@ -21,9 +21,16 @@ class AppPageScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
+    backgroundColor: const Color(0xFF0B071B),
     appBar: title == null
         ? null
-        : AppBar(title: Text(title!), actions: actions),
+        : AppBar(
+            backgroundColor: const Color(0xFF0B071B),
+            foregroundColor: const Color(0xFFFAF7F2),
+            surfaceTintColor: Colors.transparent,
+            title: Text(title!),
+            actions: actions,
+          ),
     body: safeArea ? SafeArea(child: body) : body,
     floatingActionButton: floatingActionButton,
     bottomNavigationBar: bottomNavigationBar,

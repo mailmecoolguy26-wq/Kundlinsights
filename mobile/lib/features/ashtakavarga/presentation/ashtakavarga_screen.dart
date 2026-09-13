@@ -65,6 +65,7 @@ class _AshtakavargaScreenState extends State<AshtakavargaScreen> {
                         const Text('Ashtakavarga unavailable', style: _S.body),
                         TextButton(
                           onPressed: widget.controller.refresh,
+                          style: TextButton.styleFrom(foregroundColor: _C.gold),
                           child: const Text('Retry'),
                         ),
                       ],
