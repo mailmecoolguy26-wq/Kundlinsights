@@ -87,77 +87,142 @@ List<D1ChartHouse> buildD1ChartHouses(NatalSummary summary) {
   return List<D1ChartHouse>.unmodifiable(houses);
 }
 
-/// Fixed, normalized visual regions for the North Indian D1 chart.
+/// Fixed, normalized visual regions for the conventional North Indian chart.
 ///
-/// This is deliberately visual geometry only: house 1 is the conventional
-/// top-centre Lagna region, and each remaining authoritative house number has
-/// one stable region. It does not derive either houses or Rashis.
+/// These polygons are the same twelve regions drawn by [_NorthIndianChartPainter]:
+/// four inner-diamond regions and eight outer triangles. They deliberately map
+/// only an already-authoritative house number to a visual cell; they never
+/// derive houses, Rashis, or planet positions.
 abstract final class NorthIndianChartLayout {
-  static const _regions = <Rect>[
-    Rect.fromLTWH(.25, 0, .50, .25), // 1: top centre / Lagna
-    Rect.fromLTWH(0, 0, .25, .25),
-    Rect.fromLTWH(0, .25, .25, .25),
-    Rect.fromLTWH(0, .50, .25, .25),
-    Rect.fromLTWH(0, .75, .25, .25),
-    Rect.fromLTWH(.25, .75, .50, .25),
-    Rect.fromLTWH(.75, .75, .25, .25),
-    Rect.fromLTWH(.75, .50, .25, .25),
-    Rect.fromLTWH(.75, .25, .25, .25),
-    Rect.fromLTWH(.75, 0, .25, .25),
-    Rect.fromLTWH(.25, .25, .25, .25),
-    Rect.fromLTWH(.50, .25, .25, .25),
+  static const _polygons = <List<Offset>>[
+    [
+      Offset(.5, .03),
+      Offset(.735, .265),
+      Offset(.5, .5),
+      Offset(.265, .265),
+    ], // H1: top-centre diamond
+    [
+      Offset(.03, .03),
+      Offset(.5, .03),
+      Offset(.265, .265),
+    ], // H2: upper-left top
+    [
+      Offset(.03, .03),
+      Offset(.265, .265),
+      Offset(.03, .5),
+    ], // H3: upper-left side
+    [
+      Offset(.03, .5),
+      Offset(.265, .265),
+      Offset(.5, .5),
+      Offset(.265, .735),
+    ], // H4: centre-left diamond
+    [
+      Offset(.03, .5),
+      Offset(.265, .735),
+      Offset(.03, .97),
+    ], // H5: lower-left side
+    [
+      Offset(.03, .97),
+      Offset(.265, .735),
+      Offset(.5, .97),
+    ], // H6: lower-left bottom
+    [
+      Offset(.5, .5),
+      Offset(.265, .735),
+      Offset(.5, .97),
+      Offset(.735, .735),
+    ], // H7: bottom-centre diamond
+    [
+      Offset(.5, .97),
+      Offset(.735, .735),
+      Offset(.97, .97),
+    ], // H8: lower-right bottom
+    [
+      Offset(.735, .735),
+      Offset(.97, .5),
+      Offset(.97, .97),
+    ], // H9: lower-right side
+    [
+      Offset(.5, .5),
+      Offset(.735, .265),
+      Offset(.97, .5),
+      Offset(.735, .735),
+    ], // H10: centre-right diamond
+    [
+      Offset(.735, .265),
+      Offset(.97, .03),
+      Offset(.97, .5),
+    ], // H11: upper-right side
+    [
+      Offset(.5, .03),
+      Offset(.97, .03),
+      Offset(.735, .265),
+    ], // H12: upper-right top
   ];
 
-  static List<Rect> get regions => List<Rect>.unmodifiable(_regions);
+  static List<List<Offset>> get polygons =>
+      List<List<Offset>>.unmodifiable(_polygons.map(List<Offset>.unmodifiable));
+
+  static List<Rect> get regions =>
+      List<Rect>.unmodifiable(_polygons.map(_boundsForPolygon));
+
+  static List<Offset> polygonForHouse(int house) {
+    if (house < 1 || house > _polygons.length) {
+      throw RangeError.range(house, 1, _polygons.length, 'house');
+    }
+    return List<Offset>.unmodifiable(_polygons[house - 1]);
+  }
 
   static Rect regionForHouse(int house) {
-    if (house < 1 || house > _regions.length) {
-      throw RangeError.range(house, 1, _regions.length, 'house');
-    }
-    return _regions[house - 1];
+    return _boundsForPolygon(polygonForHouse(house));
   }
+
+  static Rect _boundsForPolygon(List<Offset> polygon) => Rect.fromPoints(
+    Offset(
+      polygon
+          .map((point) => point.dx)
+          .reduce((left, right) => left < right ? left : right),
+      polygon
+          .map((point) => point.dy)
+          .reduce((left, right) => left < right ? left : right),
+    ),
+    Offset(
+      polygon
+          .map((point) => point.dx)
+          .reduce((left, right) => left > right ? left : right),
+      polygon
+          .map((point) => point.dy)
+          .reduce((left, right) => left > right ? left : right),
+    ),
+  );
 }
 
 /// Stitch-derived presentation coordinates for the 400 × 400 chart design.
-/// This layer is intentionally independent from [NorthIndianChartLayout]: the
-/// latter preserves semantic house mapping, while this class controls only the
-/// visual placement of its already-authoritative contents.
+/// This uses [NorthIndianChartLayout]'s semantic fixed-house geometry for the
+/// already-authoritative contents. Sign labels and planet groups therefore
+/// cannot rotate independently from one another.
 abstract final class NorthIndianChartPresentation {
   static const designSize = 400.0;
 
   static Offset normalizedDesignPoint(double x, double y) =>
       Offset(x / designSize, y / designSize);
 
-  static const _planetAnchors = <Offset>[
-    Offset(.500, .3375), // 1: Stitch Ascendant anchor
-    Offset(.2925, .125),
-    Offset(.150, .280),
-    Offset(.275, .510),
-    Offset(.175, .730),
-    Offset(.500, .670),
-    Offset(.825, .730),
-    Offset(.705, .485),
-    Offset(.850, .280),
-    Offset(.7125, .1225),
-    Offset(.355, .520),
-    Offset(.645, .520),
-  ];
-
   /// Insets chosen against the Stitch outer frame, diagonals, and diamond.
   /// They are the only areas in which a house's labels may be laid out.
   static const _safeZones = <Rect>[
-    Rect.fromLTWH(.410, .2425, .180, .180), // 1: Ascendant / upper diamond
+    Rect.fromLTWH(.410, .2475, .180, .180), // 1: Ascendant / upper diamond
     Rect.fromLTWH(.220, .090, .145, .070),
     Rect.fromLTWH(.075, .260, .150, .040),
     Rect.fromLTWH(.190, .450, .170, .115),
     Rect.fromLTWH(.105, .720, .140, .030),
+    Rect.fromLTWH(.220, .840, .145, .070),
     Rect.fromLTWH(.405, .615, .190, .120),
-    Rect.fromLTWH(.745, .710, .160, .050),
+    Rect.fromLTWH(.635, .840, .145, .070),
+    Rect.fromLTWH(.800, .720, .100, .040),
     Rect.fromLTWH(.640, .425, .170, .120),
-    Rect.fromLTWH(.800, .260, .100, .040),
-    Rect.fromLTWH(.650, .100, .125, .045),
-    Rect.fromLTWH(.315, .490, .080, .060),
-    Rect.fromLTWH(.605, .490, .080, .060),
+    Rect.fromLTWH(.775, .260, .150, .040),
+    Rect.fromLTWH(.635, .090, .145, .070),
   ];
 
   /// Unmodified positions from the 400 × 400 Stitch SVG.
@@ -192,10 +257,7 @@ abstract final class NorthIndianChartPresentation {
   ];
 
   static Offset planetAnchorForHouse(int house) {
-    if (house < 1 || house > _planetAnchors.length) {
-      throw RangeError.range(house, 1, _planetAnchors.length, 'house');
-    }
-    return _planetAnchors[house - 1];
+    return safeZoneForHouse(house).center;
   }
 
   static NorthIndianSignSlot signSlotForHouse(int house) {
@@ -334,9 +396,6 @@ class NorthIndianFixedHouseChart extends StatelessWidget {
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final size = constraints.biggest.shortestSide;
-                    final hasH11Planets = houses.any(
-                      (house) => house.house == 11 && house.planets.isNotEmpty,
-                    );
                     return Center(
                       child: SizedBox.square(
                         dimension: size,
@@ -351,17 +410,12 @@ class NorthIndianFixedHouseChart extends StatelessWidget {
                             for (final house in houses)
                               _HouseHitRegion(
                                 house: house,
-                                size: size,
                                 onHouseTap: onHouseTap,
                               ),
                             for (final house in houses)
                               _HousePresentation(
                                 house: house,
                                 size: size,
-                                planetGroupOffset:
-                                    house.house == 4 && hasH11Planets
-                                    ? const Offset(0, -.065)
-                                    : Offset.zero,
                                 onPlanetTap: onPlanetTap,
                               ),
                           ],
@@ -382,19 +436,13 @@ class NorthIndianFixedHouseChart extends StatelessWidget {
 }
 
 class _HouseHitRegion extends StatelessWidget {
-  const _HouseHitRegion({
-    required this.house,
-    required this.size,
-    required this.onHouseTap,
-  });
+  const _HouseHitRegion({required this.house, required this.onHouseTap});
 
   final FixedChartHouse house;
-  final double size;
   final ValueChanged<FixedChartHouse> onHouseTap;
 
   @override
   Widget build(BuildContext context) {
-    final region = NorthIndianChartLayout.regionForHouse(house.house);
     final planets = house.planets.isEmpty
         ? AppLocalizations.of(context)!.noPlanets
         : house.planets
@@ -403,23 +451,25 @@ class _HouseHitRegion extends StatelessWidget {
                     '${planet.body}${planet.retrograde ? ' ${AppLocalizations.of(context)!.retrogradeAbbreviation}' : ''}',
               )
               .join(', ');
-    return Positioned(
-      left: region.left * size,
-      top: region.top * size,
-      width: region.width * size,
-      height: region.height * size,
-      child: Semantics(
-        button: true,
-        label: AppLocalizations.of(context)!.northIndianHouseSemantics(
-          house.house.toString(),
-          house.sign.englishName,
-          planets,
+    return Positioned.fill(
+      child: ClipPath(
+        clipper: _NormalizedHouseClipper(
+          NorthIndianChartLayout.polygonForHouse(house.house),
         ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () => onHouseTap(house),
-            child: const SizedBox.expand(),
+        child: Semantics(
+          button: true,
+          label: AppLocalizations.of(context)!.northIndianHouseSemantics(
+            house.house.toString(),
+            house.sign.englishName,
+            planets,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              key: Key('chart-house-${house.house}'),
+              onTap: () => onHouseTap(house),
+              child: const SizedBox.expand(),
+            ),
           ),
         ),
       ),
@@ -427,25 +477,42 @@ class _HouseHitRegion extends StatelessWidget {
   }
 }
 
+class _NormalizedHouseClipper extends CustomClipper<Path> {
+  const _NormalizedHouseClipper(this.points);
+
+  final List<Offset> points;
+
+  @override
+  Path getClip(Size size) {
+    final path = Path()
+      ..moveTo(points.first.dx * size.width, points.first.dy * size.height);
+    for (final point in points.skip(1)) {
+      path.lineTo(point.dx * size.width, point.dy * size.height);
+    }
+    return path..close();
+  }
+
+  @override
+  bool shouldReclip(covariant _NormalizedHouseClipper oldClipper) =>
+      !identical(points, oldClipper.points);
+}
+
 class _HousePresentation extends StatelessWidget {
   const _HousePresentation({
     required this.house,
     required this.size,
-    required this.planetGroupOffset,
     required this.onPlanetTap,
   });
 
   final FixedChartHouse house;
   final double size;
-  final Offset planetGroupOffset;
   final ValueChanged<ChartPlanet> onPlanetTap;
 
   @override
   Widget build(BuildContext context) {
     final signSlot = NorthIndianChartPresentation.signSlotForHouse(house.house);
     final signAnchor = NorthIndianChartPresentation.signAnchorForSlot(signSlot);
-    final safeZone = NorthIndianChartPresentation.safeZoneForHouse(house.house)
-        .shift(planetGroupOffset);
+    final safeZone = NorthIndianChartPresentation.safeZoneForHouse(house.house);
     return Stack(
       children: [
         _SvgAnchoredSignLabel(

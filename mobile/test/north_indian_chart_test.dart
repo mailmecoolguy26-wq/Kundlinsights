@@ -5,15 +5,50 @@ import 'package:kundlinsights_mobile/features/natal/domain/natal_summary.dart';
 import 'package:kundlinsights_mobile/l10n/app_localizations.dart';
 
 void main() {
-  test('maps every authoritative house to one unique fixed visual region', () {
-    final regions = List.generate(
-      12,
-      (index) => NorthIndianChartLayout.regionForHouse(index + 1),
-    );
-
+  test('maps every authoritative house to the conventional fixed polygon', () {
+    expect(NorthIndianChartLayout.polygons, hasLength(12));
     expect(NorthIndianChartLayout.regions, hasLength(12));
-    expect(regions.toSet(), hasLength(12));
     expect(() => NorthIndianChartLayout.regionForHouse(13), throwsRangeError);
+
+    const expectedPlanetAnchors = <Offset>[
+      Offset(.5, .3375), // H1 top-centre diamond
+      Offset(.2925, .125), // H2 upper-left top
+      Offset(.15, .28), // H3 upper-left side
+      Offset(.275, .5075), // H4 centre-left diamond
+      Offset(.175, .735), // H5 lower-left side
+      Offset(.2925, .875), // H6 lower-left bottom
+      Offset(.5, .675), // H7 bottom-centre diamond
+      Offset(.7075, .875), // H8 lower-right bottom
+      Offset(.85, .74), // H9 lower-right side
+      Offset(.725, .485), // H10 centre-right diamond
+      Offset(.85, .28), // H11 upper-right side
+      Offset(.7075, .125), // H12 upper-right top
+    ];
+    for (var house = 1; house <= 12; house++) {
+      final polygon = NorthIndianChartLayout.polygonForHouse(house);
+      expect(
+        _polygonContains(polygon, expectedPlanetAnchors[house - 1]),
+        isTrue,
+      );
+      expect(
+        _polygonContains(
+          polygon,
+          NorthIndianChartPresentation.signAnchorForHouse(house),
+        ),
+        isTrue,
+      );
+      final actualAnchor = NorthIndianChartPresentation.planetAnchorForHouse(
+        house,
+      );
+      expect(
+        actualAnchor.dx,
+        closeTo(expectedPlanetAnchors[house - 1].dx, .000001),
+      );
+      expect(
+        actualAnchor.dy,
+        closeTo(expectedPlanetAnchors[house - 1].dy, .000001),
+      );
+    }
   });
 
   test('uses Stitch design-space presentation coordinates separately', () {
@@ -103,10 +138,6 @@ void main() {
       expect(anchor.dx, closeTo(expected.dx, .000001));
       expect(anchor.dy, closeTo(expected.dy, .000001));
     }
-    expect(
-      NorthIndianChartLayout.regionForHouse(1),
-      const Rect.fromLTWH(.25, 0, .50, .25),
-    );
     for (var house = 1; house <= 12; house++) {
       final safeZone = NorthIndianChartPresentation.safeZoneForHouse(house);
       expect(safeZone.left, greaterThanOrEqualTo(0));
@@ -308,6 +339,18 @@ void main() {
           isTrue,
           reason: '${entry.key} group',
         );
+        final normalizedGroupCenter = Offset(
+          (group.center.dx - chart.left) / chart.width,
+          (group.center.dy - chart.top) / chart.height,
+        );
+        expect(
+          _polygonContains(
+            NorthIndianChartLayout.polygonForHouse(entry.value),
+            normalizedGroupCenter,
+          ),
+          isTrue,
+          reason: '${entry.key} visual house',
+        );
         // Multi-planet groups intentionally stack around the fixed group
         // anchor and may extend beyond their compact anchor rectangle.
         // The group centre, rather than every line's centre, is the visual
@@ -317,6 +360,69 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('keeps fixed house geometry while Aquarius-Lagna signs rotate', (
+    tester,
+  ) async {
+    final houses = buildD1ChartHouses(_aquariusLagnaSummary());
+    expect(houses.map((item) => item.sign.rashiIndex), [
+      11,
+      12,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+    ]);
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: SizedBox(
+            width: 390,
+            child: NorthIndianKundliChart(
+              houses: houses,
+              onHouseTap: (_) {},
+              onPlanetTap: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final chart = tester.getRect(
+      find.byKey(const Key('north-indian-chart-canvas')),
+    );
+    for (var house = 1; house <= 12; house++) {
+      expect(
+        tester.widget<Text>(find.byKey(Key('chart-sign-$house'))).data,
+        '${houses[house - 1].sign.rashiIndex}',
+      );
+    }
+    for (final entry in const {'Mars': 3, 'Sun': 9, 'Saturn': 10}.entries) {
+      final group = tester.getRect(
+        find.byKey(Key('chart-planet-group-${entry.value}')),
+      );
+      final normalizedGroupCenter = Offset(
+        (group.center.dx - chart.left) / chart.width,
+        (group.center.dy - chart.top) / chart.height,
+      );
+      expect(
+        _polygonContains(
+          NorthIndianChartLayout.polygonForHouse(entry.value),
+          normalizedGroupCenter,
+        ),
+        isTrue,
+        reason: '${entry.key} remains in H${entry.value}',
+      );
+    }
+  });
 
   testWidgets(
     'renders direct planet labels, Lagna, retrograde marker, legend, and tap actions',
@@ -463,11 +569,7 @@ void main() {
         }
       }
 
-      final firstHouse = find.byType(InkWell).first;
-      final firstHouseBounds = tester.getRect(firstHouse);
-      await tester.tapAt(
-        Offset(firstHouseBounds.right - 2, firstHouseBounds.top + 2),
-      );
+      await tester.tapAt(_scaledPolygonCentroid(chartBounds, 1));
       await tester.pump();
       expect(tappedHouse?.house, 1);
       await tester.tap(find.byKey(const Key('chart-planet-Saturn')));
@@ -516,11 +618,10 @@ void main() {
         );
         expect(find.text('7'), findsOneWidget);
         expect(find.text('7 · 7'), findsNothing);
-        final seventhHouse = find.byType(InkWell).at(6);
-        final seventhHouseBounds = tester.getRect(seventhHouse);
-        await tester.tapAt(
-          Offset(seventhHouseBounds.right - 2, seventhHouseBounds.top + 2),
+        final chart = tester.getRect(
+          find.byKey(const Key('north-indian-chart-canvas')),
         );
+        await tester.tapAt(_scaledPolygonCentroid(chart, 7));
         await tester.pump();
         expect(tappedHouse?.house, 7);
         await tester.tap(find.byKey(const Key('chart-planet-Sun')));
@@ -708,6 +809,49 @@ Rect _scaledSafeZone(Rect canvas, int house) {
   );
 }
 
+Offset _scaledPolygonCentroid(Rect canvas, int house) {
+  final polygon = NorthIndianChartLayout.polygonForHouse(house);
+  final average =
+      polygon.reduce((sum, point) => sum + point) / polygon.length.toDouble();
+  return Offset(
+    canvas.left + average.dx * canvas.width,
+    canvas.top + average.dy * canvas.height,
+  );
+}
+
+bool _polygonContains(List<Offset> polygon, Offset point) {
+  for (var index = 0; index < polygon.length; index++) {
+    if (_distanceToSegment(
+          point,
+          polygon[index],
+          polygon[(index + 1) % polygon.length],
+        ) <=
+        .000001) {
+      return true;
+    }
+  }
+  var inside = false;
+  for (
+    var index = 0, previous = polygon.length - 1;
+    index < polygon.length;
+    previous = index++
+  ) {
+    final currentPoint = polygon[index];
+    final previousPoint = polygon[previous];
+    final crosses =
+        (currentPoint.dy > point.dy) != (previousPoint.dy > point.dy);
+    if (crosses &&
+        point.dx <
+            (previousPoint.dx - currentPoint.dx) *
+                    (point.dy - currentPoint.dy) /
+                    (previousPoint.dy - currentPoint.dy) +
+                currentPoint.dx) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
 int _houseForPlanet(String body) => const {
   'Sun': 1,
   'Saturn': 1,
@@ -799,10 +943,18 @@ NatalSummary _summary() {
   );
 }
 
-NatalSummary _piscesLagnaSummary() {
+NatalSummary _piscesLagnaSummary() =>
+    _lagnaSummary(birthProfileId: 'pisces-profile', ascendantRashiIndex: 12);
+
+NatalSummary _aquariusLagnaSummary() =>
+    _lagnaSummary(birthProfileId: 'aquarius-profile', ascendantRashiIndex: 11);
+
+NatalSummary _lagnaSummary({
+  required String birthProfileId,
+  required int ascendantRashiIndex,
+}) {
   const nakshatra = NatalNakshatra(nakshatraIndex: 1, name: 'Ashwini');
-  const signs = [
-    'Pisces',
+  const signsByRashi = [
     'Aries',
     'Taurus',
     'Gemini',
@@ -814,18 +966,19 @@ NatalSummary _piscesLagnaSummary() {
     'Sagittarius',
     'Capricorn',
     'Aquarius',
+    'Pisces',
   ];
-  final houses = List<NatalHouse>.generate(
-    12,
-    (index) => NatalHouse(
+  final houses = List<NatalHouse>.generate(12, (index) {
+    final rashiIndex = (ascendantRashiIndex - 1 + index) % 12 + 1;
+    return NatalHouse(
       house: index + 1,
       sign: NatalSign(
-        rashiIndex: (index + 11) % 12 + 1,
-        sanskritName: signs[index],
-        englishName: signs[index],
+        rashiIndex: rashiIndex,
+        sanskritName: signsByRashi[rashiIndex - 1],
+        englishName: signsByRashi[rashiIndex - 1],
       ),
-    ),
-  );
+    );
+  });
   NatalPosition planet(
     String body,
     int house,
@@ -855,7 +1008,7 @@ NatalSummary _piscesLagnaSummary() {
     planet('Ketu', 5, 7.3, retrograde: true),
   ];
   return NatalSummary(
-    birthProfileId: 'pisces-profile',
+    birthProfileId: birthProfileId,
     summary: NatalIdentitySummary(
       ascendant: planet('Ascendant', 1, 1.2),
       moonSign: houses[11].sign,
