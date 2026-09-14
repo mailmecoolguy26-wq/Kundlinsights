@@ -129,6 +129,7 @@ class ReadingDetail extends ReadingSummary {
     this.calibrationContext,
     this.careerAshtakavargaStructure,
     this.careerAshtakavargaCorroboration,
+    this.careerEvidenceSynthesis,
     this.insights = const [],
   });
 
@@ -137,6 +138,7 @@ class ReadingDetail extends ReadingSummary {
   final CareerReadingCalibrationSummary? calibrationContext;
   final CareerAshtakavargaStructure? careerAshtakavargaStructure;
   final CareerAshtakavargaCorroboration? careerAshtakavargaCorroboration;
+  final CareerEvidenceSynthesis? careerEvidenceSynthesis;
   final List<CareerInsight> insights;
 
   factory ReadingDetail.fromJson(Map<String, dynamic> json) {
@@ -180,6 +182,9 @@ class ReadingDetail extends ReadingSummary {
           CareerAshtakavargaCorroboration.tryFromJson(
             json['careerAshtakavargaCorroboration'],
           ),
+      careerEvidenceSynthesis: CareerEvidenceSynthesis.tryFromJson(
+        json['careerEvidenceSynthesis'],
+      ),
       insights: List<CareerInsight>.unmodifiable(insights),
     );
   }
@@ -242,6 +247,81 @@ class CareerAshtakavargaCorroboration {
     final h10 = CareerAshtakavargaHouseFact.tryFromJson(raw['h10']);
     if (h10 == null || h10.house != 10 || h10.sav == null) return null;
     return CareerAshtakavargaCorroboration(h10: h10);
+  }
+}
+
+/// Server-authored synthesis of already validated evidence. It intentionally
+/// contains no astrology derivation, score, prediction, or ranking metadata.
+class CareerEvidenceSynthesis {
+  const CareerEvidenceSynthesis({
+    required this.activeDasha,
+    required this.currentTransit,
+    required this.concurrent,
+    required this.limited,
+    this.h10Sav,
+    this.calibrationLevel,
+    this.calibrationEventCount,
+    this.hasFutureRecurrence = false,
+  });
+
+  final bool activeDasha;
+  final bool currentTransit;
+  final bool concurrent;
+  final bool limited;
+  final int? h10Sav;
+  final String? calibrationLevel;
+  final int? calibrationEventCount;
+  final bool hasFutureRecurrence;
+
+  static CareerEvidenceSynthesis? tryFromJson(Object? raw) {
+    if (raw is! Map<String, dynamic> ||
+        raw['foundation'] is! Map<String, dynamic> ||
+        (raw['foundation'] as Map<String, dynamic>)['family'] !=
+            'CAREER_FOUNDATION' ||
+        raw['timing'] is! Map<String, dynamic>) {
+      return null;
+    }
+    final timing = raw['timing'] as Map<String, dynamic>;
+    final fields = ['activeDasha', 'currentTransit', 'concurrent', 'limited'];
+    if (!fields.every((field) => timing[field] is bool)) {
+      return null;
+    }
+    final corroboration = raw['corroboration'];
+    final h10 = corroboration is Map<String, dynamic>
+        ? CareerAshtakavargaHouseFact.tryFromJson(corroboration['h10'])
+        : null;
+    if (h10 != null && (h10.house != 10 || h10.sav == null)) {
+      return null;
+    }
+    final calibration = raw['calibration'];
+    final level = calibration is Map<String, dynamic>
+        ? calibration['calibrationLevel']
+        : null;
+    final count = calibration is Map<String, dynamic>
+        ? calibration['eventCount']
+        : null;
+    if (level != null && !['NONE', 'LIMITED', 'CALIBRATED'].contains(level)) {
+      return null;
+    }
+    if (count != null && (count is! int || count < 0)) {
+      return null;
+    }
+    final future = raw['futureRecurrence'];
+    if (future != null &&
+        (future is! Map<String, dynamic> ||
+            future['family'] != 'FUTURE_RECURRENCE_WINDOW')) {
+      return null;
+    }
+    return CareerEvidenceSynthesis(
+      activeDasha: timing['activeDasha'] as bool,
+      currentTransit: timing['currentTransit'] as bool,
+      concurrent: timing['concurrent'] as bool,
+      limited: timing['limited'] as bool,
+      h10Sav: h10?.sav,
+      calibrationLevel: level as String?,
+      calibrationEventCount: count as int?,
+      hasFutureRecurrence: future != null,
+    );
   }
 }
 

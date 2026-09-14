@@ -86,6 +86,19 @@ function publicCareerAshtakavargaCorroboration(record) {
   if (!h10 || h10.house !== 10 || !Number.isInteger(h10.sav) || h10.sav < 0) return undefined;
   return { kind: 'H10_NATAL_CONTEXT', chart: 'D1', corroborates: 'CAREER_FOUNDATION', h10: { house: 10, sav: h10.sav }, limitation: 'NOT_STANDALONE_PREDICTION' };
 }
+function publicCareerEvidenceSynthesis(record) {
+  const value = record && record.reading && record.reading.careerEvidenceSynthesis;
+  if (!value || typeof value !== 'object' || Array.isArray(value) || !value.foundation || value.foundation.family !== 'CAREER_FOUNDATION') return undefined;
+  const timing = value.timing;
+  if (!timing || typeof timing !== 'object' || !['activeDasha', 'currentTransit', 'concurrent', 'limited'].every((key) => typeof timing[key] === 'boolean')) return undefined;
+  const output = { foundation: { family: 'CAREER_FOUNDATION' }, timing: { activeDasha: timing.activeDasha, currentTransit: timing.currentTransit, concurrent: timing.concurrent, limited: timing.limited } };
+  const corroboration = value.corroboration;
+  if (corroboration && corroboration.h10 && corroboration.h10.house === 10 && Number.isInteger(corroboration.h10.sav) && corroboration.h10.sav >= 0) output.corroboration = { h10: { house: 10, sav: corroboration.h10.sav } };
+  const calibration = value.calibration;
+  if (calibration && ['NONE', 'LIMITED', 'CALIBRATED'].includes(calibration.calibrationLevel)) output.calibration = { calibrationLevel: calibration.calibrationLevel, ...(Number.isInteger(calibration.eventCount) && calibration.eventCount >= 0 ? { eventCount: calibration.eventCount } : {}) };
+  if (value.futureRecurrence && value.futureRecurrence.family === 'FUTURE_RECURRENCE_WINDOW') output.futureRecurrence = { family: 'FUTURE_RECURRENCE_WINDOW' };
+  return output;
+}
 function publicAshtakavargaContext(context) {
   if (!context || context.sourceFamily !== 'ASHTAKAVARGA' || !['SAV', 'BAV', 'LAGNA_BAV'].includes(context.scoreType)) return null;
   if (!Number.isInteger(context.houseNumber) || context.houseNumber < 1 || context.houseNumber > 12 || !Number.isInteger(context.rashiIndex) || context.rashiIndex < 1 || context.rashiIndex > 12 || !Number.isInteger(context.value)) return null;
@@ -168,7 +181,7 @@ function publicInsights(record) {
   });
   });
 }
-function publicReadingDetail(item) { const calibrated = calibratedContent(item.record), calibrationContext = publicCalibrationSummary(item.record), careerAshtakavargaStructure = publicCareerAshtakavargaStructure(item.record), careerAshtakavargaCorroboration = publicCareerAshtakavargaCorroboration(item.record), insights = publicInsights(item.record); return immutableCopy({ ...publicReadingSummary(item), content: item.record.renderedReading, ...(calibrated ? { calibratedContent: calibrated } : {}), ...(calibrationContext === undefined ? {} : { calibrationContext }), ...(careerAshtakavargaStructure === undefined ? {} : { careerAshtakavargaStructure }), ...(careerAshtakavargaCorroboration === undefined ? {} : { careerAshtakavargaCorroboration }), ...(insights === undefined ? {} : { insights }) }); }
+function publicReadingDetail(item) { const calibrated = calibratedContent(item.record), calibrationContext = publicCalibrationSummary(item.record), careerAshtakavargaStructure = publicCareerAshtakavargaStructure(item.record), careerAshtakavargaCorroboration = publicCareerAshtakavargaCorroboration(item.record), careerEvidenceSynthesis = publicCareerEvidenceSynthesis(item.record), insights = publicInsights(item.record); return immutableCopy({ ...publicReadingSummary(item), content: item.record.renderedReading, ...(calibrated ? { calibratedContent: calibrated } : {}), ...(calibrationContext === undefined ? {} : { calibrationContext }), ...(careerAshtakavargaStructure === undefined ? {} : { careerAshtakavargaStructure }), ...(careerAshtakavargaCorroboration === undefined ? {} : { careerAshtakavargaCorroboration }), ...(careerEvidenceSynthesis === undefined ? {} : { careerEvidenceSynthesis }), ...(insights === undefined ? {} : { insights }) }); }
 function scopedKeyProvider(key) { return Object.freeze({ current: async () => ({ keyVersion: key.keyVersion, dek: Buffer.from(key.dek) }), forVersion: async () => ({ keyVersion: key.keyVersion, dek: Buffer.from(key.dek) }) }); }
 function rawRecord(raw, record) { return { readingId: raw.readingId, userId: raw.userId, birthProfileId: raw.birthProfileId, status: raw.status, archivedAt: raw.archivedAt, idempotencyKey: raw.idempotencyKey, record }; }
 

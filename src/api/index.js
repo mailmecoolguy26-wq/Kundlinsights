@@ -20,6 +20,9 @@ function dtoReadingDetail(reading) {
     ...(reading.careerAshtakavargaCorroboration === undefined ? {} : {
       careerAshtakavargaCorroboration: reading.careerAshtakavargaCorroboration,
     }),
+    ...(reading.careerEvidenceSynthesis === undefined ? {} : {
+      careerEvidenceSynthesis: reading.careerEvidenceSynthesis,
+    }),
     ...(reading.insights === undefined ? {} : {
       insights: reading.insights,
     }),

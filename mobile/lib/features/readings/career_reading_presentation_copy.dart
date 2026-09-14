@@ -112,6 +112,50 @@ class CareerReadingPresentationCopy {
   String get ashtakavargaCorroborationLimitation => isHinglish
       ? 'Yeh corroborating structural context hai, promotion, job change, income ya timing ka standalone prediction nahi.'
       : 'This is corroborating structural context, not a standalone prediction of promotion, job change, income, or timing.';
+
+  String synthesisFoundation() => isHinglish
+      ? 'Aapki Janam Kundli mein Career ka base 10th Bhav se jude factors par established hai.'
+      : 'Your Career picture is anchored in the 10th House factors already identified in your birth chart.';
+  String synthesisAshtakavarga(int sav) => isHinglish
+      ? 'Ashtakavarga isi Career foundation ko additional context deta hai: 10th Bhav mein $sav SAV bindus hain. Yeh promotion, job change, income ya timing ka standalone prediction nahi.'
+      : 'Ashtakavarga adds another layer of context: the 10th House carries $sav SAV bindus. This is not a standalone prediction of promotion, job change, income, or timing.';
+  String synthesisTiming({required bool activeDasha, required bool currentTransit, required bool concurrent, required bool limited}) {
+    if (concurrent) {
+      return isHinglish
+          ? 'Existing Career-related Dasha aur Gochar timing layers saath mein present hain. Isse outcome ki guarantee nahi banti.'
+          : 'Existing Career-related Dasha and transit timing layers are present together. This does not establish an outcome.';
+    }
+    if (activeDasha && currentTransit) {
+      return isHinglish
+          ? 'Current Dasha aur Gochar dono Career-related context provide kar rahe hain. Isse direct outcome prediction nahi maana ja raha.'
+          : 'Current Dasha and transit evidence both provide Career-related context. This is not being treated as a direct outcome prediction.';
+    }
+    if (activeDasha || currentTransit) {
+      return isHinglish
+          ? 'Available current timing evidence Career-related themes ko context deta hai, lekin ise standalone prediction ke roop mein read nahi kiya ja raha.'
+          : 'Available current timing evidence provides context for Career-related themes, without being read as a standalone prediction.';
+    }
+    if (limited) {
+      return isHinglish
+          ? 'Available Career timing evidence abhi limited hai, isliye koi direct timing conclusion nahi diya ja raha.'
+          : 'Available Career timing evidence remains limited, so no direct timing conclusion is being made.';
+    }
+    return '';
+  }
+  String synthesisCalibration(String level, int? count) => isHinglish
+      ? switch (level) {
+          'CALIBRATED' => '${count ?? 'Saved'} recorded Career events similar patterns ke personal context ko add karte hain; yeh future outcome forecast nahi hai.',
+          'LIMITED' => 'Aapki recorded Career History ka personal context abhi limited hai.',
+          _ => '',
+        }
+      : switch (level) {
+          'CALIBRATED' => '${count ?? 'Saved'} recorded Career events add personal context for how similar patterns appeared previously; this is not a future outcome forecast.',
+          'LIMITED' => 'Your recorded Career History provides limited personal context at present.',
+          _ => '',
+        };
+  String get synthesisFutureRecurrence => isHinglish
+      ? 'Existing engine ne saved Career History se linked ek future recurrence window identify ki hai.'
+      : 'The existing engine has identified a future recurrence window linked to your saved Career History.';
   String dasha(Object? value) => isHinglish
       ? const {
               'MAHADASHA': 'Mahadasha',

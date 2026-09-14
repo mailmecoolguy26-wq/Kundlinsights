@@ -135,6 +135,32 @@ test('Career Ashtakavarga corroboration is an optional, narrow public H10 contex
   const legacy = await service.getSecureReadingDetail({ principal: principal('subject-a'), readingId: 'reading-a-new' });
   assert.equal('careerAshtakavargaCorroboration' in legacy, false);
 });
+test('Phase16E delivery exposes only the structured synthesis packet and safely omits malformed legacy data', async () => {
+  const { service, readings } = setup();
+  const snapshot = record('reading-synthesis', '2026-08-24T00:00:00.000Z', 'Insight content.');
+  snapshot.reading.careerEvidenceSynthesis = {
+    foundation: { family: 'CAREER_FOUNDATION', internal: 'nope' },
+    timing: { activeDasha: true, currentTransit: false, concurrent: false, limited: true, strength: 'private' },
+    corroboration: { h10: { house: 10, sav: 31, threshold: 'private' } },
+    calibration: { calibrationLevel: 'LIMITED', eventCount: 1, patternCount: 9 },
+    futureRecurrence: { family: 'FUTURE_RECURRENCE_WINDOW', private: true },
+  };
+  readings.insertReadingRecord({ userId: 'user-a', birthProfileId: 'profile-a', record: snapshot });
+  const detail = await service.getSecureReadingDetail({ principal: principal('subject-a'), readingId: 'reading-synthesis' });
+  assert.deepEqual(detail.careerEvidenceSynthesis, {
+    foundation: { family: 'CAREER_FOUNDATION' },
+    timing: { activeDasha: true, currentTransit: false, concurrent: false, limited: true },
+    corroboration: { h10: { house: 10, sav: 31 } },
+    calibration: { calibrationLevel: 'LIMITED', eventCount: 1 },
+    futureRecurrence: { family: 'FUTURE_RECURRENCE_WINDOW' },
+  });
+  assert.equal(JSON.stringify(detail.careerEvidenceSynthesis).match(/threshold|score|rank|probability|confidence|strong|weak|h7|private/i), null);
+  const malformedSnapshot = record('reading-synthesis-malformed', '2026-08-25T00:00:00.000Z', 'Insight content.');
+  malformedSnapshot.reading.careerEvidenceSynthesis = { foundation: { family: 'CAREER_FOUNDATION' }, timing: {} };
+  readings.insertReadingRecord({ userId: 'user-a', birthProfileId: 'profile-a', record: malformedSnapshot });
+  const malformed = await service.getSecureReadingDetail({ principal: principal('subject-a'), readingId: 'reading-synthesis-malformed' });
+  assert.equal('careerEvidenceSynthesis' in malformed, false);
+});
 test('Career Insight delivery omits absent optional transit and concurrent fields without rejecting the detail DTO', async () => {
   const { service, readings } = setup();
   const insights = [{

@@ -855,6 +855,13 @@ class _CareerReadingDetail extends StatelessWidget {
                     const SizedBox(height: 12),
                     _CareerReadingContentSections(content: detail.content),
                   ],
+                  if (detail.careerEvidenceSynthesis != null) ...[
+                    const SizedBox(height: 18),
+                    _CareerEvidenceSynthesisSection(
+                      synthesis: detail.careerEvidenceSynthesis!,
+                      copy: copy,
+                    ),
+                  ],
                   if (detail.careerAshtakavargaStructure != null) ...[
                     const SizedBox(height: 18),
                     _CareerAshtakavargaStructureSection(
@@ -862,7 +869,8 @@ class _CareerReadingDetail extends StatelessWidget {
                       copy: copy,
                     ),
                   ],
-                  if (detail.careerAshtakavargaCorroboration != null) ...[
+                  if (detail.careerAshtakavargaCorroboration != null &&
+                      detail.careerEvidenceSynthesis == null) ...[
                     const SizedBox(height: 18),
                     _CareerAshtakavargaCorroborationSection(
                       corroboration: detail.careerAshtakavargaCorroboration!,
@@ -929,6 +937,40 @@ class _CareerReadingDetail extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _CareerEvidenceSynthesisSection extends StatelessWidget {
+  const _CareerEvidenceSynthesisSection({required this.synthesis, required this.copy});
+  final CareerEvidenceSynthesis synthesis;
+  final CareerReadingPresentationCopy copy;
+
+  @override
+  Widget build(BuildContext context) {
+    final paragraphs = <String>[
+      copy.synthesisFoundation(),
+      if (synthesis.h10Sav != null) copy.synthesisAshtakavarga(synthesis.h10Sav!),
+      if (copy.synthesisTiming(activeDasha: synthesis.activeDasha, currentTransit: synthesis.currentTransit, concurrent: synthesis.concurrent, limited: synthesis.limited).isNotEmpty)
+        copy.synthesisTiming(activeDasha: synthesis.activeDasha, currentTransit: synthesis.currentTransit, concurrent: synthesis.concurrent, limited: synthesis.limited),
+      if (synthesis.calibrationLevel != null && copy.synthesisCalibration(synthesis.calibrationLevel!, synthesis.calibrationEventCount).isNotEmpty)
+        copy.synthesisCalibration(synthesis.calibrationLevel!, synthesis.calibrationEventCount),
+      if (synthesis.hasFutureRecurrence) copy.synthesisFutureRecurrence,
+    ];
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const _CareerReadingSectionLabel('CAREER EVIDENCE SYNTHESIS'),
+      const SizedBox(height: 8),
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(color: _CareerReadingColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: _CareerReadingColors.goldBorder)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          for (var index = 0; index < paragraphs.length; index++) ...[
+            Text(paragraphs[index], style: _CareerReadingText.body),
+            if (index < paragraphs.length - 1) const SizedBox(height: 10),
+          ],
+        ]),
+      ),
+    ]);
   }
 }
 

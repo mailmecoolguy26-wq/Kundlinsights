@@ -61,6 +61,26 @@ void main() {
     });
     expect(corroborated.careerAshtakavargaCorroboration!.h10.sav, 31);
 
+    final synthesized = ReadingDetail.fromJson({
+      ..._detailJson(),
+      'careerEvidenceSynthesis': {
+        'foundation': {'family': 'CAREER_FOUNDATION'},
+        'timing': {
+          'activeDasha': true,
+          'currentTransit': true,
+          'concurrent': false,
+          'limited': true,
+        },
+        'corroboration': {
+          'h10': {'house': 10, 'sav': 31},
+        },
+        'calibration': {'calibrationLevel': 'LIMITED', 'eventCount': 1},
+      },
+    });
+    expect(synthesized.careerEvidenceSynthesis!.h10Sav, 31);
+    expect(synthesized.careerEvidenceSynthesis!.limited, isTrue);
+    expect(synthesized.careerEvidenceSynthesis!.calibrationLevel, 'LIMITED');
+
     final partial = ReadingDetail.fromJson({
       ..._detailJson(),
       'careerAshtakavargaStructure': {
@@ -78,6 +98,7 @@ void main() {
       ReadingDetail.fromJson(_detailJson()).careerAshtakavargaCorroboration,
       isNull,
     );
+    expect(ReadingDetail.fromJson(_detailJson()).careerEvidenceSynthesis, isNull);
   });
 
   test(
@@ -617,6 +638,19 @@ void main() {
           'h10': {'house': 10, 'sav': 31},
           'limitation': 'NOT_STANDALONE_PREDICTION',
         },
+        'careerEvidenceSynthesis': {
+          'foundation': {'family': 'CAREER_FOUNDATION'},
+          'timing': {
+            'activeDasha': false,
+            'currentTransit': true,
+            'concurrent': false,
+            'limited': true,
+          },
+          'corroboration': {
+            'h10': {'house': 10, 'sav': 31},
+          },
+          'calibration': {'calibrationLevel': 'LIMITED', 'eventCount': 1},
+        },
       });
       final repository = _ReadingRepository()..nextDetail = detail;
       final controller = ReadingController(repository, auth, profiles);
@@ -631,7 +665,12 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('CAREER ASHTAKAVARGA STRUCTURE'), findsOneWidget);
-      expect(find.text('ASHTAKAVARGA CAREER CONTEXT'), findsOneWidget);
+      expect(find.text('ASHTAKAVARGA CAREER CONTEXT'), findsNothing);
+      expect(find.text('CAREER EVIDENCE SYNTHESIS'), findsOneWidget);
+      expect(
+        find.textContaining('Ashtakavarga adds another layer of context'),
+        findsOneWidget,
+      );
       expect(
         find.textContaining('the 10th House carries 31 SAV bindus'),
         findsOneWidget,
@@ -668,6 +707,10 @@ void main() {
       );
       expect(
         find.textContaining('standalone prediction nahi'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Ashtakavarga isi Career foundation'),
         findsOneWidget,
       );
       expect(find.text('10th House'), findsNothing);
