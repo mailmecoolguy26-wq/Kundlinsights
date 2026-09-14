@@ -49,6 +49,18 @@ void main() {
     expect(full.careerAshtakavargaStructure!.h10Lord!.planet, 'Mars');
     expect(full.careerAshtakavargaStructure!.tenthFromH10Lord!.house, 4);
 
+    final corroborated = ReadingDetail.fromJson({
+      ..._detailJson(),
+      'careerAshtakavargaCorroboration': {
+        'kind': 'H10_NATAL_CONTEXT',
+        'chart': 'D1',
+        'corroborates': 'CAREER_FOUNDATION',
+        'h10': {'house': 10, 'sav': 31},
+        'limitation': 'NOT_STANDALONE_PREDICTION',
+      },
+    });
+    expect(corroborated.careerAshtakavargaCorroboration!.h10.sav, 31);
+
     final partial = ReadingDetail.fromJson({
       ..._detailJson(),
       'careerAshtakavargaStructure': {
@@ -60,6 +72,10 @@ void main() {
     expect(partial.careerAshtakavargaStructure!.h10Lord, isNull);
     expect(
       ReadingDetail.fromJson(_detailJson()).careerAshtakavargaStructure,
+      isNull,
+    );
+    expect(
+      ReadingDetail.fromJson(_detailJson()).careerAshtakavargaCorroboration,
       isNull,
     );
   });
@@ -594,6 +610,13 @@ void main() {
           'h7Lord': {'planet': 'Saturn', 'house': 6, 'houseSav': 23},
           'tenthFromH10Lord': {'house': 4, 'sav': 35},
         },
+        'careerAshtakavargaCorroboration': {
+          'kind': 'H10_NATAL_CONTEXT',
+          'chart': 'D1',
+          'corroborates': 'CAREER_FOUNDATION',
+          'h10': {'house': 10, 'sav': 31},
+          'limitation': 'NOT_STANDALONE_PREDICTION',
+        },
       });
       final repository = _ReadingRepository()..nextDetail = detail;
       final controller = ReadingController(repository, auth, profiles);
@@ -608,6 +631,15 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('CAREER ASHTAKAVARGA STRUCTURE'), findsOneWidget);
+      expect(find.text('ASHTAKAVARGA CAREER CONTEXT'), findsOneWidget);
+      expect(
+        find.textContaining('the 10th House carries 31 SAV bindus'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('not a standalone prediction of promotion'),
+        findsOneWidget,
+      );
       expect(find.text('10th House'), findsOneWidget);
       expect(find.text('Mars'), findsOneWidget);
       expect(find.text('31 SAV bindus'), findsOneWidget);
@@ -617,7 +649,10 @@ void main() {
       );
       expect(
         find.textContaining(
-          RegExp('strong|weak|favorable|promotion|score', caseSensitive: false),
+          RegExp(
+            'strong Career|weak Career|favorable|promotion is likely|job change is likely|score',
+            caseSensitive: false,
+          ),
         ),
         findsNothing,
       );
@@ -627,6 +662,14 @@ void main() {
       expect(find.text('10th Bhav'), findsOneWidget);
       expect(find.text('Mangal'), findsOneWidget);
       expect(find.text('Shani Dev'), findsOneWidget);
+      expect(
+        find.textContaining('10th Bhav mein 31 SAV bindus hain'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('standalone prediction nahi'),
+        findsOneWidget,
+      );
       expect(find.text('10th House'), findsNothing);
       expect(tester.takeException(), isNull);
       controller.dispose();

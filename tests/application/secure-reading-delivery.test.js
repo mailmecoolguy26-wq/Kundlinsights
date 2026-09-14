@@ -117,6 +117,24 @@ test('Career Ashtakavarga structure delivery is additive, factual, and excludes 
   });
   assert.equal(JSON.stringify(detail.careerAshtakavargaStructure).match(/threshold|rank|sourceId|strong|weak|favorable/i), null);
 });
+test('Career Ashtakavarga corroboration is an optional, narrow public H10 context only', async () => {
+  const { service, readings } = setup();
+  const snapshot = record('reading-ashtakavarga-corroboration', '2026-08-24T00:00:00.000Z', 'Insight content.');
+  snapshot.reading.careerAshtakavargaCorroboration = {
+    kind: 'H10_NATAL_CONTEXT', chart: 'D1', corroborates: 'CAREER_FOUNDATION',
+    h10: { house: 10, sav: 31, threshold: 'private' },
+    limitation: 'NOT_STANDALONE_PREDICTION', privateReason: 'nope',
+  };
+  readings.insertReadingRecord({ userId: 'user-a', birthProfileId: 'profile-a', record: snapshot });
+  const detail = await service.getSecureReadingDetail({ principal: principal('subject-a'), readingId: 'reading-ashtakavarga-corroboration' });
+  assert.deepEqual(detail.careerAshtakavargaCorroboration, {
+    kind: 'H10_NATAL_CONTEXT', chart: 'D1', corroborates: 'CAREER_FOUNDATION',
+    h10: { house: 10, sav: 31 }, limitation: 'NOT_STANDALONE_PREDICTION',
+  });
+  assert.equal(JSON.stringify(detail.careerAshtakavargaCorroboration).match(/threshold|rank|score|confidence|probability|strong|weak|favorable|private/i), null);
+  const legacy = await service.getSecureReadingDetail({ principal: principal('subject-a'), readingId: 'reading-a-new' });
+  assert.equal('careerAshtakavargaCorroboration' in legacy, false);
+});
 test('Career Insight delivery omits absent optional transit and concurrent fields without rejecting the detail DTO', async () => {
   const { service, readings } = setup();
   const insights = [{

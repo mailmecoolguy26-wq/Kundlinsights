@@ -47,6 +47,11 @@ test('builds the Hyderabad development fixture through Layer 15A using injected 
   assert.equal(structure.h7.house, 7);
   assert.equal(Number.isInteger(structure.tenthFromH10Lord.house), true);
   assert.equal(JSON.stringify(structure).match(/threshold|rank|strong|weak|favorable|d10/i), null);
+  assert.deepEqual(result.reading.careerAshtakavargaCorroboration, {
+    kind: 'H10_NATAL_CONTEXT', chart: 'D1', corroborates: 'CAREER_FOUNDATION',
+    h10: { house: 10, sav: structure.h10.sav },
+    limitation: 'NOT_STANDALONE_PREDICTION',
+  });
   assert.equal(foundation.technicalDetails.independentMechanismFamilies.includes('D10_DIVISIONAL'), true);
   const serialized = JSON.stringify(result);
   for (const forbidden of ['1990-11-26', '13:40:00', '17.385', '78.4867', 'siderealLongitudeDegrees', 'ephemerisPath', 'manifest']) assert.equal(serialized.includes(forbidden), false, forbidden);

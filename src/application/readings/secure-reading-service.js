@@ -76,6 +76,16 @@ function publicCareerAshtakavargaStructure(record) {
   };
   return Object.keys(structure).length ? structure : undefined;
 }
+function publicCareerAshtakavargaCorroboration(record) {
+  const value = record && record.reading && record.reading.careerAshtakavargaCorroboration;
+  if (!value || typeof value !== 'object' || Array.isArray(value) ||
+      value.kind !== 'H10_NATAL_CONTEXT' || value.chart !== 'D1' ||
+      value.corroborates !== 'CAREER_FOUNDATION' ||
+      value.limitation !== 'NOT_STANDALONE_PREDICTION') return undefined;
+  const h10 = value.h10;
+  if (!h10 || h10.house !== 10 || !Number.isInteger(h10.sav) || h10.sav < 0) return undefined;
+  return { kind: 'H10_NATAL_CONTEXT', chart: 'D1', corroborates: 'CAREER_FOUNDATION', h10: { house: 10, sav: h10.sav }, limitation: 'NOT_STANDALONE_PREDICTION' };
+}
 function publicAshtakavargaContext(context) {
   if (!context || context.sourceFamily !== 'ASHTAKAVARGA' || !['SAV', 'BAV', 'LAGNA_BAV'].includes(context.scoreType)) return null;
   if (!Number.isInteger(context.houseNumber) || context.houseNumber < 1 || context.houseNumber > 12 || !Number.isInteger(context.rashiIndex) || context.rashiIndex < 1 || context.rashiIndex > 12 || !Number.isInteger(context.value)) return null;
@@ -158,7 +168,7 @@ function publicInsights(record) {
   });
   });
 }
-function publicReadingDetail(item) { const calibrated = calibratedContent(item.record), calibrationContext = publicCalibrationSummary(item.record), careerAshtakavargaStructure = publicCareerAshtakavargaStructure(item.record), insights = publicInsights(item.record); return immutableCopy({ ...publicReadingSummary(item), content: item.record.renderedReading, ...(calibrated ? { calibratedContent: calibrated } : {}), ...(calibrationContext === undefined ? {} : { calibrationContext }), ...(careerAshtakavargaStructure === undefined ? {} : { careerAshtakavargaStructure }), ...(insights === undefined ? {} : { insights }) }); }
+function publicReadingDetail(item) { const calibrated = calibratedContent(item.record), calibrationContext = publicCalibrationSummary(item.record), careerAshtakavargaStructure = publicCareerAshtakavargaStructure(item.record), careerAshtakavargaCorroboration = publicCareerAshtakavargaCorroboration(item.record), insights = publicInsights(item.record); return immutableCopy({ ...publicReadingSummary(item), content: item.record.renderedReading, ...(calibrated ? { calibratedContent: calibrated } : {}), ...(calibrationContext === undefined ? {} : { calibrationContext }), ...(careerAshtakavargaStructure === undefined ? {} : { careerAshtakavargaStructure }), ...(careerAshtakavargaCorroboration === undefined ? {} : { careerAshtakavargaCorroboration }), ...(insights === undefined ? {} : { insights }) }); }
 function scopedKeyProvider(key) { return Object.freeze({ current: async () => ({ keyVersion: key.keyVersion, dek: Buffer.from(key.dek) }), forVersion: async () => ({ keyVersion: key.keyVersion, dek: Buffer.from(key.dek) }) }); }
 function rawRecord(raw, record) { return { readingId: raw.readingId, userId: raw.userId, birthProfileId: raw.birthProfileId, status: raw.status, archivedAt: raw.archivedAt, idempotencyKey: raw.idempotencyKey, record }; }
 

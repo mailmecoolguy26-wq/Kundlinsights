@@ -104,6 +104,14 @@ class CareerReadingPresentationCopy {
             'State';
   String house(int value) =>
       isHinglish ? '${value}th Bhav' : '${ordinal(value)} House';
+
+  String ashtakavargaCorroboration(int sav) => isHinglish
+      ? 'Aapki Janam Kundli mein Career structure 10th Bhav factors se already identify hua hai. Ashtakavarga yahan additional context deta hai: 10th Bhav mein $sav SAV bindus hain.'
+      : 'Your natal Career structure is already identified through 10th House factors in your birth chart. Ashtakavarga adds context here: the 10th House carries $sav SAV bindus.';
+
+  String get ashtakavargaCorroborationLimitation => isHinglish
+      ? 'Yeh corroborating structural context hai, promotion, job change, income ya timing ka standalone prediction nahi.'
+      : 'This is corroborating structural context, not a standalone prediction of promotion, job change, income, or timing.';
   String dasha(Object? value) => isHinglish
       ? const {
               'MAHADASHA': 'Mahadasha',

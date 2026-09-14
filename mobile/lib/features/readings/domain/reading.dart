@@ -128,6 +128,7 @@ class ReadingDetail extends ReadingSummary {
     this.calibratedContent,
     this.calibrationContext,
     this.careerAshtakavargaStructure,
+    this.careerAshtakavargaCorroboration,
     this.insights = const [],
   });
 
@@ -135,6 +136,7 @@ class ReadingDetail extends ReadingSummary {
   final ReadingContent? calibratedContent;
   final CareerReadingCalibrationSummary? calibrationContext;
   final CareerAshtakavargaStructure? careerAshtakavargaStructure;
+  final CareerAshtakavargaCorroboration? careerAshtakavargaCorroboration;
   final List<CareerInsight> insights;
 
   factory ReadingDetail.fromJson(Map<String, dynamic> json) {
@@ -174,6 +176,10 @@ class ReadingDetail extends ReadingSummary {
       careerAshtakavargaStructure: CareerAshtakavargaStructure.tryFromJson(
         json['careerAshtakavargaStructure'],
       ),
+      careerAshtakavargaCorroboration:
+          CareerAshtakavargaCorroboration.tryFromJson(
+            json['careerAshtakavargaCorroboration'],
+          ),
       insights: List<CareerInsight>.unmodifiable(insights),
     );
   }
@@ -215,6 +221,27 @@ class CareerAshtakavargaStructure {
       ),
     );
     return structure.isEmpty ? null : structure;
+  }
+}
+
+/// A backend-gated, non-predictive H10 context. Flutter formats this supplied
+/// decision but never decides whether SAV corroboration exists.
+class CareerAshtakavargaCorroboration {
+  const CareerAshtakavargaCorroboration({required this.h10});
+
+  final CareerAshtakavargaHouseFact h10;
+
+  static CareerAshtakavargaCorroboration? tryFromJson(Object? raw) {
+    if (raw is! Map<String, dynamic> ||
+        raw['kind'] != 'H10_NATAL_CONTEXT' ||
+        raw['chart'] != 'D1' ||
+        raw['corroborates'] != 'CAREER_FOUNDATION' ||
+        raw['limitation'] != 'NOT_STANDALONE_PREDICTION') {
+      return null;
+    }
+    final h10 = CareerAshtakavargaHouseFact.tryFromJson(raw['h10']);
+    if (h10 == null || h10.house != 10 || h10.sav == null) return null;
+    return CareerAshtakavargaCorroboration(h10: h10);
   }
 }
 

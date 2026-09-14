@@ -862,6 +862,13 @@ class _CareerReadingDetail extends StatelessWidget {
                       copy: copy,
                     ),
                   ],
+                  if (detail.careerAshtakavargaCorroboration != null) ...[
+                    const SizedBox(height: 18),
+                    _CareerAshtakavargaCorroborationSection(
+                      corroboration: detail.careerAshtakavargaCorroboration!,
+                      copy: copy,
+                    ),
+                  ],
                   if (_CareerTimingSection.hasContent(insights)) ...[
                     const SizedBox(height: 18),
                     _CareerTimingSection(insights: insights, copy: copy),
@@ -923,6 +930,48 @@ class _CareerReadingDetail extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CareerAshtakavargaCorroborationSection extends StatelessWidget {
+  const _CareerAshtakavargaCorroborationSection({
+    required this.corroboration,
+    required this.copy,
+  });
+
+  final CareerAshtakavargaCorroboration corroboration;
+  final CareerReadingPresentationCopy copy;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const _CareerReadingSectionLabel('ASHTAKAVARGA CAREER CONTEXT'),
+      const SizedBox(height: 8),
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: _CareerReadingColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _CareerReadingColors.goldBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              copy.ashtakavargaCorroboration(corroboration.h10.sav!),
+              style: _CareerReadingText.body,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              copy.ashtakavargaCorroborationLimitation,
+              style: _CareerReadingText.meta,
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
 }
 
 class _CareerAshtakavargaStructureSection extends StatelessWidget {

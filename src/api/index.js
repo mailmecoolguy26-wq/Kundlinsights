@@ -17,6 +17,9 @@ function dtoReadingDetail(reading) {
     ...(reading.careerAshtakavargaStructure === undefined ? {} : {
       careerAshtakavargaStructure: reading.careerAshtakavargaStructure,
     }),
+    ...(reading.careerAshtakavargaCorroboration === undefined ? {} : {
+      careerAshtakavargaCorroboration: reading.careerAshtakavargaCorroboration,
+    }),
     ...(reading.insights === undefined ? {} : {
       insights: reading.insights,
     }),
