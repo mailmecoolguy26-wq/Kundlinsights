@@ -6,16 +6,51 @@ const { CareerReadingContextBuilder } = require('../../src/application/career-ev
 const event = (id, precision = 'DAY', title = 'Title', notes = 'private') => ({ careerEventId: id, birthProfileId: 'profile-a', eventType: 'PROMOTION', eventDate: precision === 'DAY' ? { precision, year: 2020, month: 4, day: 2 } : precision === 'MONTH' ? { precision, year: 2021, month: 4 } : { precision, year: 2022 }, title, notes });
 const pattern = (key, category = 'DASHA', matched = 2, rate = 1) => ({ patternKey: key, category, dimensions: ['Jupiter'], matchedEventCount: matched, eligibleEventCount: 2, recurrenceRate: rate, eventEvidence: [{ careerEventId: 'event-a', sourceFacts: { raw: true } }] });
 function fixture({ events = [], patterns = [pattern('p1')], matches, composites, status = 'PROVISIONAL' } = {}) {
-  const calls = { events: 0, p3: 0, p4: 0 };
+  const calls = { events: 0, p3: 0, p4: 0, p4PatternComparison: null };
   const p3 = { comparisonContexts: [{ contextKey: 'ctx-a', contextMetadata: { calculationStatus: status, providerRequest: { secret: true } }, patterns }], provenance: { rulesetId: 'career-pattern-comparison-v1', raw: true } };
   const p4 = { comparisonContexts: [{ contextKey: 'ctx-a', compatibility: { status: 'COMPATIBLE' }, matches: matches === undefined ? [{ patternKey: 'p1', matchType: 'EXACT', occurrenceType: 'WINDOW', from: '2025-01-01T00:00:00.000Z', to: '2025-02-01T00:00:00.000Z', dimensions: ['Jupiter'], historicalEvidence: { matchedEventCount: 2, eligibleEventCount: 2, recurrenceRate: 1 }, provenance: { calculationStatus: status, scanner: [] } }] : matches, compositeWindows: composites || [] }], provenance: { rulesetId: 'career-future-recurrence-v1', rawScanner: true } };
-  return { calls, p3, p4, builder: new CareerReadingContextBuilder({ careerEventService: { list: async () => { calls.events++; return events; } }, careerPatternComparisonService: { get: async () => { calls.p3++; return p3; } }, careerFutureRecurrenceService: { get: async () => { calls.p4++; return p4; } } }) };
+  return { calls, p3, p4, builder: new CareerReadingContextBuilder({ careerEventService: { list: async () => { calls.events++; return events; } }, careerPatternComparisonService: { get: async () => { calls.p3++; return p3; } }, careerFutureRecurrenceService: { get: async ({ patternComparison }) => { calls.p4++; calls.p4PatternComparison = patternComparison; return p4; } } }) };
 }
 test('returns factual NONE and LIMITED contexts without P3 or P4', async () => {
   for (const [events, level] of [[[], 'NONE'], [[event('event-a', 'MONTH')], 'LIMITED']]) { const x = fixture({ events }); const out = await x.builder.build({ principal: { id: 'u' }, birthProfileId: 'profile-a' }); assert.equal(out.calibrationLevel, level); assert.equal(out.historicalEvidence.length, 0); assert.equal(out.futureOccurrences.length, 0); assert.equal(out.composites.length, 0); assert.equal(x.calls.p3, 0); assert.equal(x.calls.p4, 0); if (events.length) assert.deepEqual(out.eventReferences[0].eventDate, { precision: 'MONTH', year: 2021, month: 4 }); }
 });
 test('builds bounded CALIBRATED context from authoritative P3 and P4 results', async () => {
-  const x = fixture({ events: [event('event-a'), event('event-b')] }); const out = await x.builder.build({ principal: {}, birthProfileId: 'profile-a' }); assert.equal(out.calibrationLevel, 'CALIBRATED'); assert.deepEqual(x.calls, { events: 1, p3: 1, p4: 1 }); assert.equal(out.historicalEvidence.length, 1); assert.equal(out.futureOccurrences.length, 1); assert.equal(out.historicalEvidence[0].evidenceId, 'hist:v1:ctx-a:p1'); assert.equal(out.calculationBasis.hasProvisionalEvidence, true); assert.equal(out.rulesets.p3, 'career-pattern-comparison-v1'); assert.equal(out.rulesets.p4, 'career-future-recurrence-v1');
+  const x = fixture({ events: [event('event-a'), event('event-b')] }); const out = await x.builder.build({ principal: {}, birthProfileId: 'profile-a' }); assert.equal(out.calibrationLevel, 'CALIBRATED'); assert.equal(x.calls.events, 1); assert.equal(x.calls.p3, 1); assert.equal(x.calls.p4, 1); assert.equal(x.calls.p4PatternComparison, x.p3); assert.equal(out.historicalEvidence.length, 1); assert.equal(out.futureOccurrences.length, 1); assert.equal(out.historicalEvidence[0].evidenceId, 'hist:v1:ctx-a:p1'); assert.equal(out.calculationBasis.hasProvisionalEvidence, true); assert.equal(out.rulesets.p3, 'career-pattern-comparison-v1'); assert.equal(out.rulesets.p4, 'career-future-recurrence-v1');
+});
+test('propagates P3 and P4 failures without starting duplicate P3 work', async () => {
+  const events = [event('event-a'), event('event-b')];
+  let p3Calls = 0, p4Calls = 0;
+  const p3Failure = new Error('P3_FAILED');
+  const p3Builder = new CareerReadingContextBuilder({
+    careerEventService: { list: async () => events },
+    careerPatternComparisonService: { get: async () => { p3Calls++; throw p3Failure; } },
+    careerFutureRecurrenceService: { get: async () => { p4Calls++; } },
+  });
+  await assert.rejects(p3Builder.build({ principal: {}, birthProfileId: 'profile-a' }), p3Failure);
+  assert.equal(p3Calls, 1); assert.equal(p4Calls, 0);
+  const p4Failure = new Error('P4_FAILED'); let received;
+  const p4Builder = new CareerReadingContextBuilder({
+    careerEventService: { list: async () => events },
+    careerPatternComparisonService: { get: async () => ({ comparisonContexts: [] }) },
+    careerFutureRecurrenceService: { get: async ({ patternComparison }) => { received = patternComparison; throw p4Failure; } },
+  });
+  await assert.rejects(p4Builder.build({ principal: {}, birthProfileId: 'profile-a' }), p4Failure);
+  assert.deepEqual(received, { comparisonContexts: [] });
+});
+test('keeps precomputed P3 results request-local across parallel context builds', async () => {
+  const received = [];
+  const builder = new CareerReadingContextBuilder({
+    careerEventService: { list: async ({ birthProfileId }) => [event(`${birthProfileId}-a`), event(`${birthProfileId}-b`)] },
+    careerPatternComparisonService: { get: async ({ birthProfileId }) => Object.freeze({ comparisonContexts: [], provenance: { birthProfileId } }) },
+    careerFutureRecurrenceService: { get: async ({ birthProfileId, patternComparison }) => { received.push([birthProfileId, patternComparison]); return { comparisonContexts: [], provenance: {} }; } },
+  });
+  await Promise.all([
+    builder.build({ principal: {}, birthProfileId: 'profile-a' }),
+    builder.build({ principal: {}, birthProfileId: 'profile-b' }),
+  ]);
+  assert.equal(received.length, 2);
+  assert.notEqual(received[0][1], received[1][1]);
+  assert.deepEqual(received.map(([profileId, value]) => [profileId, value.provenance.birthProfileId]).sort(), [['profile-a', 'profile-a'], ['profile-b', 'profile-b']]);
 });
 test('preserves DAY MONTH YEAR exactly and excludes notes from context', async () => {
   const x = fixture({ events: [event('day', 'DAY'), event('month', 'MONTH'), event('year', 'YEAR')] }); const out = await x.builder.build({ principal: {}, birthProfileId: 'profile-a' }); assert.deepEqual(out.eventReferences.map((item) => item.eventDate), [{ precision: 'DAY', year: 2020, month: 4, day: 2 }, { precision: 'MONTH', year: 2021, month: 4 }, { precision: 'YEAR', year: 2022 }]); assert.equal(JSON.stringify(out).includes('private'), false);
@@ -33,7 +68,7 @@ test('keeps a calibrated no-pattern result factual and preserves compact composi
   const x = fixture({ events: [event('a'), event('b')], patterns: [], matches: [], composites: [{ from: '2025-01-01T00:00:00.000Z', to: '2025-02-01T00:00:00.000Z', matchedPatternKeys: ['a', 'b'], matchedPatternCount: 2, matchedPrimaryPatternCount: 1 }] }); const out = await x.builder.build({ principal: {}, birthProfileId: 'profile-a' }); assert.equal(out.calibrationLevel, 'CALIBRATED'); assert.deepEqual(out.historicalEvidence, []); assert.deepEqual(out.composites[0].matchedPatternKeys, ['a', 'b']); assert.equal('rawScanner' in out, false);
 });
 test('is deterministic, fresh, non-mutating, and excludes raw or predictive fields', async () => {
-  const x = fixture({ events: [event('a'), event('b')] }); const before = JSON.stringify({ p3: x.p3, p4: x.p4 }); const a = await x.builder.build({ principal: {}, birthProfileId: 'profile-a' }), b = await x.builder.build({ principal: {}, birthProfileId: 'profile-a' }); assert.deepEqual(a, b); assert.notEqual(a, b); assert.notEqual(a.eventReferences, b.eventReferences); assert.equal(JSON.stringify({ p3: x.p3, p4: x.p4 }), before); assert.equal(/providerRequest|rawScanner|sourceFacts|score|confidence|probability|prediction|favorable|unfavorable/.test(JSON.stringify(a)), false); assert.deepEqual(x.calls, { events: 2, p3: 2, p4: 2 });
+  const x = fixture({ events: [event('a'), event('b')] }); const before = JSON.stringify({ p3: x.p3, p4: x.p4 }); const a = await x.builder.build({ principal: {}, birthProfileId: 'profile-a' }), b = await x.builder.build({ principal: {}, birthProfileId: 'profile-a' }); assert.deepEqual(a, b); assert.notEqual(a, b); assert.notEqual(a.eventReferences, b.eventReferences); assert.equal(JSON.stringify({ p3: x.p3, p4: x.p4 }), before); assert.equal(/providerRequest|rawScanner|sourceFacts|score|confidence|probability|prediction|favorable|unfavorable/.test(JSON.stringify(a)), false); assert.equal(x.calls.events, 2); assert.equal(x.calls.p3, 2); assert.equal(x.calls.p4, 2); assert.equal(x.calls.p4PatternComparison, x.p3);
 });
 test('keeps static Ashtakavarga and Career-house patterns out of timing recurrence while retaining temporal event references', async () => {
   const patterns = [
