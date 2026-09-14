@@ -6,7 +6,7 @@ const { calculateVimshottariDasha, SOLAR_RETURN_VIMSHOTTARI_RULESET, resolveVims
 const { calculateGocharSnapshot } = require('../gochar');
 const { scanTransitEvents } = require('../transit-events');
 const { assembleNatalEvidenceGraph, freeze } = require('../synthesis');
-const { calculateChartCoordinates } = require('../application/divisional-charts');
+const { calculateChartCoordinates, buildCareerD10Structure } = require('../application/divisional-charts');
 const { calculateAshtakavargaForLayer2 } = require('../application/ashtakavarga');
 const { buildCareerAshtakavargaStructure } = require('../application/ashtakavarga/career-ashtakavarga-structure');
 const { evaluatePlanetaryState } = require('../dignity');
@@ -64,6 +64,8 @@ function d10CareerStructure(layer1Result) {
             body === 'Ascendant'
               ? d10.houses.ascendant.rashiHouseNumber
               : assignmentByBody.get(body) || null,
+          ...(Number.isFinite(coordinate.varga.derivedVargaRashi.degreesWithinResultingRashi) ? { degree: coordinate.varga.derivedVargaRashi.degreesWithinResultingRashi } : {}),
+          ...(body !== 'Ascendant' && typeof layer1Result.bodies[body].motion === 'string' ? { retrograde: layer1Result.bodies[body].motion === 'retrograde' } : {}),
         },
       ]),
     ),
@@ -203,11 +205,12 @@ class BirthCareerReadingOrchestrator {
       });
     }
     const rawAshtakavarga = calculateAshtakavargaForLayer2(layer2Bodies);
+    const d10 = d10CareerStructure(birthLayer1Result);
     const natal = assembleNatalEvidenceGraph({
       layer2Bodies,
       houses,
       planetaryState: evaluatePlanetaryState({ bodies: Object.fromEntries(Object.entries(layer2Bodies).map(([body, value]) => [body, { canonicalSiderealLongitudeDegrees: value.siderealLongitudeDegrees, motion: value.motion || 'unknown' }])) }),
-      vargas: { D10: d10CareerStructure(birthLayer1Result) },
+      vargas: { D10: d10 },
       ashtakavarga: rawAshtakavarga,
     });
     const career = buildCareerReading({
@@ -215,6 +218,7 @@ class BirthCareerReadingOrchestrator {
       temporal: { instant: input.readingInstant, dasha, gochar, ...(transitEvents === undefined ? {} : { transitEvents }) },
       locale: input.locale,
       careerAshtakavargaStructure: buildCareerAshtakavargaStructure({ houses, rawAshtakavarga }),
+      careerD10Structure: buildCareerD10Structure({ d10 }),
     });
     return freeze({
       domain: career.domain,

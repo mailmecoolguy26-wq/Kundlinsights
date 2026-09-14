@@ -128,6 +128,7 @@ class ReadingDetail extends ReadingSummary {
     this.calibratedContent,
     this.calibrationContext,
     this.careerAshtakavargaStructure,
+    this.careerD10Structure,
     this.careerAshtakavargaCorroboration,
     this.careerEvidenceSynthesis,
     this.insights = const [],
@@ -137,6 +138,7 @@ class ReadingDetail extends ReadingSummary {
   final ReadingContent? calibratedContent;
   final CareerReadingCalibrationSummary? calibrationContext;
   final CareerAshtakavargaStructure? careerAshtakavargaStructure;
+  final CareerD10Structure? careerD10Structure;
   final CareerAshtakavargaCorroboration? careerAshtakavargaCorroboration;
   final CareerEvidenceSynthesis? careerEvidenceSynthesis;
   final List<CareerInsight> insights;
@@ -178,6 +180,9 @@ class ReadingDetail extends ReadingSummary {
       careerAshtakavargaStructure: CareerAshtakavargaStructure.tryFromJson(
         json['careerAshtakavargaStructure'],
       ),
+      careerD10Structure: CareerD10Structure.tryFromJson(
+        json['careerD10Structure'],
+      ),
       careerAshtakavargaCorroboration:
           CareerAshtakavargaCorroboration.tryFromJson(
             json['careerAshtakavargaCorroboration'],
@@ -186,6 +191,210 @@ class ReadingDetail extends ReadingSummary {
         json['careerEvidenceSynthesis'],
       ),
       insights: List<CareerInsight>.unmodifiable(insights),
+    );
+  }
+}
+
+/// Server-derived D10 facts. This parser intentionally does not calculate
+/// aspects, dignity, outcomes, timing, or any Career interpretation.
+class CareerD10Structure {
+  const CareerD10Structure({
+    required this.lagna,
+    required this.tenthHouse,
+    required this.shani,
+    this.shaniConjunctions = const [],
+    this.shaniAspectsToHouses = const [],
+    this.shaniAspectsToPlanets = const [],
+  });
+
+  final CareerD10HouseFact lagna;
+  final CareerD10HouseFact tenthHouse;
+  final CareerD10PlanetFact shani;
+  final List<CareerD10PlanetFact> shaniConjunctions;
+  final List<CareerD10HouseAspectFact> shaniAspectsToHouses;
+  final List<CareerD10PlanetAspectFact> shaniAspectsToPlanets;
+
+  static CareerD10Structure? tryFromJson(Object? raw) {
+    if (raw is! Map<String, dynamic> || raw['chart'] != 'D10') return null;
+    final lagna = CareerD10HouseFact.tryFromJson(raw['lagna']);
+    final tenthHouse = CareerD10HouseFact.tryFromJson(raw['tenthHouse']);
+    final shani = CareerD10PlanetFact.tryFromJson(raw['shani']);
+    if (lagna == null || tenthHouse == null || shani?.planet != 'Saturn') {
+      return null;
+    }
+    final rawShani = raw['shani'] as Map<String, dynamic>;
+    final conjunctions = rawShani['conjunctions'] is List ? (rawShani['conjunctions'] as List).map(CareerD10PlanetFact.tryFromJson).whereType<CareerD10PlanetFact>().toList(growable: false) : const <CareerD10PlanetFact>[];
+    final houses = rawShani['aspectsToHouses'] is List ? (rawShani['aspectsToHouses'] as List).map(CareerD10HouseAspectFact.tryFromJson).whereType<CareerD10HouseAspectFact>().toList(growable: false) : const <CareerD10HouseAspectFact>[];
+    final planets = rawShani['aspectsToPlanets'] is List ? (rawShani['aspectsToPlanets'] as List).map(CareerD10PlanetAspectFact.tryFromJson).whereType<CareerD10PlanetAspectFact>().toList(growable: false) : const <CareerD10PlanetAspectFact>[];
+    return CareerD10Structure(
+      lagna: lagna,
+      tenthHouse: tenthHouse,
+      shani: shani!,
+      shaniConjunctions: List.unmodifiable(conjunctions),
+      shaniAspectsToHouses: List.unmodifiable(houses),
+      shaniAspectsToPlanets: List.unmodifiable(planets),
+    );
+  }
+}
+
+class CareerD10Sign {
+  const CareerD10Sign({required this.rashiIndex, required this.englishName});
+  final int rashiIndex;
+  final String englishName;
+  static CareerD10Sign? tryFromJson(Object? raw) {
+    if (raw is! Map<String, dynamic>) return null;
+    final index = raw['rashiIndex'];
+    final name = raw['englishName'];
+    if (index is! int ||
+        index < 1 ||
+        index > 12 ||
+        name is! String ||
+        name.isEmpty) {
+      return null;
+    }
+    return CareerD10Sign(rashiIndex: index, englishName: name);
+  }
+}
+
+class CareerD10PlanetFact {
+  const CareerD10PlanetFact({
+    required this.planet,
+    required this.house,
+    required this.sign,
+    this.degree,
+    this.retrograde,
+  });
+  final String planet;
+  final int house;
+  final CareerD10Sign sign;
+  final double? degree;
+  final bool? retrograde;
+  static const _planets = {
+    'Sun',
+    'Moon',
+    'Mars',
+    'Mercury',
+    'Jupiter',
+    'Venus',
+    'Saturn',
+    'Rahu',
+    'Ketu',
+  };
+  static CareerD10PlanetFact? tryFromJson(Object? raw) {
+    if (raw is! Map<String, dynamic>) return null;
+    final planet = raw['planet'];
+    final house = raw['house'];
+    final sign = CareerD10Sign.tryFromJson(raw['sign']);
+    final degree = raw['degree'];
+    final retrograde = raw['retrograde'];
+    if (planet is! String ||
+        !_planets.contains(planet) ||
+        house is! int ||
+        house < 1 ||
+        house > 12 ||
+        sign == null ||
+        (degree != null && degree is! num) ||
+        (degree is num && (degree < 0 || degree >= 30)) ||
+        (retrograde != null && retrograde is! bool)) {
+      return null;
+    }
+    return CareerD10PlanetFact(
+      planet: planet,
+      house: house,
+      sign: sign,
+      degree: (degree as num?)?.toDouble(),
+      retrograde: retrograde as bool?,
+    );
+  }
+}
+
+class CareerD10AspectFact {
+  const CareerD10AspectFact({required this.planet, required this.aspectNumber});
+  final String planet;
+  final int aspectNumber;
+  static CareerD10AspectFact? tryFromJson(Object? raw) {
+    if (raw is! Map<String, dynamic>) return null;
+    final planet = raw['planet'];
+    final aspect = raw['aspectNumber'];
+    if (planet is! String || aspect is! int || aspect < 3 || aspect > 10) {
+      return null;
+    }
+    return CareerD10AspectFact(planet: planet, aspectNumber: aspect);
+  }
+}
+
+class CareerD10HouseAspectFact {
+  const CareerD10HouseAspectFact({required this.house, required this.aspectNumber});
+  final int house;
+  final int aspectNumber;
+  static CareerD10HouseAspectFact? tryFromJson(Object? raw) {
+    if (raw is! Map<String, dynamic>) return null;
+    final house = raw['house']; final aspect = raw['aspectNumber'];
+    if (house is! int || house < 1 || house > 12 || aspect is! int || aspect < 3 || aspect > 10) return null;
+    return CareerD10HouseAspectFact(house: house, aspectNumber: aspect);
+  }
+}
+
+class CareerD10PlanetAspectFact extends CareerD10HouseAspectFact {
+  const CareerD10PlanetAspectFact({required this.planet, required super.house, required super.aspectNumber});
+  final String planet;
+  static CareerD10PlanetAspectFact? tryFromJson(Object? raw) {
+    if (raw is! Map<String, dynamic>) return null;
+    final base = CareerD10HouseAspectFact.tryFromJson(raw); final planet = raw['planet'];
+    if (base == null || planet is! String) return null;
+    return CareerD10PlanetAspectFact(planet: planet, house: base.house, aspectNumber: base.aspectNumber);
+  }
+}
+
+class CareerD10HouseFact {
+  const CareerD10HouseFact({
+    required this.house,
+    required this.sign,
+    this.lord,
+    this.lordHouse,
+    this.occupants = const [],
+    this.aspectsReceived = const [],
+  });
+  final int house;
+  final CareerD10Sign sign;
+  final String? lord;
+  final int? lordHouse;
+  final List<CareerD10PlanetFact> occupants;
+  final List<CareerD10AspectFact> aspectsReceived;
+  static CareerD10HouseFact? tryFromJson(Object? raw) {
+    if (raw is! Map<String, dynamic>) return null;
+    final house = raw['house'];
+    final sign = CareerD10Sign.tryFromJson(raw['sign']);
+    final lord = raw['lord'];
+    final lordHouse = raw['lordHouse'];
+    if (house is! int ||
+        house < 1 ||
+        house > 12 ||
+        sign == null ||
+        (lord != null && lord is! String) ||
+        (lordHouse != null &&
+            (lordHouse is! int || lordHouse < 1 || lordHouse > 12))) {
+      return null;
+    }
+    final occupants = raw['occupants'] is List
+        ? (raw['occupants'] as List)
+              .map(CareerD10PlanetFact.tryFromJson)
+              .whereType<CareerD10PlanetFact>()
+              .toList(growable: false)
+        : const <CareerD10PlanetFact>[];
+    final aspects = raw['aspectsReceived'] is List
+        ? (raw['aspectsReceived'] as List)
+              .map(CareerD10AspectFact.tryFromJson)
+              .whereType<CareerD10AspectFact>()
+              .toList(growable: false)
+        : const <CareerD10AspectFact>[];
+    return CareerD10HouseFact(
+      house: house,
+      sign: sign,
+      lord: lord as String?,
+      lordHouse: lordHouse as int?,
+      occupants: List.unmodifiable(occupants),
+      aspectsReceived: List.unmodifiable(aspects),
     );
   }
 }

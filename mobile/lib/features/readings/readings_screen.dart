@@ -869,6 +869,13 @@ class _CareerReadingDetail extends StatelessWidget {
                       copy: copy,
                     ),
                   ],
+                  if (detail.careerD10Structure != null) ...[
+                    const SizedBox(height: 18),
+                    _CareerD10StructureSection(
+                      structure: detail.careerD10Structure!,
+                      copy: copy,
+                    ),
+                  ],
                   if (detail.careerAshtakavargaCorroboration != null &&
                       detail.careerEvidenceSynthesis == null) ...[
                     const SizedBox(height: 18),
@@ -941,7 +948,10 @@ class _CareerReadingDetail extends StatelessWidget {
 }
 
 class _CareerEvidenceSynthesisSection extends StatelessWidget {
-  const _CareerEvidenceSynthesisSection({required this.synthesis, required this.copy});
+  const _CareerEvidenceSynthesisSection({
+    required this.synthesis,
+    required this.copy,
+  });
   final CareerEvidenceSynthesis synthesis;
   final CareerReadingPresentationCopy copy;
 
@@ -949,28 +959,60 @@ class _CareerEvidenceSynthesisSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final paragraphs = <String>[
       copy.synthesisFoundation(),
-      if (synthesis.h10Sav != null) copy.synthesisAshtakavarga(synthesis.h10Sav!),
-      if (copy.synthesisTiming(activeDasha: synthesis.activeDasha, currentTransit: synthesis.currentTransit, concurrent: synthesis.concurrent, limited: synthesis.limited).isNotEmpty)
-        copy.synthesisTiming(activeDasha: synthesis.activeDasha, currentTransit: synthesis.currentTransit, concurrent: synthesis.concurrent, limited: synthesis.limited),
-      if (synthesis.calibrationLevel != null && copy.synthesisCalibration(synthesis.calibrationLevel!, synthesis.calibrationEventCount).isNotEmpty)
-        copy.synthesisCalibration(synthesis.calibrationLevel!, synthesis.calibrationEventCount),
+      if (synthesis.h10Sav != null)
+        copy.synthesisAshtakavarga(synthesis.h10Sav!),
+      if (copy
+          .synthesisTiming(
+            activeDasha: synthesis.activeDasha,
+            currentTransit: synthesis.currentTransit,
+            concurrent: synthesis.concurrent,
+            limited: synthesis.limited,
+          )
+          .isNotEmpty)
+        copy.synthesisTiming(
+          activeDasha: synthesis.activeDasha,
+          currentTransit: synthesis.currentTransit,
+          concurrent: synthesis.concurrent,
+          limited: synthesis.limited,
+        ),
+      if (synthesis.calibrationLevel != null &&
+          copy
+              .synthesisCalibration(
+                synthesis.calibrationLevel!,
+                synthesis.calibrationEventCount,
+              )
+              .isNotEmpty)
+        copy.synthesisCalibration(
+          synthesis.calibrationLevel!,
+          synthesis.calibrationEventCount,
+        ),
       if (synthesis.hasFutureRecurrence) copy.synthesisFutureRecurrence,
     ];
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const _CareerReadingSectionLabel('CAREER EVIDENCE SYNTHESIS'),
-      const SizedBox(height: 8),
-      Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(15),
-        decoration: BoxDecoration(color: _CareerReadingColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: _CareerReadingColors.goldBorder)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          for (var index = 0; index < paragraphs.length; index++) ...[
-            Text(paragraphs[index], style: _CareerReadingText.body),
-            if (index < paragraphs.length - 1) const SizedBox(height: 10),
-          ],
-        ]),
-      ),
-    ]);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _CareerReadingSectionLabel('CAREER EVIDENCE SYNTHESIS'),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(15),
+          decoration: BoxDecoration(
+            color: _CareerReadingColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _CareerReadingColors.goldBorder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (var index = 0; index < paragraphs.length; index++) ...[
+                Text(paragraphs[index], style: _CareerReadingText.body),
+                if (index < paragraphs.length - 1) const SizedBox(height: 10),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -1092,6 +1134,119 @@ class _CareerAshtakavargaStructureSection extends StatelessWidget {
     final suffix = _sav(fact.houseSav);
     return '${copy.isHinglish ? 'Placed in' : 'Placed in'} ${copy.house(fact.house)} · $suffix';
   }
+}
+
+class _CareerD10StructureSection extends StatelessWidget {
+  const _CareerD10StructureSection({
+    required this.structure,
+    required this.copy,
+  });
+  final CareerD10Structure structure;
+  final CareerReadingPresentationCopy copy;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <Widget>[
+      _D10StructureRow(
+        label: 'D10 ${copy.isHinglish ? 'Lagna' : 'Ascendant'}',
+        value: structure.lagna.sign.englishName,
+        details: _houseDetails(structure.lagna),
+      ),
+      _D10StructureRow(
+        label: 'D10 10th ${copy.isHinglish ? 'Bhav' : 'House'}',
+        value: structure.tenthHouse.sign.englishName,
+        details: _houseDetails(structure.tenthHouse),
+      ),
+      _D10StructureRow(
+        label: copy.planet('Saturn'),
+        value:
+            '${copy.house(structure.shani.house)} · ${structure.shani.sign.englishName}',
+        details: _planetDetails(structure),
+      ),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _CareerReadingSectionLabel('CAREER D10 STRUCTURE'),
+        const SizedBox(height: 8),
+        const Text(
+          'Yeh D10 chart ke factual Career placements aur Drishti details hain.',
+          style: _CareerReadingText.body,
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(15, 8, 15, 8),
+          decoration: BoxDecoration(
+            color: _CareerReadingColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _CareerReadingColors.cardBorder),
+          ),
+          child: Column(children: rows),
+        ),
+      ],
+    );
+  }
+
+  List<String> _houseDetails(CareerD10HouseFact value) {
+    final lines = <String>[];
+    if (value.lord != null && value.lordHouse != null) {
+      lines.add('${copy.planet(value.lord!)}: ${copy.house(value.lordHouse!)}');
+    }
+    for (final occupant in value.occupants) {
+      lines.add('${copy.planet(occupant.planet)} is placed here');
+    }
+    for (final aspect in value.aspectsReceived) {
+      lines.add(
+        '${copy.planet(aspect.planet)} ki Drishti is ${copy.isHinglish ? 'Bhav' : 'House'} par hai',
+      );
+    }
+    return lines;
+  }
+
+  List<String> _planetDetails(CareerD10Structure value) {
+    final lines = <String>[];
+    if (value.shani.degree != null) {
+      lines.add('${value.shani.degree!.toStringAsFixed(2)}°');
+    }
+    if (value.shani.retrograde == true) {
+      lines.add(copy.isHinglish ? 'Vakri' : 'Retrograde');
+    }
+    for (final planet in value.shaniConjunctions) {
+      lines.add('With ${copy.planet(planet.planet)}');
+    }
+    for (final aspect in value.shaniAspectsToHouses) {
+      lines.add('Drishti: ${copy.house(aspect.house)}');
+    }
+    return lines;
+  }
+}
+
+class _D10StructureRow extends StatelessWidget {
+  const _D10StructureRow({
+    required this.label,
+    required this.value,
+    required this.details,
+  });
+  final String label;
+  final String value;
+  final List<String> details;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 7),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: _CareerReadingText.source),
+        const SizedBox(height: 3),
+        Text(value, style: _CareerReadingText.itemTitle),
+        for (final detail in details) ...[
+          const SizedBox(height: 3),
+          Text(detail, style: _CareerReadingText.meta),
+        ],
+      ],
+    ),
+  );
 }
 
 class _AshtakavargaStructureRow extends StatelessWidget {

@@ -98,7 +98,27 @@ void main() {
       ReadingDetail.fromJson(_detailJson()).careerAshtakavargaCorroboration,
       isNull,
     );
-    expect(ReadingDetail.fromJson(_detailJson()).careerEvidenceSynthesis, isNull);
+    expect(
+      ReadingDetail.fromJson(_detailJson()).careerEvidenceSynthesis,
+      isNull,
+    );
+  });
+
+  test('parses factual D10 Career structure defensively', () {
+    final detail = ReadingDetail.fromJson({
+      ..._detailJson(),
+      'careerD10Structure': _d10Structure(),
+    });
+    expect(detail.careerD10Structure!.lagna.sign.englishName, 'Mesha');
+    expect(detail.careerD10Structure!.tenthHouse.lord, 'Saturn');
+    expect(detail.careerD10Structure!.shani.retrograde, isTrue);
+    expect(
+      ReadingDetail.fromJson({
+        ..._detailJson(),
+        'careerD10Structure': {'chart': 'D10'},
+      }).careerD10Structure,
+      isNull,
+    );
   });
 
   test(
@@ -631,6 +651,7 @@ void main() {
           'h7Lord': {'planet': 'Saturn', 'house': 6, 'houseSav': 23},
           'tenthFromH10Lord': {'house': 4, 'sav': 35},
         },
+        'careerD10Structure': _d10Structure(),
         'careerAshtakavargaCorroboration': {
           'kind': 'H10_NATAL_CONTEXT',
           'chart': 'D1',
@@ -665,6 +686,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('CAREER ASHTAKAVARGA STRUCTURE'), findsOneWidget);
+      expect(find.text('CAREER D10 STRUCTURE'), findsOneWidget);
       expect(find.text('ASHTAKAVARGA CAREER CONTEXT'), findsNothing);
       expect(find.text('CAREER EVIDENCE SYNTHESIS'), findsOneWidget);
       expect(
@@ -698,17 +720,25 @@ void main() {
 
       await language.setLanguage(CareerExplanationLanguage.hinglish);
       await tester.pump();
+      expect(
+        find.text(
+          'Yeh D10 chart ke factual Career placements aur Drishti details hain.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Shani Dev: 8th Bhav'), findsOneWidget);
+      expect(find.text('Surya Dev is placed here'), findsOneWidget);
+      expect(find.text('Budh is placed here'), findsOneWidget);
+      expect(find.text('Guru Dev ki Drishti is Bhav par hai'), findsOneWidget);
+      expect(find.text('Mangal ki Drishti is Bhav par hai'), findsOneWidget);
       expect(find.text('10th Bhav'), findsOneWidget);
       expect(find.text('Mangal'), findsOneWidget);
-      expect(find.text('Shani Dev'), findsOneWidget);
+      expect(find.text('Shani Dev'), findsNWidgets(2));
       expect(
         find.textContaining('10th Bhav mein 31 SAV bindus hain'),
         findsOneWidget,
       );
-      expect(
-        find.textContaining('standalone prediction nahi'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('standalone prediction nahi'), findsOneWidget);
       expect(
         find.textContaining('Ashtakavarga isi Career foundation'),
         findsOneWidget,
@@ -930,6 +960,53 @@ Map<String, dynamic> _detailJson({String profileId = 'profile-a'}) => {
         ],
       },
     ],
+  },
+};
+Map<String, dynamic> _d10Structure() => {
+  'chart': 'D10',
+  'lagna': {
+    'house': 1,
+    'sign': {'rashiIndex': 1, 'englishName': 'Mesha'},
+    'lord': 'Mars',
+    'lordHouse': 4,
+    'occupants': [],
+    'aspectsReceived': [
+      {'planet': 'Saturn', 'aspectNumber': 10},
+    ],
+  },
+  'tenthHouse': {
+    'house': 10,
+    'sign': {'rashiIndex': 10, 'englishName': 'Makara'},
+    'lord': 'Saturn',
+    'lordHouse': 8,
+    'occupants': [
+      {
+        'planet': 'Sun',
+        'house': 10,
+        'sign': {'rashiIndex': 10, 'englishName': 'Makara'},
+      },
+      {
+        'planet': 'Mercury',
+        'house': 10,
+        'sign': {'rashiIndex': 10, 'englishName': 'Makara'},
+      },
+    ],
+    'aspectsReceived': [
+      {'planet': 'Jupiter', 'aspectNumber': 5},
+      {'planet': 'Mars', 'aspectNumber': 8},
+    ],
+  },
+  'shani': {
+    'planet': 'Saturn',
+    'house': 8,
+    'sign': {'rashiIndex': 8, 'englishName': 'Vrishchika'},
+    'degree': 12.4,
+    'retrograde': true,
+    'conjunctions': [],
+    'aspectsToHouses': [
+      {'house': 10, 'aspectNumber': 3},
+    ],
+    'aspectsToPlanets': [],
   },
 };
 Map<String, dynamic> _section(

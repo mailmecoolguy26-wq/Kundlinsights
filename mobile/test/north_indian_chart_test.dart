@@ -229,6 +229,96 @@ void main() {
   });
 
   testWidgets(
+    'renders the authoritative Pisces-Lagna D1 fixture in its fixed North Indian house cells',
+    (tester) async {
+      final summary = _piscesLagnaSummary();
+      final houses = buildD1ChartHouses(summary);
+      expect(houses.map((item) => item.sign.rashiIndex), [
+        12,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+      ]);
+      expect(houses[2].planets.map((item) => item.body), ['Mars']);
+      expect(houses[4].planets.map((item) => item.body), ['Jupiter', 'Ketu']);
+      expect(houses[8].planets.map((item) => item.body), [
+        'Sun',
+        'Mercury',
+        'Venus',
+      ]);
+      expect(houses[9].planets.map((item) => item.body), ['Saturn']);
+      expect(houses[10].planets.map((item) => item.body), ['Rahu']);
+      expect(houses[11].planets.map((item) => item.body), ['Moon']);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SizedBox(
+              width: 390,
+              child: NorthIndianKundliChart(
+                houses: houses,
+                onHouseTap: (_) {},
+                onPlanetTap: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final chart = tester.getRect(
+        find.byKey(const Key('north-indian-chart-canvas')),
+      );
+      for (var house = 1; house <= 12; house++) {
+        expect(
+          tester.widget<Text>(find.byKey(Key('chart-sign-$house'))).data,
+          '${houses[house - 1].sign.rashiIndex}',
+        );
+      }
+      const planetHouses = <String, int>{
+        'Mars': 3,
+        'Jupiter': 5,
+        'Ketu': 5,
+        'Sun': 9,
+        'Mercury': 9,
+        'Venus': 9,
+        'Saturn': 10,
+        'Rahu': 11,
+        'Moon': 12,
+      };
+      for (final entry in planetHouses.entries) {
+        final label = tester.getRect(
+          find.byKey(Key('chart-planet-${entry.key}')),
+        );
+        final group = tester.getRect(
+          find.byKey(Key('chart-planet-group-${entry.value}')),
+        );
+        final safeZone = _scaledSafeZone(chart, entry.value);
+        expect(
+          safeZone.inflate(.5).contains(group.center),
+          isTrue,
+          reason: '${entry.key} group',
+        );
+        // Multi-planet groups intentionally stack around the fixed group
+        // anchor and may extend beyond their compact anchor rectangle.
+        // The group centre, rather than every line's centre, is the visual
+        // house-placement coordinate.
+        expect(chart.contains(label.center), isTrue, reason: entry.key);
+      }
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
     'renders direct planet labels, Lagna, retrograde marker, legend, and tap actions',
     (tester) async {
       D1ChartHouse? tappedHouse;
@@ -703,6 +793,75 @@ NatalSummary _summary() {
       moonNakshatra: nakshatra,
       moonPada: 1,
       sunSign: houses.first.sign,
+    ),
+    houses: houses,
+    planets: planets,
+  );
+}
+
+NatalSummary _piscesLagnaSummary() {
+  const nakshatra = NatalNakshatra(nakshatraIndex: 1, name: 'Ashwini');
+  const signs = [
+    'Pisces',
+    'Aries',
+    'Taurus',
+    'Gemini',
+    'Cancer',
+    'Leo',
+    'Virgo',
+    'Libra',
+    'Scorpio',
+    'Sagittarius',
+    'Capricorn',
+    'Aquarius',
+  ];
+  final houses = List<NatalHouse>.generate(
+    12,
+    (index) => NatalHouse(
+      house: index + 1,
+      sign: NatalSign(
+        rashiIndex: (index + 11) % 12 + 1,
+        sanskritName: signs[index],
+        englishName: signs[index],
+      ),
+    ),
+  );
+  NatalPosition planet(
+    String body,
+    int house,
+    double degree, {
+    bool retrograde = false,
+  }) => NatalPosition(
+    body: body,
+    longitude: (houses[house - 1].sign.rashiIndex - 1) * 30 + degree,
+    sign: houses[house - 1].sign,
+    degreeWithinSign: degree,
+    house: house,
+    nakshatra: nakshatra,
+    pada: 1,
+    speed: retrograde ? -.1 : 1,
+    motion: retrograde ? 'retrograde' : 'direct',
+    retrograde: retrograde,
+  );
+  final planets = <NatalPosition>[
+    planet('Sun', 9, 10),
+    planet('Moon', 12, 19.5),
+    planet('Mars', 3, 12.2, retrograde: true),
+    planet('Mercury', 9, 28.8),
+    planet('Jupiter', 5, 19.8),
+    planet('Venus', 9, 16.2),
+    planet('Saturn', 10, 28.2),
+    planet('Rahu', 11, 7.3, retrograde: true),
+    planet('Ketu', 5, 7.3, retrograde: true),
+  ];
+  return NatalSummary(
+    birthProfileId: 'pisces-profile',
+    summary: NatalIdentitySummary(
+      ascendant: planet('Ascendant', 1, 1.2),
+      moonSign: houses[11].sign,
+      moonNakshatra: nakshatra,
+      moonPada: 1,
+      sunSign: houses[8].sign,
     ),
     houses: houses,
     planets: planets,

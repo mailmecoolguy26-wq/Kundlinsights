@@ -15,7 +15,7 @@ function assertSafe(value) {
   for (const [key, child] of Object.entries(value)) { assert.equal(prohibited.has(key), false, `prohibited field ${key}`); assertSafe(child); }
 }
 function summary(id, createdAt, profile = 'profile-a') { return { readingId: id, birthProfileId: profile, domain: 'CAREER', status: 'active', createdAt, readingInstant: '2026-08-17T00:00:00.000Z', locale: 'en-IN' }; }
-function detail(id, profile = 'profile-a', calibratedContent = undefined, careerAshtakavargaStructure = undefined, careerAshtakavargaCorroboration = undefined, careerEvidenceSynthesis = undefined) { return { ...summary(id, '2026-08-17T00:00:00.000Z', profile), content: { domain: 'CAREER', locale: 'en-IN', sections: [{ section: 'CAREER_STRUCTURE', headline: 'Career structure', items: [{ topic: 'H10', sentence: 'Stored reading content.' }] }] }, ...(calibratedContent === undefined ? {} : { calibratedContent }), ...(careerAshtakavargaStructure === undefined ? {} : { careerAshtakavargaStructure }), ...(careerAshtakavargaCorroboration === undefined ? {} : { careerAshtakavargaCorroboration }), ...(careerEvidenceSynthesis === undefined ? {} : { careerEvidenceSynthesis }) }; }
+function detail(id, profile = 'profile-a', calibratedContent = undefined, careerAshtakavargaStructure = undefined, careerAshtakavargaCorroboration = undefined, careerEvidenceSynthesis = undefined, careerD10Structure = undefined) { return { ...summary(id, '2026-08-17T00:00:00.000Z', profile), content: { domain: 'CAREER', locale: 'en-IN', sections: [{ section: 'CAREER_STRUCTURE', headline: 'Career structure', items: [{ topic: 'H10', sentence: 'Stored reading content.' }] }] }, ...(calibratedContent === undefined ? {} : { calibratedContent }), ...(careerAshtakavargaStructure === undefined ? {} : { careerAshtakavargaStructure }), ...(careerAshtakavargaCorroboration === undefined ? {} : { careerAshtakavargaCorroboration }), ...(careerEvidenceSynthesis === undefined ? {} : { careerEvidenceSynthesis }), ...(careerD10Structure === undefined ? {} : { careerD10Structure }) }; }
 function buildApi(calls) {
   const service = {
     async generateSecureReading() { throw new Error('not used'); },
@@ -60,6 +60,14 @@ test('Phase 16B passes optional factual Career Ashtakavarga structure through GE
   assert.deepEqual(response.json().reading.careerAshtakavargaStructure, { h10: { house: 10, sav: 31 }, h10Lord: { planet: 'Mars', house: 7, houseSav: 31 }, h7: { house: 7, sav: 25 }, h7Lord: { planet: 'Saturn', house: 6, houseSav: 23 }, tenthFromH10Lord: { house: 4, sav: 35 } });
   assert.equal(JSON.stringify(response.json().reading.careerAshtakavargaStructure).match(/threshold|rank|score|strong|weak|favorable/i), null);
   assertSafe(response.json()); await api.close();
+});
+test('Phase 17B passes optional factual D10 Career structure through GET unchanged', async () => {
+  const calls = { list: [], detail: [], replay: 0 }; const api = buildApi(calls);
+  const d10 = { chart: 'D10', lagna: { house: 1, sign: { rashiIndex: 1, englishName: 'Mesha' }, occupants: [], aspectsReceived: [] }, tenthHouse: { house: 10, sign: { rashiIndex: 10, englishName: 'Makara' }, lord: 'Saturn', lordHouse: 8, occupants: [], aspectsReceived: [] }, shani: { planet: 'Saturn', house: 8, sign: { rashiIndex: 8, englishName: 'Vrishchika' }, conjunctions: [], aspectsToHouses: [], aspectsToPlanets: [] } };
+  await api.close();
+  const direct = createApi({ authVerifier: createTestOnlyAuthVerifier({ a, b }), userResolver: { resolve: async () => ({ id: 'internal-user', status: 'active' }) }, birthProfileService: { create: async () => null, list: async () => [], get: async () => null }, secureReadingService: { async getSecureReadingDetail() { return detail('reading-d10', 'profile-a', undefined, undefined, undefined, undefined, d10); }, async listSecureReadings() { return []; }, async generateSecureReading() { throw new Error('not used'); }, async replaySecureReading() { throw new Error('not used'); } }, requestIdGenerator: () => 'request-1' });
+  const response = await direct.inject(request('a', '/v1/readings/reading-d10'));
+  assert.equal(response.statusCode, 200); assert.deepEqual(response.json().reading.careerD10Structure, d10); assert.equal(JSON.stringify(response.json().reading.careerD10Structure).match(/score|threshold|probability|confidence|timing|rank/i), null); await direct.close();
 });
 test('Phase 16D passes optional, backend-gated Career Ashtakavarga corroboration through GET', async () => {
   const calls = { list: [], detail: [], replay: 0 }; const api = buildApi(calls);

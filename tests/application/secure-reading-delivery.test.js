@@ -117,6 +117,15 @@ test('Career Ashtakavarga structure delivery is additive, factual, and excludes 
   });
   assert.equal(JSON.stringify(detail.careerAshtakavargaStructure).match(/threshold|rank|sourceId|strong|weak|favorable/i), null);
 });
+test('Career D10 structure delivery is additive, factual, and excludes interpretation', async () => {
+  const { service, readings } = setup();
+  const snapshot = record('reading-d10-structure', '2026-08-23T00:00:00.000Z', 'Insight content.');
+  snapshot.reading.careerD10Structure = { chart: 'D10', lagna: { house: 1, sign: { rashiIndex: 1, englishName: 'Mesha' }, occupants: [], aspectsReceived: [] }, tenthHouse: { house: 10, sign: { rashiIndex: 10, englishName: 'Makara' }, lord: 'Saturn', lordHouse: 8, occupants: [], aspectsReceived: [] }, shani: { planet: 'Saturn', house: 8, sign: { rashiIndex: 8, englishName: 'Vrishchika' }, degree: 12.4, retrograde: true, conjunctions: [], aspectsToHouses: [{ house: 10, aspectNumber: 3 }], aspectsToPlanets: [], privateReason: 'omit' } };
+  readings.insertReadingRecord({ userId: 'user-a', birthProfileId: 'profile-a', record: snapshot });
+  const detail = await service.getSecureReadingDetail({ principal: principal('subject-a'), readingId: 'reading-d10-structure' });
+  assert.deepEqual(detail.careerD10Structure, { chart: 'D10', lagna: { house: 1, sign: { rashiIndex: 1, englishName: 'Mesha' }, occupants: [], aspectsReceived: [] }, tenthHouse: { house: 10, sign: { rashiIndex: 10, englishName: 'Makara' }, lord: 'Saturn', lordHouse: 8, occupants: [], aspectsReceived: [] }, shani: { planet: 'Saturn', house: 8, sign: { rashiIndex: 8, englishName: 'Vrishchika' }, degree: 12.4, retrograde: true, conjunctions: [], aspectsToHouses: [{ house: 10, aspectNumber: 3 }], aspectsToPlanets: [] } });
+  assert.equal(JSON.stringify(detail.careerD10Structure).match(/private|score|threshold|ranking|probability|confidence|timing/i), null);
+});
 test('Career Ashtakavarga corroboration is an optional, narrow public H10 context only', async () => {
   const { service, readings } = setup();
   const snapshot = record('reading-ashtakavarga-corroboration', '2026-08-24T00:00:00.000Z', 'Insight content.');
