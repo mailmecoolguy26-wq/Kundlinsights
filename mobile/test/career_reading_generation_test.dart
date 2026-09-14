@@ -56,6 +56,8 @@ void main() {
         'domain': 'CAREER',
       });
       expect(adapter.requests[1].headers['Idempotency-Key'], 'attempt-1');
+      expect(adapter.requests[1].receiveTimeout, const Duration(seconds: 90));
+      expect(adapter.requests[0].receiveTimeout, isNull);
     },
   );
 

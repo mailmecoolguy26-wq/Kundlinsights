@@ -29,6 +29,7 @@ class CareerReadingGenerationApiRepository
       '/v1/readings',
       data: {'birthProfileId': birthProfileId, 'domain': 'CAREER'},
       headers: {'Idempotency-Key': idempotencyKey},
+      receiveTimeout: const Duration(seconds: 90),
     );
     final data = response.data;
     if (data is! Map<String, dynamic>) {

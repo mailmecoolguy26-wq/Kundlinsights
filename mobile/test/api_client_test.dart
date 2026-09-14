@@ -74,6 +74,73 @@ void main() {
     expect(adapter.requests, hasLength(2));
   });
 
+  test(
+    'keeps the Dio default receive timeout when no override is supplied',
+    () async {
+      final adapter = _QueueAdapter([_json(200, '{}')]);
+      final client = ApiClient(
+        config: config,
+        tokens: _Tokens(),
+        dio: Dio(BaseOptions(receiveTimeout: const Duration(seconds: 20)))
+          ..httpClientAdapter = adapter,
+      );
+
+      await client.post<Map<String, dynamic>>('/v1/default-timeout');
+
+      expect(
+        adapter.requests.single.receiveTimeout,
+        const Duration(seconds: 20),
+      );
+    },
+  );
+
+  test(
+    'applies a post receive timeout override to Dio request options',
+    () async {
+      final adapter = _QueueAdapter([_json(200, '{}')]);
+      final client = ApiClient(
+        config: config,
+        tokens: _Tokens(),
+        dio: Dio()..httpClientAdapter = adapter,
+      );
+
+      await client.post<Map<String, dynamic>>(
+        '/v1/long-running',
+        receiveTimeout: const Duration(seconds: 90),
+      );
+
+      expect(
+        adapter.requests.single.receiveTimeout,
+        const Duration(seconds: 90),
+      );
+    },
+  );
+
+  test(
+    'keeps a post receive timeout override after a 401 refresh retry',
+    () async {
+      final tokens = _Tokens();
+      final adapter = _QueueAdapter([_json(401, '{}'), _json(200, '{}')]);
+      final client = ApiClient(
+        config: config,
+        tokens: tokens,
+        dio: Dio()..httpClientAdapter = adapter,
+      );
+
+      await client.post<Map<String, dynamic>>(
+        '/v1/long-running',
+        receiveTimeout: const Duration(seconds: 90),
+      );
+
+      expect(tokens.refreshes, 1);
+      expect(adapter.requests, hasLength(2));
+      expect(
+        adapter.requests.map((request) => request.receiveTimeout),
+        everyElement(const Duration(seconds: 90)),
+      );
+    },
+  );
+
   test('signs out after a failed refresh and second 401', () async {
     final tokens = _Tokens();
     final client = ApiClient(

@@ -34,7 +34,14 @@ class ApiClient {
     String path, {
     Object? data,
     Map<String, String>? headers,
-  }) => _request<T>(path, data: data, method: 'POST', headers: headers);
+    Duration? receiveTimeout,
+  }) => _request<T>(
+    path,
+    data: data,
+    method: 'POST',
+    headers: headers,
+    receiveTimeout: receiveTimeout,
+  );
 
   Future<Response<T>> patch<T>(String path, {Object? data}) =>
       _request<T>(path, data: data, method: 'PATCH');
@@ -48,6 +55,7 @@ class ApiClient {
     Object? data,
     String method = 'GET',
     Map<String, String>? headers,
+    Duration? receiveTimeout,
     bool retried = false,
   }) async {
     try {
@@ -55,14 +63,18 @@ class ApiClient {
       if (token == null) {
         throw const ApiFailure(ApiFailureKind.unauthenticated);
       }
+      final options = Options(
+        method: method,
+        headers: {'Authorization': 'Bearer $token', ...?headers},
+      );
+      if (receiveTimeout != null) {
+        options.receiveTimeout = receiveTimeout;
+      }
       return await _dio.request<T>(
         path,
         data: data,
         queryParameters: queryParameters,
-        options: Options(
-          method: method,
-          headers: {'Authorization': 'Bearer $token', ...?headers},
-        ),
+        options: options,
       );
     } on DioException catch (error) {
       if (error.response?.statusCode == 401 && !retried) {
@@ -74,6 +86,7 @@ class ApiClient {
             data: data,
             method: method,
             headers: headers,
+            receiveTimeout: receiveTimeout,
             retried: true,
           );
         }
