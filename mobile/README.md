@@ -1,6 +1,6 @@
-# KundlInsights Mobile
+# TaraVerse Mobile
 
-The shared Flutter client for KundlInsights iOS and Android.
+The shared Flutter client for TaraVerse iOS and Android.
 
 ## Requirements
 
@@ -44,7 +44,7 @@ Pass the backend URL at build time. For an iOS simulator use
 HTTPS development endpoint reachable from that device. Do not commit access
 tokens, database URLs, service-role keys, or local environment files.
 
-No key, JWT, refresh token, database credential, service-role key, or `.env` file is committed. `SUPABASE_ANON_KEY` is a public client credential only. Supabase Flutter owns its native mobile session persistence; KundlInsights deliberately does not duplicate access or refresh tokens. `flutter_secure_storage` is reserved for future app-owned sensitive state.
+No key, JWT, refresh token, database credential, service-role key, or `.env` file is committed. `SUPABASE_ANON_KEY` is a public client credential only. Supabase Flutter owns its native mobile session persistence; TaraVerse deliberately does not duplicate access or refresh tokens. `flutter_secure_storage` is reserved for future app-owned sensitive state.
 
 `lib/core/api` provides the sole Dio boundary. It obtains the current access token from the auth repository, injects `Authorization: Bearer <access-token>`, never transmits a refresh token, maps failures safely, captures backend request IDs, and can perform exactly one refresh-and-retry after a 401. `ApiMeRepository` is the minimal `GET /v1/me` authenticated integration boundary; P3 does not call it automatically and does not expose backend user IDs.
 

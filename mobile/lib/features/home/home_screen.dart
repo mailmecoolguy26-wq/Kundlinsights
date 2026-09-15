@@ -372,7 +372,7 @@ _CareerHeroContent _careerHeroState(
       return const _CareerHeroContent(
         eyebrow: 'PERSONALIZED CAREER FORECAST',
         headline: 'Make your career forecast more personal',
-        body: 'Add a few important career events from your past so KundliInsights can better personalize the timing of your future career windows.',
+        body: 'Add a few important career events from your past so TaraVerse can better personalize the timing of your future career windows.',
         primaryAction: 'CALIBRATE MY CAREER  →',
         primaryRoute: '/career-calibration',
         primaryKey: 'home-calibration-cta',

@@ -24,7 +24,7 @@ It calls `set_ephe_path()` and `set_sid_mode()` once and rejects later reconfigu
 
 ## Coordinates
 
-Sun through Saturn and Mean Rahu use `calc_ut()` with exactly `SEFLG_SWIEPH | SEFLG_SPEED | SEFLG_SIDEREAL`. Returned flags must contain all three bits; Moshier and JPL return modes are rejected. Longitude speed remains degrees per day. `direct`, `retrograde`, and `stationary` retain the existing KundlInsights engine convention: stationary only when `abs(speed) < 1e-7`.
+Sun through Saturn and Mean Rahu use `calc_ut()` with exactly `SEFLG_SWIEPH | SEFLG_SPEED | SEFLG_SIDEREAL`. Returned flags must contain all three bits; Moshier and JPL return modes are rejected. Longitude speed remains degrees per day. `direct`, `retrograde`, and `stationary` retain the existing TaraVerse engine convention: stationary only when `abs(speed) < 1e-7`.
 
 Ketu is not independently calculated: it is normalized Mean Rahu plus 180 degrees, retaining Rahu's longitude derivative and motion.
 

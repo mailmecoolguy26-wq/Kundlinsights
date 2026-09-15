@@ -97,7 +97,7 @@ abstract class AppLocalizations {
   /// No description provided for @appTitle.
   ///
   /// In en, this message translates to:
-  /// **'KundlInsights'**
+  /// **'TaraVerse'**
   String get appTitle;
 
   /// No description provided for @home.
@@ -133,7 +133,7 @@ abstract class AppLocalizations {
   /// No description provided for @welcome.
   ///
   /// In en, this message translates to:
-  /// **'Welcome to KundlInsights'**
+  /// **'Welcome to TaraVerse'**
   String get welcome;
 
   /// No description provided for @activeProfile.
@@ -157,7 +157,7 @@ abstract class AppLocalizations {
   /// No description provided for @currentInsightsBody.
   ///
   /// In en, this message translates to:
-  /// **'KundlInsights will present backend-authoritative astrology once your profile is connected.'**
+  /// **'TaraVerse will present backend-authoritative astrology once your profile is connected.'**
   String get currentInsightsBody;
 
   /// No description provided for @comingSoon.
@@ -331,7 +331,7 @@ abstract class AppLocalizations {
   /// No description provided for @insightsBody.
   ///
   /// In en, this message translates to:
-  /// **'Explore the areas KundlInsights will support as secure backend integrations become available.'**
+  /// **'Explore the areas TaraVerse will support as secure backend integrations become available.'**
   String get insightsBody;
 
   /// No description provided for @currentTransits.
@@ -733,7 +733,7 @@ abstract class AppLocalizations {
   /// No description provided for @onboardingIntro.
   ///
   /// In en, this message translates to:
-  /// **'Add your birth date, time, and place so KundlInsights can prepare your profile and personalized insights.'**
+  /// **'Add your birth date, time, and place so TaraVerse can prepare your profile and personalized insights.'**
   String get onboardingIntro;
 
   /// No description provided for @resolvingBirthDetails.

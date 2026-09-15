@@ -14,7 +14,7 @@ Only the seven planetary BAV targets are supported: Sun through Saturn. Lagna BA
 
 ## Versioned rulesets
 
-No universal Pinda table is implied. The default is `parashari-pinda-bphs-santhanam-chakra-v1`, because KundlInsights uses the BPHS/Parashari framework as primary.
+No universal Pinda table is implied. The default is `parashari-pinda-bphs-santhanam-chakra-v1`, because TaraVerse uses the BPHS/Parashari framework as primary.
 
 | Rashi | BPHS/Santhanam | Phaladeepika |
 | --- | ---: | ---: |

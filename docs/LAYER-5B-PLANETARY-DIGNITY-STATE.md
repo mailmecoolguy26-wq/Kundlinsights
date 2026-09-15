@@ -17,7 +17,7 @@ The optional default node ruleset gives Rahu Taurus exaltation, Scorpio debilita
 
 `canonicalSiderealLongitudeDegrees` is authoritative. Layer 5B reuses Layer 2's pure sidereal classifier to derive normalized longitude, Rashi, and degrees within Rashi. Any supplied Rashi metadata that conflicts with the longitude is rejected.
 
-Moolatrikona intervals are half-open. Exact deep points use unrounded normalized coordinates. Combustion uses minimum circular zodiacal separation and is true when distance is less than or equal to its threshold. The equality behavior and stationary-as-direct behavior are KundlInsights engine conventions.
+Moolatrikona intervals are half-open. Exact deep points use unrounded normalized coordinates. Combustion uses minimum circular zodiacal separation and is true when distance is less than or equal to its threshold. The equality behavior and stationary-as-direct behavior are TaraVerse engine conventions.
 
 When provider motion is unknown, a differing direct/retrograde combustion threshold produces `indeterminateUnknownMotion`; equal thresholds remain determinable. No motion is calculated in Layer 5B.
 

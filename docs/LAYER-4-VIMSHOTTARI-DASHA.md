@@ -6,13 +6,13 @@ Layer 4 produces deterministic Vimshottari Mahadasha (MD), Antardasha (AD), and 
 
 BPHS Chapters 46 and 51 provide the repeating nine-lord sequence, the 120-year weight total, the birth-balance relationship, and the proportional AD/PD arithmetic. BPHS describes birth balance through bhayata/bhabhoga: Moon's elapsed stay in the Janma Nakshatra relative to its total stay there. See [the Sanskrit Chapter 46 text](https://sanskritdocuments.org/doc_z_misc_sociology_astrology/par4650.pdf) and [an English BPHS edition, Chapters 46 and 51](https://vedic-astro.s3.amazonaws.com/books/bhrihat_parasara_hora_shastra.pdf).
 
-The initial KundlInsights ruleset is `vimshottari-longitude-proportional-savana-360-v1`:
+The initial TaraVerse ruleset is `vimshottari-longitude-proportional-savana-360-v1`:
 
 - `balanceMethodId`: `longitude-proportional-balance-v1`
 - `timeConventionId`: `savana-360-day-v1`
 - `sequenceVersion`: `vimshottari-120-v1`
 
-`longitude-proportional-balance-v1` is a deterministic KundlInsights computational implementation derived from the Moon's canonical sidereal longitude within its Janma Nakshatra. It is **not** represented as an exact transcription of BPHS bhayata/bhabhoga transit-time calculation.
+`longitude-proportional-balance-v1` is a deterministic TaraVerse computational implementation derived from the Moon's canonical sidereal longitude within its Janma Nakshatra. It is **not** represented as an exact transcription of BPHS bhayata/bhabhoga transit-time calculation.
 
 The future, unimplemented `bphs-transit-time-bhayat-v1` ruleset will require provenance-bearing Moon Nakshatra entry/exit transit data supplied upstream. The future, unimplemented `phaladeepika-solar-return-v1` ruleset will require a provider-independent solar-return calendar schedule supplied to Layer 4. Neither is implemented here.
 

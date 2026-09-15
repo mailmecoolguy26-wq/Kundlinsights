@@ -43,7 +43,7 @@ void main() {
       );
       expect(
         hinglish.insightSummary('CONCURRENT_CAREER_TIMING'),
-        contains('sufficient nahi hai'),
+        contains('picture poori tarah clear nahi hai'),
       );
       expect(
         hinglish.insightSummary('CURRENT_CAREER_TRANSIT'),

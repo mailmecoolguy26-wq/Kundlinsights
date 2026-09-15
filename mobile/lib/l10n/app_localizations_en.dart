@@ -10,7 +10,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'KundlInsights';
+  String get appTitle => 'TaraVerse';
 
   @override
   String get home => 'Home';
@@ -28,7 +28,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profile => 'Profile';
 
   @override
-  String get welcome => 'Welcome to KundlInsights';
+  String get welcome => 'Welcome to TaraVerse';
 
   @override
   String get activeProfile => 'Your active profile';
@@ -42,7 +42,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get currentInsightsBody =>
-      'KundlInsights will present backend-authoritative astrology once your profile is connected.';
+      'TaraVerse will present backend-authoritative astrology once your profile is connected.';
 
   @override
   String get comingSoon => 'Coming soon';
@@ -138,7 +138,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get insightsBody =>
-      'Explore the areas KundlInsights will support as secure backend integrations become available.';
+      'Explore the areas TaraVerse will support as secure backend integrations become available.';
 
   @override
   String get currentTransits => 'Current Transits';
@@ -348,7 +348,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onboardingIntro =>
-      'Add your birth date, time, and place so KundlInsights can prepare your profile and personalized insights.';
+      'Add your birth date, time, and place so TaraVerse can prepare your profile and personalized insights.';
 
   @override
   String get resolvingBirthDetails => 'Resolving birth details…';

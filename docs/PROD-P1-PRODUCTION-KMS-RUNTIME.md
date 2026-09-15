@@ -8,7 +8,7 @@ The task execution role, separate from the task role, may retrieve container/run
 
 ## KMS envelope policy
 
-KundlInsights generates each 32-byte user DEK locally and uses AWS KMS `Encrypt`/`Decrypt` only to wrap/unwrap it. It does not use `GenerateDataKey`. `keyVersion` identifies the logical user-DEK envelope and is distinct from `kmsKeyRef`, the immutable KMS ARN that wrapped it. Historical decrypt calls use persisted envelope metadata; retain old KMS keys and decrypt permission until all retained historical encrypted records are no longer needed.
+TaraVerse generates each 32-byte user DEK locally and uses AWS KMS `Encrypt`/`Decrypt` only to wrap/unwrap it. It does not use `GenerateDataKey`. `keyVersion` identifies the logical user-DEK envelope and is distinct from `kmsKeyRef`, the immutable KMS ARN that wrapped it. Historical decrypt calls use persisted envelope metadata; retain old KMS keys and decrypt permission until all retained historical encrypted records are no longer needed.
 
 Use a symmetric `ENCRYPT_DECRYPT` key and AWS KMS automatic key-material rotation. Automatic rotation does not rotate application DEKs. A manually replaced KMS key requires a deliberate migration/retention plan; never schedule deletion of an old key until restore and historical-decrypt requirements are satisfied.
 

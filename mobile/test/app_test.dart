@@ -22,8 +22,11 @@ import 'package:kundlinsights_mobile/features/vimshottari/vimshottari_controller
 import 'package:kundlinsights_mobile/features/ashtakavarga/domain/ashtakavarga.dart';
 import 'package:kundlinsights_mobile/features/ashtakavarga/domain/ashtakavarga_repository.dart';
 import 'package:kundlinsights_mobile/features/ashtakavarga/ashtakavarga_controller.dart';
+import 'package:kundlinsights_mobile/features/career_chat/career_chat_controller.dart';
+import 'package:kundlinsights_mobile/features/career_chat/domain/career_chat_repository.dart';
 import 'package:kundlinsights_mobile/features/splash/presentation/stitch_splash_screen.dart';
 import 'package:kundlinsights_mobile/features/splash/splash_launch_gate.dart';
+import 'package:kundlinsights_mobile/core/storage/secure_state_store.dart';
 import 'package:kundlinsights_mobile/shared/widgets/states.dart';
 
 import 'ashtakavarga_fixture.dart';
@@ -291,16 +294,18 @@ void main() {
   testWidgets('tapping a rendered chart planet opens the existing P5 detail', (
     tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(_app(controller, profiles));
     await controller.restore();
     await tester.pumpAndSettle();
     await tester.tap(find.text('Kundli').last);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Suᴿ 20°', findRichText: true));
+    await tester.tap(find.text('Su 20° R', findRichText: true));
     await tester.pumpAndSettle();
 
-    expect(find.text('Sun'), findsOneWidget);
+    expect(find.text('Sun'), findsWidgets);
     expect(find.text('319.5000°'), findsOneWidget);
     expect(find.text('Astronomical Details'), findsOneWidget);
   });
@@ -345,8 +350,8 @@ void main() {
       expect(find.text('Aquarius'), findsWidgets);
       await tester.tap(find.text('Kundli').last);
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(find.text('Planetary Positions'), 240);
-      expect(find.text('Planetary Positions'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('PLANETARY POSITIONS'), 240);
+      expect(find.text('PLANETARY POSITIONS'), findsOneWidget);
       expect(find.text('Sun'), findsOneWidget);
       await tester.tap(find.text('Sun'));
       await tester.pumpAndSettle();
@@ -413,7 +418,7 @@ void main() {
       expect(find.text('Language'), findsNothing);
       expect(find.text('Privacy'), findsNothing);
       expect(find.text('Terms'), findsNothing);
-      expect(find.byIcon(Icons.chevron_right), findsOneWidget);
+      expect(find.byIcon(Icons.chevron_right), findsNWidgets(2));
     },
   );
 
@@ -476,20 +481,30 @@ void main() {
     await tester.tap(find.text('Ashtakavarga'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Sarvashtakavarga'), findsOneWidget);
-    expect(find.text('Lagna BAV'), findsOneWidget);
+    expect(find.text('SARVASHTAKAVARGA'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('LAGNA BAV'),
+      240,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('LAGNA BAV'), findsOneWidget);
     expect(find.text('Rashi-1'), findsWidgets);
     expect(find.text('Rahu'), findsNothing);
     expect(find.text('Ketu'), findsNothing);
     expect(find.textContaining('House'), findsNothing);
     expect(find.textContaining('Strong'), findsNothing);
 
+    await tester.scrollUntilVisible(
+      find.text('PLANETARY BAV'),
+      240,
+      scrollable: find.byType(Scrollable).last,
+    );
     await tester.tap(find.text('Moon'));
     await tester.pumpAndSettle();
-    expect(find.text('BAV'), findsOneWidget);
+    expect(find.text('MOON BAV'), findsOneWidget);
     await tester.tap(find.text('Saturn'));
     await tester.pumpAndSettle();
-    expect(find.text('Lagna BAV'), findsOneWidget);
+    expect(find.text('SATURN BAV'), findsOneWidget);
   });
 }
 
@@ -502,6 +517,10 @@ Widget _app(
   SplashLaunchGate? splashLaunchGate,
 }) => ProviderScope(
   overrides: [
+    secureStateStoreProvider.overrideWithValue(_InMemorySecureStateStore()),
+    careerChatRepositoryProvider.overrideWithValue(
+      const UnavailableCareerChatRepository(),
+    ),
     birthProfileRepositoryProvider.overrideWithValue(profiles),
     natalSummaryRepositoryProvider.overrideWithValue(_Natal()),
     divisionalChartRepositoryProvider.overrideWithValue(
@@ -520,6 +539,21 @@ Widget _app(
         splashLaunchGate ?? SplashLaunchGate(minimumDuration: Duration.zero),
   ),
 );
+
+class _InMemorySecureStateStore extends SecureStateStore {
+  final Map<String, String> _values = {};
+
+  @override
+  Future<String?> read(String key) async => _values[key];
+
+  @override
+  Future<void> write({required String key, required String value}) async {
+    _values[key] = value;
+  }
+
+  @override
+  Future<void> clearAppOwnedState() async => _values.clear();
+}
 
 class _Ashtakavarga implements AshtakavargaRepository {
   @override

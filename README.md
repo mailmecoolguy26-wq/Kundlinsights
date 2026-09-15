@@ -1,4 +1,4 @@
-# KundlInsights
+# TaraVerse
 
 ## Production OpenAI Career generation
 
@@ -20,13 +20,13 @@ This runtime preserves encrypted PostgreSQL persistence using the local developm
 
 To enable backend-authoritative development birth-place resolution, additionally provide `GOOGLE_MAPS_API_KEY` plus explicit `TIMEZONE_RUNTIME_MANIFEST_PATH` and `TIMEZONE_RUNTIME_BINARY_PATH`. Any partial configuration fails closed. Build the external artifacts from the approved TBB 2026c/1970 GeoJSON with `node scripts/build-timezone-runtime-artifact.js <source-json> <external-output-directory>`; this creates `tbb-2026c-1970.manifest.json` and `tbb-2026c-1970.bin`. These files and the Google key remain outside the repository.
 
-KundlInsights is a production-grade iOS and Android application for **Vedic / Jyotish astrology**.
+TaraVerse is a production-grade iOS and Android application for **Vedic / Jyotish astrology**.
 
 It is intentionally being built in layers, beginning with a deterministic astronomical calculation foundation and progressing through charting, dashas, transits, Ashtakavarga, event analysis, prediction, interpretation, mobile delivery, and subscriptions.
 
 ## Astrology commitment
 
-KundlInsights uses only the following astrology standard:
+TaraVerse uses only the following astrology standard:
 
 - Vedic / Jyotish, with Parashari as the primary framework
 - Sidereal zodiac using Lahiri / Chitrapaksha ayanamsha

@@ -368,7 +368,7 @@ class _OtpTopNavigation extends StatelessWidget {
         const _AuthEmblem(size: 28),
         const SizedBox(width: 8),
         Text(
-          'KundliInsights',
+          'TaraVerse',
           style: GoogleFonts.ebGaramond(
             color: const Color(0xFFFAF7F2),
             fontSize: 23,
@@ -723,7 +723,7 @@ class _AuthBrandHeader extends StatelessWidget {
         ),
       ),
       Text(
-        'KundliInsights',
+        'TaraVerse',
         textAlign: TextAlign.center,
         style: GoogleFonts.ebGaramond(
           color: const Color(0xFFD1AD5E),

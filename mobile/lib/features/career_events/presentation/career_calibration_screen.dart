@@ -859,7 +859,7 @@ class _CareerTimingHelperCard extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'The date precision and context you provide help KundliInsights place this event correctly in your saved career history.',
+                'The date precision and context you provide help TaraVerse place this event correctly in your saved career history.',
                 style: GoogleFonts.inter(
                   color: _CalibrationColors.slate,
                   fontSize: 11,

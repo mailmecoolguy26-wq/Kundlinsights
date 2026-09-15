@@ -1,6 +1,6 @@
 # Layer 1P2 — Independent Swiss Golden Validation
 
-Four immutable fixtures were generated externally with official Swiss Ephemeris C `swetest` 2.10.03, using `-eswe`, `-sid1`, `-speed`, and Mean Node. Ascendants were independently generated through `swetest -house<longitude>,<latitude>,W`; Swiss cusp output is not used by KundlInsights.
+Four immutable fixtures were generated externally with official Swiss Ephemeris C `swetest` 2.10.03, using `-eswe`, `-sid1`, `-speed`, and Mean Node. Ascendants were independently generated through `swetest -house<longitude>,<latitude>,W`; Swiss cusp output is not used by TaraVerse.
 
 The reference data files are identified in fixture provenance by byte length and SHA-256. No executable or ephemeris data is committed. Golden provider tests run only when `KUNDLINSIGHTS_SWISS_REFERENCE_EPHEMERIS_PATH` points to an approved local data directory.
 

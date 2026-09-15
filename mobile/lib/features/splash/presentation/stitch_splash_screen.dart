@@ -136,7 +136,7 @@ class _BrandLockup extends StatelessWidget {
           colors: [_SplashPalette.alabaster, _SplashPalette.gold],
         ).createShader(bounds),
         child: Text(
-          'KundliInsights',
+          'TaraVerse',
           textAlign: TextAlign.center,
           style: GoogleFonts.ebGaramond(
             fontSize: compact ? 38 : 43,

@@ -146,7 +146,7 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp> {
     return AstrologyPresentationScope(
       controller: _careerExplanationLanguage,
       child: MaterialApp.router(
-        title: 'KundlInsights',
+        title: 'TaraVerse',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
         routerConfig: _router,

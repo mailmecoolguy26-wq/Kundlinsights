@@ -1,7 +1,7 @@
 {
   "name": "kundlinsights",
   "version": "1.0.0",
-  "description": "KundlInsights is a production-grade iOS and Android application for **Vedic / Jyotish astrology**.",
+  "description": "TaraVerse is a production-grade iOS and Android application for **Vedic / Jyotish astrology**.",
   "main": "src/astronomy/index.js",
   "directories": {
     "doc": "docs",

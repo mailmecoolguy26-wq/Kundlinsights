@@ -26,7 +26,7 @@ void main() {
 
     expect(find.text('SACRED VEDIC ASTROLOGY'), findsOneWidget);
     expect(find.text('Welcome to'), findsOneWidget);
-    expect(find.text('KundliInsights'), findsOneWidget);
+    expect(find.text('TaraVerse'), findsOneWidget);
     expect(_continueButton(tester).onPressed, isNull);
 
     await tester.enterText(

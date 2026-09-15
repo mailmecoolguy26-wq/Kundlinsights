@@ -13,7 +13,7 @@ PRODUCTION AUTHORITY CHANGED: NO
 INDEPENDENT SWISS-C GOLDENS:
 NOT YET ADDED
 
-The source-policy background is the approved distinction between classical Udu-Dasha solar-return wording and KundlInsights timestamp representation. A chronology activation, independent authoritative Swiss C validation, and any default selection are deferred to P2/P3/P4.
+The source-policy background is the approved distinction between classical Udu-Dasha solar-return wording and TaraVerse timestamp representation. A chronology activation, independent authoritative Swiss C validation, and any default selection are deferred to P2/P3/P4.
 
 ## Canonical Sun sampler
 

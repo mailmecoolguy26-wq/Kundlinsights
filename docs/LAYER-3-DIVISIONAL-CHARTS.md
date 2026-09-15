@@ -26,7 +26,7 @@ The result records two distinct forms of provenance:
 
 - **Classical mapping provenance** identifies the rule that assigns a selected
   subdivision to a resulting Rashi.
-- **Engine coordinate provenance** identifies KundlInsights' representation of
+- **Engine coordinate provenance** identifies TaraVerse' representation of
   a precise position within that already-selected resulting Rashi.
 
 The engine-coordinate rule is:
@@ -37,7 +37,7 @@ degreesWithinResultingRashi =
 ```
 
 This maps the relative position inside a selected equal subdivision onto the
-resulting Rashi's `[0°, 30°)` coordinate range. It is a KundlInsights engine
+resulting Rashi's `[0°, 30°)` coordinate range. It is a TaraVerse engine
 coordinate convention; it is not attributed to BPHS as a classical mapping
 rule.
 

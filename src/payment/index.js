@@ -8,8 +8,8 @@ const PurchaseEnvironment = freeze(['SANDBOX', 'PRODUCTION']);
 const PurchaseStatus = freeze(['VERIFIED', 'PENDING', 'REVOKED', 'REFUNDED', 'FAILED']);
 const SubscriptionStatus = freeze(['ACTIVE', 'GRACE_PERIOD', 'CANCELED', 'EXPIRED', 'REVOKED', 'REFUNDED']);
 const CAREER_PROFILE_UNLOCK_SKU = 'career_profile_unlock';
-function createProductCatalog({ appleCareerPremiumAnnualProductId = null, googleCareerPremiumAnnualProductId = null } = {}) { return freeze([{ logicalSku: 'career_premium_annual', name: 'KundliInsights Career Premium', displayPrice: '₹599/year', scope: 'USER', kind: 'ANNUAL_SUBSCRIPTION', providerProductIds: freeze({ APPLE: appleCareerPremiumAnnualProductId, GOOGLE: googleCareerPremiumAnnualProductId, WEB: null }) }]); }
-const PRODUCT_CATALOG = Object.freeze([...createProductCatalog(), freeze({ logicalSku: CAREER_PROFILE_UNLOCK_SKU, name: 'KundliInsights Career Profile Unlock', displayPrice: null, scope: 'BIRTH_PROFILE', kind: 'ONE_TIME_PROFILE_UNLOCK', providerProductIds: freeze({ APPLE: null, GOOGLE: null, WEB: null }) })]);
+function createProductCatalog({ appleCareerPremiumAnnualProductId = null, googleCareerPremiumAnnualProductId = null } = {}) { return freeze([{ logicalSku: 'career_premium_annual', name: 'TaraVerse Career Premium', displayPrice: '₹599/year', scope: 'USER', kind: 'ANNUAL_SUBSCRIPTION', providerProductIds: freeze({ APPLE: appleCareerPremiumAnnualProductId, GOOGLE: googleCareerPremiumAnnualProductId, WEB: null }) }]); }
+const PRODUCT_CATALOG = Object.freeze([...createProductCatalog(), freeze({ logicalSku: CAREER_PROFILE_UNLOCK_SKU, name: 'TaraVerse Career Profile Unlock', displayPrice: null, scope: 'BIRTH_PROFILE', kind: 'ONE_TIME_PROFILE_UNLOCK', providerProductIds: freeze({ APPLE: null, GOOGLE: null, WEB: null }) })]);
 function enumValue(value, values, code) { if (!values.includes(value)) fail(code); return value; }
 function nullableString(value, code) { return value == null ? null : requiredString(value, code); }
 function nullableTime(value, code) { return value == null ? null : canonicalTime(value, code); }

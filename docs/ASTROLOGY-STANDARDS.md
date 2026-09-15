@@ -2,11 +2,11 @@
 
 ## Scope
 
-This document is the normative domain standard for KundlInsights. It applies to every calculation, stored result, test fixture, interpretation, and user-facing explanation.
+This document is the normative domain standard for TaraVerse. It applies to every calculation, stored result, test fixture, interpretation, and user-facing explanation.
 
 ## Required standard
 
-| Domain | KundlInsights standard |
+| Domain | TaraVerse standard |
 | --- | --- |
 | Tradition | Vedic / Jyotish |
 | Primary framework | Parashari |

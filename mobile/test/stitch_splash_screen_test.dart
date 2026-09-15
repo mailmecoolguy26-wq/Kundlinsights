@@ -12,7 +12,7 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: StitchSplashScreen()));
 
     expect(find.byType(SafeArea), findsOneWidget);
-    expect(find.text('KundliInsights'), findsOneWidget);
+    expect(find.text('TaraVerse'), findsOneWidget);
     expect(find.text('ANCIENT WISDOM. MODERN PRECISION.'), findsOneWidget);
     expect(find.text('JYOTISH SHASTRA'), findsOneWidget);
     expect(find.text('NIRAYANA 23° 51\''), findsOneWidget);

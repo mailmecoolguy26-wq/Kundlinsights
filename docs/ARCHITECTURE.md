@@ -2,7 +2,7 @@
 
 ## Purpose
 
-KundlInsights will be a layered Vedic/Jyotish system. Each layer consumes stable, versioned outputs from the layer below it. The calculation core must remain deterministic, independently testable, and separate from interpretation, UI, and subscription concerns.
+TaraVerse will be a layered Vedic/Jyotish system. Each layer consumes stable, versioned outputs from the layer below it. The calculation core must remain deterministic, independently testable, and separate from interpretation, UI, and subscription concerns.
 
 ## Logical architecture
 

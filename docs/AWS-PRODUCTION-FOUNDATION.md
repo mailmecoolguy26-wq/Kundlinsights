@@ -2,7 +2,7 @@
 
 ## Current state
 
-The manually provisioned AWS foundation for KundlInsights is in `ap-south-1` (Asia Pacific — Mumbai). It is **foundation only**: no production backend, public API URL, container image, ECS task definition, ECS service, Application Load Balancer (ALB), target group, or WAF exists yet.
+The manually provisioned AWS foundation for TaraVerse is in `ap-south-1` (Asia Pacific — Mumbai). It is **foundation only**: no production backend, public API URL, container image, ECS task definition, ECS service, Application Load Balancer (ALB), target group, or WAF exists yet.
 
 | Resource | Current state |
 | --- | --- |
