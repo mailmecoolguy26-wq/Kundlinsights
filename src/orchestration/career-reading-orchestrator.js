@@ -5,6 +5,7 @@ const { buildNatalCareerConclusions, buildCareerDashaConclusions, buildCareerGoc
 const { buildReading } = require('../reading'); const { renderReading } = require('../rendering');
 const { adaptCareerInsightEvidence, buildCareerInsightSignals, buildCareerInsights } = require('../application/insights');
 const { buildCareerAshtakavargaCorroboration } = require('../application/ashtakavarga/career-ashtakavarga-corroboration');
+const { buildCareerD10Corroboration } = require('../application/divisional-charts');
 const { buildCareerEvidenceSynthesis } = require('../application/insights/career-evidence-synthesis');
 const { CAREER_ORCHESTRATOR_RULESET_ID, SUPPORTED_DOMAIN, SUPPORTED_LOCALE } = require('./reference-data');
 function buildCareerReading({ natal, temporal, locale = SUPPORTED_LOCALE, careerAshtakavargaStructure = null, careerD10Structure = null } = {}) {
@@ -25,8 +26,9 @@ function buildCareerReading({ natal, temporal, locale = SUPPORTED_LOCALE, career
   const insights = buildCareerInsights({ evidence: insightEvidence, signals: insightSignals });
   const baseReading = buildReading({ domain: SUPPORTED_DOMAIN, conclusions });
   const careerAshtakavargaCorroboration = buildCareerAshtakavargaCorroboration({ conclusions, careerAshtakavargaStructure });
+  const careerD10Corroboration = buildCareerD10Corroboration({ insights, careerD10Structure });
   const careerEvidenceSynthesis = buildCareerEvidenceSynthesis({ insights, careerAshtakavargaCorroboration });
-  const reading = freeze({ ...baseReading, insights, ...(careerAshtakavargaStructure ? { careerAshtakavargaStructure } : {}), ...(careerD10Structure ? { careerD10Structure } : {}), ...(careerAshtakavargaCorroboration ? { careerAshtakavargaCorroboration } : {}), ...(careerEvidenceSynthesis ? { careerEvidenceSynthesis } : {}) });
+  const reading = freeze({ ...baseReading, insights, ...(careerAshtakavargaStructure ? { careerAshtakavargaStructure } : {}), ...(careerD10Structure ? { careerD10Structure } : {}), ...(careerD10Corroboration ? { careerD10Corroboration } : {}), ...(careerAshtakavargaCorroboration ? { careerAshtakavargaCorroboration } : {}), ...(careerEvidenceSynthesis ? { careerEvidenceSynthesis } : {}) });
   const renderedReading = renderReading({ reading, locale });
   return freeze({ domain: SUPPORTED_DOMAIN, locale, reading, renderedReading, provenance: { orchestratorRulesetId: CAREER_ORCHESTRATOR_RULESET_ID, analysisId: analysis.analysisId, conclusionIds: conclusions.map((item) => item.conclusionId), readingItemIds: reading.readingItems.map((item) => item.readingItemId), insightIds: insights.map((item) => item.insightId), readingRulesetId: reading.rulesetId, rendererRulesetId: renderedReading.provenance.rendererRulesetId, interpretation: 'delegated-to-layer-13', readingConstruction: 'delegated-to-layer-14a', insightConstruction: 'delegated-to-career-insight-engine-v1', rendering: 'delegated-to-layer-14b', providerDependency: 'none', networkAccess: 'not-performed', llmGeneration: 'not-performed' } });
 }

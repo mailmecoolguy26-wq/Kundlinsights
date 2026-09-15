@@ -91,6 +91,19 @@ function publicCareerD10Structure(record) {
   const aspectsToPlanets = Array.isArray(value.shani.aspectsToPlanets) ? value.shani.aspectsToPlanets.filter((item) => item && typeof item === 'object' && planets.has(item.planet) && house(item.house) && Number.isInteger(item.aspectNumber) && item.aspectNumber >= 3 && item.aspectNumber <= 10).map((item) => ({ planet: item.planet, house: item.house, aspectNumber: item.aspectNumber })) : [];
   return { chart: 'D10', lagna, tenthHouse, shani: { ...shaniBody, conjunctions: Array.isArray(value.shani.conjunctions) ? value.shani.conjunctions.map(planet).filter(Boolean) : [], aspectsToHouses, aspectsToPlanets } };
 }
+function publicCareerD10Corroboration(record) {
+  const value = record && record.reading && record.reading.careerD10Corroboration;
+  const themes = new Set(['AUTHORITY_ADMINISTRATION', 'PEOPLE_CARE_PUBLIC', 'EXECUTION_TECHNICAL', 'COMMUNICATION_COMMERCE_TECH', 'ADVISORY_KNOWLEDGE', 'DESIGN_LUXURY_CLIENT', 'STRUCTURE_OPERATIONS', 'UNCONVENTIONAL_TECH_GLOBAL', 'RESEARCH_SPECIALIZATION']);
+  const planets = new Set(['Sun', 'Moon', 'Mars', 'Mercury', 'Jupiter', 'Venus', 'Saturn', 'Rahu', 'Ketu']);
+  const sources = new Set(['D10_LAGNA_OCCUPANT', 'D10_LAGNA_LORD', 'D10_TENTH_OCCUPANT', 'D10_TENTH_LORD', 'D10_SHANI']);
+  if (!value || typeof value !== 'object' || Array.isArray(value) || value.chart !== 'D10' || value.corroborates !== 'CAREER_FOUNDATION' || !Array.isArray(value.themes)) return undefined;
+  const output = value.themes.map((item) => {
+    if (!item || typeof item !== 'object' || !themes.has(item.theme) || item.interpretationLevel !== 'CONTEXTUAL' || item.limitation !== 'NOT_STANDALONE_PREDICTION' || !Array.isArray(item.supportingFactors)) return null;
+    const supportingFactors = item.supportingFactors.filter((factor) => factor && typeof factor === 'object' && sources.has(factor.source) && planets.has(factor.planet) && Number.isInteger(factor.house) && factor.house >= 1 && factor.house <= 12).map((factor) => ({ source: factor.source, planet: factor.planet, house: factor.house }));
+    return supportingFactors.length ? { theme: item.theme, supportingFactors, interpretationLevel: 'CONTEXTUAL', limitation: 'NOT_STANDALONE_PREDICTION' } : null;
+  }).filter(Boolean);
+  return output.length ? { chart: 'D10', corroborates: 'CAREER_FOUNDATION', themes: output } : undefined;
+}
 function publicCareerAshtakavargaCorroboration(record) {
   const value = record && record.reading && record.reading.careerAshtakavargaCorroboration;
   if (!value || typeof value !== 'object' || Array.isArray(value) ||
@@ -196,7 +209,7 @@ function publicInsights(record) {
   });
   });
 }
-function publicReadingDetail(item) { const calibrated = calibratedContent(item.record), calibrationContext = publicCalibrationSummary(item.record), careerAshtakavargaStructure = publicCareerAshtakavargaStructure(item.record), careerD10Structure = publicCareerD10Structure(item.record), careerAshtakavargaCorroboration = publicCareerAshtakavargaCorroboration(item.record), careerEvidenceSynthesis = publicCareerEvidenceSynthesis(item.record), insights = publicInsights(item.record); return immutableCopy({ ...publicReadingSummary(item), content: item.record.renderedReading, ...(calibrated ? { calibratedContent: calibrated } : {}), ...(calibrationContext === undefined ? {} : { calibrationContext }), ...(careerAshtakavargaStructure === undefined ? {} : { careerAshtakavargaStructure }), ...(careerD10Structure === undefined ? {} : { careerD10Structure }), ...(careerAshtakavargaCorroboration === undefined ? {} : { careerAshtakavargaCorroboration }), ...(careerEvidenceSynthesis === undefined ? {} : { careerEvidenceSynthesis }), ...(insights === undefined ? {} : { insights }) }); }
+function publicReadingDetail(item) { const calibrated = calibratedContent(item.record), calibrationContext = publicCalibrationSummary(item.record), careerAshtakavargaStructure = publicCareerAshtakavargaStructure(item.record), careerD10Structure = publicCareerD10Structure(item.record), careerD10Corroboration = publicCareerD10Corroboration(item.record), careerAshtakavargaCorroboration = publicCareerAshtakavargaCorroboration(item.record), careerEvidenceSynthesis = publicCareerEvidenceSynthesis(item.record), insights = publicInsights(item.record); return immutableCopy({ ...publicReadingSummary(item), content: item.record.renderedReading, ...(calibrated ? { calibratedContent: calibrated } : {}), ...(calibrationContext === undefined ? {} : { calibrationContext }), ...(careerAshtakavargaStructure === undefined ? {} : { careerAshtakavargaStructure }), ...(careerD10Structure === undefined ? {} : { careerD10Structure }), ...(careerD10Corroboration === undefined ? {} : { careerD10Corroboration }), ...(careerAshtakavargaCorroboration === undefined ? {} : { careerAshtakavargaCorroboration }), ...(careerEvidenceSynthesis === undefined ? {} : { careerEvidenceSynthesis }), ...(insights === undefined ? {} : { insights }) }); }
 function scopedKeyProvider(key) { return Object.freeze({ current: async () => ({ keyVersion: key.keyVersion, dek: Buffer.from(key.dek) }), forVersion: async () => ({ keyVersion: key.keyVersion, dek: Buffer.from(key.dek) }) }); }
 function rawRecord(raw, record) { return { readingId: raw.readingId, userId: raw.userId, birthProfileId: raw.birthProfileId, status: raw.status, archivedAt: raw.archivedAt, idempotencyKey: raw.idempotencyKey, record }; }
 

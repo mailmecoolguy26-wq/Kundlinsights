@@ -126,6 +126,31 @@ test('Career D10 structure delivery is additive, factual, and excludes interpret
   assert.deepEqual(detail.careerD10Structure, { chart: 'D10', lagna: { house: 1, sign: { rashiIndex: 1, englishName: 'Mesha' }, occupants: [], aspectsReceived: [] }, tenthHouse: { house: 10, sign: { rashiIndex: 10, englishName: 'Makara' }, lord: 'Saturn', lordHouse: 8, occupants: [], aspectsReceived: [] }, shani: { planet: 'Saturn', house: 8, sign: { rashiIndex: 8, englishName: 'Vrishchika' }, degree: 12.4, retrograde: true, conjunctions: [], aspectsToHouses: [{ house: 10, aspectNumber: 3 }], aspectsToPlanets: [] } });
   assert.equal(JSON.stringify(detail.careerD10Structure).match(/private|score|threshold|ranking|probability|confidence|timing/i), null);
 });
+test('Career D10 corroboration delivery is additive, contextual, and sanitizes internal fields', async () => {
+  const { service, readings } = setup();
+  const snapshot = record('reading-d10-corroboration', '2026-08-24T00:00:00.000Z', 'Insight content.');
+  snapshot.reading.careerD10Corroboration = {
+    chart: 'D10', corroborates: 'CAREER_FOUNDATION', privateReason: 'omit',
+    themes: [{
+      theme: 'COMMUNICATION_COMMERCE_TECH', interpretationLevel: 'CONTEXTUAL', limitation: 'NOT_STANDALONE_PREDICTION', privateReason: 'omit',
+      supportingFactors: [
+        { source: 'D10_LAGNA_LORD', planet: 'Mercury', house: 1, privateReason: 'omit' },
+        { source: 'D10_TENTH_OCCUPANT', planet: 'Mercury', house: 10, privateReason: 'omit' },
+      ],
+    }],
+  };
+  readings.insertReadingRecord({ userId: 'user-a', birthProfileId: 'profile-a', record: snapshot });
+  const detail = await service.getSecureReadingDetail({ principal: principal('subject-a'), readingId: 'reading-d10-corroboration' });
+  assert.deepEqual(detail.careerD10Corroboration, {
+    chart: 'D10', corroborates: 'CAREER_FOUNDATION', themes: [{
+      theme: 'COMMUNICATION_COMMERCE_TECH', interpretationLevel: 'CONTEXTUAL', limitation: 'NOT_STANDALONE_PREDICTION',
+      supportingFactors: [{ source: 'D10_LAGNA_LORD', planet: 'Mercury', house: 1 }, { source: 'D10_TENTH_OCCUPANT', planet: 'Mercury', house: 10 }],
+    }],
+  });
+  assert.equal(JSON.stringify(detail.careerD10Corroboration).match(/private|score|threshold|ranking|probability|confidence|timing|promotion|job.?change|business|success|failure|wealth|debt|foreign/i), null);
+  const legacy = await service.getSecureReadingDetail({ principal: principal('subject-a'), readingId: 'reading-a-new' });
+  assert.equal('careerD10Corroboration' in legacy, false);
+});
 test('Career Ashtakavarga corroboration is an optional, narrow public H10 context only', async () => {
   const { service, readings } = setup();
   const snapshot = record('reading-ashtakavarga-corroboration', '2026-08-24T00:00:00.000Z', 'Insight content.');

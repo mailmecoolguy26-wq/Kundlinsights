@@ -129,6 +129,7 @@ class ReadingDetail extends ReadingSummary {
     this.calibrationContext,
     this.careerAshtakavargaStructure,
     this.careerD10Structure,
+    this.careerD10Corroboration,
     this.careerAshtakavargaCorroboration,
     this.careerEvidenceSynthesis,
     this.insights = const [],
@@ -139,6 +140,7 @@ class ReadingDetail extends ReadingSummary {
   final CareerReadingCalibrationSummary? calibrationContext;
   final CareerAshtakavargaStructure? careerAshtakavargaStructure;
   final CareerD10Structure? careerD10Structure;
+  final CareerD10Corroboration? careerD10Corroboration;
   final CareerAshtakavargaCorroboration? careerAshtakavargaCorroboration;
   final CareerEvidenceSynthesis? careerEvidenceSynthesis;
   final List<CareerInsight> insights;
@@ -183,6 +185,9 @@ class ReadingDetail extends ReadingSummary {
       careerD10Structure: CareerD10Structure.tryFromJson(
         json['careerD10Structure'],
       ),
+      careerD10Corroboration: CareerD10Corroboration.tryFromJson(
+        json['careerD10Corroboration'],
+      ),
       careerAshtakavargaCorroboration:
           CareerAshtakavargaCorroboration.tryFromJson(
             json['careerAshtakavargaCorroboration'],
@@ -191,6 +196,113 @@ class ReadingDetail extends ReadingSummary {
         json['careerEvidenceSynthesis'],
       ),
       insights: List<CareerInsight>.unmodifiable(insights),
+    );
+  }
+}
+
+/// Server-derived D10 Career context. This remains a controlled contextual
+/// packet and does not calculate outcomes, timing, rankings, or confidence.
+class CareerD10Corroboration {
+  const CareerD10Corroboration({required this.themes});
+
+  final List<CareerD10Theme> themes;
+
+  static const _themes = {
+    'AUTHORITY_ADMINISTRATION',
+    'PEOPLE_CARE_PUBLIC',
+    'EXECUTION_TECHNICAL',
+    'COMMUNICATION_COMMERCE_TECH',
+    'ADVISORY_KNOWLEDGE',
+    'DESIGN_LUXURY_CLIENT',
+    'STRUCTURE_OPERATIONS',
+    'UNCONVENTIONAL_TECH_GLOBAL',
+    'RESEARCH_SPECIALIZATION',
+  };
+
+  static CareerD10Corroboration? tryFromJson(Object? raw) {
+    if (raw is! Map<String, dynamic> ||
+        raw['chart'] != 'D10' ||
+        raw['corroborates'] != 'CAREER_FOUNDATION' ||
+        raw['themes'] is! List) {
+      return null;
+    }
+    final themes = (raw['themes'] as List)
+        .map(CareerD10Theme.tryFromJson)
+        .whereType<CareerD10Theme>()
+        .where((theme) => _themes.contains(theme.theme))
+        .toList(growable: false);
+    return themes.isEmpty
+        ? null
+        : CareerD10Corroboration(themes: List.unmodifiable(themes));
+  }
+}
+
+class CareerD10Theme {
+  const CareerD10Theme({required this.theme, required this.supportingFactors});
+
+  final String theme;
+  final List<CareerD10ThemeFactor> supportingFactors;
+
+  static CareerD10Theme? tryFromJson(Object? raw) {
+    if (raw is! Map<String, dynamic> ||
+        raw['theme'] is! String ||
+        raw['interpretationLevel'] != 'CONTEXTUAL' ||
+        raw['limitation'] != 'NOT_STANDALONE_PREDICTION' ||
+        raw['supportingFactors'] is! List) {
+      return null;
+    }
+    final factors = (raw['supportingFactors'] as List)
+        .map(CareerD10ThemeFactor.tryFromJson)
+        .whereType<CareerD10ThemeFactor>()
+        .toList(growable: false);
+    return factors.isEmpty
+        ? null
+        : CareerD10Theme(
+            theme: raw['theme'] as String,
+            supportingFactors: List.unmodifiable(factors),
+          );
+  }
+}
+
+class CareerD10ThemeFactor {
+  const CareerD10ThemeFactor({required this.planet, required this.house});
+
+  final String planet;
+  final int house;
+
+  static const _planets = {
+    'Sun',
+    'Moon',
+    'Mars',
+    'Mercury',
+    'Jupiter',
+    'Venus',
+    'Saturn',
+    'Rahu',
+    'Ketu',
+  };
+  static const _sources = {
+    'D10_LAGNA_OCCUPANT',
+    'D10_LAGNA_LORD',
+    'D10_TENTH_OCCUPANT',
+    'D10_TENTH_LORD',
+    'D10_SHANI',
+  };
+
+  static CareerD10ThemeFactor? tryFromJson(Object? raw) {
+    if (raw is! Map<String, dynamic> ||
+        raw['planet'] is! String ||
+        !_planets.contains(raw['planet']) ||
+        raw['source'] is! String ||
+        !_sources.contains(raw['source']) ||
+        raw['house'] is! int ||
+        raw['house'] < 1 ||
+        raw['house'] > 12) {
+      return null;
+    }
+    return CareerD10ThemeFactor(
+      planet: raw['planet'] as String,
+      house: raw['house'] as int,
     );
   }
 }
@@ -223,9 +335,24 @@ class CareerD10Structure {
       return null;
     }
     final rawShani = raw['shani'] as Map<String, dynamic>;
-    final conjunctions = rawShani['conjunctions'] is List ? (rawShani['conjunctions'] as List).map(CareerD10PlanetFact.tryFromJson).whereType<CareerD10PlanetFact>().toList(growable: false) : const <CareerD10PlanetFact>[];
-    final houses = rawShani['aspectsToHouses'] is List ? (rawShani['aspectsToHouses'] as List).map(CareerD10HouseAspectFact.tryFromJson).whereType<CareerD10HouseAspectFact>().toList(growable: false) : const <CareerD10HouseAspectFact>[];
-    final planets = rawShani['aspectsToPlanets'] is List ? (rawShani['aspectsToPlanets'] as List).map(CareerD10PlanetAspectFact.tryFromJson).whereType<CareerD10PlanetAspectFact>().toList(growable: false) : const <CareerD10PlanetAspectFact>[];
+    final conjunctions = rawShani['conjunctions'] is List
+        ? (rawShani['conjunctions'] as List)
+              .map(CareerD10PlanetFact.tryFromJson)
+              .whereType<CareerD10PlanetFact>()
+              .toList(growable: false)
+        : const <CareerD10PlanetFact>[];
+    final houses = rawShani['aspectsToHouses'] is List
+        ? (rawShani['aspectsToHouses'] as List)
+              .map(CareerD10HouseAspectFact.tryFromJson)
+              .whereType<CareerD10HouseAspectFact>()
+              .toList(growable: false)
+        : const <CareerD10HouseAspectFact>[];
+    final planets = rawShani['aspectsToPlanets'] is List
+        ? (rawShani['aspectsToPlanets'] as List)
+              .map(CareerD10PlanetAspectFact.tryFromJson)
+              .whereType<CareerD10PlanetAspectFact>()
+              .toList(growable: false)
+        : const <CareerD10PlanetAspectFact>[];
     return CareerD10Structure(
       lagna: lagna,
       tenthHouse: tenthHouse,
@@ -324,25 +451,45 @@ class CareerD10AspectFact {
 }
 
 class CareerD10HouseAspectFact {
-  const CareerD10HouseAspectFact({required this.house, required this.aspectNumber});
+  const CareerD10HouseAspectFact({
+    required this.house,
+    required this.aspectNumber,
+  });
   final int house;
   final int aspectNumber;
   static CareerD10HouseAspectFact? tryFromJson(Object? raw) {
     if (raw is! Map<String, dynamic>) return null;
-    final house = raw['house']; final aspect = raw['aspectNumber'];
-    if (house is! int || house < 1 || house > 12 || aspect is! int || aspect < 3 || aspect > 10) return null;
+    final house = raw['house'];
+    final aspect = raw['aspectNumber'];
+    if (house is! int ||
+        house < 1 ||
+        house > 12 ||
+        aspect is! int ||
+        aspect < 3 ||
+        aspect > 10) {
+      return null;
+    }
     return CareerD10HouseAspectFact(house: house, aspectNumber: aspect);
   }
 }
 
 class CareerD10PlanetAspectFact extends CareerD10HouseAspectFact {
-  const CareerD10PlanetAspectFact({required this.planet, required super.house, required super.aspectNumber});
+  const CareerD10PlanetAspectFact({
+    required this.planet,
+    required super.house,
+    required super.aspectNumber,
+  });
   final String planet;
   static CareerD10PlanetAspectFact? tryFromJson(Object? raw) {
     if (raw is! Map<String, dynamic>) return null;
-    final base = CareerD10HouseAspectFact.tryFromJson(raw); final planet = raw['planet'];
+    final base = CareerD10HouseAspectFact.tryFromJson(raw);
+    final planet = raw['planet'];
     if (base == null || planet is! String) return null;
-    return CareerD10PlanetAspectFact(planet: planet, house: base.house, aspectNumber: base.aspectNumber);
+    return CareerD10PlanetAspectFact(
+      planet: planet,
+      house: base.house,
+      aspectNumber: base.aspectNumber,
+    );
   }
 }
 

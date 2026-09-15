@@ -121,6 +121,29 @@ void main() {
     );
   });
 
+  test('parses contextual D10 Career themes defensively', () {
+    final detail = ReadingDetail.fromJson({
+      ..._detailJson(),
+      'careerD10Corroboration': _d10Corroboration(),
+    });
+    expect(detail.careerD10Corroboration!.themes, hasLength(5));
+    expect(
+      detail.careerD10Corroboration!.themes[1].theme,
+      'COMMUNICATION_COMMERCE_TECH',
+    );
+    expect(
+      detail.careerD10Corroboration!.themes[1].supportingFactors.first.planet,
+      'Mercury',
+    );
+    expect(
+      ReadingDetail.fromJson({
+        ..._detailJson(),
+        'careerD10Corroboration': {'chart': 'D10'},
+      }).careerD10Corroboration,
+      isNull,
+    );
+  });
+
   test(
     'parses optional calibrated content in exact server section and item order',
     () {
@@ -448,7 +471,7 @@ void main() {
         lessThan(tester.getTopLeft(find.text('FUTURE CAREER TIMING').first).dy),
       );
       expect(find.text('Career structure'), findsNothing);
-      expect(find.text('WHAT LIMITS THIS SIGNAL'), findsOneWidget);
+      expect(find.text('IS READING KI LIMIT'), findsOneWidget);
       await tester.tap(find.text('ASTROLOGY BEHIND THIS').first);
       await tester.pumpAndSettle();
       expect(find.text('Timing'), findsWidgets);
@@ -652,6 +675,7 @@ void main() {
           'tenthFromH10Lord': {'house': 4, 'sav': 35},
         },
         'careerD10Structure': _d10Structure(),
+        'careerD10Corroboration': _d10Corroboration(),
         'careerAshtakavargaCorroboration': {
           'kind': 'H10_NATAL_CONTEXT',
           'chart': 'D1',
@@ -687,8 +711,21 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('CAREER ASHTAKAVARGA STRUCTURE'), findsOneWidget);
       expect(find.text('CAREER D10 STRUCTURE'), findsOneWidget);
+      expect(find.text('D10 CAREER THEMES'), findsOneWidget);
+      expect(
+        find.text(
+          'Yeh themes D10 ke factual placements se milne wali corroborative Career context hain.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          'Mercury communication, technology aur commercial work themes ko corroborate karte hain.',
+        ),
+        findsOneWidget,
+      );
       expect(find.text('ASHTAKAVARGA CAREER CONTEXT'), findsNothing);
-      expect(find.text('CAREER EVIDENCE SYNTHESIS'), findsOneWidget);
+      expect(find.text('CAREER KA OVERALL PICTURE'), findsOneWidget);
       expect(
         find.textContaining('Ashtakavarga adds another layer of context'),
         findsOneWidget,
@@ -722,7 +759,55 @@ void main() {
       await tester.pump();
       expect(
         find.text(
-          'Yeh D10 chart ke factual Career placements aur Drishti details hain.',
+          'D10 ke placements se Career ki working style aur professional direction ko aur clearly samajhne mein help milti hai.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          'D10 mein Surya Dev ka role authority, leadership aur responsibility se jude Career themes ko highlight karta hai.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          'Budh ka connection communication, technology, analysis aur business-oriented work se jude themes dikhata hai.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          'Guru Dev ka role teaching, guidance, consulting aur knowledge-based work se jude themes ko highlight karta hai.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          'Rahu ka role technology, unconventional work ya global exposure se jude themes ko highlight kar sakta hai.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          'Shani Dev ka role Career mein discipline, responsibility aur structured work ki importance dikhata hai.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          'Yeh D10 context Career ki overall picture ko samajhne mein help karta hai, lekin final prediction sirf D10 ke basis par nahi ki jaati.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('COMMUNICATION_COMMERCE_TECH'), findsNothing);
+      expect(find.text('D10_TENTH_OCCUPANT'), findsNothing);
+      expect(find.textContaining('corroborative'), findsNothing);
+      expect(find.textContaining('evidence packet'), findsNothing);
+      expect(find.textContaining('supporting factor'), findsNothing);
+      expect(find.textContaining('contextual signal'), findsNothing);
+      expect(
+        find.text(
+          'Yeh aapke D10 chart ke factual Career placements aur Drishti details hain.',
         ),
         findsOneWidget,
       );
@@ -743,7 +828,34 @@ void main() {
         find.textContaining('Ashtakavarga isi Career foundation'),
         findsOneWidget,
       );
+      expect(
+        find.textContaining(
+          RegExp(
+            r'pakka|definitely|guaranteed|100%|zaroor|job mil jayegi|funding mil jayegi',
+            caseSensitive: false,
+          ),
+        ),
+        findsNothing,
+      );
       expect(find.text('10th House'), findsNothing);
+
+      repository.nextDetail = ReadingDetail.fromJson({
+        ..._detailJson(),
+        'careerD10Corroboration': {
+          'chart': 'D10',
+          'corroborates': 'CAREER_FOUNDATION',
+          'themes': <Object?>[],
+        },
+      });
+      await controller.loadDetail('reading-a');
+      await tester.pump();
+      expect(find.text('D10 CAREER THEMES'), findsNothing);
+      expect(
+        find.textContaining(
+          'Yeh themes D10 ke factual placements se milne wali',
+        ),
+        findsNothing,
+      );
       expect(tester.takeException(), isNull);
       controller.dispose();
       profiles.dispose();
@@ -1008,6 +1120,52 @@ Map<String, dynamic> _d10Structure() => {
     ],
     'aspectsToPlanets': [],
   },
+};
+Map<String, dynamic> _d10Corroboration() => {
+  'chart': 'D10',
+  'corroborates': 'CAREER_FOUNDATION',
+  'themes': [
+    {
+      'theme': 'AUTHORITY_ADMINISTRATION',
+      'supportingFactors': [
+        {'source': 'D10_TENTH_OCCUPANT', 'planet': 'Sun', 'house': 10},
+      ],
+      'interpretationLevel': 'CONTEXTUAL',
+      'limitation': 'NOT_STANDALONE_PREDICTION',
+    },
+    {
+      'theme': 'COMMUNICATION_COMMERCE_TECH',
+      'supportingFactors': [
+        {'source': 'D10_LAGNA_LORD', 'planet': 'Mercury', 'house': 1},
+      ],
+      'interpretationLevel': 'CONTEXTUAL',
+      'limitation': 'NOT_STANDALONE_PREDICTION',
+    },
+    {
+      'theme': 'ADVISORY_KNOWLEDGE',
+      'supportingFactors': [
+        {'source': 'D10_TENTH_OCCUPANT', 'planet': 'Jupiter', 'house': 10},
+      ],
+      'interpretationLevel': 'CONTEXTUAL',
+      'limitation': 'NOT_STANDALONE_PREDICTION',
+    },
+    {
+      'theme': 'UNCONVENTIONAL_TECH_GLOBAL',
+      'supportingFactors': [
+        {'source': 'D10_TENTH_OCCUPANT', 'planet': 'Rahu', 'house': 10},
+      ],
+      'interpretationLevel': 'CONTEXTUAL',
+      'limitation': 'NOT_STANDALONE_PREDICTION',
+    },
+    {
+      'theme': 'STRUCTURE_OPERATIONS',
+      'supportingFactors': [
+        {'source': 'D10_SHANI', 'planet': 'Saturn', 'house': 8},
+      ],
+      'interpretationLevel': 'CONTEXTUAL',
+      'limitation': 'NOT_STANDALONE_PREDICTION',
+    },
+  ],
 };
 Map<String, dynamic> _section(
   String section,

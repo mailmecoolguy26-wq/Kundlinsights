@@ -69,6 +69,14 @@ test('Phase 17B passes optional factual D10 Career structure through GET unchang
   const response = await direct.inject(request('a', '/v1/readings/reading-d10'));
   assert.equal(response.statusCode, 200); assert.deepEqual(response.json().reading.careerD10Structure, d10); assert.equal(JSON.stringify(response.json().reading.careerD10Structure).match(/score|threshold|probability|confidence|timing|rank/i), null); await direct.close();
 });
+test('Phase 17C passes optional contextual D10 Career corroboration through GET without interpretation metadata', async () => {
+  const d10Corroboration = { chart: 'D10', corroborates: 'CAREER_FOUNDATION', themes: [{ theme: 'COMMUNICATION_COMMERCE_TECH', supportingFactors: [{ source: 'D10_LAGNA_LORD', planet: 'Mercury', house: 1 }], interpretationLevel: 'CONTEXTUAL', limitation: 'NOT_STANDALONE_PREDICTION' }] };
+  const direct = createApi({ authVerifier: createTestOnlyAuthVerifier({ a, b }), userResolver: { resolve: async () => ({ id: 'internal-user', status: 'active' }) }, birthProfileService: { create: async () => null, list: async () => [], get: async () => null }, secureReadingService: { async getSecureReadingDetail() { return { ...detail('reading-d10-corroboration'), careerD10Corroboration: d10Corroboration }; }, async listSecureReadings() { return []; }, async generateSecureReading() { throw new Error('not used'); }, async replaySecureReading() { throw new Error('not used'); } }, requestIdGenerator: () => 'request-1' });
+  const response = await direct.inject(request('a', '/v1/readings/reading-d10-corroboration'));
+  assert.equal(response.statusCode, 200); assert.deepEqual(response.json().reading.careerD10Corroboration, d10Corroboration);
+  assert.equal(JSON.stringify(response.json().reading.careerD10Corroboration).match(/score|threshold|ranking|probability|confidence|timing|promotion|job.?change|business|success|failure|wealth|debt|foreign/i), null);
+  assertSafe(response.json()); await direct.close();
+});
 test('Phase 16D passes optional, backend-gated Career Ashtakavarga corroboration through GET', async () => {
   const calls = { list: [], detail: [], replay: 0 }; const api = buildApi(calls);
   const response = await api.inject(request('a', '/v1/readings/reading-ashtakavarga-corroboration'));

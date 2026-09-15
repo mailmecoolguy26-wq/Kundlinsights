@@ -876,6 +876,13 @@ class _CareerReadingDetail extends StatelessWidget {
                       copy: copy,
                     ),
                   ],
+                  if (detail.careerD10Corroboration != null) ...[
+                    const SizedBox(height: 18),
+                    _CareerD10CorroborationSection(
+                      corroboration: detail.careerD10Corroboration!,
+                      copy: copy,
+                    ),
+                  ],
                   if (detail.careerAshtakavargaCorroboration != null &&
                       detail.careerEvidenceSynthesis == null) ...[
                     const SizedBox(height: 18),
@@ -991,7 +998,7 @@ class _CareerEvidenceSynthesisSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _CareerReadingSectionLabel('CAREER EVIDENCE SYNTHESIS'),
+        const _CareerReadingSectionLabel('CAREER KA OVERALL PICTURE'),
         const SizedBox(height: 8),
         Container(
           width: double.infinity,
@@ -1105,10 +1112,7 @@ class _CareerAshtakavargaStructureSection extends StatelessWidget {
       children: [
         const _CareerReadingSectionLabel('CAREER ASHTAKAVARGA STRUCTURE'),
         const SizedBox(height: 8),
-        const Text(
-          'These are factual Ashtakavarga values for key Career-linked Bhavs in your D1 chart.',
-          style: _CareerReadingText.body,
-        ),
+        Text(copy.ashtakavargaStructureIntro, style: _CareerReadingText.body),
         const SizedBox(height: 12),
         Container(
           width: double.infinity,
@@ -1169,10 +1173,7 @@ class _CareerD10StructureSection extends StatelessWidget {
       children: [
         const _CareerReadingSectionLabel('CAREER D10 STRUCTURE'),
         const SizedBox(height: 8),
-        const Text(
-          'Yeh D10 chart ke factual Career placements aur Drishti details hain.',
-          style: _CareerReadingText.body,
-        ),
+        Text(copy.d10StructureIntro, style: _CareerReadingText.body),
         const SizedBox(height: 12),
         Container(
           width: double.infinity,
@@ -1220,6 +1221,58 @@ class _CareerD10StructureSection extends StatelessWidget {
     }
     return lines;
   }
+}
+
+class _CareerD10CorroborationSection extends StatelessWidget {
+  const _CareerD10CorroborationSection({
+    required this.corroboration,
+    required this.copy,
+  });
+
+  final CareerD10Corroboration corroboration;
+  final CareerReadingPresentationCopy copy;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const _CareerReadingSectionLabel('D10 CAREER THEMES'),
+      const SizedBox(height: 8),
+      Text(copy.d10ThemesIntro, style: _CareerReadingText.body),
+      const SizedBox(height: 12),
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: _CareerReadingColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _CareerReadingColors.goldBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (
+              var index = 0;
+              index < corroboration.themes.length;
+              index++
+            ) ...[
+              Text(
+                _sentence(corroboration.themes[index]),
+                style: _CareerReadingText.body,
+              ),
+              if (index < corroboration.themes.length - 1)
+                const SizedBox(height: 10),
+            ],
+            const SizedBox(height: 12),
+            Text(copy.d10ThemesLimitation, style: _CareerReadingText.meta),
+          ],
+        ),
+      ),
+    ],
+  );
+
+  String _sentence(CareerD10Theme theme) =>
+      copy.d10Theme(theme.theme, theme.supportingFactors.first.planet);
 }
 
 class _D10StructureRow extends StatelessWidget {
@@ -1417,7 +1470,7 @@ class _CareerInsightExperience extends StatelessWidget {
         _CareerInsightCard(insight: primary, primary: true, copy: copy),
         if (reasons.isNotEmpty) ...[
           const SizedBox(height: 16),
-          const _CareerReadingSectionLabel('WHY THIS PERIOD STANDS OUT'),
+          const _CareerReadingSectionLabel('YEH PERIOD KYUN IMPORTANT HAI'),
           const SizedBox(height: 10),
           Container(
             decoration: BoxDecoration(
@@ -1490,7 +1543,7 @@ class _CareerReasonRow extends StatelessWidget {
               if (insight.status != 'SUPPORTED') ...[
                 const SizedBox(height: 8),
                 const Text(
-                  'WHAT LIMITS THIS SIGNAL',
+                  'IS READING KI LIMIT',
                   style: _CareerReadingText.source,
                 ),
                 const SizedBox(height: 3),
@@ -1824,7 +1877,7 @@ class _CareerInsightCard extends StatelessWidget {
           ],
           if (caveat) ...[
             const SizedBox(height: 14),
-            const _CareerReadingSectionLabel('WHAT LIMITS THIS SIGNAL'),
+            const _CareerReadingSectionLabel('IS READING KI LIMIT'),
             const SizedBox(height: 7),
             Text(copy.caveat(insight.status), style: _CareerReadingText.body),
           ],
