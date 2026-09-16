@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The production app calls TaraVerse's HTTPS API, Supabase Auth, and
+         supported payment providers. Keep this in the main manifest so signed
+         release builds retain the same required network capability. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="TaraVerse"
         android:name="${applicationName}"
