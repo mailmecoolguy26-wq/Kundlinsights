@@ -101,22 +101,28 @@ class _HomeHeader extends StatelessWidget {
     children: [
       const Icon(Icons.auto_awesome, color: _HomeColors.gold, size: 20),
       const SizedBox(width: 8),
-      RichText(
-        text: TextSpan(
-          style: GoogleFonts.ebGaramond(fontSize: 25, height: 1),
-          children: const [
-            TextSpan(
-              text: 'Kundli',
-              style: TextStyle(color: _HomeColors.alabaster),
+      Semantics(
+        header: true,
+        label: 'TaraVerse',
+        child: ExcludeSemantics(
+          child: RichText(
+            text: TextSpan(
+              style: GoogleFonts.ebGaramond(fontSize: 25, height: 1),
+              children: const [
+                TextSpan(
+                  text: 'Tara',
+                  style: TextStyle(color: _HomeColors.alabaster),
+                ),
+                TextSpan(
+                  text: 'Verse',
+                  style: TextStyle(
+                    color: _HomeColors.gold,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
             ),
-            TextSpan(
-              text: 'Insights',
-              style: TextStyle(
-                color: _HomeColors.gold,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
       const Spacer(),

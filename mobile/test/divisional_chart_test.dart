@@ -112,10 +112,19 @@ void main() {
         final chevron = tester.widget<Icon>(
           find.byIcon(Icons.chevron_right).first,
         );
+        await tester.scrollUntilVisible(
+          find.text('${type.apiName} · Accessible house list'),
+          240,
+        );
+        final accessibilityTitle = tester.widget<Text>(
+          find.text('${type.apiName} · Accessible house list'),
+        );
 
         expect(sun.style?.color, const Color(0xFFFAF7F2));
         expect(subtitle.style?.color, const Color(0xFF9E9AA9));
         expect(chevron.color, const Color(0xFFC5A059));
+        expect(accessibilityTitle.style?.color, const Color(0xFFFAF7F2));
+        expect(accessibilityTitle.style?.fontWeight, FontWeight.w600);
       }
 
       controller.dispose();

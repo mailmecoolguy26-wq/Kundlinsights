@@ -53,6 +53,8 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Home'), findsWidgets);
+    expect(find.text('TaraVerse', findRichText: true), findsOneWidget);
+    expect(find.text('KundliInsights', findRichText: true), findsNothing);
   });
 
   testWidgets('cold launch keeps ready profiles on splash before Home', (

@@ -265,23 +265,38 @@ class _DivisionalAccessibilityFallback extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
     final copy = AstrologyPresentationCopy.of(context);
-    return ExpansionTile(
-      title: Text('${type.apiName} · ${t.chartAccessibleHouseList}'),
-      children: houses
-          .map(
-            (house) => ListTile(
-              dense: true,
-              title: Text(
-                '${copy.house(house.house)} — ${house.sign.englishName}',
+    return Material(
+      color: const Color(0xFF120D29),
+      borderRadius: BorderRadius.circular(16),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+        iconColor: const Color(0xFFC5A059),
+        collapsedIconColor: const Color(0xFFC5A059),
+        title: Text(
+          '${type.apiName} · ${t.chartAccessibleHouseList}',
+          style: const TextStyle(
+            color: Color(0xFFFAF7F2),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        children: houses
+            .map(
+              (house) => ListTile(
+                dense: true,
+                title: Text(
+                  '${copy.house(house.house)} — ${house.sign.englishName}',
+                  style: const TextStyle(color: Color(0xFFFAF7F2)),
+                ),
+                subtitle: Text(
+                  house.planets.isEmpty
+                      ? t.noPlanets
+                      : house.planets.map((item) => item.body).join(', '),
+                  style: const TextStyle(color: Color(0xFF9E9AA9)),
+                ),
               ),
-              subtitle: Text(
-                house.planets.isEmpty
-                    ? t.noPlanets
-                    : house.planets.map((item) => item.body).join(', '),
-              ),
-            ),
-          )
-          .toList(growable: false),
+            )
+            .toList(growable: false),
+      ),
     );
   }
 }
