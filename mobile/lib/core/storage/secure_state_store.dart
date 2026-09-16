@@ -15,6 +15,9 @@ class SecureStateStore {
   Future<void> write({required String key, required String value}) =>
       storage.write(key: key, value: value);
 
+  /// Removes one app-owned value without affecting Supabase's session storage.
+  Future<void> delete(String key) => storage.delete(key: key);
+
   Future<void> clearAppOwnedState() => storage.deleteAll();
 }
 

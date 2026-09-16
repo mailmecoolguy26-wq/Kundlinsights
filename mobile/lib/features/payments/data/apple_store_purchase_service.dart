@@ -6,6 +6,7 @@ import 'career_premium_product_loader.dart';
 import '../domain/career_premium_product.dart';
 
 const careerPremiumAnnualLogicalSku = 'career_premium_annual';
+const appleCareerProfileUnlockLogicalSku = 'career_profile_unlock';
 
 class StoreProductDetails {
   const StoreProductDetails({
@@ -45,6 +46,7 @@ class StorePurchaseUpdate {
     required this.status,
     required this.serverVerificationData,
     required this.pendingCompletePurchase,
+    this.transactionId,
     this.nativePurchase,
   });
 
@@ -52,6 +54,7 @@ class StorePurchaseUpdate {
   final StorePurchaseStatus status;
   final String serverVerificationData;
   final bool pendingCompletePurchase;
+  final String? transactionId;
   final Object? nativePurchase;
 }
 
@@ -64,7 +67,12 @@ abstract interface class StorePurchaseClient {
   Future<void> completePurchase(StorePurchaseUpdate purchase);
 }
 
-class InAppPurchaseStorePurchaseClient implements StorePurchaseClient {
+abstract interface class ConsumableStorePurchaseClient {
+  Future<bool> buyConsumable(String productId);
+}
+
+class InAppPurchaseStorePurchaseClient
+    implements StorePurchaseClient, ConsumableStorePurchaseClient {
   InAppPurchaseStorePurchaseClient(this._purchase);
   final InAppPurchase _purchase;
   final Map<String, ProductDetails> _products = {};
@@ -116,6 +124,7 @@ class InAppPurchaseStorePurchaseClient implements StorePurchaseClient {
           serverVerificationData:
               purchase.verificationData.serverVerificationData,
           pendingCompletePurchase: purchase.pendingCompletePurchase,
+          transactionId: purchase.purchaseID,
           nativePurchase: purchase,
         ),
       );
@@ -129,6 +138,7 @@ class InAppPurchaseStorePurchaseClient implements StorePurchaseClient {
     );
   }
 
+  @override
   Future<bool> buyConsumable(String productId) async {
     final product = _products[productId];
     if (product == null) return false;
@@ -165,15 +175,20 @@ class AppleStorePurchaseService implements CareerPremiumProductLoader {
   AppleStorePurchaseService({
     required this.client,
     required this.careerPremiumAnnualAppleProductId,
+    this.careerProfileUnlockAppleProductId,
   });
 
   final StorePurchaseClient client;
   final String? careerPremiumAnnualAppleProductId;
+  final String? careerProfileUnlockAppleProductId;
   final Set<String> _completedEvidence = {};
 
   @override
   Future<CareerPremiumProductLoadResult> loadCareerPremiumProduct() async {
-    final productId = careerPremiumAnnualAppleProductId;
+    final profileUnlock = careerProfileUnlockAppleProductId;
+    final productId = profileUnlock?.isNotEmpty == true
+        ? profileUnlock
+        : careerPremiumAnnualAppleProductId;
     if (productId == null || productId.isEmpty) {
       return const CareerPremiumProductLoadResult.unavailable();
     }
@@ -195,7 +210,9 @@ class AppleStorePurchaseService implements CareerPremiumProductLoader {
       final product = matches.single;
       return CareerPremiumProductLoadResult.available(
         CareerPremiumProduct(
-          logicalSku: careerPremiumAnnualLogicalSku,
+          logicalSku: profileUnlock?.isNotEmpty == true
+              ? appleCareerProfileUnlockLogicalSku
+              : careerPremiumAnnualLogicalSku,
           storeProductId: product.id,
           title: product.title,
           description: product.description,
@@ -212,14 +229,28 @@ class AppleStorePurchaseService implements CareerPremiumProductLoader {
   Stream<StorePurchaseUpdate> get purchaseUpdates => client.purchaseUpdates;
 
   Future<bool> startCareerPremiumPurchase(CareerPremiumProduct product) async {
-    final expectedProductId = careerPremiumAnnualAppleProductId;
+    final profileUnlock = careerProfileUnlockAppleProductId;
+    final expectedProductId = profileUnlock?.isNotEmpty == true
+        ? profileUnlock
+        : careerPremiumAnnualAppleProductId;
     if (expectedProductId == null ||
         expectedProductId.isEmpty ||
-        product.logicalSku != careerPremiumAnnualLogicalSku ||
+        product.logicalSku !=
+            (profileUnlock?.isNotEmpty == true
+                ? appleCareerProfileUnlockLogicalSku
+                : careerPremiumAnnualLogicalSku) ||
         product.storeProductId != expectedProductId) {
       return false;
     }
-    return client.buyNonConsumable(expectedProductId);
+    if (profileUnlock?.isNotEmpty == true &&
+        client is ConsumableStorePurchaseClient) {
+      return (client as ConsumableStorePurchaseClient).buyConsumable(
+        expectedProductId,
+      );
+    }
+    return profileUnlock?.isNotEmpty == true
+        ? false
+        : client.buyNonConsumable(expectedProductId);
   }
 
   bool wasCompleted(StorePurchaseUpdate purchase) =>
@@ -239,6 +270,7 @@ final appleStorePurchaseServiceProvider = Provider<AppleStorePurchaseService>(
   (ref) => AppleStorePurchaseService(
     client: const _UnavailableStorePurchaseClient(),
     careerPremiumAnnualAppleProductId: null,
+    careerProfileUnlockAppleProductId: null,
   ),
 );
 
@@ -257,7 +289,6 @@ class _UnavailableStorePurchaseClient implements StorePurchaseClient {
 
   @override
   Future<bool> buyNonConsumable(String productId) async => false;
-
   @override
   Future<void> restorePurchases() =>
       Future.error(StateError('StoreKit is unavailable.'));

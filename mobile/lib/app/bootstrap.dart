@@ -70,6 +70,8 @@ Future<void> bootstrap() async {
     client: InAppPurchaseStorePurchaseClient(InAppPurchase.instance),
     careerPremiumAnnualAppleProductId:
         config?.careerPremiumAnnualAppleProductId,
+    careerProfileUnlockAppleProductId:
+        config?.careerProfileUnlockAppleProductId,
   );
   final googlePlayPurchaseService = GooglePlayPurchaseService(
     client: InAppPurchaseStorePurchaseClient(InAppPurchase.instance),

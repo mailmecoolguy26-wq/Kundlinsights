@@ -4,6 +4,7 @@ class AppConfig {
     required this.supabaseAnonKey,
     required this.apiBaseUrl,
     this.careerPremiumAnnualAppleProductId,
+    this.careerProfileUnlockAppleProductId,
     this.careerPremiumAnnualGoogleProductId,
     this.careerProfileUnlockGoogleProductId,
     this.applePaymentEnvironment,
@@ -15,6 +16,7 @@ class AppConfig {
   final String supabaseAnonKey;
   final String apiBaseUrl;
   final String? careerPremiumAnnualAppleProductId;
+  final String? careerProfileUnlockAppleProductId;
   final String? careerPremiumAnnualGoogleProductId;
   final String? careerProfileUnlockGoogleProductId;
   final String? applePaymentEnvironment;
@@ -32,6 +34,7 @@ class AppConfig {
     required this.supabaseAnonKey,
     required this.apiBaseUrl,
     this.careerPremiumAnnualAppleProductId,
+    this.careerProfileUnlockAppleProductId,
     this.careerPremiumAnnualGoogleProductId,
     this.careerProfileUnlockGoogleProductId,
     this.applePaymentEnvironment,
@@ -45,6 +48,9 @@ class AppConfig {
     const api = String.fromEnvironment('API_BASE_URL');
     const appleProductId = String.fromEnvironment(
       'APPLE_CAREER_PREMIUM_ANNUAL_PRODUCT_ID',
+    );
+    const appleProfileUnlockProductId = String.fromEnvironment(
+      'APPLE_CAREER_PROFILE_UNLOCK_PRODUCT_ID',
     );
     const googleProductId = String.fromEnvironment(
       'GOOGLE_CAREER_PREMIUM_ANNUAL_PRODUCT_ID',
@@ -77,6 +83,9 @@ class AppConfig {
       careerPremiumAnnualAppleProductId: appleProductId.isEmpty
           ? null
           : appleProductId,
+      careerProfileUnlockAppleProductId: appleProfileUnlockProductId.isEmpty
+          ? null
+          : appleProfileUnlockProductId,
       careerPremiumAnnualGoogleProductId: googleProductId.isEmpty
           ? null
           : googleProductId,

@@ -1,6 +1,6 @@
 # Razorpay payment foundation
 
-Razorpay is disabled unless all server-only configuration is supplied: `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, and `RAZORPAY_PRODUCT_CATALOG_JSON`. The launch catalog entry is `[ {"logicalSku":"career_premium_annual","amountMinor":58882,"currency":"INR"} ]`. This is a one-time payment granting one year of Career Premium access; it does not create a Razorpay recurring Plan.
+Razorpay is disabled unless all server-only configuration is supplied: `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `RAZORPAY_PRODUCT_CATALOG_JSON`, and `RAZORPAY_ENVIRONMENT`. `RAZORPAY_ENVIRONMENT` must be exactly `SANDBOX` or `PRODUCTION`; production configuration fails closed when it is missing or invalid. The launch catalog entry is `[ {"logicalSku":"career_premium_annual","amountMinor":58882,"currency":"INR"} ]`. This is a one-time payment granting one year of Career Premium access; it does not create a Razorpay recurring Plan.
 
 The server-side commercial breakdown is base ₹499.00 (49900 paise), GST 18% ₹89.82 (8982 paise), total ₹588.82 (58882 paise). Checkout always receives only the authoritative total; no Flutter-provided amount, currency, or SKU is trusted.
 

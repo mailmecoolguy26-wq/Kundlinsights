@@ -4,6 +4,18 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val releaseStoreFile = providers.gradleProperty("TARAVERSE_RELEASE_STORE_FILE")
+    .orElse(providers.environmentVariable("TARAVERSE_RELEASE_STORE_FILE"))
+val releaseStorePassword = providers.gradleProperty("TARAVERSE_RELEASE_STORE_PASSWORD")
+    .orElse(providers.environmentVariable("TARAVERSE_RELEASE_STORE_PASSWORD"))
+val releaseKeyAlias = providers.gradleProperty("TARAVERSE_RELEASE_KEY_ALIAS")
+    .orElse(providers.environmentVariable("TARAVERSE_RELEASE_KEY_ALIAS"))
+val releaseKeyPassword = providers.gradleProperty("TARAVERSE_RELEASE_KEY_PASSWORD")
+    .orElse(providers.environmentVariable("TARAVERSE_RELEASE_KEY_PASSWORD"))
+val isReleaseRequested = gradle.startParameter.taskNames.any {
+    it.contains("Release", ignoreCase = true)
+}
+
 android {
     namespace = "com.kundlinsights.kundlinsights_mobile"
     compileSdk = flutter.compileSdkVersion
@@ -31,9 +43,26 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            if (isReleaseRequested) {
+                val values = listOf(
+                    releaseStoreFile.orNull,
+                    releaseStorePassword.orNull,
+                    releaseKeyAlias.orNull,
+                    releaseKeyPassword.orNull,
+                )
+                check(values.all { !it.isNullOrBlank() }) {
+                    "Release signing requires TARAVERSE_RELEASE_STORE_FILE, " +
+                        "TARAVERSE_RELEASE_STORE_PASSWORD, " +
+                        "TARAVERSE_RELEASE_KEY_ALIAS, and " +
+                        "TARAVERSE_RELEASE_KEY_PASSWORD."
+                }
+                signingConfig = signingConfigs.create("release") {
+                    storeFile = file(releaseStoreFile.get())
+                    storePassword = releaseStorePassword.get()
+                    keyAlias = releaseKeyAlias.get()
+                    keyPassword = releaseKeyPassword.get()
+                }
+            }
         }
     }
 }

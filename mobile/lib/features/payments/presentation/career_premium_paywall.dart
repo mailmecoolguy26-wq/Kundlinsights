@@ -5,6 +5,7 @@ import '../../../shared/widgets/app_card.dart';
 import '../career_premium_product_controller.dart';
 import '../../readings/career_reading_generation_controller.dart';
 import '../career_premium_purchase_controller.dart';
+import '../data/apple_store_purchase_service.dart';
 import '../razorpay_career_premium_controller.dart';
 import '../domain/career_premium_product.dart';
 
@@ -183,7 +184,10 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
                     widget.razorpayProfileId!,
                   ),
             ),
-            if (widget.purchaseController != null && !usesRazorpay)
+            if (widget.purchaseController != null &&
+                !usesRazorpay &&
+                widget.productController.product?.logicalSku !=
+                    appleCareerProfileUnlockLogicalSku)
               TextButton(
                 onPressed: _restoreEnabled(widget.purchaseController!)
                     ? widget.purchaseController!.restorePurchases
@@ -334,6 +338,27 @@ class _ProductAction extends StatelessWidget {
     }
     if (restoreState == CareerPremiumRestoreState.error) {
       return const Text('Unable to restore purchases. Please try again.');
+    }
+    if (purchaseState == CareerPremiumPurchaseState.initializing) {
+      return Semantics(
+        liveRegion: true,
+        label: 'Checking purchase status',
+        child: const LinearProgressIndicator(),
+      );
+    }
+    if (purchaseState == CareerPremiumPurchaseState.paymentStatusUnknown) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'We are checking a previous Apple payment. Please do not make another payment yet.',
+          ),
+          TextButton(
+            onPressed: purchaseController?.retryPendingAppleVerification,
+            child: const Text('Check payment status'),
+          ),
+        ],
+      );
     }
     if (purchaseState == CareerPremiumPurchaseState.purchasing ||
         purchaseState == CareerPremiumPurchaseState.verifying) {
@@ -973,8 +998,10 @@ class _PaymentChip extends StatelessWidget {
 }
 
 bool _restoreEnabled(CareerPremiumPurchaseController controller) =>
+    controller.state != CareerPremiumPurchaseState.initializing &&
     controller.state != CareerPremiumPurchaseState.purchasing &&
     controller.state != CareerPremiumPurchaseState.pending &&
     controller.state != CareerPremiumPurchaseState.verifying &&
+    controller.state != CareerPremiumPurchaseState.paymentStatusUnknown &&
     controller.restoreState != CareerPremiumRestoreState.restoring &&
     controller.restoreState != CareerPremiumRestoreState.verifying;

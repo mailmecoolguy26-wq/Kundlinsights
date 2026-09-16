@@ -4,6 +4,7 @@ import 'package:kundlinsights_mobile/features/payments/data/apple_store_purchase
 import 'package:kundlinsights_mobile/features/payments/domain/career_premium_product.dart';
 
 const _productId = 'com.kundlinsights.career.premium.annual';
+const _profileUnlockProductId = 'com.taraverse.career.profile.unlock';
 
 void main() {
   test(
@@ -71,6 +72,32 @@ void main() {
     controller.dispose();
   });
 
+  test('uses the configured Apple profile unlock as a consumable', () async {
+    final client = _StoreClient(
+      products: const [
+        StoreProductDetails(
+          id: _profileUnlockProductId,
+          title: 'Career profile unlock',
+          description: 'One profile',
+          localizedPrice: '₹499.00',
+          rawPrice: 499,
+          currencyCode: 'INR',
+        ),
+      ],
+    );
+    final service = AppleStorePurchaseService(
+      client: client,
+      careerPremiumAnnualAppleProductId: _productId,
+      careerProfileUnlockAppleProductId: _profileUnlockProductId,
+    );
+    final result = await service.loadCareerPremiumProduct();
+
+    expect(result.product?.logicalSku, appleCareerProfileUnlockLogicalSku);
+    expect(await service.startCareerPremiumPurchase(result.product!), isTrue);
+    expect(client.consumablePurchases, [_profileUnlockProductId]);
+    expect(client.nonConsumablePurchases, isEmpty);
+  });
+
   test('handles unavailable store, missing configuration, and product not found safely', () async {
     final unavailable = await AppleStorePurchaseService(
       client: _StoreClient(available: false),
@@ -127,7 +154,8 @@ void main() {
   );
 }
 
-class _StoreClient implements StorePurchaseClient {
+class _StoreClient
+    implements StorePurchaseClient, ConsumableStorePurchaseClient {
   _StoreClient({
     this.available = true,
     this.products = const [],
@@ -143,12 +171,23 @@ class _StoreClient implements StorePurchaseClient {
   final bool throwsOnQuery;
   int availabilityChecks = 0;
   final List<String> queries = [];
+  final List<String> consumablePurchases = [];
+  final List<String> nonConsumablePurchases = [];
 
   @override
   Stream<StorePurchaseUpdate> get purchaseUpdates => const Stream.empty();
 
   @override
-  Future<bool> buyNonConsumable(String productId) async => false;
+  Future<bool> buyNonConsumable(String productId) async {
+    nonConsumablePurchases.add(productId);
+    return true;
+  }
+
+  @override
+  Future<bool> buyConsumable(String productId) async {
+    consumablePurchases.add(productId);
+    return true;
+  }
 
   @override
   Future<void> restorePurchases() async {}

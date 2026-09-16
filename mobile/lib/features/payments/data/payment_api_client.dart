@@ -41,7 +41,20 @@ abstract class PaymentApiClient {
   );
 }
 
-class AuthenticatedPaymentApiClient implements PaymentApiClient {
+/// Kept separate from [PaymentApiClient] so legacy Apple/Google test doubles
+/// and subscription verification contracts do not accidentally gain a
+/// profile-unlock capability.
+abstract interface class AppleProfileUnlockPaymentApiClient {
+  Future<void> verifyAppleProfileUnlockPurchase({
+    required String environment,
+    required String productId,
+    required String evidence,
+    required String birthProfileId,
+  });
+}
+
+class AuthenticatedPaymentApiClient
+    implements PaymentApiClient, AppleProfileUnlockPaymentApiClient {
   const AuthenticatedPaymentApiClient(this._client);
   final ApiClient _client;
 
@@ -50,6 +63,7 @@ class AuthenticatedPaymentApiClient implements PaymentApiClient {
     required String environment,
     required String productId,
     required String evidence,
+    String? birthProfileId,
   }) async {
     await _client.post<Map<String, dynamic>>(
       '/v1/purchases/verify',
@@ -61,6 +75,23 @@ class AuthenticatedPaymentApiClient implements PaymentApiClient {
       },
     );
   }
+
+  @override
+  Future<void> verifyAppleProfileUnlockPurchase({
+    required String environment,
+    required String productId,
+    required String evidence,
+    required String birthProfileId,
+  }) => _client.post<Map<String, dynamic>>(
+    '/v1/purchases/verify',
+    data: {
+      'provider': 'APPLE',
+      'environment': environment,
+      'productId': productId,
+      'evidence': evidence,
+      'birthProfileId': birthProfileId,
+    },
+  );
 
   @override
   Future<void> restoreApplePurchases({
