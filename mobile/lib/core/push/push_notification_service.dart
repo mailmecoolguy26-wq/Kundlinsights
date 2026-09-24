@@ -223,7 +223,8 @@ abstract interface class PushRuntime {
   void queueForegroundTap(PushDestinationIntent? intent);
 }
 
-class FirebasePushNotificationService implements PushRuntime {
+class FirebasePushNotificationService extends ChangeNotifier
+    implements PushRuntime {
   FirebasePushNotificationService({
     required this.store,
     required this.api,
@@ -256,6 +257,9 @@ class FirebasePushNotificationService implements PushRuntime {
   final _foregroundMessageIds = <String>{};
   void Function(String title, String body, PushDestinationIntent? intent)?
   onForeground;
+
+  Analytics? _messageAnalytics;
+  void Function()? _onIntentQueued;
   bool get isConfigured => initialized;
   @override
   PushNotificationPreferencesApi? get preferencesApi =>
@@ -272,6 +276,7 @@ class FirebasePushNotificationService implements PushRuntime {
     try {
       await Firebase.initializeApp();
       initialized = true;
+      _bindMessageHandling();
       return true;
     } catch (_) {
       initialized = false;
@@ -337,7 +342,9 @@ class FirebasePushNotificationService implements PushRuntime {
     final message = await _messaging.getInitialMessage();
     if (message != null) {
       pendingIntent = PushDestinationIntent.parse(message.data);
+      lastPushType = pendingIntent?.notificationType;
       intents.enqueue(pendingIntent, identity: message.messageId);
+      _onIntentQueued?.call();
     }
   }
 
@@ -347,30 +354,47 @@ class FirebasePushNotificationService implements PushRuntime {
     foreground,
     void Function()? onIntentQueued,
   }) {
-    if (!initialized) return;
     onForeground = foreground;
+    _messageAnalytics = analytics;
+    _onIntentQueued = onIntentQueued;
+    _bindMessageHandling();
+  }
+
+  void _bindMessageHandling() {
+    if (!initialized || _messageAnalytics == null) return;
+
+    final analytics = _messageAnalytics!;
+
     _foreground ??= FirebaseMessaging.onMessage.listen((message) {
       if (message.messageId != null &&
           !_foregroundMessageIds.add(message.messageId!)) {
         return;
       }
+
       final intent = PushDestinationIntent.parse(message.data);
       lastPushType = intent?.notificationType;
+
       analytics.track(AnalyticsEvent.pushReceived, {
         'notification_type': intent?.notificationType,
         'campaign_id': intent?.campaignId,
         'platform': defaultTargetPlatform.name,
         'app_state': 'foreground',
       });
+
       final title = message.notification?.title;
       final body = message.notification?.body;
-      if (title != null && body != null) foreground?.call(title, body, intent);
+
+      if (title != null && body != null) {
+        onForeground?.call(title, body, intent);
+      }
     });
+
     _opened ??= FirebaseMessaging.onMessageOpenedApp.listen((message) {
       final intent = PushDestinationIntent.parse(message.data);
       lastPushType = intent?.notificationType;
       intents.enqueue(intent, identity: message.messageId);
-      onIntentQueued?.call();
+      _onIntentQueued?.call();
+
       analytics.track(AnalyticsEvent.pushOpened, {
         'notification_type': intent?.notificationType,
         'campaign_id': intent?.campaignId,
@@ -389,10 +413,12 @@ class FirebasePushNotificationService implements PushRuntime {
   @override
   bool get hasPendingIntent => intents.hasPending;
 
+  @override
   void dispose() {
     _tokenRefresh?.cancel();
     _foreground?.cancel();
     _opened?.cancel();
+    super.dispose();
   }
 
   Future<String> _deviceId() async {

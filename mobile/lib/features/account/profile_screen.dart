@@ -330,10 +330,10 @@ class _NotificationSettingsState extends State<_NotificationSettings> {
 
 class _PushDiagnostics extends StatelessWidget {
   const _PushDiagnostics({required this.service});
+
   final PushRuntime service;
 
-  @override
-  Widget build(BuildContext context) => Padding(
+  Widget _content() => Padding(
     padding: const EdgeInsets.only(top: 8),
     child: Text(
       'Push diagnostics\nFirebase initialized: ${service.initialized}\n'
@@ -346,6 +346,20 @@ class _PushDiagnostics extends StatelessWidget {
       style: const TextStyle(color: Color(0xFF9E9AA9), fontSize: 11),
     ),
   );
+
+  @override
+  Widget build(BuildContext context) {
+    if (service is! Listenable) {
+      return _content();
+    }
+
+    final listenable = service as Listenable;
+
+    return AnimatedBuilder(
+      animation: listenable,
+      builder: (_, _) => _content(),
+    );
+  }
 }
 
 class _ActiveProfileCard extends StatelessWidget {
