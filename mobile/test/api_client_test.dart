@@ -161,6 +161,59 @@ void main() {
     expect(tokens.invalidated, 1);
   });
 
+  for (final status in [500, 503]) {
+    test('maps HTTP $status to a safe server failure', () async {
+      final client = ApiClient(
+        config: config,
+        tokens: _Tokens(),
+        dio: Dio()
+          ..httpClientAdapter = _QueueAdapter([_json(status, '{}')]),
+      );
+      await expectLater(
+        client.get<Map<String, dynamic>>('/v1/unavailable'),
+        throwsA(isA<ApiFailure>().having(
+          (error) => error.kind,
+          'kind',
+          ApiFailureKind.server,
+        )),
+      );
+    });
+  }
+
+  test('maps a socket-style connection error to a safe network failure', () async {
+    final client = ApiClient(
+      config: config,
+      tokens: _Tokens(),
+      dio: Dio()
+        ..httpClientAdapter = _ThrowingAdapter(DioExceptionType.connectionError),
+    );
+    await expectLater(
+      client.get<Map<String, dynamic>>('/v1/offline'),
+      throwsA(isA<ApiFailure>().having(
+        (error) => error.kind,
+        'kind',
+        ApiFailureKind.network,
+      )),
+    );
+  });
+
+  test('maps a receive timeout to a safe timeout failure', () async {
+    final client = ApiClient(
+      config: config,
+      tokens: _Tokens(),
+      dio: Dio()
+        ..httpClientAdapter = _ThrowingAdapter(DioExceptionType.receiveTimeout),
+    );
+    await expectLater(
+      client.get<Map<String, dynamic>>('/v1/slow'),
+      throwsA(isA<ApiFailure>().having(
+        (error) => error.kind,
+        'kind',
+        ApiFailureKind.timeout,
+      )),
+    );
+  });
+
   test(
     'gets the latest unresolved Razorpay order for the exact profile',
     () async {
@@ -251,6 +304,22 @@ class _QueueAdapter implements HttpClientAdapter {
     requests.add(options);
     return responses.removeAt(0);
   }
+
+  @override
+  void close({bool force = false}) {}
+}
+
+class _ThrowingAdapter implements HttpClientAdapter {
+  _ThrowingAdapter(this.type);
+
+  final DioExceptionType type;
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) => Future<ResponseBody>.error(DioException(requestOptions: options, type: type));
 
   @override
   void close({bool force = false}) {}

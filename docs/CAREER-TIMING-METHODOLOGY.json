@@ -1,0 +1,180 @@
+{
+  "schemaVersion": "taraverse-career-timing-methodology-v1",
+  "phase": "2E",
+  "runtimeStatus": "DISABLED",
+  "projectionStatus": "DISABLED",
+  "layers": [
+    {
+      "id": "A",
+      "family": "D1_CAREER_PROMISE_STRUCTURE",
+      "role": "PRIMARY",
+      "canIndependentlyCreateCareerWindow": false,
+      "currentStatus": "APPROVED_FACTUAL_RELATIONS"
+    },
+    {
+      "id": "B",
+      "family": "DASHA_ACTIVATION",
+      "role": "PRIMARY",
+      "canIndependentlyCreateCareerWindow": false,
+      "currentStatus": "APPROVED_CONTEXT_ONLY"
+    },
+    {
+      "id": "C",
+      "family": "D10_CONFIRMATION_REFINEMENT",
+      "role": "CONFIRMATORY",
+      "canIndependentlyCreateCareerWindow": false,
+      "currentStatus": "APPROVED_FACTUAL_CONFIRMATION_REFINEMENT_ONLY"
+    },
+    {
+      "id": "D",
+      "family": "GOCHAR_MANIFESTATION_TIMING",
+      "role": "PRIMARY_MANIFESTATION_SUPPORT",
+      "canIndependentlyCreateCareerWindow": false,
+      "currentStatus": "NO_APPROVED_CAREER_SPECIFIC_PREDICATE"
+    },
+    {
+      "id": "E",
+      "family": "SAV_BAV_SUPPORT",
+      "role": "SUPPORT_ONLY",
+      "canIndependentlyCreateCareerWindow": false,
+      "currentStatus": "NO_THRESHOLD_OR_TIMING_RULE"
+    },
+    {
+      "id": "F",
+      "family": "HISTORICAL_RECURRENCE_SUPPORT",
+      "role": "PERSONALIZATION_RANKING_SUPPORT",
+      "canIndependentlyCreateCareerWindow": false,
+      "currentStatus": "FACTUAL_PROFILE_SCOPED_RECURRENCE_ONLY"
+    }
+  ],
+  "candidateRules": {
+    "d10": [
+      {
+        "id": "D10_CONFIRM_PROPOSED_001",
+        "role": "D10_CONFIRMATION",
+        "sourceConfidence": "HIGH_FOR_THEME_REPETITION_MEDIUM_FOR_AUTOMATION",
+        "recommendedOwnerAction": "APPROVED_WITH_MODIFICATION",
+        "requires": ["D1_THEME_MUST_BE_INDEPENDENTLY_ESTABLISHED", "D10_STRUCTURAL_THEME_REGISTRY_V1"],
+        "source": "docs/sources/career/d10/D10-Career-Masterclass-Transcript.txt",
+        "timestamps": ["00:10:12.640-00:10:20.720", "00:30:20.799-00:30:32.240"]
+      },
+      {
+        "id": "D10_CONFIRM_PROPOSED_002",
+        "role": "D10_CONFIRMATION_REFINEMENT",
+        "sourceConfidence": "HIGH_FOR_FACT_EVIDENCE",
+        "recommendedOwnerAction": "APPROVED",
+        "evidence": ["D10_H10_SIGN", "D10_H10_OCCUPANTS", "D10_H10_ASPECTS"],
+        "source": "docs/sources/career/d10/D10-Career-Masterclass-Transcript.txt",
+        "timestamps": ["00:36:44.320-00:37:00.000"]
+      },
+      {
+        "id": "D10_CONFIRM_PROPOSED_003",
+        "role": "D10_CONFIRMATION_REFINEMENT",
+        "sourceConfidence": "HIGH_FOR_FACTOR_SELECTION",
+        "recommendedOwnerAction": "APPROVED",
+        "evidence": ["D10_H10_LORD", "D10_H10_LORD_HOUSE", "D10_H10_LORD_CONJUNCTIONS", "D10_H10_LORD_ASPECTS", "D10_H10_LORD_DIGNITY"],
+        "source": "docs/sources/career/d10/D10-Career-Masterclass-Transcript.txt",
+        "timestamps": ["00:30:20.799-00:30:32.240", "00:41:39.040-00:41:57.599"]
+      },
+      {
+        "id": "D10_CONFIRM_PROPOSED_004",
+        "role": "D10_CONFIRMATION_REFINEMENT",
+        "sourceConfidence": "HIGH_FOR_FACT_EVIDENCE",
+        "recommendedOwnerAction": "APPROVED",
+        "evidence": ["D10_LAGNA", "D10_LAGNESH", "D10_LAGNA_OCCUPANTS", "D10_LAGNA_ASPECTS"],
+        "source": "docs/sources/career/d10/D10-Career-Masterclass-Transcript.txt",
+        "timestamps": ["00:11:17.600-00:12:00.640", "00:18:41.520-00:18:56.720"]
+      },
+      {
+        "id": "D10_CONFIRM_PROPOSED_005",
+        "role": "D10_CONFIRMATION_REFINEMENT",
+        "sourceConfidence": "MEDIUM",
+        "recommendedOwnerAction": "APPROVED_WITH_MODIFICATION",
+        "requires": ["ALREADY_RELEVANT_D10_PLANET", "OWN_SIGN_EXALTED_DEBILITATED_ONLY"],
+        "source": "docs/sources/career/d10/D10-Career-Masterclass-Transcript.txt",
+        "timestamps": ["00:25:15.039-00:25:30.880", "00:31:10.720-00:31:24.159", "00:40:49.520-00:41:03.040"]
+      }
+    ],
+    "d1CareerAxisGochar": [
+      {"id":"GOCHAR_D1_JUPITER_H10_OCCUPY","planet":"JUPITER","target":"D1_H10","relation":"OCCUPANCY","aspectModel":null,"windowSemantics":"WHOLE_RASHI_STATE_INTERVAL_WITH_REENTRY","role":"MANIFESTATION_SUPPORT","prerequisites":["APPROVED_D1_CAREER_RELEVANCE","APPROVED_DASHA_CAREER_ACTIVATION"],"sourceStatus":"NO_CAREER_SPECIFIC_SOURCE","ownerDecision":"REJECT"},
+      {"id":"GOCHAR_D1_JUPITER_H10_ASPECT","planet":"JUPITER","target":"D1_H10","relation":"FULL_ASPECT","aspectModel":"JUPITER_5_7_9","windowSemantics":"EXISTING_SIGN_HOUSE_ASPECT_STATE","role":"MANIFESTATION_SUPPORT","prerequisites":["APPROVED_D1_CAREER_RELEVANCE","APPROVED_DASHA_CAREER_ACTIVATION"],"sourceStatus":"NO_CAREER_SPECIFIC_SOURCE","ownerDecision":"REJECT"},
+      {"id":"GOCHAR_D1_JUPITER_H10L_OCCUPY","planet":"JUPITER","target":"D1_H10_LORD","relation":"OCCUPANCY","aspectModel":null,"windowSemantics":"OWNER_TARGET_SELECTION_REQUIRED","role":"MANIFESTATION_SUPPORT","prerequisites":["APPROVED_D1_CAREER_RELEVANCE","APPROVED_DASHA_CAREER_ACTIVATION"],"sourceStatus":"NO_CAREER_SPECIFIC_SOURCE","ownerDecision":"REJECT"},
+      {"id":"GOCHAR_D1_JUPITER_H10L_ASPECT","planet":"JUPITER","target":"D1_H10_LORD","relation":"FULL_ASPECT","aspectModel":"JUPITER_5_7_9","windowSemantics":"OWNER_TARGET_SELECTION_REQUIRED","role":"MANIFESTATION_SUPPORT","prerequisites":["APPROVED_D1_CAREER_RELEVANCE","APPROVED_DASHA_CAREER_ACTIVATION"],"sourceStatus":"NO_CAREER_SPECIFIC_SOURCE","ownerDecision":"REJECT"},
+      {"id":"GOCHAR_D1_SATURN_H10_OCCUPY","planet":"SATURN","target":"D1_H10","relation":"OCCUPANCY","aspectModel":null,"windowSemantics":"WHOLE_RASHI_STATE_INTERVAL_WITH_REENTRY","role":"MANIFESTATION_SUPPORT","prerequisites":["APPROVED_D1_CAREER_RELEVANCE","APPROVED_DASHA_CAREER_ACTIVATION"],"sourceStatus":"NO_CAREER_SPECIFIC_SOURCE","ownerDecision":"REJECT"},
+      {"id":"GOCHAR_D1_SATURN_H10_ASPECT","planet":"SATURN","target":"D1_H10","relation":"FULL_ASPECT","aspectModel":"SATURN_3_7_10","windowSemantics":"EXISTING_SIGN_HOUSE_ASPECT_STATE","role":"MANIFESTATION_SUPPORT","prerequisites":["APPROVED_D1_CAREER_RELEVANCE","APPROVED_DASHA_CAREER_ACTIVATION"],"sourceStatus":"NO_CAREER_SPECIFIC_SOURCE","ownerDecision":"REJECT"},
+      {"id":"GOCHAR_D1_SATURN_H10L_OCCUPY","planet":"SATURN","target":"D1_H10_LORD","relation":"OCCUPANCY","aspectModel":null,"windowSemantics":"OWNER_TARGET_SELECTION_REQUIRED","role":"MANIFESTATION_SUPPORT","prerequisites":["APPROVED_D1_CAREER_RELEVANCE","APPROVED_DASHA_CAREER_ACTIVATION"],"sourceStatus":"NO_CAREER_SPECIFIC_SOURCE","ownerDecision":"REJECT"},
+      {"id":"GOCHAR_D1_SATURN_H10L_ASPECT","planet":"SATURN","target":"D1_H10_LORD","relation":"FULL_ASPECT","aspectModel":"SATURN_3_7_10","windowSemantics":"OWNER_TARGET_SELECTION_REQUIRED","role":"MANIFESTATION_SUPPORT","prerequisites":["APPROVED_D1_CAREER_RELEVANCE","APPROVED_DASHA_CAREER_ACTIVATION"],"sourceStatus":"NO_CAREER_SPECIFIC_SOURCE","ownerDecision":"REJECT"},
+      {"id":"GOCHAR_D1_JUPITER_SATURN_DUAL","planetSet":["JUPITER","SATURN"],"target":"APPROVED_D1_CAREER_FACTOR","relation":"INDEPENDENT_OVERLAP","windowSemantics":"INTERSECTION_OF_APPROVED_INPUT_INTERVALS","role":"MANIFESTATION_SUPPORT","prerequisites":["APPROVED_D1_CAREER_RELEVANCE","APPROVED_DASHA_CAREER_ACTIVATION"],"sourceStatus":"NO_APPROVED_UNDERLYING_INPUTS","ownerDecision":"REJECT"},
+      {"id":"GOCHAR_DASHA_LORD_CAREER_ACTIVATION","planet":"ACTIVE_MD_AD_OR_PD_LORD","target":"APPROVED_D1_CAREER_FACTOR","relation":"OCCUPANCY_OR_FULL_ASPECT","windowSemantics":"OWNER_TARGET_SELECTION_REQUIRED","role":"MANIFESTATION_SUPPORT","prerequisites":["APPROVED_D1_CAREER_RELEVANCE","APPROVED_DASHA_CAREER_ACTIVATION"],"sourceStatus":"NO_CAREER_SPECIFIC_SOURCE","ownerDecision":"REJECT"}
+    ],
+    "gochar": [
+      {
+        "id": "GOCHAR_CAREER_TIMING_PROPOSED_001",
+        "planet": "JUPITER",
+        "natalTarget": "TENTH_HOUSE_FROM_NATAL_MOON",
+        "relation": "OCCUPANCY",
+        "windowSemantics": "STATE_INTERVAL",
+        "recommendedOwnerAction": "NEEDS_CLARIFICATION"
+      },
+      {
+        "id": "GOCHAR_CAREER_TIMING_PROPOSED_002",
+        "planet": "SATURN",
+        "natalTarget": "THIRD_HOUSE_FROM_NATAL_MOON",
+        "relation": "OCCUPANCY",
+        "windowSemantics": "STATE_INTERVAL",
+        "recommendedOwnerAction": "NEEDS_CLARIFICATION"
+      },
+      {
+        "id": "GOCHAR_CAREER_TIMING_PROPOSED_003",
+        "planet": "SATURN",
+        "natalTarget": "TENTH_HOUSE_FROM_NATAL_MOON",
+        "relation": "OCCUPANCY",
+        "windowSemantics": "STATE_INTERVAL",
+        "recommendedOwnerAction": "REJECT"
+      },
+      {
+        "id": "GOCHAR_CAREER_TIMING_PROPOSED_004",
+        "planetSet": ["SUN", "MARS", "JUPITER", "SATURN"],
+        "natalTarget": "TENTH_HOUSE_FROM_NATAL_MOON",
+        "relation": "OCCUPANCY",
+        "windowSemantics": "STATE_INTERVAL",
+        "recommendedOwnerAction": "REJECT"
+      },
+      {
+        "id": "GOCHAR_CAREER_TIMING_PROPOSED_005",
+        "planetSet": "ALL_SUPPORTED_GRAHAS",
+        "natalTarget": "EXISTING_CAREER_RELATION",
+        "relation": "STRUCTURAL_EVENT_CONTEXT",
+        "windowSemantics": "POINT_EVENT",
+        "recommendedOwnerAction": "NEEDS_CLARIFICATION"
+      }
+    ],
+    "coactivation": [
+      {
+        "id": "CAREER_COACTIVATION_PROPOSED_001",
+        "role": "TRACEABLE_TIMING_RELEVANCE",
+        "recommendedOwnerAction": "NEEDS_CLARIFICATION"
+      }
+    ]
+  },
+  "proposedEligibility": {
+    "implemented": false,
+    "primary": [
+      "APPROVED_D1_CAREER_RELEVANCE",
+      "APPROVED_DASHA_CAREER_ACTIVATION",
+      "OWNER_APPROVED_CAREER_SPECIFIC_GOCHAR_MANIFESTATION_SUPPORT"
+    ],
+    "confirmation": {
+      "family": "D10_CONFIRMATION_REFINEMENT",
+      "hardGate": false,
+      "currentStatus": "APPROVED_FACTUAL_REFINEMENT_NOT_ELIGIBILITY"
+    },
+    "supportModifiers": ["SAV_BAV_SUPPORT_ONLY", "HISTORICAL_RECURRENCE_SUPPORT_ONLY"],
+    "invariants": [
+      "SAV_BAV_CANNOT_CREATE_CAREER_ELIGIBILITY",
+      "HISTORICAL_RECURRENCE_CANNOT_CREATE_CAREER_ELIGIBILITY",
+      "GOCHAR_ALONE_CANNOT_CREATE_CAREER_ELIGIBILITY",
+      "D10_ALONE_CANNOT_CREATE_CAREER_ELIGIBILITY"
+    ]
+  }
+}

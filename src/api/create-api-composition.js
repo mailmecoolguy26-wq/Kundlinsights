@@ -10,7 +10,7 @@ const { VimshottariService, LatestCareerReadingInsightSource } = require('../app
 const { TransitSnapshotService, LatestCareerReadingTransitSource } = require('../application/transit-snapshot');
 const { AshtakavargaService } = require('../application/ashtakavarga');
 const { CareerEventService, CareerEventAstrologyService, CareerPatternComparisonService, CareerFutureRecurrenceService, CareerReadingContextBuilder } = require('../application/career-events');
-const { PostgresUserRepository, PostgresBirthProfileRepository, PostgresReadingRepository, PostgresEntitlementRepository, PostgresCareerEventRepository, PostgresPurchaseRepository, PostgresSubscriptionRepository, PostgresProfileEntitlementRepository, PostgresPaymentEventRepository, PostgresProviderPaymentOrderRepository } = require('../persistence');
+const { PostgresUserRepository, PostgresBirthProfileRepository, PostgresReadingRepository, PostgresEntitlementRepository, PostgresCareerEventRepository, PostgresCareerEventObservationRepository, PostgresPurchaseRepository, PostgresSubscriptionRepository, PostgresProfileEntitlementRepository, PostgresPaymentEventRepository, PostgresProviderPaymentOrderRepository, PostgresNotificationRepository } = require('../persistence');
 const { PostgresPaymentUnitOfWork } = require('../payment/unit-of-work');
 const { PurchaseProviderRegistry, PurchaseVerificationService } = require('../payment/purchase-services');
 const { ProfileUnlockAssignmentService } = require('../payment/profile-unlock-assignment-service');
@@ -31,13 +31,14 @@ const { RazorpayApiClient } = require('../payment/razorpay/razorpay-api-client')
 const { createRazorpayProductCatalog } = require('../payment/razorpay/razorpay-product-catalog');
 const { PostgresUserKeyEnvelopeStore, UserDekProvider, BirthProfilePayloadCodec, ReadingPayloadCodec } = require('../security/crypto');
 const { resolveOrProvisionAppUser } = require('../security/auth');
+const { AnalyticsEventRecorder } = require('../analytics/analytics-event-recorder');
 
 function req(value, name) {
   if (!value) throw new TypeError(`INVALID_${name}`);
   return value;
 }
 
-function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canonicalSiderealSunSampler, placeResolver = null, openai = null, careerChat = null, apple = null, google = null, razorpay = null, idGenerator, clock, requiresEntitlement = () => true, corsAllowlist, isReady, logger, bodyLimit, transactionDiagnosticObserver } = {}) {
+function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canonicalSiderealSunSampler, placeResolver = null, openai = null, careerChat = null, apple = null, google = null, razorpay = null, analytics = null, idGenerator, clock, requiresEntitlement = () => true, corsAllowlist, isReady, logger, bodyLimit, transactionDiagnosticObserver } = {}) {
   const { createApi } = require('./index');
   req(db, 'DB'); req(authVerifier, 'AUTH_VERIFIER'); req(kms, 'KMS');
   req(astronomicalEngine, 'ASTRONOMICAL_ENGINE'); req(canonicalSiderealSunSampler, 'SUN_SAMPLER');
@@ -76,6 +77,7 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
       profileEntitlements: new PostgresProfileEntitlementRepository({ db: client }),
       providerPaymentOrders: new PostgresProviderPaymentOrderRepository({ db: client }),
       careerEvents: new PostgresCareerEventRepository({ db: client }),
+      careerEventObservations: new PostgresCareerEventObservationRepository({ db: client }),
       envelopes,
       deks,
     };
@@ -85,6 +87,12 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
     role: 'app_runtime',
     operation: ({ db: client }) => resolveOrProvisionAppUser({ principal, userRepository: new PostgresUserRepository({ db: client }), idGenerator, now: clock }),
   });
+  const notificationSelfService = {
+    async register({ principal, body }) { const user = await userResolver(principal); return tx.execute({ principal, role: 'app_runtime', operation: ({ db: client }) => new PostgresNotificationRepository({ db: client }).upsertDevice({ userId: user.id, deviceId: body.deviceId, platform: body.platform, pushProvider: 'FCM', pushToken: body.pushToken, appVersion: body.appVersion || null, environment: body.environment || 'development', notificationsEnabled: body.notificationsEnabled !== false, now: clock() }) }); },
+    async revoke({ principal, deviceId }) { const user = await userResolver(principal); return tx.execute({ principal, role: 'app_runtime', operation: ({ db: client }) => new PostgresNotificationRepository({ db: client }).revokeDevice({ userId: user.id, deviceId, now: clock() }) }); },
+    async preferences({ principal, patch = null }) { const user = await userResolver(principal); return tx.execute({ principal, role: 'app_runtime', operation: async ({ db: client }) => { const repo = new PostgresNotificationRepository({ db: client }); if (!patch) return (await repo.getPreferences(user.id)) || { readingUpdates: true, careerReminders: true, offersAndUpdates: false }; const existing = (await repo.getPreferences(user.id)) || { readingUpdates: true, careerReminders: true, offersAndUpdates: false }; return repo.upsertPreferences({ userId: user.id, readingUpdates: patch.readingUpdates == null ? existing.readingUpdates : patch.readingUpdates, careerReminders: patch.careerReminders == null ? existing.careerReminders : patch.careerReminders, offersAndUpdates: patch.offersAndUpdates == null ? existing.offersAndUpdates : patch.offersAndUpdates, updatedAt: clock() }); } }); },
+    async activity({ principal, kind, resourceId = null }) { const user = await userResolver(principal); return tx.execute({ principal, role: 'app_runtime', operation: async ({ db: client }) => { const repo = new PostgresNotificationRepository({ db: client }); if (kind === 'active') return repo.recordAppActivity({ userId: user.id, at: clock() }); if (kind === 'reading') return repo.recordReadingOpened({ userId: user.id, readingId: resourceId, at: clock() }); if (kind === 'paywall') return repo.recordCareerPaywallViewed({ userId: user.id, birthProfileId: resourceId, at: clock() }); throw new RangeError('INVALID_NOTIFICATION_ACTIVITY'); } }); },
+  };
   const birthProfileService = new SecureBirthProfileService({ authUserResolver: userResolver, transactionExecutor: tx, repositories, cryptoCoordinator, idGenerator, clock });
   const careerEventService = new CareerEventService({ authUserResolver: userResolver, transactionExecutor: tx, repositories, birthProfileService, idGenerator, clock });
   const natalSummaryService = new NatalSummaryService({ birthProfileService, astronomicalEngine });
@@ -142,11 +150,11 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
     : null;
   const purchaseProviderRegistry = new PurchaseProviderRegistry({ ...(appleProvider ? { APPLE: appleProvider } : {}), ...(googleProvider ? { GOOGLE: googleProvider } : {}) });
   const profileUnlockAssignmentService = new ProfileUnlockAssignmentService({ unitOfWork: paymentUnitOfWork, idGenerator, clock });
-  const purchaseService = new PurchaseVerificationService({ authUserResolver: userResolver, repositories, unitOfWork: paymentUnitOfWork, registry: purchaseProviderRegistry, careerAccessResolver: new CareerAccessResolver(), profileUnlockAssignmentService, idGenerator, clock });
+  const purchaseService = new PurchaseVerificationService({ authUserResolver: userResolver, repositories, unitOfWork: paymentUnitOfWork, registry: purchaseProviderRegistry, careerAccessResolver: new CareerAccessResolver(), profileUnlockAssignmentService, idGenerator, clock, analytics: new AnalyticsEventRecorder({ provider: analytics }) });
   const razorpayPaymentService = razorpay ? new RazorpayPaymentService({ authUserResolver: userResolver, birthProfileRepository: repositories().birthProfiles, providerOrders: repositories().providerPaymentOrders, razorpayClient: razorpay.apiClient || new RazorpayApiClient({ keyId: razorpay.keyId, keySecret: razorpay.keySecret }), productCatalog: createRazorpayProductCatalog(razorpay.products), purchaseService, unitOfWork: paymentUnitOfWork, idGenerator, clock, keyId: razorpay.keyId, keySecret: razorpay.keySecret, webhookSecret: razorpay.webhookSecret, environment: razorpay.environment }) : null;
   const { PlaceResolutionService } = require('./place-resolution-service');
   const placeResolutionService = placeResolver ? new PlaceResolutionService({ birthPlaceResolver: placeResolver }) : null;
-  const api = createApi({ authVerifier, userResolver: { resolve: userResolver }, birthProfileService, careerEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, ashtakavargaService, secureReadingService, careerChatOrchestrator, purchaseService, razorpayPaymentService, appleNotificationService, googleRtdnService, placeResolutionService, requestIdGenerator: idGenerator, corsAllowlist, isReady, logger, bodyLimit });
+  const api = createApi({ authVerifier, userResolver: { resolve: userResolver }, birthProfileService, careerEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, ashtakavargaService, secureReadingService, careerChatOrchestrator, purchaseService, razorpayPaymentService, appleNotificationService, googleRtdnService, notificationSelfService, placeResolutionService, requestIdGenerator: idGenerator, corsAllowlist, isReady, logger, bodyLimit });
   api.apiRuntime = { astronomicalEngine, canonicalSiderealSunSampler };
   return Object.freeze({ api, services: Object.freeze({ birthProfileService, careerEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, secureReadingService, userResolver, transactionExecutor: tx }) });
 }

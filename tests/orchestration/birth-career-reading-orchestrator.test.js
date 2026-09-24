@@ -26,7 +26,7 @@ function savanaOrchestrator(astronomicalEngine) { return new BirthCareerReadingO
 
 test('builds the Hyderabad development fixture through Layer 15A using injected native-sidereal astronomy', () => {
   const fixture = engine(); const result = savanaOrchestrator(fixture).generate(request());
-  assert.equal(fixture.calls.length, 2);
+  assert.equal(fixture.calls.length, 367);
   assert.deepEqual(fixture.calls[0], { date: '1990-11-26', time: '13:40:00', timezone: 'Asia/Kolkata', latitude: 17.385, longitude: 78.4867 });
   assert.deepEqual(fixture.calls[1], { date: '2024-06-01', time: '00:00:00.000', timezone: 'UTC', latitude: 17.385, longitude: 78.4867 });
   assert.equal(result.domain, 'CAREER'); assert.equal(result.renderedReading.locale, 'en-IN');
@@ -67,7 +67,7 @@ test('builds the Hyderabad development fixture through Layer 15A using injected 
 test('is deterministic, accepts frozen input, preserves Mean Rahu/Ketu and does not double-convert native Lahiri', () => {
   const input = freeze(request()); const fixture = engine(); const orchestration = savanaOrchestrator(fixture);
   const first = orchestration.generate(input); const second = orchestration.generate(input);
-  assert.deepEqual(first, second); assert.equal(fixture.calls.length, 4);
+  assert.deepEqual(first, second); assert.equal(fixture.calls.length, 734);
   // The fake provider supplies native sidereal only; a second Lahiri conversion would
   // change these Layer-2-derived house facts and fail this native-coordinate fixture.
   assert.equal(first.reading.domain, 'CAREER');
@@ -84,7 +84,7 @@ test('accepts Swiss-style native sidereal bodies without invoking the interim La
 
 test('does not fabricate a transit interval and delegates an explicit interval to Layer 10', () => {
   const omittedEngine = engine(); savanaOrchestrator(omittedEngine).generate(request());
-  assert.equal(omittedEngine.calls.length, 2);
+  assert.equal(omittedEngine.calls.length, 367);
   const explicitEngine = engine(); const explicit = request(); explicit.transitScanRange = { startInstant: '2024-06-01T00:00:00.000Z', endInstant: '2024-06-01T01:00:00.000Z' };
   savanaOrchestrator(explicitEngine).generate(explicit);
   assert.ok(explicitEngine.calls.length > 2);

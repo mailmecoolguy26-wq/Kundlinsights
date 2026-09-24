@@ -24,3 +24,42 @@ test('unsupported domains and insufficient timing have safe deterministic fallba
   const packet = buildEvidencePacket({ birthProfileId: 'profile-a', intent: classifyCareerIntent({ userText: 'Promotion kab milega?' }) });
   assert.equal(answerContract(packet).answerability, ANSWERABILITY.INSUFFICIENT_EVIDENCE);
 });
+test('resolves recognized contextual follow-ups only from the immediately preceding completed Career turn', () => {
+  const promotionTurn = [
+    { role: 'USER', text: 'Is this a good period for promotion?' },
+    { role: 'ASSISTANT', text: 'Available timing context can be described.' },
+  ];
+  for (const [message, kind] of [['Why?', 'EXPLANATION'], ['Which planets are causing this?', 'EVIDENCE_EXPLANATION'], ['What about after this period?', 'NEXT_PERIOD']]) {
+    const actual = classifyCareerIntent({ userText: message, conversationContext: promotionTurn });
+    assert.equal(actual.intent, INTENTS.PROMOTION_TIMING);
+    assert.equal(actual.contextualFollowUp, kind);
+    assert.equal(actual.referencedEvent, null);
+  }
+  const timing = classifyCareerIntent({ userText: 'What about after this period?', conversationContext: [
+    { role: 'USER', text: 'How is my career over the next 6 months?' },
+    { role: 'ASSISTANT', text: 'Available timing context can be described.' },
+  ] });
+  assert.equal(timing.intent, INTENTS.CAREER_TIMING_WINDOW);
+  assert.equal(timing.contextualFollowUp, 'NEXT_PERIOD');
+  const ambiguous = classifyCareerIntent({ userText: 'Why?' });
+  assert.equal(ambiguous.intent, INTENTS.NEEDS_CLARIFICATION);
+  const stale = classifyCareerIntent({ userText: 'Why?', conversationContext: [
+    ...promotionTurn,
+    { role: 'USER', text: 'hello' },
+  ] });
+  assert.equal(stale.intent, INTENTS.NEEDS_CLARIFICATION);
+});
+test('equivalent Career phrasing preserves intent and policy rather than predicted prose', () => {
+  const cases = [
+    ['Promotion kab milega?', 'When could I be promoted?', INTENTS.PROMOTION_TIMING],
+    ['New job kab milegi?', 'When can I find my next role?', INTENTS.NEXT_JOB_TIMING],
+    ['Should I switch jobs?', 'Is this a good time to change companies?', INTENTS.JOB_SWITCH_TIMING],
+    ['Business start karna theek rahega?', 'Is this a good period to start a business?', INTENTS.BUSINESS_VS_JOB],
+    ['Boss ke saath relation kaisa rahega?', 'How will things be with my manager?', INTENTS.WORKPLACE_PRESSURE],
+  ];
+  for (const [left, right, intent] of cases) {
+    const a = classifyCareerIntent({ userText: left }); const b = classifyCareerIntent({ userText: right });
+    assert.equal(a.intent, intent); assert.equal(b.intent, intent);
+    assert.deepEqual(policyFor(a.intent), policyFor(b.intent));
+  }
+});

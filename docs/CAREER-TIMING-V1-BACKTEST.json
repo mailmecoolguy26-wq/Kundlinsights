@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "taraverse-career-timing-backtest-v1",
+  "phase": "2H",
+  "status": "INSUFFICIENT_HISTORICAL_DATA",
+  "futureCareerProjection": "DISABLED",
+  "methodology": {
+    "eventRadiusDays": 90,
+    "exactMatch": "event instant within [window.start, window.end)",
+    "nearMatchDays": 30,
+    "weakNearMatchDays": [31, 60],
+    "controlMinimumSeparationDays": 120,
+    "recurrenceAffectsEligibility": false
+  },
+  "cohort": {
+    "profiles": 0,
+    "transitions": 0,
+    "observations": 0,
+    "reason": "No owned historical Career-event cohort with complete supplied historical Dasha and Jupiter/Saturn interval data is versioned in this repository."
+  },
+  "results": {
+    "exactMatch": 0,
+    "nearMatch": 0,
+    "weakNearMatch": 0,
+    "miss": 0,
+    "transitionMatched": 0,
+    "controlPeriods": 0,
+    "controlFalsePositives": 0,
+    "coverageDensityPercent": null,
+    "strongConvergenceEventMatches": 0,
+    "strongConvergenceControlMatches": 0,
+    "ruleFrequency": [],
+    "dashaGranularity": "UNMEASURED",
+    "gocharGranularity": "UNMEASURED"
+  },
+  "syntheticContractFixture": {
+    "observations": 3,
+    "exactMatches": 3,
+    "matchedTransitions": 2,
+    "controls": 1,
+    "controlFalsePositives": 0,
+    "interpretation": "Mechanics-only regression coverage; not a historical accuracy result."
+  },
+  "limitations": [
+    "SUPPLIED_OWNED_COHORT_REQUIRED",
+    "PRECOMPUTED_DASHA_AND_TRANSIT_INTERVALS_REQUIRED",
+    "NO_EVENT_TYPE_PREDICTION",
+    "NO_PROBABILITY_OR_GUARANTEE",
+    "FUTURE_PROJECTION_DISABLED"
+  ]
+}

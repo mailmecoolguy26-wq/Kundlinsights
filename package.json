@@ -10,6 +10,7 @@
   "scripts": {
     "start:dev": "node src/runtime/start-development.js",
     "dev:grant-career-entitlement": "node src/runtime/grant-development-career-entitlement.js",
+    "dev:test-push": "node scripts/dev-test-push.js",
     "test": "node --test tests/**/*.test.js",
     "audit:horizons": "node scripts/audit-horizons.js"
   },
@@ -23,6 +24,7 @@
     "@fastify/cors": "11.3.0",
     "astronomy-engine": "2.1.17",
     "fastify": "^5.11.0",
+    "firebase-admin": "^13.10.0",
     "googleapis": "^178.0.0",
     "jose": "^6.2.4",
     "pg": "^8.23.0",

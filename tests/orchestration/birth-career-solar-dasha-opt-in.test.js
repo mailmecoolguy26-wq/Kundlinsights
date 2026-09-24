@@ -54,7 +54,7 @@ test('uses an injected solar sampler with birth-snapshot Moon and Sun, without a
   const fixture = engine(); const injected = sampler();
   const result = new BirthCareerReadingOrchestrator({ astronomicalEngine: fixture, canonicalSiderealSunSampler: injected, dashaRulesetId: 'vimshottari-longitude-proportional-solar-return-v1' }).generate(deepFreeze(request()));
   assert.ok(injected.calls.includes(BIRTH));
-  assert.equal(fixture.calls.length, 2);
+  assert.equal(fixture.calls.length, 367);
   assert.equal(result.provenance.dashaRulesetId, 'vimshottari-longitude-proportional-solar-return-v1');
   assert.deepEqual(result.provenance.dashaTiming, {
     dashaRulesetId: 'vimshottari-longitude-proportional-solar-return-v1', dashaTimeConventionId: 'solar-return-lahiri-grid-v1', dashaCalculationStatus: 'LICENSE_GATED_VALIDATION', providerSamplerConsistency: 'COMPATIBLE_WHERE_COMPARABLE', solarReturnSolverId: 'solar-return-lahiri-bisection-v1', solarYearInterpolationId: 'solar-return-grid-linear-time-interpolation-v1',

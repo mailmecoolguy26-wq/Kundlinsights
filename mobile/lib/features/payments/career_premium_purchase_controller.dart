@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/storage/secure_state_store.dart';
+import '../../core/analytics/analytics.dart';
 import '../readings/career_reading_generation_controller.dart';
 import 'career_premium_product_controller.dart';
 import 'data/apple_store_purchase_service.dart';
@@ -64,7 +65,9 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
     this.pendingApplePurchaseStore,
     this.platform = CareerPremiumStorePlatform.apple,
     String? Function()? activeBirthProfileId,
+    Analytics? analytics,
   }) {
+    _analytics = analytics ?? Analytics(const NoopAnalyticsProvider());
     _activeBirthProfileId = activeBirthProfileId ?? (() => null);
     if (platform == CareerPremiumStorePlatform.apple &&
         pendingApplePurchaseStore != null) {
@@ -85,6 +88,7 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
   final PendingApplePurchaseStore? pendingApplePurchaseStore;
   final CareerPremiumStorePlatform platform;
   late final String? Function() _activeBirthProfileId;
+  late final Analytics _analytics;
   StreamSubscription<StorePurchaseUpdate>? _subscription;
   CareerPremiumPurchaseState _state = CareerPremiumPurchaseState.initializing;
   CareerPremiumRestoreState _restoreState = CareerPremiumRestoreState.idle;
@@ -99,6 +103,7 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
   final Map<String, String> _googlePurchaseTargets = {};
   bool _disposed = false;
   bool _recoveryInitialized = false;
+  bool _purchaseAttemptActive = false;
 
   CareerPremiumPurchaseState get state => _state;
   CareerPremiumRestoreState get restoreState => _restoreState;
@@ -163,6 +168,12 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
       return;
     }
     _setState(CareerPremiumPurchaseState.purchasing);
+    _purchaseAttemptActive = true;
+    unawaited(_analytics.track(AnalyticsEvent.purchaseStarted, {
+      'sku': product.logicalSku,
+      'payment_provider': platform.name,
+      'product_type': 'career_premium',
+    }));
     try {
       if (platform == CareerPremiumStorePlatform.apple) {
         if (product.logicalSku == appleCareerProfileUnlockLogicalSku) {
@@ -190,9 +201,11 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
         _pendingGooglePurchaseTarget = null;
         _pendingApplePurchaseTarget = null;
         _setState(CareerPremiumPurchaseState.error);
+        _trackFailure('provider_error');
       }
     } catch (_) {
       _setState(CareerPremiumPurchaseState.error);
+      _trackFailure('provider_error');
     }
   }
 
@@ -323,9 +336,11 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
       case StorePurchaseStatus.canceled:
         _pendingApplePurchaseTarget = null;
         _setState(CareerPremiumPurchaseState.canceled);
+        _trackFailure('cancelled');
       case StorePurchaseStatus.error:
         _pendingApplePurchaseTarget = null;
         _setState(CareerPremiumPurchaseState.error);
+        _trackFailure('provider_error');
       case StorePurchaseStatus.purchased:
       case StorePurchaseStatus.restored:
         final existing = _pendingApplePurchase;
@@ -380,8 +395,10 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
         _setState(CareerPremiumPurchaseState.pending);
       case StorePurchaseStatus.canceled:
         _setState(CareerPremiumPurchaseState.canceled);
+        _trackFailure('cancelled');
       case StorePurchaseStatus.error:
         _setState(CareerPremiumPurchaseState.error);
+        _trackFailure('provider_error');
       case StorePurchaseStatus.restored:
         return;
       case StorePurchaseStatus.purchased:
@@ -497,6 +514,7 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
       } else {
         _setState(CareerPremiumPurchaseState.error);
       }
+      _trackFailure('verification_failed');
     } finally {
       _processingEvidence = null;
     }
@@ -614,6 +632,7 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
       await _refreshEntitlementAfterVerification();
     } catch (_) {
       _setState(CareerPremiumPurchaseState.error);
+      _trackFailure('verification_failed');
     } finally {
       _processingEvidence = null;
     }
@@ -656,6 +675,7 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
         }
       }
       _setState(CareerPremiumPurchaseState.success);
+      _purchaseAttemptActive = false;
     } catch (_) {
       _setState(CareerPremiumPurchaseState.refreshFailed);
     }
@@ -665,6 +685,16 @@ class CareerPremiumPurchaseController extends ChangeNotifier {
     if (_disposed) return;
     _state = state;
     notifyListeners();
+  }
+
+  void _trackFailure(String category) {
+    if (!_purchaseAttemptActive) return;
+    _purchaseAttemptActive = false;
+    unawaited(_analytics.track(AnalyticsEvent.purchaseFailed, {
+      'failure_category': category,
+      'payment_provider': platform.name,
+      'product_type': 'career_premium',
+    }));
   }
 
   @override
@@ -697,6 +727,7 @@ final careerPremiumPurchaseControllerProvider =
         ),
         platform: scope.$4,
         activeBirthProfileId: () => scope.$2.activeBirthProfileId,
+        analytics: ref.watch(analyticsProvider),
       );
       ref.onDispose(controller.dispose);
       return controller;

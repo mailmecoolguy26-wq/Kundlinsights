@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/analytics/analytics.dart';
 import '../../core/errors/api_failure.dart';
 import '../profiles/profile_controller.dart';
 import '../readings/career_explanation_language.dart';
@@ -36,19 +39,22 @@ final careerChatControllerProvider =
         ref.watch(careerChatRepositoryProvider),
         scope.$1,
         scope.$2,
+        analytics: ref.watch(analyticsProvider),
       );
       ref.onDispose(controller.dispose);
       return controller;
     });
 
 class CareerChatController extends ChangeNotifier {
-  CareerChatController(this._repository, this._profiles, this._language) {
+  CareerChatController(this._repository, this._profiles, this._language, {Analytics? analytics})
+    : _analytics = analytics ?? Analytics(const NoopAnalyticsProvider()) {
     _profiles.addListener(_onProfileChanged);
   }
 
   final CareerChatRepository _repository;
   final ProfileController _profiles;
   final CareerExplanationLanguageController _language;
+  final Analytics _analytics;
   final List<CareerChatMessage> _messages = [];
   String? _profileId;
   bool _sending = false;
@@ -76,6 +82,11 @@ class CareerChatController extends ChangeNotifier {
     _ensureProfile(profile.id);
     final user = CareerChatMessage.user(message);
     _messages.add(user);
+    unawaited(_analytics.track(AnalyticsEvent.careerChatQuestionSent, {
+      'birth_profile_id': profile.id,
+      'source': 'career_chat',
+      'is_premium': true,
+    }));
     _failure = null;
     _sending = true;
     notifyListeners();

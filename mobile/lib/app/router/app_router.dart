@@ -37,9 +37,16 @@ import '../../features/splash/splash_launch_gate.dart';
 import '../../features/splash/presentation/stitch_splash_screen.dart';
 import '../../features/career_chat/career_chat_controller.dart';
 import '../../features/career_chat/presentation/career_chat_screen.dart';
+import '../../core/analytics/analytics.dart';
+import '../../core/push/push_notification_service.dart';
+import '../../core/push/push_permission_prompt.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/app_page_scaffold.dart';
 import '../../shared/widgets/states.dart';
+
+@visibleForTesting
+ValueKey<String> careerReadingDetailPageKey(String readingId) =>
+    ValueKey<String>('reading-detail:$readingId');
 
 GoRouter createAppRouter(
   AuthController authController,
@@ -54,10 +61,13 @@ GoRouter createAppRouter(
   CareerPremiumProductController premiumProduct,
   CareerPremiumPurchaseController premiumPurchase,
   CareerEventController careerEvents, {
+  Analytics? analytics,
   required CareerChatController careerChat,
   RazorpayCareerPremiumController? razorpayPremium,
   required CareerExplanationLanguageController careerExplanationLanguage,
   required SplashLaunchGate splashLaunchGate,
+  PushRuntime? pushNotifications,
+  PushPermissionPrompt? pushPermissionPrompt,
 }) => GoRouter(
   initialLocation: '/splash',
   refreshListenable: Listenable.merge([
@@ -220,8 +230,10 @@ GoRouter createAppRouter(
     ),
     GoRoute(
       path: '/onboarding',
-      builder: (context, state) =>
-          BirthProfileOnboardingScreen(controller: profiles),
+      builder: (context, state) => BirthProfileOnboardingScreen(
+        controller: profiles,
+        onProfileCreated: pushPermissionPrompt?.maybeShow,
+      ),
     ),
     GoRoute(
       path: '/profiles',
@@ -229,8 +241,11 @@ GoRouter createAppRouter(
       routes: [
         GoRoute(
           path: 'add',
-          builder: (context, state) =>
-              BirthProfileOnboardingScreen(controller: profiles, adding: true),
+          builder: (context, state) => BirthProfileOnboardingScreen(
+            controller: profiles,
+            adding: true,
+            onProfileCreated: pushPermissionPrompt?.maybeShow,
+          ),
         ),
         GoRoute(
           path: ':id',
@@ -259,6 +274,7 @@ GoRouter createAppRouter(
           activeProfileLabel: profiles.activeProfile?.label,
           razorpayProfileId: profileId,
           generationController: generation,
+          analytics: analytics ?? Analytics(const NoopAnalyticsProvider()),
           productController: premiumProduct,
           hasAccess: false,
           purchaseController: premiumPurchase,
@@ -279,6 +295,13 @@ GoRouter createAppRouter(
           onSubscribePressed: premiumPurchase.startPurchase,
           onContinuePressed: generation.generate,
           onBackHomePressed: () => context.go('/home'),
+          onPaywallDisplayed: (id) async {
+            try {
+              await pushNotifications?.activityApi?.recordCareerPaywallViewed(
+                id,
+              );
+            } catch (_) {}
+          },
         );
       },
     ),
@@ -348,17 +371,34 @@ GoRouter createAppRouter(
                 premiumPurchase: premiumPurchase,
                 razorpayPremium: razorpayPremium,
                 activeProfileLabel: profiles.activeProfile?.label,
+                analytics:
+                    analytics ?? Analytics(const NoopAnalyticsProvider()),
               ),
               routes: [
                 GoRoute(
                   path: 'detail/:id',
                   name: 'reading-detail',
-                  builder: (context, state) => ReadingDetailScreen(
-                    controller: readings,
-                    generation: generation,
-                    careerExplanationLanguage: careerExplanationLanguage,
-                    readingId: state.pathParameters['id']!,
-                  ),
+                  pageBuilder: (context, state) {
+                    final readingId = state.pathParameters['id']!;
+                    final key = careerReadingDetailPageKey(readingId);
+                    return MaterialPage<void>(
+                      key: key,
+                      name: state.name,
+                      restorationId: key.value,
+                      child: ReadingDetailScreen(
+                        controller: readings,
+                        generation: generation,
+                        careerExplanationLanguage: careerExplanationLanguage,
+                        readingId: readingId,
+                        onViewed: (id) async {
+                          try {
+                            await pushNotifications?.activityApi
+                                ?.recordReadingViewed(id);
+                          } catch (_) {}
+                        },
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -373,6 +413,7 @@ GoRouter createAppRouter(
                 authController: authController,
                 profileController: profiles,
                 careerExplanationLanguage: careerExplanationLanguage,
+                pushNotifications: pushNotifications,
               ),
             ),
           ],

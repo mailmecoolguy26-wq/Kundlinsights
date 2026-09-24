@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_theme.dart';
+import '../../../core/analytics/analytics.dart';
 import '../../../shared/widgets/app_card.dart';
 import '../career_premium_product_controller.dart';
 import '../../readings/career_reading_generation_controller.dart';
@@ -28,6 +29,8 @@ class CareerPremiumPaywall extends StatefulWidget {
     this.activeProfileLabel,
     this.razorpayProfileId,
     this.generationController,
+    this.analytics,
+    this.onPaywallDisplayed,
   });
 
   final CareerPremiumProductController productController;
@@ -46,18 +49,37 @@ class CareerPremiumPaywall extends StatefulWidget {
   final String? activeProfileLabel;
   final String? razorpayProfileId;
   final CareerReadingGenerationController? generationController;
+  final Analytics? analytics;
+  final Future<void> Function(String birthProfileId)? onPaywallDisplayed;
 
   @override
   State<CareerPremiumPaywall> createState() => _CareerPremiumPaywallState();
 }
 
 class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
+  bool _viewRecorded = false;
   @override
   void initState() {
     super.initState();
     if (!widget.hasAccess &&
         widget.productController.state == CareerPremiumProductLoadState.idle) {
       widget.productController.load();
+    }
+    if (!widget.hasAccess) {
+      widget.analytics?.track(AnalyticsEvent.careerPaywallViewed, {
+        if (widget.razorpayProfileId != null)
+          'birth_profile_id': widget.razorpayProfileId,
+        'screen': 'career_paywall',
+      });
+    }
+    if (!widget.hasAccess && widget.razorpayProfileId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_viewRecorded || !mounted) return;
+        _viewRecorded = true;
+        widget.onPaywallDisplayed
+            ?.call(widget.razorpayProfileId!)
+            .catchError((_) {});
+      });
     }
   }
 

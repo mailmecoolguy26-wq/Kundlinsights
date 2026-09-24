@@ -35,7 +35,13 @@ test('projects a real scanner-generated Jupiter rashi ingress into a career even
   const service = new CareerEventAstrologyService({
     careerEventService: Object.freeze({
       async get() {
-        return Object.freeze({ id: 'event-a', birthProfileId: 'profile-a', eventDate: Object.freeze({ precision: 'DAY', year: 2024, month: 2, day: 1 }) });
+        return Object.freeze({
+          id: 'event-a', birthProfileId: 'profile-a', eventDate: Object.freeze({ precision: 'DAY', year: 2024, month: 2, day: 1 }),
+          observations: Object.freeze([
+            Object.freeze({ type: 'OFFER', date: Object.freeze({ precision: 'DAY', year: 2024, month: 2, day: 1 }) }),
+            Object.freeze({ type: 'JOINING', date: Object.freeze({ precision: 'DAY', year: 2024, month: 2, day: 2 }) }),
+          ]),
+        });
       },
     }),
     birthProfileService: Object.freeze({ async get() { return profile; } }),
@@ -61,6 +67,12 @@ test('projects a real scanner-generated Jupiter rashi ingress into a career even
   assert.ok(snapshot.temporalCoverage.from <= ingress.instant);
   assert.ok(ingress.instant < snapshot.temporalCoverage.to);
   assert.equal(ingress.provenance, 'layer2-rashi-transition');
+  assert.deepEqual(snapshot.observations.map((item) => [item.observationType, item.temporalCoverage.from, item.temporalCoverage.to]), [
+    ['OFFER', '2024-02-01T00:00:00.000Z', '2024-02-02T00:00:00.000Z'],
+    ['JOINING', '2024-02-02T00:00:00.000Z', '2024-02-03T00:00:00.000Z'],
+  ]);
+  assert.equal(snapshot.observations.every((item) => item.dashaIntervals.length > 0 && item.transitCoverage.bodies.length === 9), true);
+  assert.ok(snapshot.eventWindowComparison.changedFeatures.length > 0);
 });
 
 test('projects a real scanner-generated Jupiter retrograde station into a career event astrology snapshot', async () => {

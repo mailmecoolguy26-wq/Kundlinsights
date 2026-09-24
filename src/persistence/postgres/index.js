@@ -3,8 +3,9 @@
 const { fail, requiredString, canonicalTime, immutableCopy } = require('../contracts');
 const { freeze } = require('../../synthesis/evidence-node');
 const { mapPostgresError } = require('./postgres-errors');
-const { profileFingerprint, userFromRow, birthProfileFromRow, encryptedBirthProfileFromRow, paymentFromRow, providerPaymentOrderFromRow, purchaseFromRow, subscriptionFromRow, paymentEventFromRow, profileEntitlementFromRow, entitlementFromRow, careerEventFromRow, readingFromRow, encryptedReadingFromRow, encodedBirthPayload, encodedReadingPayload } = require('./postgres-mappers');
+const { profileFingerprint, userFromRow, birthProfileFromRow, encryptedBirthProfileFromRow, paymentFromRow, providerPaymentOrderFromRow, purchaseFromRow, subscriptionFromRow, paymentEventFromRow, profileEntitlementFromRow, entitlementFromRow, careerEventFromRow, careerEventObservationFromRow, readingFromRow, encryptedReadingFromRow, encodedBirthPayload, encodedReadingPayload } = require('./postgres-mappers');
 const { purchaseRecord, subscriptionRecord, profileEntitlement, paymentEvent } = require('../../payment');
+const { PostgresNotificationRepository } = require('./notification-repository');
 
 const USER_COLUMNS = 'id, auth_subject, status, created_at, updated_at, deleted_at';
 const BIRTH_COLUMNS = 'id, user_id, display_label, birth_payload_ciphertext, birth_payload_encryption_version, birth_payload_key_version, birth_payload_algorithm, birth_payload_nonce, status, created_at, updated_at, archived_at';
@@ -15,6 +16,7 @@ const SUBSCRIPTION_COLUMNS = 'id,user_id,provider,environment,product_id,origina
 const EVENT_COLUMNS = 'id,provider,environment,provider_event_id,event_type,provider_event_time,purchase_record_id,subscription_record_id,received_at,processed_at,processing_status,failure_code,payload_digest,created_at';
 const ENTITLEMENT_COLUMNS = 'id, user_id, product_key, status, quantity, valid_from, valid_until, source_payment_transaction_id, created_at, updated_at';
 const CAREER_EVENT_COLUMNS = 'id, user_id, birth_profile_id, event_type, event_date_precision, event_year, event_month, event_day, title, notes, created_at, updated_at, deleted_at';
+const CAREER_EVENT_OBSERVATION_COLUMNS = 'id, user_id, birth_profile_id, career_event_id, observation_type, event_date_precision, event_year, event_month, event_day, created_at, updated_at';
 const READING_COLUMNS = 'id, user_id, birth_profile_id, domain, engine_profile_id, engine_profile_fingerprint, record_schema_version, input_snapshot_ciphertext, provenance_ciphertext, structured_reading_ciphertext, rendered_reading_ciphertext, payload_encryption_version, payload_key_version, payload_algorithm, input_snapshot_nonce, provenance_nonce, structured_reading_nonce, rendered_reading_nonce, integrity_metadata, calculation_digest, output_digest, rendered_output_digest, created_at, archived_at, deleted_at, idempotency_key';
 
 function dbBoundary(db) { if (!db || typeof db.query !== 'function') fail('INVALID_POSTGRES_DB'); return db; }
@@ -85,6 +87,14 @@ class PostgresCareerEventRepository {
   async softDeleteForProfile({ userId, birthProfileId, id, deletedAt, updatedAt } = {}) { return execute(async () => careerEventFromRow(await queryOne(this.db, `update app.career_events set deleted_at=$4,updated_at=$5 where id=$1 and user_id=$2 and birth_profile_id=$3 and deleted_at is null returning ${CAREER_EVENT_COLUMNS}`, [requiredString(id, 'INVALID_CAREER_EVENT_ID'), requiredString(userId, 'INVALID_USER_ID'), requiredString(birthProfileId, 'INVALID_BIRTH_PROFILE_ID'), canonicalTime(deletedAt), canonicalTime(updatedAt)], 'CAREER_EVENT_NOT_FOUND')), 'DELETE_CAREER_EVENT_FAILED'); }
 }
 
+class PostgresCareerEventObservationRepository {
+  constructor({ db } = {}) { this.db = dbBoundary(db); }
+  withClient(db) { return new PostgresCareerEventObservationRepository({ db }); }
+  async create(input = {}) { return execute(async () => careerEventObservationFromRow((await this.db.query(`insert into app.career_event_observations (${CAREER_EVENT_OBSERVATION_COLUMNS}) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) returning ${CAREER_EVENT_OBSERVATION_COLUMNS}`, [requiredString(input.id, 'INVALID_CAREER_EVENT_OBSERVATION_ID'), requiredString(input.userId, 'INVALID_USER_ID'), requiredString(input.birthProfileId, 'INVALID_BIRTH_PROFILE_ID'), requiredString(input.careerEventId, 'INVALID_CAREER_EVENT_ID'), requiredString(input.observationType, 'INVALID_CAREER_EVENT_OBSERVATION_TYPE'), requiredString(input.eventDatePrecision, 'INVALID_CAREER_EVENT_DATE'), input.eventYear, input.eventMonth, input.eventDay, canonicalTime(input.createdAt), canonicalTime(input.updatedAt)])).rows[0]), 'CREATE_CAREER_EVENT_OBSERVATION_FAILED'); }
+  async listForEvent({ userId, birthProfileId, careerEventId } = {}) { return execute(async () => freeze((await this.db.query(`select ${CAREER_EVENT_OBSERVATION_COLUMNS} from app.career_event_observations where user_id=$1 and birth_profile_id=$2 and career_event_id=$3 order by event_year asc,event_month asc nulls first,event_day asc nulls first,observation_type asc,id asc`, [requiredString(userId, 'INVALID_USER_ID'), requiredString(birthProfileId, 'INVALID_BIRTH_PROFILE_ID'), requiredString(careerEventId, 'INVALID_CAREER_EVENT_ID')])).rows.map(careerEventObservationFromRow)), 'LIST_CAREER_EVENT_OBSERVATIONS_FAILED'); }
+  async replaceForEvent({ userId, birthProfileId, careerEventId, observations = [] } = {}) { return execute(async () => { await this.db.query('delete from app.career_event_observations where user_id=$1 and birth_profile_id=$2 and career_event_id=$3', [requiredString(userId, 'INVALID_USER_ID'), requiredString(birthProfileId, 'INVALID_BIRTH_PROFILE_ID'), requiredString(careerEventId, 'INVALID_CAREER_EVENT_ID')]); const out = []; for (const observation of observations) out.push(await this.create({ ...observation, userId, birthProfileId, careerEventId })); return freeze(out); }, 'REPLACE_CAREER_EVENT_OBSERVATIONS_FAILED'); }
+}
+
 class PostgresPaymentRepository {
   constructor({ db } = {}) { this.db = dbBoundary(db); }
   withClient(db) { return new PostgresPaymentRepository({ db }); }
@@ -137,4 +147,4 @@ class PostgresPaymentEventRepository {
   async markFailed(id, { processedAt, failureCode } = {}) { return execute(async () => paymentEventFromRow(await queryOne(this.db, `update app.payment_events set processing_status='FAILED',processed_at=$2,failure_code=$3 where id=$1 returning ${EVENT_COLUMNS}`, [requiredString(id, 'INVALID_PAYMENT_EVENT_ID'), canonicalTime(processedAt, 'INVALID_EVENT_TIMESTAMP'), requiredString(failureCode, 'INVALID_EVENT_FAILURE_CODE')], 'PAYMENT_EVENT_NOT_FOUND')), 'UPDATE_PAYMENT_EVENT_FAILED'); }
 }
 
-module.exports = { PostgresUserRepository, PostgresBirthProfileRepository, PostgresReadingRepository, PostgresEntitlementRepository, PostgresCareerEventRepository, PostgresPaymentRepository, PostgresProviderPaymentOrderRepository, PostgresPurchaseRepository, PostgresSubscriptionRepository, PostgresProfileEntitlementRepository, PostgresPaymentEventRepository, profileFingerprint, mapPostgresError };
+module.exports = { PostgresUserRepository, PostgresBirthProfileRepository, PostgresReadingRepository, PostgresEntitlementRepository, PostgresCareerEventRepository, PostgresCareerEventObservationRepository, PostgresPaymentRepository, PostgresProviderPaymentOrderRepository, PostgresPurchaseRepository, PostgresSubscriptionRepository, PostgresProfileEntitlementRepository, PostgresPaymentEventRepository, PostgresNotificationRepository, profileFingerprint, mapPostgresError };

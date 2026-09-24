@@ -16,10 +16,12 @@ class BirthProfileOnboardingScreen extends StatefulWidget {
     super.key,
     required this.controller,
     this.adding = false,
+    this.onProfileCreated,
   });
 
   final ProfileController controller;
   final bool adding;
+  final Future<void> Function(BuildContext context)? onProfileCreated;
 
   @override
   State<BirthProfileOnboardingScreen> createState() =>
@@ -228,6 +230,7 @@ class _BirthProfileOnboardingScreenState
         displayLabel: _label.text.trim().isEmpty ? null : _label.text.trim(),
         birthData: _resolved!,
       );
+      if (mounted) await widget.onProfileCreated?.call(context);
       if (mounted) context.go('/home');
     } catch (error) {
       if (!mounted) return;

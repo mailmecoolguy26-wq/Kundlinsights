@@ -195,6 +195,24 @@ test('Phase16E delivery exposes only the structured synthesis packet and safely 
   const malformed = await service.getSecureReadingDetail({ principal: principal('subject-a'), readingId: 'reading-synthesis-malformed' });
   assert.equal('careerEvidenceSynthesis' in malformed, false);
 });
+test('Career timing delivery is optional, public-safe, chronological, and does not promote a possible signal', async () => {
+  const { service, readings } = setup();
+  const snapshot = record('reading-timing-periods', '2026-08-25T00:00:00.000Z', 'Insight content.');
+  snapshot.reading.careerTimingPeriods = [{
+    startDate: '2027-01-05T00:00:00.000Z', endDate: '2027-01-20T00:00:00.000Z', evidenceState: 'POSSIBLE_CAREER_ACTIVITY_SIGNAL', headline: 'POSSIBLE CAREER ACTIVITY SIGNAL', summary: 'Safe timing summary.', whyItems: ['Guru Dev Dasha Career structure se connected hai.'], whatThisCanMean: 'Safe factual timing context.', professionalDirection: 'Context only.', disclosure: 'No guarantee.', sourceRuleVersion: 'career-timing-launch-v1', longWindow: false,
+    technicalDetails: { d1: { h10Sign: 9, h10Lord: 'Jupiter', directCareerFactors: ['Jupiter'] }, dasha: { qualifyingLevel: ['PD'], periods: ['PD:Jupiter'] }, gochar: [{ transitPlanet: 'Jupiter', target: '10th-house Career axis', activation: 'occupies' }], d10: { confirmationPresent: false }, moon: { supportPresent: false }, savBav: { h10Sav: 35 }, historicalPattern: { available: false, present: false }, private: 'omit' },
+  }, {
+    startDate: '2026-11-20T00:00:00.000Z', endDate: '2026-12-10T00:00:00.000Z', evidenceState: 'POSSIBLE_CAREER_ACTIVITY_SIGNAL', headline: 'POSSIBLE CAREER ACTIVITY SIGNAL', summary: 'Safe timing summary.', whyItems: [], whatThisCanMean: 'Safe factual timing context.', professionalDirection: 'Context only.', disclosure: 'No guarantee.', sourceRuleVersion: 'career-timing-launch-v1', longWindow: false,
+    technicalDetails: { d1: { h10Sign: 9, h10Lord: 'Jupiter', directCareerFactors: [] }, dasha: { qualifyingLevel: ['PD'], periods: ['PD:Jupiter'] }, gochar: [], d10: { confirmationPresent: false }, moon: { supportPresent: false }, savBav: {}, historicalPattern: { available: false, present: false } },
+  }];
+  readings.insertReadingRecord({ userId: 'user-a', birthProfileId: 'profile-a', record: snapshot });
+  const detail = await service.getSecureReadingDetail({ principal: principal('subject-a'), readingId: 'reading-timing-periods' });
+  assert.deepEqual(detail.careerTimingPeriods.map((item) => item.startDate), ['2026-11-20T00:00:00.000Z', '2027-01-05T00:00:00.000Z']);
+  assert.equal(detail.careerTimingPeriods[0].evidenceState, 'POSSIBLE_CAREER_ACTIVITY_SIGNAL');
+  assert.equal(JSON.stringify(detail.careerTimingPeriods).match(/private|threshold|rank|score|probability|confidence/i), null);
+  const legacy = await service.getSecureReadingDetail({ principal: principal('subject-a'), readingId: 'reading-a-new' });
+  assert.equal('careerTimingPeriods' in legacy, false);
+});
 test('Career Insight delivery omits absent optional transit and concurrent fields without rejecting the detail DTO', async () => {
   const { service, readings } = setup();
   const insights = [{

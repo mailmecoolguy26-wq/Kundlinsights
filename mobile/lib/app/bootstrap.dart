@@ -8,7 +8,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/config/app_config.dart';
 import '../core/api/api_client.dart';
+import '../core/analytics/analytics.dart';
 import '../core/storage/secure_state_store.dart';
+import '../core/push/push_notification_service.dart';
+import '../core/push/push_notification_api_repository.dart';
 import '../features/auth/auth_controller.dart';
 import '../features/auth/data/auth_api_token_source.dart';
 import '../features/auth/data/supabase_auth_repository.dart';
@@ -54,6 +57,14 @@ import 'app.dart';
 Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
   final config = AppConfig.fromEnvironment();
+
+  if (kDebugMode && config == null) {
+    throw StateError(
+      'TaraVerse mobile configuration is missing. '
+      'Run the app with ./scripts/run-mobile-dev.sh so SUPABASE_URL, '
+      'SUPABASE_ANON_KEY, and API_BASE_URL are provided.',
+    );
+  }
   final AuthRepository repository;
   final BirthProfileRepository profileRepository;
   final NatalSummaryRepository natalSummaryRepository;
@@ -66,6 +77,7 @@ Future<void> bootstrap() async {
   final CareerEventRepository careerEventRepository;
   final PaymentApiClient paymentApi;
   final CareerChatRepository careerChatRepository;
+  FirebasePushNotificationService? pushNotifications;
   final storePurchaseService = AppleStorePurchaseService(
     client: InAppPurchaseStorePurchaseClient(InAppPurchase.instance),
     careerPremiumAnnualAppleProductId:
@@ -121,12 +133,42 @@ Future<void> bootstrap() async {
     careerEventRepository = CareerEventApiRepository(apiClient);
     paymentApi = AuthenticatedPaymentApiClient(apiClient);
     careerChatRepository = CareerChatApiRepository(apiClient);
+    pushNotifications = FirebasePushNotificationService(
+      store: const SecureStateStore(),
+      api: PushNotificationApiRepository(apiClient),
+    );
   }
-  final controller = AuthController(repository);
+  final analytics = Analytics(const NoopAnalyticsProvider());
+  final controller = AuthController(
+    repository,
+    analytics: analytics,
+    beforeLogout: () async {
+      try {
+        await pushNotifications?.logout();
+      } catch (_) {}
+    },
+  );
   await controller.restore();
+  // Firebase and registration are best-effort: neither may block sign-in or app startup.
+  if (pushNotifications != null && await pushNotifications.initialize()) {
+    await pushNotifications.captureInitialMessage();
+    if (controller.state.status == AuthStatus.authenticated) {
+      try {
+        await pushNotifications.registerAuthenticatedUser();
+      } catch (_) {}
+    }
+    controller.addListener(() async {
+      if (controller.state.status == AuthStatus.authenticated) {
+        try {
+          await pushNotifications?.registerAuthenticatedUser();
+        } catch (_) {}
+      }
+    });
+  }
   runApp(
     ProviderScope(
       overrides: [
+        analyticsProvider.overrideWithValue(analytics),
         secureStateStoreProvider.overrideWithValue(const SecureStateStore()),
         birthProfileRepositoryProvider.overrideWithValue(profileRepository),
         natalSummaryRepositoryProvider.overrideWithValue(
@@ -159,7 +201,10 @@ Future<void> bootstrap() async {
         paymentApiClientProvider.overrideWithValue(paymentApi),
         careerChatRepositoryProvider.overrideWithValue(careerChatRepository),
       ],
-      child: KundlInsightsApp(authController: controller),
+      child: KundlInsightsApp(
+        authController: controller,
+        pushNotifications: pushNotifications,
+      ),
     ),
   );
 }

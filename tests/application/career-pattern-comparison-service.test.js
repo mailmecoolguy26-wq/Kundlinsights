@@ -175,3 +175,15 @@ test('calls the internal P2 snapshot service exactly once for every selected eve
   const comparison = new CareerPatternComparisonService({ careerEventService: { async list() { return events; } }, careerEventAstrologyService: { async get({ eventId }) { counts.set(eventId, (counts.get(eventId) || 0) + 1); return snapshot(eventId); } } }); await comparison.get({ principal: {}, birthProfileId: 'p' });
   assert.deepEqual([...counts.entries()].sort(), events.map((item) => [item.careerEventId, 1]));
 });
+
+test('compares OFFER and JOINING as one transition: shared MD/AD may recur while a changed PD remains factual only', async () => {
+  const multi = (id) => ({ ...snapshot(id), observations: [
+    { observationType: 'OFFER', eventDate: { precision: 'DAY', year: 2014, month: 5, day: 5 }, temporalCoverage: { from: '2014-05-05T00:00:00.000Z', to: '2014-05-06T00:00:00.000Z' }, dashaIntervals: [{ from: '2014-05-05T00:00:00.000Z', to: '2014-05-06T00:00:00.000Z', mahadasha: { lord: 'Saturn' }, antardasha: { lord: 'Sun' }, pratyantardasha: { lord: 'Saturn' } }], transitCoverage: { bodies: [] } },
+    { observationType: 'JOINING', eventDate: { precision: 'DAY', year: 2014, month: 6, day: 5 }, temporalCoverage: { from: '2014-06-05T00:00:00.000Z', to: '2014-06-06T00:00:00.000Z' }, dashaIntervals: [{ from: '2014-06-05T00:00:00.000Z', to: '2014-06-06T00:00:00.000Z', mahadasha: { lord: 'Saturn' }, antardasha: { lord: 'Sun' }, pratyantardasha: { lord: 'Mercury' } }], transitCoverage: { bodies: [] } },
+  ] });
+  const events = [event('a', 1, 'MONTH', 'JOB_SWITCH'), event('b', 2, 'MONTH', 'JOB_SWITCH')]; const result = await service(events, { a: multi('a'), b: multi('b') }).get({ principal: {}, birthProfileId: 'p' }); const context = result.comparisonContexts[0];
+  assert.ok(find(result, 'DASHA_MD|Saturn')); assert.ok(find(result, 'DASHA_AD|Sun')); assert.equal(find(result, 'DASHA_PD|Saturn'), undefined); assert.equal(find(result, 'DASHA_PD|Mercury'), undefined);
+  assert.equal(context.eventAnalyses.length, 2); assert.deepEqual(context.eventAnalyses[0].observations.map((item) => item.observationType), ['OFFER', 'JOINING']); assert.ok(context.eventAnalyses[0].changedFeatures.some((item) => item.id === 'DASHA_PD'));
+  assert.equal(result.provenance.evidenceKind, 'HISTORICAL_RECURRENCE_EVIDENCE');
+  assert.equal(JSON.stringify(result).match(/prediction|favorable|unfavorable|probability|confidence/i), null);
+});

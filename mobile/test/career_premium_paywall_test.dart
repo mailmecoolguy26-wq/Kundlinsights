@@ -10,10 +10,73 @@ import 'package:kundlinsights_mobile/features/payments/data/razorpay_purchase_se
 import 'package:kundlinsights_mobile/features/payments/razorpay_career_premium_controller.dart';
 import 'package:kundlinsights_mobile/features/readings/career_reading_generation_controller.dart';
 import 'package:kundlinsights_mobile/features/payments/presentation/career_premium_paywall.dart';
+import 'package:kundlinsights_mobile/core/analytics/analytics.dart';
 
 const _productId = 'com.kundlinsights.career.premium.annual';
 
 void main() {
+  testWidgets('emits one privacy-safe paywall view per visible instance', (
+    tester,
+  ) async {
+    final controller = _controller();
+    await controller.load();
+    final provider = _AnalyticsProvider();
+    final paywall = CareerPremiumPaywall(
+      productController: controller,
+      hasAccess: false,
+      onSubscribePressed: () {},
+      onContinuePressed: () {},
+      razorpayProfileId: 'opaque-profile',
+      analytics: Analytics(provider),
+    );
+    await tester.pumpWidget(_app(paywall));
+    await tester.pumpWidget(_app(paywall));
+    expect(provider.events, hasLength(1));
+    expect(provider.events.single.$1, 'career_paywall_viewed');
+    expect(provider.events.single.$2, {
+      'birth_profile_id': 'opaque-profile',
+      'screen': 'career_paywall',
+    });
+    controller.dispose();
+  });
+
+  testWidgets(
+    'records the authoritative viewed callback once per paywall instance',
+    (tester) async {
+      final controller = _controller();
+      await controller.load();
+      final seen = <String>[];
+      final paywall = CareerPremiumPaywall(
+        productController: controller,
+        hasAccess: false,
+        onSubscribePressed: () {},
+        onContinuePressed: () {},
+        razorpayProfileId: 'profile-a',
+        onPaywallDisplayed: (id) async => seen.add(id),
+      );
+      await tester.pumpWidget(_app(paywall));
+      await tester.pump();
+      await tester.pumpWidget(_app(paywall));
+      expect(seen, ['profile-a']);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(
+        _app(
+          CareerPremiumPaywall(
+            productController: controller,
+            hasAccess: false,
+            onSubscribePressed: () {},
+            onContinuePressed: () {},
+            razorpayProfileId: 'profile-a',
+            onPaywallDisplayed: (id) async => seen.add(id),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(seen, ['profile-a', 'profile-a']);
+      controller.dispose();
+    },
+  );
+
   testWidgets('shows StoreKit price and invokes only the subscribe callback', (
     tester,
   ) async {
@@ -516,6 +579,14 @@ void main() {
     razorpay.dispose();
     product.dispose();
   });
+}
+
+class _AnalyticsProvider implements AnalyticsProvider {
+  final events = <(String, Map<String, Object?>)>[];
+  @override
+  Future<void> track(String eventName, Map<String, Object?> properties) async {
+    events.add((eventName, properties));
+  }
 }
 
 Widget _app(Widget child) => MaterialApp(home: Scaffold(body: child));

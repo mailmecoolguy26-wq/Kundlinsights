@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "74095519475",
+    "project_id": "taraverse-2506c",
+    "storage_bucket": "taraverse-2506c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:74095519475:android:5779ca202009801e6d3986",
+        "android_client_info": {
+          "package_name": "com.kundlinsights.kundlinsights_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA-KRJd7YjftkyeBE3_8nezbT9qakVPlI4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

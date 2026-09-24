@@ -132,6 +132,7 @@ class ReadingDetail extends ReadingSummary {
     this.careerD10Corroboration,
     this.careerAshtakavargaCorroboration,
     this.careerEvidenceSynthesis,
+    this.careerTimingPeriods,
     this.insights = const [],
   });
 
@@ -143,6 +144,7 @@ class ReadingDetail extends ReadingSummary {
   final CareerD10Corroboration? careerD10Corroboration;
   final CareerAshtakavargaCorroboration? careerAshtakavargaCorroboration;
   final CareerEvidenceSynthesis? careerEvidenceSynthesis;
+  final List<CareerTimingPeriod>? careerTimingPeriods;
   final List<CareerInsight> insights;
 
   factory ReadingDetail.fromJson(Map<String, dynamic> json) {
@@ -152,6 +154,7 @@ class ReadingDetail extends ReadingSummary {
     }
     final calibratedContent = json['calibratedContent'];
     final rawInsights = json['insights'];
+    final rawCareerTimingPeriods = json['careerTimingPeriods'];
     if (calibratedContent != null &&
         calibratedContent is! Map<String, dynamic>) {
       throw const FormatException('Malformed calibrated reading content.');
@@ -163,6 +166,14 @@ class ReadingDetail extends ReadingSummary {
               .whereType<CareerInsight>()
               .toList(growable: false)
         : const <CareerInsight>[];
+    if (rawCareerTimingPeriods != null && rawCareerTimingPeriods is! List) {
+      throw const FormatException('Malformed Career timing periods.');
+    }
+    final careerTimingPeriods = rawCareerTimingPeriods
+        ?.whereType<Map<String, dynamic>>()
+        .map(CareerTimingPeriod.tryFromJson)
+        .whereType<CareerTimingPeriod>()
+        .toList(growable: false);
     final summary = ReadingSummary.fromJson(json);
     return ReadingDetail(
       readingId: summary.readingId,
@@ -195,7 +206,100 @@ class ReadingDetail extends ReadingSummary {
       careerEvidenceSynthesis: CareerEvidenceSynthesis.tryFromJson(
         json['careerEvidenceSynthesis'],
       ),
+      careerTimingPeriods: careerTimingPeriods == null
+          ? null
+          : List<CareerTimingPeriod>.unmodifiable(careerTimingPeriods),
       insights: List<CareerInsight>.unmodifiable(insights),
+    );
+  }
+}
+
+/// A server-calculated, non-predictive Career timing signal. Flutter only
+/// displays this packet and never derives labels, dates, or astrology facts.
+class CareerTimingPeriod {
+  const CareerTimingPeriod({
+    required this.startDate,
+    required this.endDate,
+    required this.evidenceState,
+    required this.headline,
+    required this.summary,
+    required this.whyItems,
+    required this.whatThisCanMean,
+    required this.professionalDirection,
+    this.recurrenceSummary,
+    required this.technicalDetails,
+    required this.disclosure,
+    required this.sourceRuleVersion,
+    required this.longWindow,
+  });
+
+  static const _states = {
+    'POSSIBLE_CAREER_ACTIVITY_SIGNAL',
+    'ASTROLOGICALLY_SUPPORTIVE_PERIOD',
+    'MULTIPLE_TIMING_FACTORS_CONVERGE',
+  };
+
+  final String startDate;
+  final String endDate;
+  final String evidenceState;
+  final String headline;
+  final String summary;
+  final List<String> whyItems;
+  final String whatThisCanMean;
+  final String professionalDirection;
+  final String? recurrenceSummary;
+  final Map<String, dynamic> technicalDetails;
+  final String disclosure;
+  final String sourceRuleVersion;
+  final bool longWindow;
+
+  static CareerTimingPeriod? tryFromJson(Map<String, dynamic> json) {
+    final startDate = _optionalTimestamp(json['startDate']);
+    final endDate = _optionalTimestamp(json['endDate']);
+    final state = json['evidenceState'];
+    final details = json['technicalDetails'];
+    if (startDate == null ||
+        endDate == null ||
+        DateTime.parse(startDate).isAfter(DateTime.parse(endDate)) ||
+        state is! String ||
+        !_states.contains(state) ||
+        details is! Map<String, dynamic>) {
+      return null;
+    }
+    final headline = json['headline'];
+    final summary = json['summary'];
+    final whatThisCanMean = json['whatThisCanMean'];
+    final professionalDirection = json['professionalDirection'];
+    final disclosure = json['disclosure'];
+    final sourceRuleVersion = json['sourceRuleVersion'];
+    if ([
+      headline,
+      summary,
+      whatThisCanMean,
+      professionalDirection,
+      disclosure,
+      sourceRuleVersion,
+    ].any((value) => value is! String || value.isEmpty)) {
+      return null;
+    }
+    return CareerTimingPeriod(
+      startDate: startDate,
+      endDate: endDate,
+      evidenceState: state,
+      headline: headline as String,
+      summary: summary as String,
+      whyItems: List<String>.unmodifiable(
+        (json['whyItems'] as List? ?? const []).whereType<String>(),
+      ),
+      whatThisCanMean: whatThisCanMean as String,
+      professionalDirection: professionalDirection as String,
+      recurrenceSummary: json['recurrenceSummary'] is String
+          ? json['recurrenceSummary'] as String
+          : null,
+      technicalDetails: Map<String, dynamic>.unmodifiable(details),
+      disclosure: disclosure as String,
+      sourceRuleVersion: sourceRuleVersion as String,
+      longWindow: json['longWindow'] == true,
     );
   }
 }

@@ -23,24 +23,46 @@ const POLICY = Object.freeze({
 });
 function normalized(text) { return String(text || '').trim().replace(/\s+/g, ' ').toLowerCase(); }
 function horizon(text) { const match = text.match(/(?:next|agle?)\s*(\d+)\s*(day|days|month|months|mahine|din)/i) || text.match(/(\d+)\s*(day|days|month|months|mahine|din)/i); if (!match) return { unit: null, value: null }; const unit = /month|mahine/i.test(match[2]) ? 'MONTHS' : 'DAYS'; return { unit, value: Number(match[1]) }; }
+function followUpKind(text) {
+  if (/^(why\??|why are you saying that\??|kyu[n]?\??|aisa kyu[n]?\??)$/.test(text)) return 'EXPLANATION';
+  if (/after this period|after that|what about next year|agle saal|is period ke baad/.test(text)) return 'NEXT_PERIOD';
+  if (/which planets?|kaun se planets?|because of my dasha|dasha ki wajah/.test(text)) return 'EVIDENCE_EXPLANATION';
+  if (/what about (the )?(timing|period)|timing ka kya/.test(text)) return 'TIMING_CONTINUATION';
+  return null;
+}
+function completedPriorTurn(context) {
+  if (!Array.isArray(context) || context.length < 2) return null;
+  const assistant = context.at(-1); const user = context.at(-2);
+  if (!assistant || !user || assistant.role !== 'ASSISTANT' || user.role !== 'USER') return null;
+  const prior = classifyCareerIntent({ userText: user.text, conversationContext: [] });
+  if ([INTENTS.NEEDS_CLARIFICATION, INTENTS.UNSUPPORTED_DOMAIN, INTENTS.UNSUPPORTED_CAREER_QUESTION].includes(prior.intent)) return null;
+  return prior;
+}
 function classifyCareerIntent({ userText, conversationContext = [] } = {}) {
-  const text = normalized(userText); const event = /job chali|job loss|lost my job|laid off|laid-off|fired/.test(text) ? 'JOB_LOSS' : null;
+  const context = Array.isArray(conversationContext) ? conversationContext.map((item) => ({ role: item.role, text: item.text })).filter((item) => ['USER', 'ASSISTANT'].includes(item.role) && typeof item.text === 'string').slice(-8) : [];
+  const text = normalized(userText); let event = /job chali|job loss|lost my job|laid off|laid-off|fired/.test(text) ? 'JOB_LOSS' : null;
   let intent = INTENTS.NEEDS_CLARIFICATION;
   if (!text) intent = INTENTS.NEEDS_CLARIFICATION;
   else if (/marriage|pregnan|health|medical|death|legal|gambl/.test(text)) intent = INTENTS.UNSUPPORTED_DOMAIN;
-  else if (/business.*job|job.*business/.test(text)) intent = INTENTS.BUSINESS_VS_JOB;
-  else if (/politics|boss|office.*issue|workplace pressure/.test(text)) intent = INTENTS.WORKPLACE_PRESSURE;
-  else if (/promotion/.test(text)) intent = INTENTS.PROMOTION_TIMING;
+  else if (/business.*job|job.*business|business start|start a business/.test(text)) intent = INTENTS.BUSINESS_VS_JOB;
+  else if (/politics|boss|manager|office.*issue|workplace pressure/.test(text)) intent = INTENTS.WORKPLACE_PRESSURE;
+  else if (/promotion|promoted/.test(text)) intent = INTENTS.PROMOTION_TIMING;
   else if (/salary|increment|pay raise/.test(text)) intent = INTENTS.SALARY_GROWTH_TIMING;
   else if (/role change|new responsibility/.test(text)) intent = INTENTS.ROLE_CHANGE_TIMING;
-  else if (/switch jobs?|change jobs?/.test(text)) intent = INTENTS.JOB_SWITCH_TIMING;
+  else if (/switch jobs?|change jobs?|change companies/.test(text)) intent = INTENTS.JOB_SWITCH_TIMING;
   else if (/next\s*(\d+)?\s*(day|month)|agle?\s*\d+|career timing/.test(text)) intent = INTENTS.CAREER_TIMING_WINDOW;
-  else if (/new job|next job|job kab|job milegi|job mil/.test(text)) intent = INTENTS.NEXT_JOB_TIMING;
+  else if (/new job|next job|next role|job kab|job milegi|job mil/.test(text)) intent = INTENTS.NEXT_JOB_TIMING;
   else if (/^job\??$/.test(text)) intent = INTENTS.NEEDS_CLARIFICATION;
   else if (/kya chal raha|how.*career|career.*now/.test(text)) intent = INTENTS.CAREER_STATUS;
   else if (/uncertain|samajh nahi|unstable|what.*career.*do/.test(text)) intent = INTENTS.CAREER_UNCERTAINTY;
   else intent = INTENTS.UNSUPPORTED_CAREER_QUESTION;
-  return Object.freeze({ domain: DOMAIN, intent, userText: String(userText || ''), normalizedQuestion: text, referencedEvent: event, requestedHorizon: horizon(text), conversationContext: Array.isArray(conversationContext) ? conversationContext.map((item) => ({ role: item.role, text: item.text })).filter((item) => ['USER', 'ASSISTANT'].includes(item.role) && typeof item.text === 'string').slice(-8) : [], clarificationNeeded: intent === INTENTS.NEEDS_CLARIFICATION });
+  const contextualFollowUp = followUpKind(text);
+  if (contextualFollowUp && [INTENTS.NEEDS_CLARIFICATION, INTENTS.UNSUPPORTED_CAREER_QUESTION].includes(intent)) {
+    const prior = completedPriorTurn(context);
+    if (prior) { intent = prior.intent; event = prior.referencedEvent; }
+    else return Object.freeze({ domain: DOMAIN, intent: INTENTS.NEEDS_CLARIFICATION, userText: String(userText || ''), normalizedQuestion: text, referencedEvent: null, requestedHorizon: horizon(text), conversationContext: context, clarificationNeeded: true, contextualFollowUp: null });
+  }
+  return Object.freeze({ domain: DOMAIN, intent, userText: String(userText || ''), normalizedQuestion: text, referencedEvent: event, requestedHorizon: horizon(text), conversationContext: context, clarificationNeeded: intent === INTENTS.NEEDS_CLARIFICATION, contextualFollowUp: contextualFollowUp && intent !== INTENTS.NEEDS_CLARIFICATION ? contextualFollowUp : null });
 }
 function policyFor(intent) { return POLICY[intent] || { required: [], optional: [], unsupported: COMMON_PROHIBITIONS, answerability: ANSWERABILITY.UNSUPPORTED }; }
 function buildEvidencePacket({ birthProfileId, intent, careerReading = null } = {}) {

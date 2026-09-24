@@ -29,13 +29,16 @@ function dtoReadingDetail(reading) {
     ...(reading.careerEvidenceSynthesis === undefined ? {} : {
       careerEvidenceSynthesis: reading.careerEvidenceSynthesis,
     }),
+    ...(reading.careerTimingPeriods === undefined ? {} : {
+      careerTimingPeriods: reading.careerTimingPeriods,
+    }),
     ...(reading.insights === undefined ? {} : {
       insights: reading.insights,
     }),
   };
 }
 
-function createApi({ authVerifier, userResolver, birthProfileService, careerEventService = null, careerEventAstrologyService = null, natalSummaryService = null, divisionalChartService = null, vimshottariService = null, transitSnapshotService = null, ashtakavargaService = null, secureReadingService, careerChatOrchestrator = null, purchaseService = null, razorpayPaymentService = null, appleNotificationService = null, googleRtdnService = null, placeResolutionService = null, entitlementService, requestIdGenerator = crypto.randomUUID, corsAllowlist = [], isReady = () => true, logger = false, bodyLimit = 16 * 1024 } = {}) {
+function createApi({ authVerifier, userResolver, birthProfileService, careerEventService = null, careerEventAstrologyService = null, natalSummaryService = null, divisionalChartService = null, vimshottariService = null, transitSnapshotService = null, ashtakavargaService = null, secureReadingService, careerChatOrchestrator = null, purchaseService = null, razorpayPaymentService = null, appleNotificationService = null, googleRtdnService = null, notificationSelfService = null, placeResolutionService = null, entitlementService, requestIdGenerator = crypto.randomUUID, corsAllowlist = [], isReady = () => true, logger = false, bodyLimit = 16 * 1024 } = {}) {
   required(authVerifier, 'AUTH_VERIFIER'); if (typeof authVerifier.verifyRequest !== 'function') throw new TypeError('INVALID_AUTH_VERIFIER'); required(userResolver, 'USER_RESOLVER'); required(birthProfileService, 'BIRTH_PROFILE_SERVICE'); required(secureReadingService, 'SECURE_READING_SERVICE');
   if (!Array.isArray(corsAllowlist) || !corsAllowlist.every((origin) => typeof origin === 'string' && origin.startsWith('https://') && !origin.includes('*')) || typeof isReady !== 'function' || !Number.isInteger(bodyLimit) || bodyLimit < 1024 || bodyLimit > 16 * 1024) throw new TypeError('INVALID_API_RUNTIME_OPTIONS');
   const app = Fastify({ logger, bodyLimit, requestIdHeader: 'x-request-id', genReqId: () => requestIdGenerator() });
@@ -53,6 +56,16 @@ function createApi({ authVerifier, userResolver, birthProfileService, careerEven
     if (typeof secureReadingService.getReadingEntitlementStatus !== 'function') throw new TypeError('INVALID_SECURE_READING_SERVICE');
     return { entitlements: await secureReadingService.getReadingEntitlementStatus({ principal: request.principal, birthProfileId: id(request.query && request.query.birthProfileId, 'BIRTH_PROFILE_ID') }), requestId: request.id };
   });
+  if (notificationSelfService) {
+    const publicDevice = (device) => ({ id: device.id, deviceId: device.deviceId, platform: device.platform, pushProvider: device.pushProvider, notificationsEnabled: device.notificationsEnabled, revokedAt: device.revokedAt });
+    app.post('/v1/me/devices', async (request) => ({ device: publicDevice(await notificationSelfService.register({ principal: request.principal, body: request.body || {} })), requestId: request.id }));
+    app.post('/v1/me/devices/revoke', async (request) => ({ device: publicDevice(await notificationSelfService.revoke({ principal: request.principal, deviceId: id((request.body || {}).deviceId, 'DEVICE_ID') })), requestId: request.id }));
+    app.get('/v1/me/notification-preferences', async (request) => ({ preferences: await notificationSelfService.preferences({ principal: request.principal }), requestId: request.id }));
+    app.patch('/v1/me/notification-preferences', async (request) => ({ preferences: await notificationSelfService.preferences({ principal: request.principal, patch: request.body || {} }), requestId: request.id }));
+    app.post('/v1/me/notification-activity', async (request) => { await notificationSelfService.activity({ principal: request.principal, kind: 'active' }); return { requestId: request.id }; });
+    app.post('/v1/readings/:id/viewed', async (request) => { await notificationSelfService.activity({ principal: request.principal, kind: 'reading', resourceId: id(request.params.id, 'READING_ID') }); return { requestId: request.id }; });
+    app.post('/v1/birth-profiles/:id/career-paywall-viewed', async (request) => { await notificationSelfService.activity({ principal: request.principal, kind: 'paywall', resourceId: id(request.params.id, 'BIRTH_PROFILE_ID') }); return { requestId: request.id }; });
+  }
   if (purchaseService) {
     app.post('/v1/purchases/verify', async (request) => ({ ...await purchaseService.verify({ principal: request.principal, body: request.body || {} }), requestId: request.id }));
     app.post('/v1/purchases/restore', async (request) => ({ ...await purchaseService.restore({ principal: request.principal, body: request.body || {} }), requestId: request.id }));

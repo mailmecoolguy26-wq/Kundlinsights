@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/analytics/analytics.dart';
 import '../auth/auth_controller.dart';
 import '../auth/domain/auth_repository.dart';
 import 'domain/birth_profile.dart';
@@ -9,13 +10,15 @@ import 'domain/birth_profile_repository.dart';
 enum ProfileLoadState { loading, refreshing, ready, error }
 
 class ProfileController extends ChangeNotifier {
-  ProfileController(this.repository, this._auth) {
+  ProfileController(this.repository, this._auth, {Analytics? analytics})
+    : _analytics = analytics ?? Analytics(const NoopAnalyticsProvider()) {
     _auth.addListener(_onAuthChanged);
     _onAuthChanged();
   }
 
   final BirthProfileRepository repository;
   final AuthController _auth;
+  final Analytics _analytics;
   ProfileLoadState _state = ProfileLoadState.loading;
   List<BirthProfile> _profiles = const [];
   BirthProfile? _activeProfile;
@@ -88,6 +91,10 @@ class ProfileController extends ChangeNotifier {
     _profiles = List.unmodifiable([..._profiles, created]);
     _activeProfile = created;
     _state = ProfileLoadState.ready;
+    _analytics.track(AnalyticsEvent.birthProfileCreated, {
+      'birth_profile_id': created.id,
+      'source': 'birth_profile',
+    });
     notifyListeners();
     return created;
   }
@@ -141,6 +148,7 @@ final profileControllerProvider =
       final controller = ProfileController(
         ref.watch(birthProfileRepositoryProvider),
         auth,
+        analytics: ref.watch(analyticsProvider),
       );
       ref.onDispose(controller.dispose);
       return controller;

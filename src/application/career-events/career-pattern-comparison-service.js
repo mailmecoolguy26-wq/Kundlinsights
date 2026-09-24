@@ -68,6 +68,20 @@ function transitFacts(snapshot, event) {
   }
   return out;
 }
+function observationSnapshots(snapshot, event) {
+  return Array.isArray(snapshot.observations) && snapshot.observations.length
+    ? snapshot.observations.map((item) => ({ ...item, eventDate: item.eventDate || { precision: item.sourcePrecision } }))
+    : [{ ...snapshot, eventDate: event.eventDate }];
+}
+function factualEventAnalysis(snapshot, event) {
+  const observations = observationSnapshots(snapshot, event);
+  const key = (fact) => JSON.stringify([fact.id, fact.values]);
+  const groups = observations.map((item) => [...dashaFacts(item, { eventDate: item.eventDate }), ...transitFacts(item, { eventDate: item.eventDate })].filter((fact) => fact.values && fact.qualifier !== 'NOT_COMPARABLE' && fact.qualifier !== 'CHANGED'));
+  const all = new Map(groups.flat().map((fact) => [key(fact), fact]));
+  const commonFeatures = [...all.entries()].filter(([candidate]) => groups.every((group) => group.some((fact) => key(fact) === candidate))).map(([, fact]) => fact).sort((left, right) => left.id.localeCompare(right.id) || canonical(left.values).localeCompare(canonical(right.values)));
+  const changedFeatures = [...all.entries()].filter(([candidate]) => !groups.every((group) => group.some((fact) => key(fact) === candidate))).map(([, fact]) => fact).sort((left, right) => left.id.localeCompare(right.id) || canonical(left.values).localeCompare(canonical(right.values)));
+  return { careerEventId: event.careerEventId, eventType: event.eventType, observations: observations.map((item) => ({ observationType: item.observationType || 'EVENT_DATE', eventDate: item.eventDate, temporalCoverage: item.temporalCoverage })).sort((left, right) => `${left.temporalCoverage.from}|${left.observationType}`.localeCompare(`${right.temporalCoverage.from}|${right.observationType}`)), commonFeatures, changedFeatures };
+}
 function context(snapshot) {
   const p = snapshot.provenance || {}; const provider = p.provider || {};
   const value = { engineProfileId: p.engineProfileId, engineProfileVersion: p.engineProfileVersion, ayanamshaSystem: p.ayanamshaSystem, nodePolicy: p.nodePolicy, dashaRulesetId: p.dashaRulesetId, provider: provider.provider || provider.providerId || null, providerVersion: provider.providerVersion || null, ephemerisVersion: provider.ephemerisVersion || null, calculationStatus: p.calculationStatus };
@@ -85,7 +99,9 @@ class CareerPatternComparisonService {
     for (const pair of pairs) { const c = context(pair.snapshot); if (!contexts.has(c.contextKey)) contexts.set(c.contextKey, { ...c, pairs: [] }); contexts.get(c.contextKey).pairs.push(pair); }
     const comparisonContexts = [...contexts.values()].sort((a, b) => a.contextKey.localeCompare(b.contextKey)).map((group) => {
       const candidates = new Map();
-      for (const pair of group.pairs) for (const fact of [...dashaFacts(pair.snapshot, pair.event), ...transitFacts(pair.snapshot, pair.event)]) {
+      const analyzedPairs = group.pairs.map((pair) => ({ pair, analysis: factualEventAnalysis(pair.snapshot, pair.event) }));
+      const eventAnalyses = analyzedPairs.map((item) => item.analysis);
+      for (const { pair, analysis } of analyzedPairs) for (const fact of analysis.commonFeatures) {
         if (!fact.values || fact.qualifier === 'NOT_COMPARABLE' || fact.qualifier === 'CHANGED') continue;
         const patternKey = key(fact.id, fact.values); if (!candidates.has(patternKey)) candidates.set(patternKey, { fact, evidence: [], eligible: 0 });
         const candidate = candidates.get(patternKey); candidate.eligible += 1; candidate.evidence.push({ careerEventId: pair.event.careerEventId, eventType: pair.event.eventType, sourcePrecision: pair.event.eventDate.precision, qualifier: fact.qualifier, sourceFacts: fact.sourceFacts });
@@ -94,10 +110,10 @@ class CareerPatternComparisonService {
         const rule = REGISTRY.get(candidate.fact.id); const matched = candidate.evidence.length; const eligible = group.pairs.filter((pair) => rule.precisions.includes(pair.event.eventDate.precision) && !(candidate.fact.id === 'TRANSIT_EVENT' && FAST_BODIES.includes(candidate.fact.values[0]) && pair.event.eventDate.precision !== 'DAY')).length;
         return { patternKey, category: rule.category, primary: candidate.fact.primary !== false, dimensions: candidate.fact.values, matchedEventCount: matched, eligibleEventCount: eligible, totalEventCount: events.length, recurrenceRate: matched / eligible, eventEvidence: candidate.evidence };
       }).filter((x) => x.matchedEventCount >= 2 && x.recurrenceRate >= 0.5).sort((a, b) => a.category.localeCompare(b.category) || a.patternKey.localeCompare(b.patternKey));
-      return { contextKey: group.contextKey, eligibleEventCount: group.pairs.length, contextMetadata: group.metadata, patterns };
+      return { contextKey: group.contextKey, eligibleEventCount: group.pairs.length, contextMetadata: group.metadata, eventAnalyses, patterns };
     });
     const cohorts = [...new Map(events.map((event) => [event.eventType, 0])).keys()].sort().map((eventType) => ({ eventType, eventCount: events.filter((event) => event.eventType === eventType).length }));
-    return immutableCopy({ birthProfileId, analyzedEventCount: events.length, eventTypeCohorts: cohorts, comparisonContexts, provenance: { rulesetId: RULESET_ID } });
+    return immutableCopy({ birthProfileId, analyzedEventCount: events.length, eventTypeCohorts: cohorts, comparisonContexts, provenance: { rulesetId: RULESET_ID, evidenceKind: 'HISTORICAL_RECURRENCE_EVIDENCE' } });
   }
 }
 module.exports = { CareerPatternComparisonService, RULESET_ID, QUALIFIERS, DIMENSION_REGISTRY, PRIMARY_BODIES, FAST_BODIES };

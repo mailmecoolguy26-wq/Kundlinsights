@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../core/analytics/analytics.dart';
 import '../readings/career_reading_generation_controller.dart';
 import 'data/payment_api_client.dart';
 import 'data/razorpay_purchase_service.dart';
@@ -22,10 +23,12 @@ class RazorpayCareerPremiumController extends ChangeNotifier {
     required this.api,
     required this.checkout,
     required this.entitlements,
-  });
+    Analytics? analytics,
+  }) : _analytics = analytics ?? Analytics(const NoopAnalyticsProvider());
   final PaymentApiClient api;
   final RazorpayCheckout checkout;
   final CareerPremiumEntitlementRefresher entitlements;
+  final Analytics _analytics;
   final Map<String, _RazorpayProfileSession> _sessions = {};
   bool _disposed = false;
   // Temporary presentation compatibility; PASS 2 must use stateFor(profile).
@@ -105,6 +108,12 @@ class RazorpayCareerPremiumController extends ChangeNotifier {
       return;
     }
     _set(session, RazorpayCareerPremiumState.creatingOrder);
+    session.purchaseAttemptActive = true;
+    _analytics.track(AnalyticsEvent.purchaseStarted, {
+      'sku': 'career_premium_annual',
+      'payment_provider': 'razorpay',
+      'product_type': 'career_premium',
+    });
     try {
       final result = await api.createRazorpayOrder(
         logicalSku: 'career_premium_annual',
@@ -133,6 +142,7 @@ class RazorpayCareerPremiumController extends ChangeNotifier {
     } on RazorpayCheckoutCancelled {
       // The checkout exited before any payment evidence was delivered.
       _set(session, RazorpayCareerPremiumState.definitiveFailure);
+      _trackFailure(session, 'cancelled');
     } catch (_) {
       // A checkout may have completed when delivery/verification fails. Never
       // offer a new charge until authoritative recovery says it is safe.
@@ -142,6 +152,7 @@ class RazorpayCareerPremiumController extends ChangeNotifier {
             ? RazorpayCareerPremiumState.definitiveFailure
             : RazorpayCareerPremiumState.paymentStatusUnknown,
       );
+      _trackFailure(session, 'verification_failed');
     }
   }
 
@@ -218,6 +229,16 @@ class RazorpayCareerPremiumController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _trackFailure(_RazorpayProfileSession session, String category) {
+    if (!session.purchaseAttemptActive) return;
+    session.purchaseAttemptActive = false;
+    _analytics.track(AnalyticsEvent.purchaseFailed, {
+      'failure_category': category,
+      'payment_provider': 'razorpay',
+      'product_type': 'career_premium',
+    });
+  }
+
   @override
   void dispose() {
     if (_disposed) return;
@@ -230,4 +251,5 @@ class RazorpayCareerPremiumController extends ChangeNotifier {
 class _RazorpayProfileSession {
   RazorpayCareerPremiumState state = RazorpayCareerPremiumState.idle;
   String? orderId;
+  bool purchaseAttemptActive = false;
 }

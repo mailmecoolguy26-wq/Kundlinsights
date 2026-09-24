@@ -11,6 +11,7 @@ import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile_repo
 import 'package:kundlinsights_mobile/features/profiles/profile_controller.dart';
 import 'package:kundlinsights_mobile/features/readings/career_explanation_language.dart';
 import 'package:kundlinsights_mobile/l10n/app_localizations.dart';
+import 'package:kundlinsights_mobile/core/push/push_notification_service.dart';
 
 void main() {
   late _AuthRepository authRepository;
@@ -73,12 +74,112 @@ void main() {
     await tester.pump();
     expect(language.language, CareerExplanationLanguage.hinglish);
   });
+
+  testWidgets('renders independent notification preferences and permission', (
+    tester,
+  ) async {
+    final push = _PushRuntime();
+    await tester.pumpWidget(
+      _app(profileController, authController, null, push),
+    );
+    await tester.pump();
+    expect(find.text('Notifications'), findsOneWidget);
+    expect(find.text('Push notifications  ·  Not yet enabled'), findsOneWidget);
+    final switches = tester
+        .widgetList<SwitchListTile>(find.byType(SwitchListTile))
+        .toList();
+    expect(switches.take(3).map((item) => item.value), [true, false, true]);
+  });
+
+  testWidgets('persists each notification preference independently', (
+    tester,
+  ) async {
+    final push = _PushRuntime();
+    await tester.pumpWidget(
+      _app(profileController, authController, null, push),
+    );
+    await tester.pump();
+    final switches = find.byType(Switch);
+    await tester.tap(switches.at(0));
+    await tester.pump();
+    expect(push.updates.last.readingUpdates, isFalse);
+    await tester.tap(switches.at(1));
+    await tester.pump();
+    expect(push.updates.last.careerReminders, isTrue);
+    await tester.tap(switches.at(2));
+    await tester.pump();
+    expect(push.updates.last.offersAndUpdates, isFalse);
+    expect(push.updates, hasLength(3));
+  });
+
+  testWidgets('renders granted and denied permission labels independently', (
+    tester,
+  ) async {
+    final granted = _PushRuntime()..permission = PushPermissionState.granted;
+    await tester.pumpWidget(
+      _app(profileController, authController, null, granted),
+    );
+    await tester.pump();
+    expect(find.textContaining('Enabled'), findsOneWidget);
+    final denied = _PushRuntime()..permission = PushPermissionState.denied;
+    await tester.pumpWidget(
+      _app(profileController, authController, null, denied),
+    );
+    await tester.pump();
+    expect(find.textContaining('Disabled'), findsOneWidget);
+    final values = tester
+        .widgetList<SwitchListTile>(find.byType(SwitchListTile))
+        .take(3)
+        .map((e) => e.value);
+    expect(values, [true, false, true]);
+  });
+
+  testWidgets(
+    'restores a failed preference update and renders safe diagnostics',
+    (tester) async {
+      final push = _PushRuntime()..failUpdates = true;
+      push.tokenAcquired = false;
+      push.registrationSucceeded = true;
+      push.lastPushType = 'TEST_TYPE';
+      push.lastResolvedDestination = 'READING_DETAIL';
+      push.pending = true;
+      await tester.pumpWidget(
+        _app(profileController, authController, null, push),
+      );
+      await tester.pumpAndSettle();
+      final readingUpdates = tester.widget<SwitchListTile>(
+        find.byType(SwitchListTile).at(0),
+      );
+      expect(readingUpdates.value, isTrue);
+      expect(readingUpdates.onChanged, isNotNull);
+      await tester.tap(find.byType(Switch).at(0));
+      await tester.pump();
+      await tester.pump();
+      expect(push.updates.single.readingUpdates, isFalse);
+      expect(
+        tester.widget<SwitchListTile>(find.byType(SwitchListTile).at(0)).value,
+        isTrue,
+      );
+      expect(
+        find.text('Notification settings could not be saved.'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Firebase initialized: true'), findsOneWidget);
+      expect(find.textContaining('FCM token acquired: false'), findsOneWidget);
+      expect(find.textContaining('Backend registration: true'), findsOneWidget);
+      expect(find.textContaining('TEST_TYPE'), findsOneWidget);
+      expect(find.textContaining('READING_DETAIL'), findsOneWidget);
+      expect(find.textContaining('Pending intent: true'), findsOneWidget);
+      expect(find.textContaining('token_'), findsNothing);
+    },
+  );
 }
 
 Widget _app(
   ProfileController profiles,
   AuthController auth, [
   CareerExplanationLanguageController? language,
+  PushRuntime? push,
 ]) {
   final router = GoRouter(
     initialLocation: '/profile',
@@ -89,6 +190,7 @@ Widget _app(
           authController: auth,
           profileController: profiles,
           careerExplanationLanguage: language,
+          pushNotifications: push,
         ),
       ),
       GoRoute(
@@ -103,6 +205,54 @@ Widget _app(
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
   );
+}
+
+class _PushRuntime implements PushRuntime, PushNotificationPreferencesApi {
+  bool failUpdates = false;
+  bool pending = false;
+  PushPermissionState permission = PushPermissionState.notDetermined;
+  PushNotificationPreferences value = const PushNotificationPreferences(
+    readingUpdates: true,
+    careerReminders: false,
+    offersAndUpdates: true,
+  );
+  final updates = <PushNotificationPreferences>[];
+  @override
+  bool initialized = true;
+  @override
+  bool tokenAcquired = false;
+  @override
+  bool registrationSucceeded = false;
+  @override
+  bool get tokenRefreshActive => false;
+  @override
+  String? lastPushType;
+  @override
+  String? lastResolvedDestination;
+  @override
+  bool get hasPendingIntent => pending;
+  @override
+  PushNotificationPreferencesApi? get preferencesApi => this;
+  @override
+  PushNotificationActivityApi? get activityApi => null;
+  @override
+  Future<PushPermissionState> permissionState() async => permission;
+  @override
+  Future<PushPermissionState> requestPermission() async =>
+      PushPermissionState.granted;
+  @override
+  void queueForegroundTap(PushDestinationIntent? intent) {}
+  @override
+  Future<PushNotificationPreferences> getPreferences() async => value;
+  @override
+  Future<PushNotificationPreferences> updatePreferences(
+    PushNotificationPreferences value,
+  ) async {
+    updates.add(value);
+    if (failUpdates) throw StateError('safe failure');
+    this.value = value;
+    return value;
+  }
 }
 
 class _LanguageStorage implements CareerExplanationLanguageStorage {

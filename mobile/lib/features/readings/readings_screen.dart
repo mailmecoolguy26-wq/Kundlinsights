@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../app/theme/app_theme.dart';
+import '../../core/analytics/analytics.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/app_page_scaffold.dart';
@@ -10,6 +12,7 @@ import '../../shared/widgets/states.dart';
 import 'domain/reading.dart';
 import 'reading_controller.dart';
 import 'career_reading_generation_controller.dart';
+import 'career_activity_window_dev_preview.dart';
 import 'career_explanation_language.dart';
 import 'career_reading_presentation_copy.dart';
 import '../payments/career_premium_product_controller.dart';
@@ -26,6 +29,7 @@ class ReadingsScreen extends StatefulWidget {
     this.premiumPurchase,
     this.razorpayPremium,
     this.activeProfileLabel,
+    this.analytics,
   });
   final ReadingController controller;
   final CareerReadingGenerationController? generation;
@@ -33,6 +37,7 @@ class ReadingsScreen extends StatefulWidget {
   final CareerPremiumPurchaseController? premiumPurchase;
   final RazorpayCareerPremiumController? razorpayPremium;
   final String? activeProfileLabel;
+  final Analytics? analytics;
 
   @override
   State<ReadingsScreen> createState() => _ReadingsScreenState();
@@ -44,11 +49,13 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
   String? _dismissedPremiumProfileId;
   String? _lastHydratedProfileId;
   final Set<String> _hydratingProfileIds = {};
+  final Set<String> _careerOpenedProfileIds = {};
 
   @override
   void initState() {
     super.initState();
     widget.generation?.addListener(_onGenerationChanged);
+    _trackCareerOpened();
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _maybeHydrateRazorpay(),
     );
@@ -61,6 +68,7 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
   }
 
   void _onGenerationChanged() {
+    _trackCareerOpened();
     final activeProfileId = widget.generation?.activeBirthProfileId;
     if (activeProfileId != _lastHydratedProfileId) {
       _dismissedPremiumProfileId = null;
@@ -78,6 +86,19 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
       if (mounted) {
         context.pushNamed('reading-detail', pathParameters: {'id': id});
       }
+    });
+  }
+
+  void _trackCareerOpened() {
+    final profileId = widget.generation?.activeBirthProfileId;
+    if (profileId == null ||
+        profileId.isEmpty ||
+        !_careerOpenedProfileIds.add(profileId)) {
+      return;
+    }
+    widget.analytics?.track(AnalyticsEvent.careerOpened, {
+      'birth_profile_id': profileId,
+      'screen': 'readings',
     });
   }
 
@@ -693,11 +714,13 @@ class ReadingDetailScreen extends StatefulWidget {
     required this.controller,
     this.generation,
     this.careerExplanationLanguage,
+    this.onViewed,
     required this.readingId,
   });
   final ReadingController controller;
   final CareerReadingGenerationController? generation;
   final CareerExplanationLanguageController? careerExplanationLanguage;
+  final Future<void> Function(String readingId)? onViewed;
   final String readingId;
 
   @override
@@ -705,12 +728,21 @@ class ReadingDetailScreen extends StatefulWidget {
 }
 
 class _ReadingDetailScreenState extends State<ReadingDetailScreen> {
+  bool _viewRecorded = false;
   @override
   void initState() {
     super.initState();
     if (widget.controller.detail?.readingId == widget.readingId) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) widget.controller.loadDetail(widget.readingId);
+    });
+  }
+
+  void _recordViewWhenDisplayed() {
+    if (_viewRecorded) return;
+    _viewRecorded = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.onViewed?.call(widget.readingId).catchError((_) {});
     });
   }
 
@@ -722,6 +754,7 @@ class _ReadingDetailScreenState extends State<ReadingDetailScreen> {
       final isLoaded =
           widget.controller.detailState == ReadingDetailState.loaded &&
           widget.controller.detail != null;
+      if (isLoaded) _recordViewWhenDisplayed();
       return Scaffold(
         backgroundColor: _CareerReadingColors.midnight,
         appBar: AppBar(
@@ -847,6 +880,17 @@ class _CareerReadingDetail extends StatelessWidget {
                     createdAt: createdAt,
                     hasCalibrationContext: hasCalibrationContext,
                   ),
+                  if (detail.careerTimingPeriods != null) ...[
+                    const SizedBox(height: 22),
+                    _UpcomingCareerTimingSection(
+                      periods: detail.careerTimingPeriods!,
+                      copy: copy,
+                    ),
+                  ],
+                  if (kDebugMode) ...[
+                    const SizedBox(height: 22),
+                    const CareerActivityWindowDevPreviewPanel(),
+                  ],
                   const SizedBox(height: 28),
                   if (insights.isNotEmpty) ...[
                     _CareerInsightExperience(insights: insights, copy: copy),
@@ -1568,6 +1612,215 @@ String _primaryTimingLabel(String family) =>
       'FUTURE_RECURRENCE_WINDOW': 'UPCOMING CAREER TIMING',
     }[family] ??
     'CAREER INSIGHT';
+
+class _UpcomingCareerTimingSection extends StatelessWidget {
+  const _UpcomingCareerTimingSection({
+    required this.periods,
+    required this.copy,
+  });
+
+  final List<CareerTimingPeriod> periods;
+  final CareerReadingPresentationCopy copy;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const _CareerReadingSectionLabel('UPCOMING CAREER TIMING'),
+      const SizedBox(height: 12),
+      if (periods.isEmpty)
+        _CareerTimingEmptyState()
+      else
+        for (final period in periods) ...[
+          _UpcomingCareerTimingCard(period: period, copy: copy),
+          const SizedBox(height: 10),
+        ],
+    ],
+  );
+}
+
+class _CareerTimingEmptyState extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(17),
+    decoration: BoxDecoration(
+      color: _CareerReadingColors.surface,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: _CareerReadingColors.cardBorder),
+    ),
+    child: const Text(
+      'Current timing model abhi kisi concentrated Career activity signal ko identify nahi kar raha.',
+      style: _CareerReadingText.body,
+    ),
+  );
+}
+
+class _UpcomingCareerTimingCard extends StatelessWidget {
+  const _UpcomingCareerTimingCard({required this.period, required this.copy});
+
+  final CareerTimingPeriod period;
+  final CareerReadingPresentationCopy copy;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(17),
+    decoration: BoxDecoration(
+      color: _CareerReadingColors.surface,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: _CareerReadingColors.goldBorder),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _dateRange(period.startDate, period.endDate),
+          style: _CareerReadingText.itemTitle,
+        ),
+        const SizedBox(height: 8),
+        _CareerTimingEvidenceChip(state: period.evidenceState),
+        const SizedBox(height: 12),
+        Text(period.summary, style: _CareerReadingText.body),
+        const SizedBox(height: 14),
+        const Text(
+          'WHY THIS PERIOD STANDS OUT',
+          style: _CareerReadingText.source,
+        ),
+        const SizedBox(height: 6),
+        for (final item in period.whyItems)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 5),
+            child: Text('• $item', style: _CareerReadingText.body),
+          ),
+        const SizedBox(height: 7),
+        const Text('WHAT THIS CAN MEAN', style: _CareerReadingText.source),
+        const SizedBox(height: 5),
+        Text(period.whatThisCanMean, style: _CareerReadingText.body),
+        if (period.recurrenceSummary != null) ...[
+          const SizedBox(height: 12),
+          const Text('PAST PATTERN', style: _CareerReadingText.source),
+          const SizedBox(height: 5),
+          Text(period.recurrenceSummary!, style: _CareerReadingText.body),
+        ],
+        const SizedBox(height: 13),
+        Material(
+          color: Colors.transparent,
+          child: Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: const EdgeInsets.only(bottom: 4),
+              iconColor: _CareerReadingColors.gold,
+              collapsedIconColor: _CareerReadingColors.slate,
+              title: const Text(
+                'See the astrology behind this',
+                style: _CareerReadingText.source,
+              ),
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    _technicalSummary(period.technicalDetails, copy),
+                    style: _CareerReadingText.meta,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(period.disclosure, style: _CareerReadingText.meta),
+      ],
+    ),
+  );
+}
+
+class _CareerTimingEvidenceChip extends StatelessWidget {
+  const _CareerTimingEvidenceChip({required this.state});
+  final String state;
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: _CareerReadingColors.midnight,
+      borderRadius: BorderRadius.circular(99),
+      border: Border.all(color: _CareerReadingColors.goldBorder),
+    ),
+    child: Text(
+      const {
+            'POSSIBLE_CAREER_ACTIVITY_SIGNAL':
+                'POSSIBLE CAREER ACTIVITY SIGNAL',
+            'ASTROLOGICALLY_SUPPORTIVE_PERIOD':
+                'ASTROLOGICALLY SUPPORTIVE PERIOD',
+            'MULTIPLE_TIMING_FACTORS_CONVERGE':
+                'MULTIPLE TIMING FACTORS CONVERGE',
+          }[state] ??
+          'CAREER TIMING CONTEXT',
+      style: _CareerReadingText.chip,
+    ),
+  );
+}
+
+String _technicalSummary(
+  Map<String, dynamic> details,
+  CareerReadingPresentationCopy copy,
+) {
+  final d1 = details['d1'];
+  final dasha = details['dasha'];
+  final gochar = details['gochar'];
+  final lines = <String>[];
+  if (d1 is Map<String, dynamic>) {
+    final sign = d1['h10Sign'];
+    final lord = d1['h10Lord'];
+    if (sign is int && lord is String) {
+      lines.add('D1 10th Bhav sign: $sign; lord: ${copy.planet(lord)}.');
+    }
+  }
+  if (dasha is Map<String, dynamic>) {
+    final levels = (dasha['qualifyingLevel'] as List? ?? const [])
+        .whereType<String>();
+    final periods = (dasha['periods'] as List? ?? const []).whereType<String>();
+    final levelNames = levels.map(
+      (level) =>
+          const {
+            'MD': 'Mahadasha',
+            'AD': 'Antardasha',
+            'PD': 'Pratyantar Dasha',
+          }[level] ??
+          'Dasha',
+    );
+    final periodNames = periods.map((period) {
+      final pieces = period.split(':');
+      final level =
+          const {
+            'MD': 'Mahadasha',
+            'AD': 'Antardasha',
+            'PD': 'Pratyantar Dasha',
+          }[pieces.first] ??
+          'Dasha';
+      return pieces.length == 2 ? '${copy.planet(pieces.last)} $level' : level;
+    });
+    if (levelNames.isNotEmpty) {
+      lines.add('Qualifying Dasha levels: ${levelNames.join(', ')}.');
+    }
+    if (periodNames.isNotEmpty) {
+      lines.add('Career-linked Dasha factors: ${periodNames.join(', ')}.');
+    }
+  }
+  if (gochar is List && gochar.isNotEmpty) {
+    final facts = gochar.whereType<Map<String, dynamic>>().map((item) {
+      final planet = item['transitPlanet'];
+      final target = item['target'];
+      if (planet is! String || target is! String) return null;
+      return '${copy.planet(planet)} Gochar: $target.';
+    }).whereType<String>();
+    if (facts.isNotEmpty) lines.add(facts.join(' '));
+  }
+  return lines.isEmpty
+      ? 'Technical timing context is available.'
+      : lines.join(' ');
+}
 
 class _CareerTimingSection extends StatelessWidget {
   const _CareerTimingSection({required this.insights, required this.copy});

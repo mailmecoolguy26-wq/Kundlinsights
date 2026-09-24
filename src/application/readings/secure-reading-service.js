@@ -127,6 +127,34 @@ function publicCareerEvidenceSynthesis(record) {
   if (value.futureRecurrence && value.futureRecurrence.family === 'FUTURE_RECURRENCE_WINDOW') output.futureRecurrence = { family: 'FUTURE_RECURRENCE_WINDOW' };
   return output;
 }
+function publicCareerTimingPeriods(record) {
+  const values = record && record.reading && record.reading.careerTimingPeriods;
+  if (!Array.isArray(values)) return undefined;
+  const iso = (value) => typeof value === 'string' && value.endsWith('Z') && !Number.isNaN(Date.parse(value)) ? value : null;
+  const planets = new Set(['Sun', 'Moon', 'Mars', 'Mercury', 'Jupiter', 'Venus', 'Saturn', 'Rahu', 'Ketu']);
+  const states = new Set(['POSSIBLE_CAREER_ACTIVITY_SIGNAL', 'ASTROLOGICALLY_SUPPORTIVE_PERIOD', 'MULTIPLE_TIMING_FACTORS_CONVERGE']);
+  const output = values.map((value) => {
+    if (!value || typeof value !== 'object' || !states.has(value.evidenceState)) return null;
+    const startDate = iso(value.startDate), endDate = iso(value.endDate);
+    if (!startDate || !endDate || Date.parse(startDate) >= Date.parse(endDate) || typeof value.headline !== 'string' || typeof value.summary !== 'string' || typeof value.whatThisCanMean !== 'string' || typeof value.professionalDirection !== 'string' || typeof value.disclosure !== 'string' || typeof value.sourceRuleVersion !== 'string') return null;
+    const d1 = value.technicalDetails && value.technicalDetails.d1;
+    const dasha = value.technicalDetails && value.technicalDetails.dasha;
+    const gochar = value.technicalDetails && value.technicalDetails.gochar;
+    if (!d1 || !Number.isInteger(d1.h10Sign) || d1.h10Sign < 1 || d1.h10Sign > 12 || !planets.has(d1.h10Lord) || !dasha || !Array.isArray(dasha.qualifyingLevel) || !Array.isArray(dasha.periods) || !Array.isArray(gochar)) return null;
+    const technicalDetails = {
+      d1: { h10Sign: d1.h10Sign, h10Lord: d1.h10Lord, directCareerFactors: Array.isArray(d1.directCareerFactors) ? d1.directCareerFactors.filter((item) => planets.has(item)).sort() : [] },
+      dasha: { qualifyingLevel: dasha.qualifyingLevel.filter((item) => ['MD', 'AD', 'PD'].includes(item)).sort(), periods: dasha.periods.filter((item) => typeof item === 'string').sort() },
+      gochar: gochar.map((item) => item && planets.has(item.transitPlanet) && typeof item.target === 'string' && typeof item.activation === 'string' ? { transitPlanet: item.transitPlanet, target: item.target, ...(planets.has(item.targetPlanet) ? { targetPlanet: item.targetPlanet } : {}), activation: item.activation } : null).filter(Boolean),
+      d10: { confirmationPresent: value.technicalDetails.d10 && value.technicalDetails.d10.confirmationPresent === true },
+      moon: { supportPresent: value.technicalDetails.moon && value.technicalDetails.moon.supportPresent === true },
+      savBav: Number.isInteger(value.technicalDetails.savBav && value.technicalDetails.savBav.h10Sav) ? { h10Sav: value.technicalDetails.savBav.h10Sav } : {},
+      historicalPattern: { available: value.technicalDetails.historicalPattern && value.technicalDetails.historicalPattern.available === true, present: value.technicalDetails.historicalPattern && value.technicalDetails.historicalPattern.present === true },
+      window: { startDate, endDate },
+    };
+    return { startDate, endDate, evidenceState: value.evidenceState, headline: value.headline, summary: value.summary, whyItems: Array.isArray(value.whyItems) ? value.whyItems.filter((item) => typeof item === 'string') : [], whatThisCanMean: value.whatThisCanMean, professionalDirection: value.professionalDirection, ...(typeof value.recurrenceSummary === 'string' ? { recurrenceSummary: value.recurrenceSummary } : {}), technicalDetails, disclosure: value.disclosure, sourceRuleVersion: value.sourceRuleVersion, longWindow: value.longWindow === true };
+  }).filter(Boolean).sort((left, right) => left.startDate.localeCompare(right.startDate));
+  return output;
+}
 function publicAshtakavargaContext(context) {
   if (!context || context.sourceFamily !== 'ASHTAKAVARGA' || !['SAV', 'BAV', 'LAGNA_BAV'].includes(context.scoreType)) return null;
   if (!Number.isInteger(context.houseNumber) || context.houseNumber < 1 || context.houseNumber > 12 || !Number.isInteger(context.rashiIndex) || context.rashiIndex < 1 || context.rashiIndex > 12 || !Number.isInteger(context.value)) return null;
@@ -209,7 +237,7 @@ function publicInsights(record) {
   });
   });
 }
-function publicReadingDetail(item) { const calibrated = calibratedContent(item.record), calibrationContext = publicCalibrationSummary(item.record), careerAshtakavargaStructure = publicCareerAshtakavargaStructure(item.record), careerD10Structure = publicCareerD10Structure(item.record), careerD10Corroboration = publicCareerD10Corroboration(item.record), careerAshtakavargaCorroboration = publicCareerAshtakavargaCorroboration(item.record), careerEvidenceSynthesis = publicCareerEvidenceSynthesis(item.record), insights = publicInsights(item.record); return immutableCopy({ ...publicReadingSummary(item), content: item.record.renderedReading, ...(calibrated ? { calibratedContent: calibrated } : {}), ...(calibrationContext === undefined ? {} : { calibrationContext }), ...(careerAshtakavargaStructure === undefined ? {} : { careerAshtakavargaStructure }), ...(careerD10Structure === undefined ? {} : { careerD10Structure }), ...(careerD10Corroboration === undefined ? {} : { careerD10Corroboration }), ...(careerAshtakavargaCorroboration === undefined ? {} : { careerAshtakavargaCorroboration }), ...(careerEvidenceSynthesis === undefined ? {} : { careerEvidenceSynthesis }), ...(insights === undefined ? {} : { insights }) }); }
+function publicReadingDetail(item) { const calibrated = calibratedContent(item.record), calibrationContext = publicCalibrationSummary(item.record), careerAshtakavargaStructure = publicCareerAshtakavargaStructure(item.record), careerD10Structure = publicCareerD10Structure(item.record), careerD10Corroboration = publicCareerD10Corroboration(item.record), careerAshtakavargaCorroboration = publicCareerAshtakavargaCorroboration(item.record), careerEvidenceSynthesis = publicCareerEvidenceSynthesis(item.record), careerTimingPeriods = publicCareerTimingPeriods(item.record), insights = publicInsights(item.record); return immutableCopy({ ...publicReadingSummary(item), content: item.record.renderedReading, ...(calibrated ? { calibratedContent: calibrated } : {}), ...(calibrationContext === undefined ? {} : { calibrationContext }), ...(careerAshtakavargaStructure === undefined ? {} : { careerAshtakavargaStructure }), ...(careerD10Structure === undefined ? {} : { careerD10Structure }), ...(careerD10Corroboration === undefined ? {} : { careerD10Corroboration }), ...(careerAshtakavargaCorroboration === undefined ? {} : { careerAshtakavargaCorroboration }), ...(careerEvidenceSynthesis === undefined ? {} : { careerEvidenceSynthesis }), ...(careerTimingPeriods === undefined ? {} : { careerTimingPeriods }), ...(insights === undefined ? {} : { insights }) }); }
 function scopedKeyProvider(key) { return Object.freeze({ current: async () => ({ keyVersion: key.keyVersion, dek: Buffer.from(key.dek) }), forVersion: async () => ({ keyVersion: key.keyVersion, dek: Buffer.from(key.dek) }) }); }
 function rawRecord(raw, record) { return { readingId: raw.readingId, userId: raw.userId, birthProfileId: raw.birthProfileId, status: raw.status, archivedAt: raw.archivedAt, idempotencyKey: raw.idempotencyKey, record }; }
 

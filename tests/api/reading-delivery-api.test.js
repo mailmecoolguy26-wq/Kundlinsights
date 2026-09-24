@@ -93,3 +93,12 @@ test('Phase16E passes the optional safe Career evidence synthesis through GET', 
   assert.equal(JSON.stringify(response.json().reading.careerEvidenceSynthesis).match(/score|confidence|probability|threshold|rank|strong|weak|h7/i), null);
   assertSafe(response.json()); await api.close();
 });
+test('Phase 5A passes an optional possible Career activity signal through GET without promoting it', async () => {
+  const timing = [{ startDate: '2026-11-20T00:00:00.000Z', endDate: '2027-01-10T00:00:00.000Z', evidenceState: 'POSSIBLE_CAREER_ACTIVITY_SIGNAL', headline: 'POSSIBLE CAREER ACTIVITY SIGNAL', summary: 'Safe timing summary.', whyItems: ['Chart-specific Dasha and Gochar facts.'], whatThisCanMean: 'Context only.', professionalDirection: 'Context only.', technicalDetails: { d1: { h10Sign: 9, h10Lord: 'Jupiter' }, dasha: { qualifyingLevel: ['PD'] }, gochar: [] }, disclosure: 'No guarantee.', sourceRuleVersion: 'career-timing-launch-v1', longWindow: false }];
+  const api = createApi({ authVerifier: createTestOnlyAuthVerifier({ a, b }), userResolver: { resolve: async () => ({ id: 'internal-user', status: 'active' }) }, birthProfileService: { create: async () => null, list: async () => [], get: async () => null }, secureReadingService: { async getSecureReadingDetail() { return { ...detail('reading-timing'), careerTimingPeriods: timing }; }, async listSecureReadings() { return []; }, async generateSecureReading() { throw new Error('not used'); }, async replaySecureReading() { throw new Error('not used'); } }, requestIdGenerator: () => 'request-1' });
+  const response = await api.inject(request('a', '/v1/readings/reading-timing'));
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.json().reading.careerTimingPeriods, timing);
+  assert.equal(response.json().reading.careerTimingPeriods[0].evidenceState, 'POSSIBLE_CAREER_ACTIVITY_SIGNAL');
+  await api.close();
+});

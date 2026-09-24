@@ -14,6 +14,7 @@ const REPOSITORY_CONTRACTS = freeze({
   ProfileEntitlementRepository: freeze(['findForProfile', 'findByPurchaseRecordId', 'create']),
   PaymentEventRepository: freeze(['findByProviderEventId', 'insertReceived', 'markProcessed', 'markFailed']),
   ProviderPaymentOrderRepository: freeze(['create', 'findByProviderOrderId', 'findByProviderPaymentId', 'findLatestUnresolvedForProfile', 'markPaid', 'markFinalized', 'markFailed']),
+  CareerEventObservationRepository: freeze(['create', 'listForEvent', 'replaceForEvent']),
 });
 
 function repositoryError(code) { const error = new RangeError(code); error.code = code; return error; }

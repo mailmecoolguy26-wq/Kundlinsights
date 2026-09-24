@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../auth/auth_controller.dart';
 import '../../l10n/app_localizations.dart';
 import '../profiles/profile_controller.dart';
 import '../readings/career_explanation_language.dart';
+import '../../core/push/push_notification_service.dart';
 
 import 'package:go_router/go_router.dart';
 
@@ -13,11 +15,13 @@ class ProfileScreen extends StatelessWidget {
     required this.authController,
     required this.profileController,
     this.careerExplanationLanguage,
+    this.pushNotifications,
   });
 
   final AuthController authController;
   final ProfileController profileController;
   final CareerExplanationLanguageController? careerExplanationLanguage;
+  final PushRuntime? pushNotifications;
 
   static const _midnight = Color(0xFF0B071B);
   static const _alabaster = Color(0xFFFAF7F2);
@@ -87,6 +91,10 @@ class ProfileScreen extends StatelessWidget {
                   _CareerReadingLanguageSelector(
                     controller: careerExplanationLanguage!,
                   ),
+                ],
+                if (pushNotifications?.preferencesApi != null) ...[
+                  const SizedBox(height: 12),
+                  _NotificationSettings(service: pushNotifications!),
                 ],
                 const SizedBox(height: 44),
                 if (authController.signOutError != null)
@@ -190,6 +198,152 @@ class _CareerReadingLanguageSelector extends StatelessWidget {
           ),
         ),
       ],
+    ),
+  );
+}
+
+class _NotificationSettings extends StatefulWidget {
+  const _NotificationSettings({required this.service});
+  final PushRuntime service;
+
+  @override
+  State<_NotificationSettings> createState() => _NotificationSettingsState();
+}
+
+class _NotificationSettingsState extends State<_NotificationSettings> {
+  PushNotificationPreferences? _preferences;
+  PushPermissionState _permission = PushPermissionState.unavailable;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final results = await Future.wait([
+        widget.service.preferencesApi!.getPreferences(),
+        widget.service.permissionState(),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _preferences = results[0] as PushNotificationPreferences;
+        _permission = results[1] as PushPermissionState;
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _update(PushNotificationPreferences next) async {
+    final old = _preferences;
+    if (old == null) return;
+    setState(() => _preferences = next);
+    try {
+      final saved = await widget.service.preferencesApi!.updatePreferences(
+        next,
+      );
+      if (mounted) setState(() => _preferences = saved);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _preferences = old);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Notification settings could not be saved.'),
+        ),
+      );
+    }
+  }
+
+  String get _permissionLabel => switch (_permission) {
+    PushPermissionState.granted || PushPermissionState.provisional => 'Enabled',
+    PushPermissionState.denied => 'Disabled',
+    _ => 'Not yet enabled',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final value = _preferences;
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF160E2C),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0x335E4A87)),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Notifications',
+                style: TextStyle(
+                  color: Color(0xFFFAF7F2),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Push notifications  ·  $_permissionLabel',
+                style: const TextStyle(color: Color(0xFF9E9AA9), fontSize: 13),
+              ),
+              const SizedBox(height: 8),
+              SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Reading updates'),
+                value: value?.readingUpdates ?? false,
+                onChanged: _loading || value == null
+                    ? null
+                    : (next) => _update(value.copyWith(readingUpdates: next)),
+              ),
+              SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Career reminders'),
+                value: value?.careerReminders ?? false,
+                onChanged: _loading || value == null
+                    ? null
+                    : (next) => _update(value.copyWith(careerReminders: next)),
+              ),
+              SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Offers & updates'),
+                value: value?.offersAndUpdates ?? false,
+                onChanged: _loading || value == null
+                    ? null
+                    : (next) => _update(value.copyWith(offersAndUpdates: next)),
+              ),
+              if (kDebugMode) _PushDiagnostics(service: widget.service),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PushDiagnostics extends StatelessWidget {
+  const _PushDiagnostics({required this.service});
+  final PushRuntime service;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 8),
+    child: Text(
+      'Push diagnostics\nFirebase initialized: ${service.initialized}\n'
+      'FCM token acquired: ${service.tokenAcquired}\n'
+      'Backend registration: ${service.registrationSucceeded}\n'
+      'Token refresh listener: ${service.tokenRefreshActive}\n'
+      'Last push type: ${service.lastPushType ?? 'None'}\n'
+      'Last destination: ${service.lastResolvedDestination ?? 'None'}\n'
+      'Pending intent: ${service.hasPendingIntent}',
+      style: const TextStyle(color: Color(0xFF9E9AA9), fontSize: 11),
     ),
   );
 }

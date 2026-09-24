@@ -43,6 +43,8 @@ dependencies:
   in_app_purchase_android: ^0.5.3
   razorpay_flutter: ^1.4.6
   google_fonts: ^6.3.2
+  firebase_core: ^4.4.0
+  firebase_messaging: ^16.1.0
 
 dev_dependencies:
   flutter_test:

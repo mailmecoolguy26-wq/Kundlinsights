@@ -11,6 +11,7 @@ const { calculateAshtakavargaForLayer2 } = require('../application/ashtakavarga'
 const { buildCareerAshtakavargaStructure } = require('../application/ashtakavarga/career-ashtakavarga-structure');
 const { evaluatePlanetaryState } = require('../dignity');
 const { buildCareerReading } = require('./career-reading-orchestrator');
+const { buildCareerTimingPeriods } = require('../application/insights/career-timing-periods');
 const { isProductionAstronomicalAuthority } = require('../astronomy');
 const { validateBirthCareerRequest, utcInstantToLayer1Input } = require('./birth-career-input-validation');
 const {
@@ -143,10 +144,54 @@ function safeProviderProvenance(layer1Result, houses, dasha, place, providerSamp
   };
 }
 
+function addMonths(instant, months) {
+  const value = new Date(instant);
+  value.setUTCMonth(value.getUTCMonth() + months);
+  return value.toISOString();
+}
+
+function futureDashaIntervals(dasha, horizonEnd) {
+  const intervals = [];
+  for (const md of dasha.periods) for (const ad of md.children) for (const pd of ad.children) {
+    const start = pd.startInstant.utc; const end = pd.endInstant.utc;
+    if (Date.parse(start) < Date.parse(horizonEnd)) intervals.push({
+      start, end,
+      activePeriods: [
+        { level: 'MD', lord: md.lord.name },
+        { level: 'AD', lord: ad.lord.name },
+        { level: 'PD', lord: pd.lord.name },
+      ],
+    });
+  }
+  return intervals;
+}
+
+function futureMajorTransitIntervals({ astronomicalEngine, start, end, place }) {
+  const daily = [];
+  for (let timestamp = Date.parse(start); timestamp < Date.parse(end); timestamp += 86400000) {
+    const instant = new Date(timestamp);
+    const chart = astronomicalEngine.calculate(utcInstantToLayer1Input(instant.toISOString(), place));
+    for (const planet of ['Jupiter', 'Saturn']) daily.push({
+      planet,
+      sign: Math.floor(chart.bodies[planet].siderealLongitudeDegrees / 30) + 1,
+      start: instant.toISOString(),
+      end: new Date(timestamp + 86400000).toISOString(),
+    });
+  }
+  const intervals = [];
+  for (const item of daily) {
+    const previous = intervals.at(-1);
+    if (previous && previous.planet === item.planet && previous.sign === item.sign && previous.end === item.start) previous.end = item.end;
+    else intervals.push(item);
+  }
+  return intervals;
+}
+
 class BirthCareerReadingOrchestrator {
-  constructor({ astronomicalEngine, dashaRulesetId, canonicalSiderealSunSampler } = {}) {
+  constructor({ astronomicalEngine, dashaRulesetId, canonicalSiderealSunSampler, careerTimingHorizonMonths = 12 } = {}) {
     if (!astronomicalEngine || typeof astronomicalEngine.calculate !== 'function') throw new TypeError('BirthCareerReadingOrchestrator requires an injected astronomicalEngine.');
     if (dashaRulesetId !== undefined && typeof dashaRulesetId !== 'string') throw new TypeError('dashaRulesetId must be a supported string identifier when supplied.');
+    if (!Number.isInteger(careerTimingHorizonMonths) || careerTimingHorizonMonths < 1 || careerTimingHorizonMonths > 24) throw new RangeError('careerTimingHorizonMonths must be between 1 and 24.');
     const isDefaultPolicy = dashaRulesetId === undefined;
     const selectedDashaRulesetId = isDefaultPolicy
       ? DEFAULT_BIRTH_CAREER_ENGINE_PROFILE.calculation.dashaRulesetId
@@ -162,6 +207,7 @@ class BirthCareerReadingOrchestrator {
     this.dashaRuleset = dashaRuleset;
     this.engineProfile = engineProfile;
     this.canonicalSiderealSunSampler = canonicalSiderealSunSampler || null;
+    this.careerTimingHorizonMonths = careerTimingHorizonMonths;
     Object.freeze(this);
   }
 
@@ -220,10 +266,22 @@ class BirthCareerReadingOrchestrator {
       careerAshtakavargaStructure: buildCareerAshtakavargaStructure({ houses, rawAshtakavarga }),
       careerD10Structure: buildCareerD10Structure({ d10 }),
     });
+    const timingHorizonEnd = addMonths(input.readingInstant, this.careerTimingHorizonMonths);
+    const h10 = houses.houses.find((house) => house.houseNumber === 10);
+    const h10Sav = rawAshtakavarga.rawSarvashtakavarga.rashis.find((rashi) => rashi.rashiIndex === h10.rashi.rashiIndex)?.favorableMarkCount;
+    const careerTiming = buildCareerTimingPeriods({
+      d1Houses: houses,
+      dashaIntervals: futureDashaIntervals(dasha, timingHorizonEnd),
+      transitIntervals: futureMajorTransitIntervals({ astronomicalEngine: this.astronomicalEngine, start: input.readingInstant, end: timingHorizonEnd, place: input.birth.place }),
+      horizonStart: input.readingInstant,
+      horizonEnd: timingHorizonEnd,
+      d10Confirmation: Boolean(career.reading.careerD10Corroboration),
+      h10Sav,
+    });
     return freeze({
       domain: career.domain,
       locale: career.locale,
-      reading: career.reading,
+      reading: freeze({ ...career.reading, careerTimingPeriods: careerTiming.periods }),
       renderedReading: career.renderedReading,
       provenance: safeProviderProvenance(birthLayer1Result, houses, dasha, input.birth.place, providerSamplerConsistency, this.engineProfile),
     });

@@ -14,13 +14,13 @@ const PACKAGE = 'com.kundlinsights.test';
 const PRODUCT = 'career.profile.unlock';
 
 function profile(id, userId) { return { id, userId, displayLabel: id, birthData: { localDate: '2000-01-01', localTime: '00:00:00', timezone: 'UTC', utc: NOW, latitude: 0, longitude: 0, timezoneProvenance: { provider: 'test', datasetVersion: 'test', datasetChecksum: 'test' } }, createdAt: NOW }; }
-function setup() {
+function setup({ analytics = null } = {}) {
   const repositories = { purchases: new InMemoryPurchaseRepository(), subscriptions: new InMemorySubscriptionRepository(), entitlements: new InMemoryEntitlementRepository(), profileEntitlements: new InMemoryProfileEntitlementRepository(), birthProfiles: new InMemoryBirthProfileRepository() };
   for (const [id, user] of [['a', 'user-a'], ['b', 'user-a'], ['foreign', 'user-b']]) repositories.birthProfiles.createBirthProfile(profile(id, user));
   const calls = [];
   const apiClient = { async getProductPurchase(input) { calls.push(input); const token = input.purchaseToken; if (token === 'wrong-package') return { packageName: 'other', productId: PRODUCT, orderId: 'GPA.wrong-package', purchaseState: 0, purchaseTimeMillis: Date.parse(NOW) }; if (token === 'wrong-product') return { packageName: PACKAGE, productId: 'other', orderId: 'GPA.wrong-product', purchaseState: 0, purchaseTimeMillis: Date.parse(NOW) }; if (token === 'invalid-state') return { packageName: PACKAGE, productId: PRODUCT, orderId: 'GPA.invalid-state', purchaseState: 1, purchaseTimeMillis: Date.parse(NOW) }; return { packageName: PACKAGE, productId: PRODUCT, orderId: `GPA.${token}`, purchaseState: 0, acknowledgementState: 0, consumptionState: 0, purchaseTimeMillis: Date.parse(NOW) }; }, async getSubscription() { throw new Error('SUBSCRIPTIONS_V2_USED'); } };
   let ids = 0; const unitOfWork = new InMemoryPaymentUnitOfWork({ repositories: () => repositories });
-  const service = new PurchaseVerificationService({ authUserResolver: async (principal) => ({ id: principal.id }), repositories: () => repositories, unitOfWork, registry: new PurchaseProviderRegistry({ GOOGLE: new GooglePurchaseVerifier({ apiClient, packageName: PACKAGE, googleProductId: 'career.annual', googleProfileUnlockProductId: PRODUCT }) }), careerAccessResolver: new CareerAccessResolver(), profileUnlockAssignmentService: new ProfileUnlockAssignmentService({ unitOfWork, idGenerator: () => `ent-${++ids}`, clock: () => NOW }), idGenerator: () => `purchase-${++ids}`, clock: () => NOW });
+  const service = new PurchaseVerificationService({ authUserResolver: async (principal) => ({ id: principal.id }), repositories: () => repositories, unitOfWork, registry: new PurchaseProviderRegistry({ GOOGLE: new GooglePurchaseVerifier({ apiClient, packageName: PACKAGE, googleProductId: 'career.annual', googleProfileUnlockProductId: PRODUCT }) }), careerAccessResolver: new CareerAccessResolver(), profileUnlockAssignmentService: new ProfileUnlockAssignmentService({ unitOfWork, idGenerator: () => `ent-${++ids}`, clock: () => NOW }), idGenerator: () => `purchase-${++ids}`, clock: () => NOW, analytics });
   return { repositories, calls, service };
 }
 function verify(service, userId, token, birthProfileId) { return service.verify({ principal: { id: userId }, body: { provider: 'GOOGLE', environment: 'PRODUCTION', productId: PRODUCT, birthProfileId, evidence: { purchaseToken: token } } }); }
@@ -44,4 +44,17 @@ test('Google one-time purchases are stable by order ID, profile-bound, repeat-pu
   await verify(service, 'user-a', 'p2', 'b'); assert.equal(repositories.profileEntitlements.records.size, 2);
   await assert.rejects(verify(service, 'user-a', 'p3', 'a'), { code: 'PROFILE_ALREADY_UNLOCKED' }); assert.equal(await repositories.purchases.findByProviderTransaction({ provider: 'GOOGLE', environment: 'PRODUCTION', providerTransactionId: 'GPA.p3' }), null);
   await assert.rejects(verify(service, 'user-b', 'p1', 'foreign'), { code: 'PURCHASE_OWNERSHIP_CONFLICT' });
+});
+
+test('verified profile unlock analytics is replay-safe, restore-safe, and non-critical', async () => {
+  const events = [];
+  const tracker = { async record(name, properties) { events.push({ name, properties }); } };
+  const { service } = setup({ analytics: tracker });
+  await verify(service, 'user-a', 'analytics-one', 'a');
+  await verify(service, 'user-a', 'analytics-one', 'a');
+  assert.deepEqual(events.map((event) => event.name), ['purchase_completed', 'career_unlocked']);
+  assert.deepEqual(Object.keys(events[0].properties).sort(), ['birth_profile_id', 'payment_provider', 'product_type', 'sku', 'user_id']);
+  const { service: resilient } = setup({ analytics: { async record() { throw Error('analytics unavailable'); } } });
+  const result = await verify(resilient, 'user-a', 'analytics-resilient', 'a');
+  assert.equal(result.entitlement.career.eligible, true);
 });

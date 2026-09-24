@@ -34,6 +34,30 @@ void main() {
     );
   });
 
+  test('parses optional Career timing periods without changing legacy reading details', () {
+    final detail = ReadingDetail.fromJson({
+      ..._detailJson(),
+      'careerTimingPeriods': [_careerTimingPeriod()],
+    });
+    expect(detail.careerTimingPeriods, hasLength(1));
+    expect(
+      detail.careerTimingPeriods!.single.evidenceState,
+      'POSSIBLE_CAREER_ACTIVITY_SIGNAL',
+    );
+    expect(
+      detail.careerTimingPeriods!.single.whyItems.single,
+      contains('Guru Dev'),
+    );
+    expect(ReadingDetail.fromJson(_detailJson()).careerTimingPeriods, isNull);
+    expect(
+      () => ReadingDetail.fromJson({
+        ..._detailJson(),
+        'careerTimingPeriods': {'not': 'a list'},
+      }),
+      throwsFormatException,
+    );
+  });
+
   test('parses Career Ashtakavarga structure defensively without affecting legacy details', () {
     final full = ReadingDetail.fromJson({
       ..._detailJson(),
@@ -368,6 +392,48 @@ void main() {
     },
   );
 
+  testWidgets('records a displayed reading once per detail screen instance', (
+    tester,
+  ) async {
+    final source = _AuthSource();
+    final auth = AuthController(source);
+    await auth.restore();
+    final profiles = ProfileController(_Profiles(source), auth);
+    await tester.pump();
+    final controller = ReadingController(_ReadingRepository(), auth, profiles);
+    await controller.loadDetail('reading-a');
+    final seen = <String>[];
+    await tester.pumpWidget(
+      _localized(
+        ReadingDetailScreen(
+          controller: controller,
+          readingId: 'reading-a',
+          onViewed: (id) async => seen.add(id),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Stored text.'), findsOneWidget);
+    expect(seen, ['reading-a']);
+    await tester.pump();
+    expect(seen, ['reading-a']);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(
+      _localized(
+        ReadingDetailScreen(
+          controller: controller,
+          readingId: 'reading-a',
+          onViewed: (id) async => seen.add(id),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(seen, ['reading-a', 'reading-a']);
+    controller.dispose();
+    profiles.dispose();
+    auth.dispose();
+  });
+
   testWidgets('renders non-empty, empty, error, and stored detail content', (
     tester,
   ) async {
@@ -472,7 +538,10 @@ void main() {
       );
       expect(find.text('Career structure'), findsNothing);
       expect(find.text('IS READING KI LIMIT'), findsOneWidget);
-      await tester.tap(find.text('ASTROLOGY BEHIND THIS').first);
+      final astrologyTrace = find.text('ASTROLOGY BEHIND THIS').first;
+      await tester.drag(find.byType(ListView), const Offset(0, -1400));
+      await tester.pumpAndSettle();
+      await tester.tap(astrologyTrace);
       await tester.pumpAndSettle();
       expect(find.text('Timing'), findsWidgets);
       expect(find.textContaining('Independent mechanisms'), findsWidgets);
@@ -1030,6 +1099,79 @@ void main() {
       auth.dispose();
     },
   );
+
+  testWidgets(
+    'renders production-safe possible Career timing and the no-signal state',
+    (tester) async {
+      final authSource = _AuthSource();
+      final auth = AuthController(authSource);
+      await auth.restore();
+      final profiles = ProfileController(_Profiles(authSource), auth);
+      await tester.pump();
+      final repository = _ReadingRepository()
+        ..nextDetail = ReadingDetail.fromJson({
+          ..._detailJson(),
+          'careerTimingPeriods': [_careerTimingPeriod()],
+        });
+      final controller = ReadingController(repository, auth, profiles);
+      await tester.pumpWidget(
+        _localized(
+          ReadingDetailScreen(controller: controller, readingId: 'reading-a'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('UPCOMING CAREER TIMING'), findsOneWidget);
+      expect(find.text('POSSIBLE CAREER ACTIVITY SIGNAL'), findsOneWidget);
+      expect(find.text('20 Nov 2026 – 10 Jan 2027'), findsOneWidget);
+      expect(
+        find.text(
+          'TaraVerse ke current timing model ke according, is period mein Career se jude important Dasha aur Gochar factors ek saath active hain.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          'Yeh kisi specific job change, offer ya promotion ki guarantee nahi hai. Career decisions mein role quality, compensation, financial readiness aur personal circumstances ko bhi consider karein.',
+        ),
+        findsOneWidget,
+      );
+      controller.dispose();
+      profiles.dispose();
+      auth.dispose();
+    },
+  );
+
+  testWidgets('renders the server-authoritative no-signal Career timing copy', (
+    tester,
+  ) async {
+    final authSource = _AuthSource();
+    final auth = AuthController(authSource);
+    await auth.restore();
+    final profiles = ProfileController(_Profiles(authSource), auth);
+    await tester.pump();
+    final repository = _ReadingRepository()
+      ..nextDetail = ReadingDetail.fromJson({
+        ..._detailJson(),
+        'careerTimingPeriods': [],
+      });
+    final controller = ReadingController(repository, auth, profiles);
+    await tester.pumpWidget(
+      _localized(
+        ReadingDetailScreen(controller: controller, readingId: 'reading-a'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('UPCOMING CAREER TIMING'), findsOneWidget);
+    expect(
+      find.text(
+        'Current timing model abhi kisi concentrated Career activity signal ko identify nahi kar raha.',
+      ),
+      findsOneWidget,
+    );
+    controller.dispose();
+    profiles.dispose();
+    auth.dispose();
+  });
 }
 
 Widget _localized(Widget child) => MaterialApp(
@@ -1073,6 +1215,46 @@ Map<String, dynamic> _detailJson({String profileId = 'profile-a'}) => {
       },
     ],
   },
+};
+Map<String, dynamic> _careerTimingPeriod() => {
+  'startDate': '2026-11-20T00:00:00.000Z',
+  'endDate': '2027-01-10T00:00:00.000Z',
+  'evidenceState': 'POSSIBLE_CAREER_ACTIVITY_SIGNAL',
+  'headline': 'POSSIBLE CAREER ACTIVITY SIGNAL',
+  'summary': 'TaraVerse ke current timing model ke according, is period mein Career se jude important Dasha aur Gochar factors ek saath active hain.',
+  'whyItems': ['Guru Dev Pratyantar Dasha Career structure se connected hai.'],
+  'whatThisCanMean': 'Is dauran interviews, networking, important Career conversations aur naye professional opportunities zyada active ho sakte hain.',
+  'professionalDirection':
+      'Career structure aur current timing context ko saath mein dekhein.',
+  'technicalDetails': {
+    'd1': {
+      'h10Sign': 9,
+      'h10Lord': 'Jupiter',
+      'directCareerFactors': ['Jupiter'],
+    },
+    'dasha': {
+      'qualifyingLevel': ['PD'],
+      'periods': ['PD:Jupiter'],
+    },
+    'gochar': [
+      {
+        'transitPlanet': 'Saturn',
+        'target': '10th-house Career axis',
+        'activation': 'occupies',
+      },
+    ],
+    'd10': {'confirmationPresent': true},
+    'moon': {'supportPresent': false},
+    'savBav': {'h10Sav': 35},
+    'historicalPattern': {'available': false, 'present': false},
+    'window': {
+      'startDate': '2026-11-20T00:00:00.000Z',
+      'endDate': '2027-01-10T00:00:00.000Z',
+    },
+  },
+  'disclosure': 'Yeh kisi specific job change, offer ya promotion ki guarantee nahi hai. Career decisions mein role quality, compensation, financial readiness aur personal circumstances ko bhi consider karein.',
+  'sourceRuleVersion': 'career-timing-launch-v1',
+  'longWindow': false,
 };
 Map<String, dynamic> _d10Structure() => {
   'chart': 'D10',

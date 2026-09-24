@@ -2,13 +2,19 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../core/analytics/analytics.dart';
 import 'domain/auth_repository.dart';
 
 enum PhoneOtpState { phoneEntry, requesting, sent, verifying }
 
 class AuthController extends ChangeNotifier {
-  AuthController(this.repo)
-    : _state = const AuthSnapshot(AuthStatus.initializing) {
+  AuthController(
+    this.repo, {
+    Analytics? analytics,
+    Future<void> Function()? beforeLogout,
+  }) : _analytics = analytics ?? Analytics(const NoopAnalyticsProvider()),
+       _state = const AuthSnapshot(AuthStatus.initializing) {
+    _beforeLogout = beforeLogout;
     _sub = repo.states.listen((next) {
       _state = next;
       notifyListeners();
@@ -16,6 +22,8 @@ class AuthController extends ChangeNotifier {
   }
 
   final AuthRepository repo;
+  final Analytics _analytics;
+  late final Future<void> Function()? _beforeLogout;
   AuthSnapshot _state;
   AuthSnapshot get state => _state;
   PhoneOtpState _phoneOtpState = PhoneOtpState.phoneEntry;
@@ -35,23 +43,45 @@ class AuthController extends ChangeNotifier {
 
   Future<void> login(String email, String password) =>
       _run(() => repo.signIn(email: email, password: password));
-  Future<void> signup(String email, String password) =>
-      _run(() => repo.signUp(email: email, password: password));
+  Future<void> signup(String email, String password) async {
+    _state = const AuthSnapshot(AuthStatus.loading);
+    notifyListeners();
+    try {
+      final completed = await repo.signUp(email: email, password: password);
+      _state = await repo.restore();
+      if (completed) {
+        unawaited(_analytics.track(AnalyticsEvent.signupCompleted));
+      }
+    } catch (error) {
+      _state = AuthSnapshot(AuthStatus.error, message: _safeMessage(error));
+    }
+    notifyListeners();
+  }
 
   Future<void> requestPhoneOtp(String phoneNumber) async {
     if (isRequestingPhoneOtp || isVerifyingPhoneOtp) return;
     _phoneOtpState = PhoneOtpState.requesting;
     _state = const AuthSnapshot(AuthStatus.loading);
     notifyListeners();
+
     try {
       final phoneOtpRepository = _phoneOtpRepository();
       await phoneOtpRepository.requestPhoneOtp(phoneNumber: phoneNumber);
       _phoneOtpState = PhoneOtpState.sent;
       _state = const AuthSnapshot(AuthStatus.unauthenticated);
-    } catch (error) {
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('PHONE_OTP_REQUEST_ERROR: $error');
+        debugPrintStack(
+          label: 'PHONE_OTP_REQUEST_STACK',
+          stackTrace: stackTrace,
+        );
+      }
+
       _phoneOtpState = PhoneOtpState.phoneEntry;
       _state = AuthSnapshot(AuthStatus.error, message: _safeMessage(error));
     }
+
     notifyListeners();
   }
 
@@ -63,6 +93,7 @@ class AuthController extends ChangeNotifier {
     _phoneOtpState = PhoneOtpState.verifying;
     _state = const AuthSnapshot(AuthStatus.loading);
     notifyListeners();
+
     try {
       final phoneOtpRepository = _phoneOtpRepository();
       await phoneOtpRepository.verifyPhoneOtp(
@@ -71,10 +102,19 @@ class AuthController extends ChangeNotifier {
       );
       _state = await repo.restore();
       _phoneOtpState = PhoneOtpState.phoneEntry;
-    } catch (error) {
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('PHONE_OTP_VERIFY_ERROR: $error');
+        debugPrintStack(
+          label: 'PHONE_OTP_VERIFY_STACK',
+          stackTrace: stackTrace,
+        );
+      }
+
       _phoneOtpState = PhoneOtpState.sent;
       _state = AuthSnapshot(AuthStatus.error, message: _safeMessage(error));
     }
+
     notifyListeners();
   }
 
@@ -91,6 +131,9 @@ class AuthController extends ChangeNotifier {
     _signOutError = null;
     notifyListeners();
     try {
+      try {
+        await _beforeLogout?.call();
+      } catch (_) {}
       await repo.signOut();
       _state = await repo.restore();
     } catch (error) {

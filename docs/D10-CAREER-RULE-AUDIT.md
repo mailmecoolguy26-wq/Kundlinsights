@@ -2,9 +2,9 @@
 
 ## Scope and decision
 
-This is a research inventory of the transcript for *Job Ya Business? D10 Chart Batayega Aapke Career Ki Sahi Direction | Astro Arun Pandit* (`aj0VWyXG21A`). It does not validate or implement any astrology rule.
+This is a research inventory of the transcript for *Job Ya Business? D10 Chart Batayega Aapke Career Ki Sahi Direction | Astro Arun Pandit* (`aj0VWyXG21A`). The immutable raw source is pinned at [D10-Career-Masterclass-Transcript.txt](sources/career/d10/D10-Career-Masterclass-Transcript.txt) (SHA-256 `cf4c07f3ae1a1e4f5d5710bfe5ade15a857fa48dc73bde1f3254f3adfba58beb`). It does not validate or implement any astrology rule.
 
-The transcript is a single practitioner source. Its claims are preserved in [the structured audit](../tmp/d10-career-rule-audit.json), but are not product authority. Existing TaraVerse policy remains controlling:
+The transcript is a single practitioner source. Its claims are inventoried below, but are not product authority. Existing TaraVerse policy remains controlling:
 
 - D1 is authoritative for Career foundation.
 - D10 is corroborative, never an independent outcome or timing engine.

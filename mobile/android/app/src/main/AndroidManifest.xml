@@ -3,6 +3,7 @@
          supported payment providers. Keep this in the main manifest so signed
          release builds retain the same required network capability. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="TaraVerse"
         android:name="${applicationName}"

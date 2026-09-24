@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kundlinsights_mobile/features/auth/auth_controller.dart';
+import 'package:kundlinsights_mobile/core/analytics/analytics.dart';
 import 'package:kundlinsights_mobile/features/auth/domain/auth_repository.dart';
 import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile.dart';
 import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile_repository.dart';
@@ -13,7 +14,12 @@ void main() {
     final auth = AuthController(authRepository);
     await auth.restore();
     final repository = _Profiles();
-    final controller = ProfileController(repository, auth);
+    final tracked = _AnalyticsProvider();
+    final controller = ProfileController(
+      repository,
+      auth,
+      analytics: Analytics(tracked),
+    );
     await controller.load();
     expect(controller.profiles, hasLength(2));
     expect(controller.activeProfile!.id, 'a');
@@ -48,6 +54,8 @@ void main() {
     await controller.create(displayLabel: 'Riya', birthData: resolved);
     expect(identical(repository.createdData, resolved), isTrue);
     expect(controller.activeProfile!.displayLabel, 'Riya');
+    expect(tracked.events.single.$1, 'birth_profile_created');
+    expect(tracked.events.single.$2.keys, {'birth_profile_id', 'source'});
 
     await auth.logout();
     expect(controller.profiles, isEmpty);
@@ -88,6 +96,15 @@ void main() {
       auth.dispose();
     },
   );
+}
+
+class _AnalyticsProvider implements AnalyticsProvider {
+  final events = <(String, Map<String, Object?>)>[];
+
+  @override
+  Future<void> track(String eventName, Map<String, Object?> properties) async {
+    events.add((eventName, properties));
+  }
 }
 
 class _Auth implements AuthRepository {
