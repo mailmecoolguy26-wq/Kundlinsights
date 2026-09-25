@@ -12,7 +12,8 @@
     "dev:grant-career-entitlement": "node src/runtime/grant-development-career-entitlement.js",
     "dev:test-push": "node scripts/dev-test-push.js",
     "test": "node --test tests/**/*.test.js",
-    "audit:horizons": "node scripts/audit-horizons.js"
+    "audit:horizons": "node scripts/audit-horizons.js",
+    "start": "node src/runtime/start-production.js"
   },
   "keywords": [],
   "author": "",

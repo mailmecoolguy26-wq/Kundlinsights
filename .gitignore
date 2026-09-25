@@ -35,3 +35,7 @@ build/
 backups/
 *.backup
 *.current
+.env.production.local
+
+# Generated production runtime artifacts
+.runtime/
