@@ -20,9 +20,7 @@ async function main() {
     max: 1,
     connectionTimeoutMillis: config.db.connectionTimeoutMillis,
     idleTimeoutMillis: config.db.idleTimeoutMillis,
-    ssl: {
-      rejectUnauthorized: true,
-    },
+    ssl: config.db.ssl,
     application_name: 'taraverse-production-diagnostic',
   });
 
