@@ -34,6 +34,7 @@ if (require.main === module) {
     console.error(
       'Production startup failed:',
       error && error.code ? error.code : 'UNKNOWN_ERROR',
+      error && error.message ? error.message : '',
     );
     process.exitCode = 1;
   });
