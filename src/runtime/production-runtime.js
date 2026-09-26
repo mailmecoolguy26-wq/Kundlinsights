@@ -12,7 +12,16 @@ const { AppleRootCertificateProvider } = require('../payment/apple/apple-root-ce
 
 function requestLogValue(request) { const url = typeof request.url === 'string' ? request.url : request.raw && request.raw.url; const path = typeof url === 'string' ? url.split('?', 1)[0] : undefined; return { method: request.method, url: path, version: request.headers && request.headers['accept-version'], host: request.host, remoteAddress: request.ip, remotePort: request.socket ? request.socket.remotePort : undefined }; }
 function productionLogger(level) { return { level, serializers: { req: requestLogValue }, redact: { paths: ['authorization', 'headers.authorization', 'req.headers.authorization', 'req.headers.cookie', 'request.headers.authorization', 'request.headers.cookie', 'DATABASE_URL', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'GOOGLE_MAPS_API_KEY', 'OPENAI_API_KEY', 'openai.apiKey', 'RAZORPAY_KEY_SECRET', 'RAZORPAY_WEBHOOK_SECRET', 'razorpay.keySecret', 'razorpay.webhookSecret'], remove: true } }; }
-function poolOptions(config) { return { connectionString: config.databaseUrl, max: config.db.max, connectionTimeoutMillis: config.db.connectionTimeoutMillis, idleTimeoutMillis: config.db.idleTimeoutMillis, ssl: { rejectUnauthorized: true }, application_name: 'kundlinsights-api' }; }
+function poolOptions(config) {
+  return {
+    connectionString: config.databaseUrl,
+    max: config.db.max,
+    connectionTimeoutMillis: config.db.connectionTimeoutMillis,
+    idleTimeoutMillis: config.db.idleTimeoutMillis,
+    ssl: config.db.ssl,
+    application_name: 'kundlinsights-api',
+  };
+}
 function bounded(operation, milliseconds) { let timer; return Promise.race([operation, new Promise((_, reject) => { timer = setTimeout(() => reject(Object.assign(new Error('Shutdown timed out.'), { code: 'PRODUCTION_SHUTDOWN_TIMEOUT' })), milliseconds); })]).finally(() => clearTimeout(timer)); }
 
 function createProductionRuntime({ env = process.env, astronomicalEngine, canonicalSiderealSunSampler, idGenerator = crypto.randomUUID, clock = () => new Date().toISOString(), dependencies = {} } = {}) {
