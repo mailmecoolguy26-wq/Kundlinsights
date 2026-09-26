@@ -45,6 +45,17 @@ function createSupabaseAuthVerifier({ issuer, jwksUri, audience: configuredAudie
         if (!text(payload.sub) || payload.role === 'service_role' || payload.token_type === 'refresh_token' || (payload.is_anonymous !== undefined && typeof payload.is_anonymous !== 'boolean')) throw authError();
         return verifiedPrincipal({ provider: 'supabase', subject: payload.sub, isAnonymous: payload.is_anonymous === true });
       } catch (error) {
+        console.error(
+          'SUPABASE_AUTH_VERIFY_ERROR',
+          JSON.stringify({
+            code: error && error.code ? error.code : null,
+            claim: error && error.claim ? error.claim : null,
+            reason: error && error.reason ? error.reason : null,
+            authorizationHeaderPresent:
+              !!(request && request.headers && request.headers.authorization),
+          }),
+        );
+
         if (error && error.code === 'INVALID_AUTH_PRINCIPAL') throw error;
         throw authError();
       }
