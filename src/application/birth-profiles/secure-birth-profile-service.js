@@ -45,26 +45,10 @@ class SecureBirthProfileService {
         (repos) => repos.birthProfiles.listEncryptedBirthProfilesForUser(user.id),
       );
 
-      console.error(
-        'BIRTH_PROFILE_LIST_DIAGNOSTIC',
-        JSON.stringify({
-          appUserId: user.id,
-          rowCount: rows.length,
-          keyVersions: [...new Set(rows.map((row) => row.keyVersion))],
-        }),
-      );
-
       return (await Promise.all(
         rows.map((row) => this.decrypt(verified, row)),
       )).map(dto);
-    } catch (error) {
-      console.error(
-        'BIRTH_PROFILE_LIST_ERROR',
-        JSON.stringify({
-          code: error && error.code ? error.code : null,
-          name: error && error.name ? error.name : null,
-        }),
-      );
+    } catch {
       fail('NOT_FOUND_OR_FORBIDDEN');
     }
   }
