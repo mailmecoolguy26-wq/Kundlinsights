@@ -16,6 +16,16 @@ function googlePlay(env) { const productIds = [env.GOOGLE_CAREER_PREMIUM_ANNUAL_
 function razorpay(env) { const values = [env.RAZORPAY_KEY_ID, env.RAZORPAY_KEY_SECRET, env.RAZORPAY_WEBHOOK_SECRET, env.RAZORPAY_PRODUCT_CATALOG_JSON]; if (values.every((value) => value === undefined || value === '')) return null; if (!values.every(text)) invalid(); if (!text(env.RAZORPAY_ENVIRONMENT)) invalid('RAZORPAY_ENVIRONMENT is required when Razorpay is enabled'); if (!['SANDBOX', 'PRODUCTION'].includes(env.RAZORPAY_ENVIRONMENT)) invalid('RAZORPAY_ENVIRONMENT must be SANDBOX or PRODUCTION'); try { const products = JSON.parse(env.RAZORPAY_PRODUCT_CATALOG_JSON); if (!Array.isArray(products)) invalid(); return Object.freeze({ keyId: env.RAZORPAY_KEY_ID, keySecret: env.RAZORPAY_KEY_SECRET, webhookSecret: env.RAZORPAY_WEBHOOK_SECRET, products, environment: env.RAZORPAY_ENVIRONMENT }); } catch { invalid(); } }
 function careerChat(env, openai) { if (env.CAREER_CHAT_LLM_ENABLED !== 'true') return Object.freeze({ enabled: false }); if (!text(env.CAREER_CHAT_OPENAI_MODEL)) invalid(); return Object.freeze({ enabled: true, apiKey: openai.apiKey, model: env.CAREER_CHAT_OPENAI_MODEL, timeoutMilliseconds: integer(env.CAREER_CHAT_LLM_TIMEOUT_MS, 8000, 100, 15000) }); }
 function apple(env) { const products = [env.APPLE_CAREER_PREMIUM_ANNUAL_PRODUCT_ID, env.APPLE_CAREER_PROFILE_UNLOCK_PRODUCT_ID]; const enabled = products.some(text); if (!enabled) return null; if (!text(env.APPLE_CAREER_PROFILE_UNLOCK_PRODUCT_ID)) invalid('APPLE_CAREER_PROFILE_UNLOCK_PRODUCT_ID is required when Apple purchasing is enabled'); if (!products.every((value) => value === undefined || value === '' || text(value)) || !text(env.APPLE_BUNDLE_ID) || !text(env.APPLE_APP_ID) || !text(env.APPLE_ROOT_CERTIFICATE_PATHS)) invalid(); const rootCertificatePaths = env.APPLE_ROOT_CERTIFICATE_PATHS.split(','); if (!rootCertificatePaths.length || rootCertificatePaths.some((value) => !text(value)) || new Set(rootCertificatePaths).size !== rootCertificatePaths.length) invalid(); return Object.freeze({ bundleId: env.APPLE_BUNDLE_ID, appAppleId: env.APPLE_APP_ID, rootCertificatePaths: Object.freeze(rootCertificatePaths), careerPremiumAnnualProductId: text(env.APPLE_CAREER_PREMIUM_ANNUAL_PRODUCT_ID) ? env.APPLE_CAREER_PREMIUM_ANNUAL_PRODUCT_ID : null, careerProfileUnlockProductId: env.APPLE_CAREER_PROFILE_UNLOCK_PRODUCT_ID }); }
+function astronomy(env) {
+  const authority = env.ASTRONOMY_PRODUCTION_AUTHORITY === undefined ? 'provisional' : env.ASTRONOMY_PRODUCTION_AUTHORITY;
+  if (!['provisional', 'swiss'].includes(authority)) invalid('ASTRONOMY_PRODUCTION_AUTHORITY must be provisional or swiss');
+  if (authority === 'provisional') return Object.freeze({ authority });
+  if (!text(env.SWISS_EPHEMERIS_PATH) || !text(env.SWISS_EPHEMERIS_MANIFEST_JSON) || env.SWISS_EPHEMERIS_PROFESSIONAL_LICENSED !== 'true') invalid('Swiss production astronomy prerequisites are required');
+  try {
+    const manifest = JSON.parse(env.SWISS_EPHEMERIS_MANIFEST_JSON);
+    return Object.freeze({ authority, ephemerisPath: env.SWISS_EPHEMERIS_PATH, manifest, productionLicenseGate: true });
+  } catch { invalid('SWISS_EPHEMERIS_MANIFEST_JSON is required'); }
+}
 
 function loadProductionConfig(env = process.env) {
   if (!env || env.NODE_ENV !== 'production' || !text(env.HOST)) invalid();
@@ -39,7 +49,7 @@ function loadProductionConfig(env = process.env) {
     aws: (() => { const kmsKeyArn = awsArn(env.KUNDLINSIGHTS_KMS_KEY_ARN); return Object.freeze({ region: awsRegion(env.AWS_REGION), kmsKeyArn, historicalKmsKeyArns: historicalArns(env.KUNDLINSIGHTS_HISTORICAL_KMS_KEY_ARNS, kmsKeyArn) }); })(),
     google: Object.freeze({ mapsApiKey: text(env.GOOGLE_MAPS_API_KEY) ? env.GOOGLE_MAPS_API_KEY : invalid(), timeoutMilliseconds: integer(env.GOOGLE_GEOCODING_TIMEOUT_MS, 5000, 100, 15000), play: googlePlay(env) }), razorpay: razorpay(env),
     openai, careerChat: careerChat(env, openai),
-    timezoneRuntime: Object.freeze({ manifestPath: text(env.TIMEZONE_RUNTIME_MANIFEST_PATH) ? env.TIMEZONE_RUNTIME_MANIFEST_PATH : invalid(), binaryPath: text(env.TIMEZONE_RUNTIME_BINARY_PATH) ? env.TIMEZONE_RUNTIME_BINARY_PATH : invalid() }),
+    timezoneRuntime: Object.freeze({ manifestPath: text(env.TIMEZONE_RUNTIME_MANIFEST_PATH) ? env.TIMEZONE_RUNTIME_MANIFEST_PATH : invalid(), binaryPath: text(env.TIMEZONE_RUNTIME_BINARY_PATH) ? env.TIMEZONE_RUNTIME_BINARY_PATH : invalid() }), astronomy: astronomy(env),
     corsOrigins: origins(env.CORS_ALLOWED_ORIGINS), bodyLimitBytes: integer(env.REQUEST_BODY_LIMIT_BYTES, 16384, 1024, 16384), shutdownTimeoutMilliseconds: integer(env.SHUTDOWN_TIMEOUT_MS, 30000, 1000, 120000), logLevel: env.LOG_LEVEL === undefined ? 'info' : ['fatal', 'error', 'warn', 'info'].includes(env.LOG_LEVEL) ? env.LOG_LEVEL : invalid(),
   });
 }

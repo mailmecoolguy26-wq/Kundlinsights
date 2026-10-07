@@ -22,7 +22,7 @@ function utcFromEpoch(epoch) {
   return new Date(epoch).toISOString();
 }
 function safeSamplerProvenance(provenance) {
-  const allowed = ['provider', 'providerId', 'swissVersion', 'binding', 'calculationStatus', 'ephemerisMode', 'siderealMode', 'coordinateFrame', 'coordinateProvenance', 'body', 'requestedFlags', 'returnedFlags', 'productionAuthority'];
+  const allowed = ['provider', 'providerId', 'swissVersion', 'binding', 'calculationStatus', 'ephemerisMode', 'siderealMode', 'coordinateFrame', 'coordinateProvenance', 'body', 'requestedFlags', 'returnedFlags', 'productionAuthority', 'ephemerisManifestId', 'ephemerisReleaseId'];
   return deepFreeze(Object.fromEntries(allowed.filter((key) => Object.hasOwn(provenance, key)).map((key) => [key, provenance[key]])));
 }
 function sampleAt(sampler, epoch) {

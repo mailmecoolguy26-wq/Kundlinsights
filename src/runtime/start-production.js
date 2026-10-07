@@ -1,8 +1,6 @@
 'use strict';
 
-const {
-  createDevelopmentAstrology,
-} = require('./create-development-astrology');
+const { createProductionAstrology } = require('./create-production-astrology');
 
 const {
   createProductionRuntime,
@@ -13,7 +11,7 @@ async function startProduction({
   dependencies = {},
 } = {}) {
   const astrology =
-    (dependencies.createAstrology || createDevelopmentAstrology)();
+    (dependencies.createAstrology || createProductionAstrology)({ env });
 
   const runtime =
     (dependencies.createProductionRuntime || createProductionRuntime)({

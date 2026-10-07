@@ -4,9 +4,9 @@ const { assertCanonicalUtcInstant, validateCanonicalSiderealSunSample, sunSample
 const { SWISS_BINDING, CALCULATION_STATUS } = require('./swiss-reference-data');
 
 class SwissCanonicalSiderealSunSampler {
-  constructor({ nativeAdapter } = {}) {
+  constructor({ nativeAdapter, productionAuthority = false } = {}) {
     if (!nativeAdapter || typeof nativeAdapter.julianDayUt !== 'function' || typeof nativeAdapter.calculateBody !== 'function') throw new TypeError('SwissCanonicalSiderealSunSampler requires a SwissNativeAdapter.');
-    this.nativeAdapter = nativeAdapter;
+    this.nativeAdapter = nativeAdapter; this.productionAuthority = productionAuthority === true;
     Object.freeze(this);
   }
 
@@ -19,10 +19,12 @@ class SwissCanonicalSiderealSunSampler {
         canonicalSiderealLongitudeDegrees: native.longitude,
         provenance: deepFreeze({
           provider: 'Swiss Ephemeris', providerId: 'swiss-ephemeris', swissVersion: this.nativeAdapter.swissVersion,
-          binding: SWISS_BINDING, calculationStatus: CALCULATION_STATUS, ephemerisMode: 'SWIEPH',
+          binding: SWISS_BINDING, calculationStatus: this.productionAuthority ? 'PRODUCTION' : CALCULATION_STATUS, ephemerisMode: 'SWIEPH',
           siderealMode: 'SE_SIDM_LAHIRI', coordinateFrame: 'geocentric-ecliptic-of-date; native-sidereal-lahiri',
           coordinateProvenance: 'provider-native', body: 'Sun', requestedFlags: this.nativeAdapter.requestedFlags,
-          returnedFlags: native.returnedFlags, productionAuthority: false
+          returnedFlags: native.returnedFlags, productionAuthority: this.productionAuthority,
+          ephemerisManifestId: this.nativeAdapter.policy && this.nativeAdapter.policy.manifest.manifestId,
+          ephemerisReleaseId: this.nativeAdapter.policy && this.nativeAdapter.policy.manifest.releaseId,
         })
       });
       return validateCanonicalSiderealSunSample(result);

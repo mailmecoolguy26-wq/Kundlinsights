@@ -50,7 +50,7 @@ function validateBirthForReplay(birth) {
   return place;
 }
 function safeAstronomy(provenance) {
-  const allowed = ['providerId', 'providerVersion', 'calculationStatus', 'productionAuthority', 'siderealMode', 'nodeModel'];
+  const allowed = ['providerId', 'providerVersion', 'calculationStatus', 'productionAuthority', 'siderealMode', 'nodeModel', 'ayanamshaSystem', 'ephemerisManifestId', 'ephemerisReleaseId', 'transitBoundaryMethod'];
   return Object.fromEntries(allowed.map((key) => [key, provenance[key] === undefined ? null : provenance[key]]));
 }
 function safeDasha(provenance) {

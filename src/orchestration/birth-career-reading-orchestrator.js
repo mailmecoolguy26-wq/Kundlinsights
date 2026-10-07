@@ -99,6 +99,8 @@ function assertCompatibleSolarDashaProvenance(layer1Result, dasha) {
     ['calculationStatus', provider.calculationStatus || layer1Result.calculationStatus, sampler.calculationStatus],
     ['productionAuthority', isProductionAstronomicalAuthority(layer1Result), sampler.productionAuthority],
     ['swissVersion', provider.swissVersion, sampler.swissVersion],
+    ['ephemerisManifestId', provider.ephemerisManifestId, sampler.ephemerisManifestId],
+    ['ephemerisReleaseId', provider.ephemerisReleaseId, sampler.ephemerisReleaseId],
     ['coordinateProvenance', birthProvenance.coordinateProvenance, sampler.coordinateProvenance],
   ];
   const conflict = comparable.find(([, birthValue, samplerValue]) => birthValue !== undefined && birthValue !== null && samplerValue !== undefined && samplerValue !== null && birthValue !== samplerValue);
@@ -120,7 +122,7 @@ function dashaTimingProvenance(dasha, providerSamplerConsistency) {
   };
 }
 
-function safeProviderProvenance(layer1Result, houses, dasha, place, providerSamplerConsistency, engineProfile) {
+function safeProviderProvenance(layer1Result, houses, dasha, place, providerSamplerConsistency, engineProfile, transitBoundaryMethod = null) {
   const provider = layer1Result.provider || {};
   return {
     adapterRulesetId: BIRTH_CAREER_ORCHESTRATOR_RULESET_ID,
@@ -129,7 +131,11 @@ function safeProviderProvenance(layer1Result, houses, dasha, place, providerSamp
     calculationStatus: provider.calculationStatus || layer1Result.calculationStatus || null,
     productionAuthority: isProductionAstronomicalAuthority(layer1Result),
     siderealMode: provider.siderealMode || layer1Result.sidereal && layer1Result.sidereal.siderealMode || null,
+    ayanamshaSystem: 'Lahiri / Chitrapaksha',
     nodeModel: provider.nodeModel || null,
+    ephemerisManifestId: provider.ephemerisManifestId || null,
+    ephemerisReleaseId: provider.ephemerisReleaseId || null,
+    transitBoundaryMethod,
     houseRulesetId: houses.rulesetId,
     engineProfileId: engineProfile.id,
     dashaRulesetId: dasha.ruleset.id,
@@ -166,25 +172,35 @@ function futureDashaIntervals(dasha, horizonEnd) {
   return intervals;
 }
 
-function futureMajorTransitIntervals({ astronomicalEngine, start, end, place }) {
-  const daily = [];
-  for (let timestamp = Date.parse(start); timestamp < Date.parse(end); timestamp += 86400000) {
-    const instant = new Date(timestamp);
-    const chart = astronomicalEngine.calculate(utcInstantToLayer1Input(instant.toISOString(), place));
-    for (const planet of ['Jupiter', 'Saturn']) daily.push({
-      planet,
-      sign: Math.floor(chart.bodies[planet].siderealLongitudeDegrees / 30) + 1,
-      start: instant.toISOString(),
-      end: new Date(timestamp + 86400000).toISOString(),
-    });
-  }
+const CAREER_TRANSIT_BOUNDARY_METHOD = 'layer10-refined-rashi-ingress-v2';
+
+// Each state transition is preserved as its own half-open interval.  In
+// particular, a retrograde departure and a later re-entry must never be
+// collapsed into one sign period merely because they share the same Rashi.
+function futureMajorTransitIntervals({ astronomicalEngine, start, end, place, natalBodies, natalHouses }) {
+  const startChart = astronomicalEngine.calculate(utcInstantToLayer1Input(start, place));
+  const scan = scanTransitEvents({
+    startInstant: start,
+    endInstant: end,
+    natalBodies,
+    natalHouses,
+    astronomicalEngine,
+    observer: { latitude: place.latitude, longitude: place.longitude },
+    bodies: ['Jupiter', 'Saturn'],
+    eventTypes: ['rashiIngress'],
+  });
   const intervals = [];
-  for (const item of daily) {
-    const previous = intervals.at(-1);
-    if (previous && previous.planet === item.planet && previous.sign === item.sign && previous.end === item.start) previous.end = item.end;
-    else intervals.push(item);
+  for (const planet of ['Jupiter', 'Saturn']) {
+    let intervalStart = start;
+    let sign = Math.floor(startChart.bodies[planet].siderealLongitudeDegrees / 30) + 1;
+    for (const event of scan.events.filter((item) => item.eventType === 'rashiIngress' && item.body === planet)) {
+      if (Date.parse(event.instant) > Date.parse(intervalStart)) intervals.push({ planet, sign, start: intervalStart, end: event.instant, direction: event.direction, boundaryMethod: CAREER_TRANSIT_BOUNDARY_METHOD });
+      intervalStart = event.instant;
+      sign = event.toRashi.rashiIndex;
+    }
+    if (Date.parse(intervalStart) < Date.parse(end)) intervals.push({ planet, sign, start: intervalStart, end, boundaryMethod: CAREER_TRANSIT_BOUNDARY_METHOD });
   }
-  return intervals;
+  return intervals.sort((left, right) => left.start.localeCompare(right.start) || left.planet.localeCompare(right.planet));
 }
 
 class BirthCareerReadingOrchestrator {
@@ -272,7 +288,7 @@ class BirthCareerReadingOrchestrator {
     const careerTiming = buildCareerTimingPeriods({
       d1Houses: houses,
       dashaIntervals: futureDashaIntervals(dasha, timingHorizonEnd),
-      transitIntervals: futureMajorTransitIntervals({ astronomicalEngine: this.astronomicalEngine, start: input.readingInstant, end: timingHorizonEnd, place: input.birth.place }),
+      transitIntervals: futureMajorTransitIntervals({ astronomicalEngine: this.astronomicalEngine, start: input.readingInstant, end: timingHorizonEnd, place: input.birth.place, natalBodies: birthLayer1Result.bodies, natalHouses: houses }),
       horizonStart: input.readingInstant,
       horizonEnd: timingHorizonEnd,
       d10Confirmation: Boolean(career.reading.careerD10Corroboration),
@@ -283,9 +299,9 @@ class BirthCareerReadingOrchestrator {
       locale: career.locale,
       reading: freeze({ ...career.reading, careerTimingPeriods: careerTiming.periods }),
       renderedReading: career.renderedReading,
-      provenance: safeProviderProvenance(birthLayer1Result, houses, dasha, input.birth.place, providerSamplerConsistency, this.engineProfile),
+      provenance: safeProviderProvenance(birthLayer1Result, houses, dasha, input.birth.place, providerSamplerConsistency, this.engineProfile, CAREER_TRANSIT_BOUNDARY_METHOD),
     });
   }
 }
 
-module.exports = { BirthCareerReadingOrchestrator, d10CareerStructure };
+module.exports = { BirthCareerReadingOrchestrator, d10CareerStructure, futureMajorTransitIntervals, CAREER_TRANSIT_BOUNDARY_METHOD };

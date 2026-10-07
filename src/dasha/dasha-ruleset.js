@@ -24,7 +24,7 @@ const SOLAR_RETURN_VIMSHOTTARI_RULESET = Object.freeze({
     classicalSource: 'BPHS Chapters 46 and 51: sequence, weights, and proportional MD/AD/PD arithmetic.',
     balanceMethod: 'Deterministic KundlInsights computational implementation derived from Moon canonical sidereal longitude within its Janma Nakshatra.',
     timeConvention: 'KundlInsights solar-return convention: actual native Lahiri solar-return intervals with linear UTC-time fractional interpolation.',
-    chronologyStatus: 'EXPLICIT_OPT_IN_ONLY; prototype parity pending independent Swiss C validation.'
+    chronologyStatus: 'CURRENT_DEFAULT_FOR_NEW_READINGS; production authority remains contingent on the selected Layer 1 provider provenance.'
   })
 });
 

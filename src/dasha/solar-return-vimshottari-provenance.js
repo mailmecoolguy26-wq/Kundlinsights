@@ -3,7 +3,7 @@
 function deepFreeze(value) { if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value; Object.freeze(value); for (const child of Object.values(value)) deepFreeze(child); return value; }
 
 function buildSolarReturnVimshottariProvenance({ ruleset, natalSunCanonicalSiderealLongitude, grid, samplerProvenance }) {
-  const allowed = ['provider', 'providerId', 'swissVersion', 'binding', 'calculationStatus', 'ephemerisMode', 'siderealMode', 'coordinateFrame', 'coordinateProvenance', 'body', 'requestedFlags', 'returnedFlags', 'productionAuthority'];
+  const allowed = ['provider', 'providerId', 'swissVersion', 'binding', 'calculationStatus', 'ephemerisMode', 'siderealMode', 'coordinateFrame', 'coordinateProvenance', 'body', 'requestedFlags', 'returnedFlags', 'productionAuthority', 'ephemerisManifestId', 'ephemerisReleaseId'];
   const sampler = Object.fromEntries(allowed.filter((key) => Object.hasOwn(samplerProvenance, key)).map((key) => [key, samplerProvenance[key]]));
   return deepFreeze({
     rulesetId: ruleset.id,

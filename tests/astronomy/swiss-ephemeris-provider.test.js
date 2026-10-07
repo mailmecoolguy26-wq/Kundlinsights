@@ -76,6 +76,15 @@ test('production authority remains false for validation, provisional, and incomp
   }
 });
 
+test('an explicit licensed Swiss gate upgrades only verified Swiss provenance to production authority', () => {
+  const result = new AstronomicalEngine(new SwissEphemerisProvider({ nativeAdapter: fakeAdapter(), productionLicenseGate: true })).calculate(input());
+  assert.equal(result.provider.calculationStatus, 'PRODUCTION');
+  assert.equal(result.provider.productionAuthority, true);
+  assert.equal(result.provider.nodeModel, 'MEAN_NODE');
+  assert.equal(result.bodies.Ketu.siderealLongitudeDegrees, (result.bodies.Rahu.siderealLongitudeDegrees + 180) % 360);
+  assert.equal(isProductionAstronomicalAuthority(result), true);
+});
+
 test('keeps Swiss authority golden fixtures explicitly license/data-gated rather than inventing numeric references', () => {
   assert.equal(SWISS_AUTHORITY_GOLDEN_FIXTURE_SCHEMA.fixtureStatus, 'LICENSE_AND_DATA_GATED');
   assert.equal(SWISS_AUTHORITY_GOLDEN_FIXTURE_SCHEMA.source, 'official-swiss-c-or-swetest');

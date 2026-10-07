@@ -7,7 +7,7 @@ const { FULL_ASPECTS_BY_GRAHA } = require('../../drishti/reference-data');
 const { freeze } = require('../../synthesis/evidence-node');
 const { resolveCareerNatalFactors } = require('./career-generalized-timing-engine');
 
-const RULESET_VERSION = 'career-timing-launch-v1';
+const RULESET_VERSION = 'career-timing-launch-v2-refined-transit-boundaries';
 const MAJOR_PLANETS = new Set(['Jupiter', 'Saturn']);
 const PLANET_NAMES = Object.freeze({ Sun: 'Surya Dev', Moon: 'Chandra Dev', Mars: 'Mangal', Mercury: 'Budh', Jupiter: 'Guru Dev', Venus: 'Shukra', Saturn: 'Shani Dev', Rahu: 'Rahu', Ketu: 'Ketu' });
 const validInterval = (value) => value && typeof value.start === 'string' && typeof value.end === 'string' && Date.parse(value.start) < Date.parse(value.end);

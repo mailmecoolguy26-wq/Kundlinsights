@@ -33,6 +33,7 @@ test('uses solar-return chronology and v2 engine provenance by default for new r
   assert.equal(result.provenance.dashaTimeConventionId, 'solar-return-lahiri-grid-v1');
   assert.equal(result.provenance.dashaTiming.solarReturnSolverId, 'solar-return-lahiri-bisection-v1');
   assert.equal(result.provenance.dashaTiming.solarYearInterpolationId, 'solar-return-grid-linear-time-interpolation-v1');
+  assert.equal(result.provenance.transitBoundaryMethod, 'layer10-refined-rashi-ingress-v2');
   assert.equal(result.provenance.productionAuthority, false);
   assert.equal(JSON.stringify(result).includes('/private/'), false);
   assert.equal(Object.isFrozen(result), true);

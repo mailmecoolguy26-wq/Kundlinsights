@@ -25,7 +25,9 @@ class SwissEphemerisProvider extends EphemerisProvider {
     this.nativeAdapter = nativeAdapter || new SwissNativeAdapter({ ephemerisPath, manifest, binding, manifestVerifier });
     if (!this.nativeAdapter || typeof this.nativeAdapter.julianDayUt !== 'function' || typeof this.nativeAdapter.calculateBody !== 'function' || typeof this.nativeAdapter.calculateAscendant !== 'function') throw new TypeError('SwissEphemerisProvider requires a SwissNativeAdapter.');
     this.productionLicenseGate = productionLicenseGate === true;
-    this.metadata = deepFreeze({ provider: 'Swiss Ephemeris', providerId: 'swiss-ephemeris', calculationStatus: CALCULATION_STATUS, swissVersion: this.nativeAdapter.swissVersion, binding: SWISS_BINDING, ephemerisMode: 'SWIEPH', siderealMode: 'SE_SIDM_LAHIRI', nodeModel: 'MEAN_NODE', coordinateFrame: 'native-sidereal', ephemerisManifestStatus: 'VERIFIED', productionAuthority: false });
+    const calculationStatus = this.productionLicenseGate ? 'PRODUCTION' : CALCULATION_STATUS;
+    const verifiedManifest = this.nativeAdapter.policy && this.nativeAdapter.policy.manifest;
+    this.metadata = deepFreeze({ provider: 'Swiss Ephemeris', providerId: 'swiss-ephemeris', calculationStatus, swissVersion: this.nativeAdapter.swissVersion, binding: SWISS_BINDING, ephemerisMode: 'SWIEPH', siderealMode: 'SE_SIDM_LAHIRI', nodeModel: 'MEAN_NODE', coordinateFrame: 'native-sidereal', ephemerisManifestStatus: 'VERIFIED', ephemerisManifestId: verifiedManifest && verifiedManifest.manifestId || null, ephemerisReleaseId: verifiedManifest && verifiedManifest.releaseId || null, productionAuthority: this.productionLicenseGate });
     Object.freeze(this);
   }
 
