@@ -150,6 +150,47 @@ test('research-enabled mode still returns no concentrated job favourability with
   assert.equal(answer.strongerConcentrationWindow, null);
 });
 
+test('research-enabled beta returns only server-calculated descriptive convergence fields', async () => {
+  const evaluator = {
+    evaluate: async () => ({
+      status: 'SUPPORTED',
+      broadWindow: { start: '2027-01-01T00:00:00.000Z', end: '2027-02-01T00:00:00.000Z' },
+      strongerConcentrationWindow: null,
+      strength: 'STRONGER',
+      evidenceAgreementCount: 3,
+      evidenceReasonCodes: ['CAREER_TIMING_ACTIVATED', 'JUPITER_WORK_RELATED_AREA', 'MAJOR_CAREER_TRANSITS_ACTIVE'],
+      recommendedActionCodes: ['PREPARE_CAREER_MATERIALS_AND_CONVERSATIONS'],
+      provenance: { noGenericCareerSignalUsed: true, noHistoricalRecurrenceRequired: true },
+    }),
+  };
+  const answer = await new CareerAnswerService({ secureReadingService: service(), jobFavourabilityResearchEnabled: true, jobFavourabilityEvaluator: evaluator }).answer({
+    principal: { id: 'user-a' }, birthProfileId: 'profile-a', body: { questionType: CareerQuestionType.JOB_FAVOURABILITY_TIMING },
+  });
+  assert.equal(answer.answerability, Answerability.SUPPORTED);
+  assert.equal(answer.projectionStatus, 'BETA_CONVERGENCE_AVAILABLE');
+  assert.deepEqual(answer.broadWindow, { start: '2027-01-01T00:00:00.000Z', end: '2027-02-01T00:00:00.000Z' });
+  assert.equal(answer.strongerConcentrationWindow, null);
+  assert.equal(answer.strength, 'STRONGER');
+  assert.equal(answer.evidenceAgreementCount, 3);
+  assert.deepEqual(answer.evidenceReasonCodes, ['CAREER_TIMING_ACTIVATED', 'JUPITER_WORK_RELATED_AREA', 'MAJOR_CAREER_TRANSITS_ACTIVE']);
+  assert.equal(answer.provenance.genericCareerSignal, 'NOT_USED');
+  assert.equal(answer.provenance.historicalRecurrence, 'NOT_REQUIRED');
+  assert.equal(JSON.stringify(answer).match(/probability|guaranteed|job.?will|offer.?expected|ruleset.*internal/i), null);
+});
+
+test('contains a beta evaluator failure behind a safe no-concentration response', async () => {
+  const answer = await new CareerAnswerService({
+    secureReadingService: service(),
+    jobFavourabilityResearchEnabled: true,
+    jobFavourabilityEvaluator: { evaluate: async () => { throw new Error('calculation failure'); } },
+  }).answer({
+    principal: { id: 'user-a' }, birthProfileId: 'profile-a', body: { questionType: CareerQuestionType.JOB_FAVOURABILITY_TIMING },
+  });
+  assert.equal(answer.answerability, Answerability.NO_CONCENTRATED_JOB_FAVOURABILITY);
+  assert.equal(answer.projectionStatus, 'RESEARCH_ENABLED_CALCULATION_UNAVAILABLE');
+  assert.equal(answer.broadWindow, null);
+});
+
 test('D10, Ashtakavarga, recurrence, H6 research context, and provisional Gochar cannot create, rank, or narrow job favourability', async () => {
   const value = detail({
     careerTimingPeriods: [{ ...detail().careerTimingPeriods[0], technicalDetails: { dasha: { periods: [] }, gochar: [{ transitPlanet: 'Jupiter' }], d10: { confirmationPresent: true } } }],

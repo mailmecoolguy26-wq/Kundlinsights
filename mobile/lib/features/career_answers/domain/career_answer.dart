@@ -1,20 +1,88 @@
 enum CareerQuestionType {
   currentCareerPhase,
-  careerActivityTiming;
+  careerActivityTiming,
+  jobFavourabilityTiming;
 
   String get wireName => switch (this) {
     CareerQuestionType.currentCareerPhase => 'CURRENT_CAREER_PHASE',
     CareerQuestionType.careerActivityTiming => 'CAREER_ACTIVITY_TIMING',
+    CareerQuestionType.jobFavourabilityTiming => 'JOB_FAVOURABILITY_TIMING',
   };
 
   static CareerQuestionType? fromWire(Object? value) => switch (value) {
     'CURRENT_CAREER_PHASE' => CareerQuestionType.currentCareerPhase,
     'CAREER_ACTIVITY_TIMING' => CareerQuestionType.careerActivityTiming,
+    'JOB_FAVOURABILITY_TIMING' => CareerQuestionType.jobFavourabilityTiming,
     _ => null,
   };
 }
 
-enum CareerAnswerability { supported, insufficientEvidence, unsupported }
+enum CareerAnswerability {
+  supported,
+  insufficientEvidence,
+  projectionDisabled,
+  noConcentratedJobFavourability,
+  unsupported,
+}
+
+class JobFavourabilityWindow {
+  const JobFavourabilityWindow({required this.start, required this.end});
+  final DateTime start;
+  final DateTime end;
+
+  static JobFavourabilityWindow? tryFromJson(Object? raw) {
+    if (raw is! Map<String, dynamic>) return null;
+    final start = DateTime.tryParse(raw['start'] as String? ?? '');
+    final end = DateTime.tryParse(raw['end'] as String? ?? '');
+    if (start == null || end == null || !start.isBefore(end)) return null;
+    return JobFavourabilityWindow(start: start.toUtc(), end: end.toUtc());
+  }
+}
+
+class JobFavourabilityBeta {
+  const JobFavourabilityBeta({
+    required this.window,
+    required this.narrowerWindow,
+    required this.strength,
+    required this.evidenceAgreementCount,
+    required this.reasonCodes,
+    required this.actionCodes,
+    required this.limitationCode,
+  });
+  final JobFavourabilityWindow window;
+  final JobFavourabilityWindow? narrowerWindow;
+  final String strength;
+  final int evidenceAgreementCount;
+  final List<String> reasonCodes;
+  final List<String> actionCodes;
+  final String limitationCode;
+
+  static JobFavourabilityBeta? tryFromJson(Map<String, dynamic> json) {
+    final window = JobFavourabilityWindow.tryFromJson(json['broadWindow']);
+    final strength = json['strength'];
+    final count = json['evidenceAgreementCount'];
+    final limitationCode = json['limitationCode'];
+    if (window == null ||
+        !{'MODERATE', 'STRONGER'}.contains(strength) ||
+        count is! int ||
+        count < 1 ||
+        limitationCode != 'BETA_DESCRIPTIVE_CONVERGENCE_ONLY') {
+      return null;
+    }
+    return JobFavourabilityBeta(
+      window: window,
+      narrowerWindow:
+          JobFavourabilityWindow.tryFromJson(json['strongerConcentrationWindow']),
+      strength: strength as String,
+      evidenceAgreementCount: count,
+      reasonCodes: List.unmodifiable((json['evidenceReasonCodes'] as List? ?? const [])
+          .whereType<String>().where((value) => value.isNotEmpty)),
+      actionCodes: List.unmodifiable((json['recommendedActionCodes'] as List? ?? const [])
+          .whereType<String>().where((value) => value.isNotEmpty)),
+      limitationCode: limitationCode,
+    );
+  }
+}
 
 class CareerAnswerWindow {
   const CareerAnswerWindow({
@@ -97,6 +165,7 @@ class CareerAnswer {
     required this.historicalSummary,
     required this.sourceReadingId,
     required this.rulesetVersion,
+    this.jobFavourability,
   });
 
   final CareerQuestionType questionType;
@@ -115,17 +184,41 @@ class CareerAnswer {
   final String? historicalSummary;
   final String? sourceReadingId;
   final String rulesetVersion;
+  final JobFavourabilityBeta? jobFavourability;
 
   factory CareerAnswer.fromJson(Map<String, dynamic> json) {
     final type = CareerQuestionType.fromWire(json['questionType']);
     final answerability = switch (json['answerability']) {
       'SUPPORTED' => CareerAnswerability.supported,
       'INSUFFICIENT_EVIDENCE' => CareerAnswerability.insufficientEvidence,
+      'PROJECTION_DISABLED' => CareerAnswerability.projectionDisabled,
+      'NO_CONCENTRATED_JOB_FAVOURABILITY' => CareerAnswerability.noConcentratedJobFavourability,
       'UNSUPPORTED' => CareerAnswerability.unsupported,
       _ => null,
     };
     final answer = json['answer'];
     final agreement = json['agreement'];
+    if (type == CareerQuestionType.jobFavourabilityTiming) {
+      final beta = answerability == CareerAnswerability.supported
+          ? JobFavourabilityBeta.tryFromJson(json)
+          : null;
+      if (answerability == null ||
+          (answerability == CareerAnswerability.supported && beta == null)) {
+        throw const FormatException('Malformed Job Favourability Answer.');
+      }
+      return CareerAnswer(
+        questionType: type!, answerability: answerability,
+        headline: '', summary: '', currentPhase: null, window: null,
+        actionItems: const [], limitation: beta?.limitationCode ??
+            (json['limitationCode'] as String? ?? ''),
+        availableMajorSignals: 0, alignedMajorSignals: 0,
+        primaryEligibility: false, supportSignals: const [], evidence: const [],
+        historicalSummary: null,
+        sourceReadingId: json['sourceReadingId'] as String?,
+        rulesetVersion: json['rulesetVersion'] as String? ?? '',
+        jobFavourability: beta,
+      );
+    }
     if (type == null ||
         answerability == null ||
         answer is! Map<String, dynamic> ||
@@ -186,6 +279,7 @@ class CareerAnswer {
       rulesetVersion: json['rulesetVersion'] is String
           ? json['rulesetVersion'] as String
           : '',
+      jobFavourability: null,
     );
   }
 }

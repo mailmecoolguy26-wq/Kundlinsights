@@ -49,6 +49,15 @@ class CareerHubScreen extends StatelessWidget {
             '/career/answer/${CareerQuestionType.careerActivityTiming.wireName}',
           ),
         ),
+        const SizedBox(height: 12),
+        _QuestionCard(
+          icon: Icons.auto_graph_outlined,
+          title: 'Stronger Career Window',
+          subtitle: 'A period where multiple career-related signals align.',
+          onTap: () => context.push(
+            '/career/answer/${CareerQuestionType.jobFavourabilityTiming.wireName}',
+          ),
+        ),
         const SizedBox(height: 28),
         const Text(
           'COMING SOON',

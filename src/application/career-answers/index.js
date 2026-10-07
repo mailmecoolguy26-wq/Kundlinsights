@@ -101,7 +101,7 @@ function noReading(questionType) {
   });
 }
 
-function jobFavourabilityContract({ reading, researchEnabled }) {
+async function jobFavourabilityContract({ reading, researchEnabled, evaluator, principal, birthProfileId }) {
   const signal = selectSignal(reading);
   const collected = collectEvidence(reading, signal);
   const historicalAvailable = Boolean(signal && typeof signal.recurrenceSummary === 'string' && signal.recurrenceSummary.trim());
@@ -151,13 +151,46 @@ function jobFavourabilityContract({ reading, researchEnabled }) {
     projectionStatus: 'DISABLED',
     limitationCode: 'JOB_FAVOURABILITY_RESEARCH_DISABLED',
   });
-  // The gate alone cannot promote generic Career activity into employment
-  // favourability. A separately approved evaluator will be required here.
-  return immutable({
+  if (!evaluator || typeof evaluator.evaluate !== 'function') return immutable({
     ...base,
     answerability: Answerability.NO_CONCENTRATED_JOB_FAVOURABILITY,
     projectionStatus: 'RESEARCH_ENABLED_NO_VALIDATED_METHODOLOGY',
     limitationCode: 'EMPLOYMENT_TRANSITION_DISCRIMINATOR_NOT_VALIDATED',
+  });
+  let beta = null;
+  try {
+    beta = await evaluator.evaluate({ principal, birthProfileId, reading });
+  } catch (_) {
+    return immutable({
+      ...base,
+      answerability: Answerability.NO_CONCENTRATED_JOB_FAVOURABILITY,
+      projectionStatus: 'RESEARCH_ENABLED_CALCULATION_UNAVAILABLE',
+      limitationCode: 'JOB_FAVOURABILITY_CALCULATION_UNAVAILABLE',
+      provenance: immutable({ ...base.provenance, betaEvaluator: 'SERVER_CALCULATED' }),
+    });
+  }
+  if (!beta || beta.status !== 'SUPPORTED' || !beta.broadWindow) return immutable({
+    ...base,
+    answerability: Answerability.NO_CONCENTRATED_JOB_FAVOURABILITY,
+    projectionStatus: 'RESEARCH_ENABLED_NO_CONCENTRATED_CONVERGENCE',
+    limitationCode: 'NO_CONCENTRATED_JOB_FAVOURABILITY',
+    provenance: immutable({ ...base.provenance, betaEvaluator: 'SERVER_CALCULATED' }),
+  });
+  return immutable({
+    answerability: Answerability.SUPPORTED,
+    questionType: CareerQuestionType.JOB_FAVOURABILITY_TIMING,
+    sourceReadingId: reading.readingId,
+    projectionStatus: 'BETA_CONVERGENCE_AVAILABLE',
+    broadWindow: beta.broadWindow,
+    strongerConcentrationWindow: beta.strongerConcentrationWindow || null,
+    strength: beta.strength,
+    evidenceAgreementCount: beta.evidenceAgreementCount,
+    evidenceReasonCodes: beta.evidenceReasonCodes,
+    recommendedActionCodes: beta.recommendedActionCodes,
+    limitationCode: 'BETA_DESCRIPTIVE_CONVERGENCE_ONLY',
+    primaryAlignment: immutable({ careerTimingFoundation: 'PRESENT', careerLinkedDasha: 'EVALUATED' }),
+    supportingContext: immutable({ d10: 'SUPPORT_ONLY', moon: 'SUPPORT_ONLY', ashtakavarga: 'SUPPORT_ONLY', historicalRecurrence: 'OPTIONAL', rahuKetu: 'CONTEXT_ONLY' }),
+    provenance: immutable({ projectionGate: 'RESEARCH_ENABLED', calculationAuthority: 'SERVER_CALCULATED', genericCareerSignal: 'NOT_USED', historicalRecurrence: 'NOT_REQUIRED' }),
   });
 }
 
@@ -246,10 +279,11 @@ function shapeForAccess(answer, premium) {
 }
 
 class CareerAnswerService {
-  constructor({ secureReadingService, jobFavourabilityResearchEnabled = false } = {}) {
+  constructor({ secureReadingService, jobFavourabilityResearchEnabled = false, jobFavourabilityEvaluator = null } = {}) {
     if (!secureReadingService || typeof secureReadingService.getReadingEntitlementStatus !== 'function' || typeof secureReadingService.listSecureReadings !== 'function' || typeof secureReadingService.getSecureReadingDetail !== 'function') throw new TypeError('INVALID_SECURE_READING_SERVICE');
     this.readings = secureReadingService;
     this.jobFavourabilityResearchEnabled = jobFavourabilityResearchEnabled === true;
+    this.jobFavourabilityEvaluator = jobFavourabilityEvaluator;
   }
   async answer({ principal, birthProfileId, body } = {}) {
     const profileId = requiredId(birthProfileId, 'INVALID_BIRTH_PROFILE_ID');
@@ -262,14 +296,14 @@ class CareerAnswerService {
       .sort((left, right) => String(right.createdAt).localeCompare(String(left.createdAt)) || String(right.readingId).localeCompare(String(left.readingId)));
     const selected = request.readingId ? career.find((item) => item.readingId === request.readingId) : career[0];
     if (request.readingId && !selected) throw failure('NOT_FOUND_OR_FORBIDDEN');
-    if (!selected && request.questionType === CareerQuestionType.JOB_FAVOURABILITY_TIMING) return jobFavourabilityContract({ reading: null, researchEnabled: this.jobFavourabilityResearchEnabled });
+    if (!selected && request.questionType === CareerQuestionType.JOB_FAVOURABILITY_TIMING) return jobFavourabilityContract({ reading: null, researchEnabled: this.jobFavourabilityResearchEnabled, evaluator: this.jobFavourabilityEvaluator, principal, birthProfileId: profileId });
     if (!selected) return shapeForAccess(
       present({ questionType: request.questionType, reading: null }),
       premium,
     );
     const detail = await this.readings.getSecureReadingDetail({ principal, readingId: selected.readingId });
     if (!detail || detail.domain !== 'CAREER' || detail.birthProfileId !== profileId || detail.readingId !== selected.readingId) throw failure('NOT_FOUND_OR_FORBIDDEN');
-    if (request.questionType === CareerQuestionType.JOB_FAVOURABILITY_TIMING) return jobFavourabilityContract({ reading: detail, researchEnabled: this.jobFavourabilityResearchEnabled });
+    if (request.questionType === CareerQuestionType.JOB_FAVOURABILITY_TIMING) return jobFavourabilityContract({ reading: detail, researchEnabled: this.jobFavourabilityResearchEnabled, evaluator: this.jobFavourabilityEvaluator, principal, birthProfileId: profileId });
     return shapeForAccess(
       present({ questionType: request.questionType, reading: detail }),
       premium,
