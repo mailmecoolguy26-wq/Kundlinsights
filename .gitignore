@@ -39,3 +39,7 @@ backups/
 
 # Generated production runtime artifacts
 .runtime/
+
+# Private, owner-authorized offline research artifacts. Never source-control
+# cohort inputs, feature rows, or backtest reports.
+/tmp/private-backtest/
