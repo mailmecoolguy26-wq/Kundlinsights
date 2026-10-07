@@ -38,7 +38,7 @@ function req(value, name) {
   return value;
 }
 
-function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canonicalSiderealSunSampler, placeResolver = null, openai = null, careerChat = null, apple = null, google = null, razorpay = null, analytics = null, idGenerator, clock, requiresEntitlement = () => true, corsAllowlist, isReady, logger, bodyLimit, transactionDiagnosticObserver } = {}) {
+function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canonicalSiderealSunSampler, placeResolver = null, openai = null, careerChat = null, careerAnswerPolicy = null, apple = null, google = null, razorpay = null, analytics = null, idGenerator, clock, requiresEntitlement = () => true, corsAllowlist, isReady, logger, bodyLimit, transactionDiagnosticObserver } = {}) {
   const { createApi } = require('./index');
   req(db, 'DB'); req(authVerifier, 'AUTH_VERIFIER'); req(kms, 'KMS');
   req(astronomicalEngine, 'ASTRONOMICAL_ENGINE'); req(canonicalSiderealSunSampler, 'SUN_SAMPLER');
@@ -119,7 +119,7 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   const { createReadingRecord, replayPersistedReading } = require('../readings');
   const secureReadingService = new SecureReadingService({ authUserResolver: userResolver, transactionExecutor: tx, repositories, secureBirthProfileLoader: birthProfileService, readingCryptoCoordinator: cryptoCoordinator, readingGenerator, readingRecordFactory: createReadingRecord, replayReading: replayPersistedReading, requiresEntitlement, idGenerator, clock });
   const { CareerAnswerService } = require('../application/career-answers');
-  const careerAnswerService = new CareerAnswerService({ secureReadingService });
+  const careerAnswerService = new CareerAnswerService({ secureReadingService, jobFavourabilityResearchEnabled: Boolean(careerAnswerPolicy && careerAnswerPolicy.jobFavourabilityResearchEnabled === true) });
   const { CareerChatOrchestrator } = require('../application/career-chat');
   const careerChatRenderer = careerChat && careerChat.enabled === true ? new OpenAICareerChatRenderer({ apiKey: careerChat.apiKey, model: careerChat.model, timeoutMilliseconds: careerChat.timeoutMilliseconds }) : null;
   const careerChatOrchestrator = new CareerChatOrchestrator({ secureReadingService, languageModel: careerChatRenderer });

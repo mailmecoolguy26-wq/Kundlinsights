@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { CareerAnswerService, CareerQuestionType, validateQuestionRequest } = require('../../src/application/career-answers');
+const { CareerAnswerService, CareerQuestionType, validateQuestionRequest, Answerability } = require('../../src/application/career-answers');
 
 const summary = { readingId: 'reading-a', birthProfileId: 'profile-a', domain: 'CAREER', createdAt: '2026-10-01T00:00:00.000Z' };
 function detail(overrides = {}) {
@@ -111,4 +111,66 @@ test('enforces profile consistency and canonical question types for every access
   await assert.rejects(() => new CareerAnswerService({ secureReadingService: service({ value: detail({ birthProfileId: 'profile-b' }) }) }).answer({ principal: {}, birthProfileId: 'profile-a', body: { questionType: CareerQuestionType.CURRENT_CAREER_PHASE } }), { code: 'NOT_FOUND_OR_FORBIDDEN' });
   await assert.rejects(() => new CareerAnswerService({ secureReadingService: service({ eligible: false, readings: [ { ...summary, birthProfileId: 'profile-b' } ] }) }).answer({ principal: {}, birthProfileId: 'profile-a', body: { questionType: CareerQuestionType.CURRENT_CAREER_PHASE, readingId: 'reading-a' } }), { code: 'NOT_FOUND_OR_FORBIDDEN' });
   assert.throws(() => validateQuestionRequest({ questionType: 'NEXT_JOB_TIMING' }), { code: 'UNSUPPORTED_CAREER_QUESTION' });
+});
+
+test('keeps JOB_FAVOURABILITY_TIMING behind the default disabled research gate without relabeling a generic signal', async () => {
+  const answer = await new CareerAnswerService({ secureReadingService: service() }).answer({
+    principal: {}, birthProfileId: 'profile-a', body: { questionType: CareerQuestionType.JOB_FAVOURABILITY_TIMING },
+  });
+  assert.equal(answer.answerability, Answerability.PROJECTION_DISABLED);
+  assert.equal(answer.projectionStatus, 'DISABLED');
+  assert.equal(answer.sourceReadingId, 'reading-a');
+  assert.equal(answer.broadWindow, null);
+  assert.equal(answer.strongerConcentrationWindow, null);
+  assert.equal(answer.primaryAlignment.careerTimingFoundation, 'PRESENT');
+  assert.equal(answer.supportingContext.jupiterSaturnGochar, 'PROVISIONAL');
+  assert.equal(answer.supportingContext.rahuKetu, 'CONTEXT_ONLY');
+  assert.equal(answer.provenance.projectionGate, 'DISABLED');
+  assert.equal(JSON.stringify(answer).match(/offer|joining|exact.?date|probability|guarantee/i), null);
+});
+
+test('keeps missing historical recurrence non-blocking and support-only', async () => {
+  const value = detail({ careerTimingPeriods: [{ ...detail().careerTimingPeriods[0], recurrenceSummary: undefined }] });
+  const answer = await new CareerAnswerService({ secureReadingService: service({ value }) }).answer({
+    principal: {}, birthProfileId: 'profile-a', body: { questionType: CareerQuestionType.JOB_FAVOURABILITY_TIMING },
+  });
+  assert.equal(answer.answerability, Answerability.PROJECTION_DISABLED);
+  assert.equal(answer.supportingContext.historicalRecurrence, 'UNAVAILABLE');
+  assert.equal(answer.broadWindow, null);
+  assert.equal(answer.strongerConcentrationWindow, null);
+});
+
+test('research-enabled mode still returns no concentrated job favourability without an approved employment discriminator', async () => {
+  const answer = await new CareerAnswerService({ secureReadingService: service(), jobFavourabilityResearchEnabled: true }).answer({
+    principal: {}, birthProfileId: 'profile-a', body: { questionType: CareerQuestionType.JOB_FAVOURABILITY_TIMING },
+  });
+  assert.equal(answer.answerability, Answerability.NO_CONCENTRATED_JOB_FAVOURABILITY);
+  assert.equal(answer.projectionStatus, 'RESEARCH_ENABLED_NO_VALIDATED_METHODOLOGY');
+  assert.equal(answer.broadWindow, null);
+  assert.equal(answer.strongerConcentrationWindow, null);
+});
+
+test('D10, Ashtakavarga, recurrence, H6 research context, and provisional Gochar cannot create, rank, or narrow job favourability', async () => {
+  const value = detail({
+    careerTimingPeriods: [{ ...detail().careerTimingPeriods[0], technicalDetails: { dasha: { periods: [] }, gochar: [{ transitPlanet: 'Jupiter' }], d10: { confirmationPresent: true } } }],
+  });
+  const answer = await new CareerAnswerService({ secureReadingService: service({ value }) }).answer({
+    principal: {}, birthProfileId: 'profile-a', body: { questionType: CareerQuestionType.JOB_FAVOURABILITY_TIMING },
+  });
+  assert.equal(answer.answerability, Answerability.PROJECTION_DISABLED);
+  assert.equal(answer.primaryAlignment.careerLinkedDasha, 'UNAVAILABLE');
+  assert.equal(answer.primaryAlignment.employmentServiceContext, 'RESEARCH_ONLY_NOT_EVALUATED');
+  assert.equal(answer.broadWindow, null);
+  assert.equal(answer.strongerConcentrationWindow, null);
+});
+
+test('returns the no-reading prerequisite form for JOB_FAVOURABILITY_TIMING without a timing result', async () => {
+  const answer = await new CareerAnswerService({ secureReadingService: service({ readings: [] }) }).answer({
+    principal: {}, birthProfileId: 'profile-a', body: { questionType: CareerQuestionType.JOB_FAVOURABILITY_TIMING },
+  });
+  assert.equal(answer.answerability, Answerability.INSUFFICIENT_EVIDENCE);
+  assert.equal(answer.projectionStatus, 'PREREQUISITE_REQUIRED');
+  assert.equal(answer.sourceReadingId, null);
+  assert.equal(answer.broadWindow, null);
+  assert.equal(answer.strongerConcentrationWindow, null);
 });

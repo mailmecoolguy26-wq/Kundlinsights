@@ -7,10 +7,13 @@ const CAREER_ANSWER_RULESET_VERSION = 'career-answer-v1';
 const CareerQuestionType = Object.freeze({
   CURRENT_CAREER_PHASE: 'CURRENT_CAREER_PHASE',
   CAREER_ACTIVITY_TIMING: 'CAREER_ACTIVITY_TIMING',
+  JOB_FAVOURABILITY_TIMING: 'JOB_FAVOURABILITY_TIMING',
 });
 const Answerability = Object.freeze({
   SUPPORTED: 'SUPPORTED',
   INSUFFICIENT_EVIDENCE: 'INSUFFICIENT_EVIDENCE',
+  NO_CONCENTRATED_JOB_FAVOURABILITY: 'NO_CONCENTRATED_JOB_FAVOURABILITY',
+  PROJECTION_DISABLED: 'PROJECTION_DISABLED',
   UNSUPPORTED: 'UNSUPPORTED',
 });
 const POSSIBLE_SIGNAL = 'POSSIBLE_CAREER_ACTIVITY_SIGNAL';
@@ -95,6 +98,66 @@ function noReading(questionType) {
     historicalContext: null,
     sourceReadingId: null,
     rulesetVersion: CAREER_ANSWER_RULESET_VERSION,
+  });
+}
+
+function jobFavourabilityContract({ reading, researchEnabled }) {
+  const signal = selectSignal(reading);
+  const collected = collectEvidence(reading, signal);
+  const historicalAvailable = Boolean(signal && typeof signal.recurrenceSummary === 'string' && signal.recurrenceSummary.trim());
+  const base = {
+    questionType: CareerQuestionType.JOB_FAVOURABILITY_TIMING,
+    sourceReadingId: reading ? reading.readingId : null,
+    broadWindow: null,
+    strongerConcentrationWindow: null,
+    primaryAlignment: immutable({
+      careerTimingFoundation: signal ? 'PRESENT' : 'UNAVAILABLE',
+      careerLinkedDasha: collected.evidence.some((item) => item.family === 'DASHA') ? 'PRESENT' : 'UNAVAILABLE',
+      employmentServiceContext: 'RESEARCH_ONLY_NOT_EVALUATED',
+    }),
+    supportingContext: immutable({
+      d10: collected.evidence.some((item) => item.family === 'D10') ? 'AVAILABLE' : 'UNAVAILABLE',
+      moon: 'NOT_EVALUATED',
+      ashtakavarga: collected.evidence.some((item) => item.family === 'ASHTAKAVARGA') ? 'AVAILABLE' : 'UNAVAILABLE',
+      historicalRecurrence: historicalAvailable ? 'AVAILABLE' : 'UNAVAILABLE',
+      jupiterSaturnGochar: collected.evidence.some((item) => item.family === 'TRANSIT') ? 'PROVISIONAL' : 'UNAVAILABLE',
+      rahuKetu: 'CONTEXT_ONLY',
+    }),
+    signalRoles: immutable({
+      base: 'EXISTING_CAREER_TIMING_FOUNDATION',
+      primary: 'CAREER_LINKED_DASHA',
+      employmentService: 'RESEARCH_ONLY',
+      supportOnly: ['D10', 'MOON', 'ASHTAKAVARGA', 'HISTORICAL_RECURRENCE'],
+      provisional: ['JUPITER_SATURN_GOCHAR'],
+      contextOnly: ['RAHU_KETU'],
+    }),
+    provenance: immutable({
+      rulesetVersion: CAREER_ANSWER_RULESET_VERSION,
+      sourceTimingRulesetVersion: signal && signal.sourceRuleVersion || null,
+      sourceReadingRulesetId: reading && reading.rulesetId || null,
+      projectionGate: researchEnabled ? 'RESEARCH_ENABLED' : 'DISABLED',
+    }),
+    rulesetVersion: CAREER_ANSWER_RULESET_VERSION,
+  };
+  if (!reading) return immutable({
+    ...base,
+    answerability: Answerability.INSUFFICIENT_EVIDENCE,
+    projectionStatus: 'PREREQUISITE_REQUIRED',
+    limitationCode: 'CAREER_READING_REQUIRED',
+  });
+  if (!researchEnabled) return immutable({
+    ...base,
+    answerability: Answerability.PROJECTION_DISABLED,
+    projectionStatus: 'DISABLED',
+    limitationCode: 'JOB_FAVOURABILITY_RESEARCH_DISABLED',
+  });
+  // The gate alone cannot promote generic Career activity into employment
+  // favourability. A separately approved evaluator will be required here.
+  return immutable({
+    ...base,
+    answerability: Answerability.NO_CONCENTRATED_JOB_FAVOURABILITY,
+    projectionStatus: 'RESEARCH_ENABLED_NO_VALIDATED_METHODOLOGY',
+    limitationCode: 'EMPLOYMENT_TRANSITION_DISCRIMINATOR_NOT_VALIDATED',
   });
 }
 
@@ -183,9 +246,10 @@ function shapeForAccess(answer, premium) {
 }
 
 class CareerAnswerService {
-  constructor({ secureReadingService } = {}) {
+  constructor({ secureReadingService, jobFavourabilityResearchEnabled = false } = {}) {
     if (!secureReadingService || typeof secureReadingService.getReadingEntitlementStatus !== 'function' || typeof secureReadingService.listSecureReadings !== 'function' || typeof secureReadingService.getSecureReadingDetail !== 'function') throw new TypeError('INVALID_SECURE_READING_SERVICE');
     this.readings = secureReadingService;
+    this.jobFavourabilityResearchEnabled = jobFavourabilityResearchEnabled === true;
   }
   async answer({ principal, birthProfileId, body } = {}) {
     const profileId = requiredId(birthProfileId, 'INVALID_BIRTH_PROFILE_ID');
@@ -198,12 +262,14 @@ class CareerAnswerService {
       .sort((left, right) => String(right.createdAt).localeCompare(String(left.createdAt)) || String(right.readingId).localeCompare(String(left.readingId)));
     const selected = request.readingId ? career.find((item) => item.readingId === request.readingId) : career[0];
     if (request.readingId && !selected) throw failure('NOT_FOUND_OR_FORBIDDEN');
+    if (!selected && request.questionType === CareerQuestionType.JOB_FAVOURABILITY_TIMING) return jobFavourabilityContract({ reading: null, researchEnabled: this.jobFavourabilityResearchEnabled });
     if (!selected) return shapeForAccess(
       present({ questionType: request.questionType, reading: null }),
       premium,
     );
     const detail = await this.readings.getSecureReadingDetail({ principal, readingId: selected.readingId });
     if (!detail || detail.domain !== 'CAREER' || detail.birthProfileId !== profileId || detail.readingId !== selected.readingId) throw failure('NOT_FOUND_OR_FORBIDDEN');
+    if (request.questionType === CareerQuestionType.JOB_FAVOURABILITY_TIMING) return jobFavourabilityContract({ reading: detail, researchEnabled: this.jobFavourabilityResearchEnabled });
     return shapeForAccess(
       present({ questionType: request.questionType, reading: detail }),
       premium,
@@ -211,4 +277,4 @@ class CareerAnswerService {
   }
 }
 
-module.exports = { CareerAnswerService, CareerQuestionType, Answerability, CAREER_ANSWER_RULESET_VERSION, POSSIBLE_SIGNAL, validateQuestionRequest, collectEvidence, present, shapeForAccess };
+module.exports = { CareerAnswerService, CareerQuestionType, Answerability, CAREER_ANSWER_RULESET_VERSION, POSSIBLE_SIGNAL, validateQuestionRequest, collectEvidence, present, shapeForAccess, jobFavourabilityContract };

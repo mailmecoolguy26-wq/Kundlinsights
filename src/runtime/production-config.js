@@ -26,6 +26,12 @@ function astronomy(env) {
     return Object.freeze({ authority, ephemerisPath: env.SWISS_EPHEMERIS_PATH, manifest, productionLicenseGate: true });
   } catch { invalid('SWISS_EPHEMERIS_MANIFEST_JSON is required'); }
 }
+function careerAnswers(env) {
+  const enabled = env.JOB_FAVOURABILITY_RESEARCH_ENABLED;
+  if (enabled === undefined || enabled === 'false') return Object.freeze({ jobFavourabilityResearchEnabled: false });
+  if (enabled === 'true') return Object.freeze({ jobFavourabilityResearchEnabled: true });
+  invalid('JOB_FAVOURABILITY_RESEARCH_ENABLED must be true or false');
+}
 
 function loadProductionConfig(env = process.env) {
   if (!env || env.NODE_ENV !== 'production' || !text(env.HOST)) invalid();
@@ -49,7 +55,7 @@ function loadProductionConfig(env = process.env) {
     aws: (() => { const kmsKeyArn = awsArn(env.KUNDLINSIGHTS_KMS_KEY_ARN); return Object.freeze({ region: awsRegion(env.AWS_REGION), kmsKeyArn, historicalKmsKeyArns: historicalArns(env.KUNDLINSIGHTS_HISTORICAL_KMS_KEY_ARNS, kmsKeyArn) }); })(),
     google: Object.freeze({ mapsApiKey: text(env.GOOGLE_MAPS_API_KEY) ? env.GOOGLE_MAPS_API_KEY : invalid(), timeoutMilliseconds: integer(env.GOOGLE_GEOCODING_TIMEOUT_MS, 5000, 100, 15000), play: googlePlay(env) }), razorpay: razorpay(env),
     openai, careerChat: careerChat(env, openai),
-    timezoneRuntime: Object.freeze({ manifestPath: text(env.TIMEZONE_RUNTIME_MANIFEST_PATH) ? env.TIMEZONE_RUNTIME_MANIFEST_PATH : invalid(), binaryPath: text(env.TIMEZONE_RUNTIME_BINARY_PATH) ? env.TIMEZONE_RUNTIME_BINARY_PATH : invalid() }), astronomy: astronomy(env),
+    timezoneRuntime: Object.freeze({ manifestPath: text(env.TIMEZONE_RUNTIME_MANIFEST_PATH) ? env.TIMEZONE_RUNTIME_MANIFEST_PATH : invalid(), binaryPath: text(env.TIMEZONE_RUNTIME_BINARY_PATH) ? env.TIMEZONE_RUNTIME_BINARY_PATH : invalid() }), astronomy: astronomy(env), careerAnswers: careerAnswers(env),
     corsOrigins: origins(env.CORS_ALLOWED_ORIGINS), bodyLimitBytes: integer(env.REQUEST_BODY_LIMIT_BYTES, 16384, 1024, 16384), shutdownTimeoutMilliseconds: integer(env.SHUTDOWN_TIMEOUT_MS, 30000, 1000, 120000), logLevel: env.LOG_LEVEL === undefined ? 'info' : ['fatal', 'error', 'warn', 'info'].includes(env.LOG_LEVEL) ? env.LOG_LEVEL : invalid(),
   });
 }
