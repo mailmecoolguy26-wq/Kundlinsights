@@ -40,9 +40,16 @@ fields needed by the existing astrology engine:
 ```
 
 `localDate`, exact `localTime`, IANA timezone, latitude, and longitude are all
-required. The runner calculates only factual natal D1 data from those inputs;
-the astronomy provider and calculation status are retained in report
-provenance.
+required. In the normal calculated path, the runner derives factual natal D1,
+solar-return Vimshottari MD/AD/PD, refined Jupiter/Saturn/Rahu/Ketu ingress
+intervals, D10, Moon support facts, Ashtakavarga facts, and the existing
+internal generic-Career-signal baseline. Provider/ruleset provenance and
+calculation status are retained in the report.
+
+For `MONTH` and `YEAR` observations, the supplied temporal coverage is kept as
+a calendar interval. The runner never turns it into an exact event day; the
+feature extractor marks PD-level feature use as `NOT_APPLICABLE` for those
+precisions.
 
 ## Events and observations
 
@@ -96,16 +103,23 @@ duplicate observations or conflicting transition families.
 
 ## Optional factual research inputs
 
-`factualInputs` may contain only already-computed, language-neutral factual
+`factualInputs` is an optional test-fixture/override path and may contain only
+already-computed, language-neutral factual
 records accepted by the existing extractor, such as `dashaIntervals`,
 `transitIntervals`, `transitEvents`, `planetaryStateFacts`,
 `h6BeneficOccupancyFacts`, `d10Facts`, `moonSupportFacts`,
 `ashtakavargaFacts`, `genericCareerSignals`, `recurrenceEvidence`, and
-astronomy provenance.
+astronomy provenance. If any factual override is supplied, it must include
+`"mode": "SUPPLIED_OVERRIDE"`. Overrides are used as one isolated provenance
+bundle: calculated facts are not silently mixed into missing override fields.
 
-Omit unavailable data. The extractor records `UNAVAILABLE` or
-`NOT_APPLICABLE`; it does not invent support facts. This runner does not create
-new astrology methodology from intake data.
+For calculated profiles, an individual family failure becomes `UNAVAILABLE`
+with a safe diagnostic reason in calculation coverage; it is never changed to
+false or replaced by another provider/ruleset. The extractor records
+`UNAVAILABLE` or `NOT_APPLICABLE`; it does not invent support facts. Historical
+recurrence remains strictly prior, same-profile only; where no compatible prior
+comparison exists it remains `UNAVAILABLE`, not negative evidence. This runner
+does not create new astrology methodology from intake data.
 
 ## Output
 

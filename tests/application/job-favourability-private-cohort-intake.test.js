@@ -7,6 +7,10 @@ const assert = require('node:assert/strict');
 const { PRIVATE_COHORT_SCHEMA_ID, normalizeJobFavourabilityPrivateCohort } = require('../../src/application/research/job-favourability-private-cohort-intake');
 const { PRIVATE_ARTIFACT_ROOT } = require('../../src/application/research/job-favourability-report');
 const { runPrivateCuratedCohort } = require('../../scripts/research/run-job-favourability-private-cohort');
+const { createDevelopmentAstrology } = require('../../src/runtime/create-development-astrology');
+const { enrichPrivateResearchProfile } = require('../../src/application/research/job-favourability-fact-enricher');
+const { buildJobFavourabilityCohort } = require('../../src/application/research/job-favourability-cohort-builder');
+const { extractJobFavourabilityFeatureRows } = require('../../src/application/research/job-favourability-feature-extractor');
 
 function fixture() {
   return {
@@ -88,4 +92,45 @@ test('runs the private-only command seam over validated input and writes only ig
   } finally {
     [inputPath, path.join(PRIVATE_ARTIFACT_ROOT, `${artifactName}.json`), path.join(PRIVATE_ARTIFACT_ROOT, `${artifactName}.md`), path.join(PRIVATE_ARTIFACT_ROOT, `${artifactName}-FEATURE-ROWS.json`), path.join(PRIVATE_ARTIFACT_ROOT, `${artifactName}-COHORT-SUMMARY.json`)].forEach((file) => { if (fs.existsSync(file)) fs.unlinkSync(file); });
   }
+});
+
+test('automatically enriches a real-curation shape with canonical Dasha, D10, Moon, and Ashtakavarga facts', () => {
+  const input = fixture(); input.profiles[0].events = [input.profiles[0].events[0]];
+  const profile = normalizeJobFavourabilityPrivateCohort(input).profiles[0];
+  const astronomy = createDevelopmentAstrology();
+  const result = enrichPrivateResearchProfile({ profile, ...astronomy });
+  assert.ok(result.profile);
+  assert.equal(Array.isArray(result.profile.dashaIntervals), true);
+  assert.equal(result.profile.dashaIntervals.length > 0, true);
+  assert.equal(result.profile.d10Facts !== undefined, true);
+  assert.equal(result.profile.moonSupportFacts !== undefined, true);
+  assert.equal(result.profile.ashtakavargaFacts !== undefined, true);
+  assert.equal(result.profile.calculationCoverage.dasha.status, 'CALCULATED');
+  assert.equal(result.profile.calculationCoverage.transits.status, 'CALCULATED');
+  assert.deepEqual([...new Set(result.profile.transitIntervals.map((item) => item.planet))].sort(), ['Jupiter', 'Ketu', 'Rahu', 'Saturn']);
+  assert.equal(result.profile.astronomyProvenance.dashaRulesetId.includes('solar-return'), true);
+  // Month/year facts still have Dasha intervals, but the extractor is the only
+  // place that permits PD and it marks it NOT_APPLICABLE outside DAY precision.
+  assert.equal(result.profile.dashaIntervals.every((item) => item.activePeriods.some((period) => period.level === 'PD')), true);
+  const cohort = buildJobFavourabilityCohort({ profiles: [result.profile], cohortSalt: 'automatic-facts' });
+  const rows = extractJobFavourabilityFeatureRows({ profile: result.profile, cohort });
+  assert.equal(rows.some((row) => row.dasha.h10Lord.state === 'AVAILABLE' && row.dasha.h6Lord.state === 'AVAILABLE'), true);
+  assert.equal(rows.some((row) => row.eventPrecision === 'MONTH' && row.h6LordActiveAtPd.state === 'NOT_APPLICABLE'), true);
+});
+
+test('records individual calculation failures as unavailable without inventing values', () => {
+  const profile = normalizeJobFavourabilityPrivateCohort(fixture()).profiles[0];
+  const broken = { calculate: () => { throw new Error('broken transit'); } };
+  const sampler = createDevelopmentAstrology().canonicalSiderealSunSampler;
+  const result = enrichPrivateResearchProfile({ profile, astronomicalEngine: broken, canonicalSiderealSunSampler: sampler });
+  assert.equal(result.profile, null);
+  assert.equal(result.calculationCoverage.natal.status, 'UNAVAILABLE');
+  assert.equal(result.diagnostics[0].family, 'natal');
+});
+
+test('requires an explicit supplied-override mode so fixture and calculated facts cannot mix', () => {
+  const invalid = clone(fixture()); invalid.profiles[0].factualInputs = { dashaIntervals: [] };
+  assert.throws(() => normalizeJobFavourabilityPrivateCohort(invalid), /factualInputs\.mode/);
+  const valid = clone(fixture()); valid.profiles[0].factualInputs = { mode: 'SUPPLIED_OVERRIDE', dashaIntervals: [] };
+  assert.equal(normalizeJobFavourabilityPrivateCohort(valid).profiles[0].factualInputs.mode, 'SUPPLIED_OVERRIDE');
 });

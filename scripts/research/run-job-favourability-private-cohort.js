@@ -5,6 +5,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { AstronomicalEngine, AstronomyEngineProvider } = require('../../src/astronomy');
 const { calculateRashiHouses } = require('../../src/bhava');
+const { createDevelopmentAstrology } = require('../../src/runtime/create-development-astrology');
+const { enrichPrivateResearchProfile } = require('../../src/application/research/job-favourability-fact-enricher');
 const { normalizeJobFavourabilityPrivateCohort } = require('../../src/application/research/job-favourability-private-cohort-intake');
 const { buildJobFavourabilityCohort } = require('../../src/application/research/job-favourability-cohort-builder');
 const { extractJobFavourabilityFeatureRows } = require('../../src/application/research/job-favourability-feature-extractor');
@@ -42,6 +44,16 @@ function inputProfileToResearchProfile(profile, astronomicalEngine) {
     },
   });
 }
+function hasSuppliedFactualOverride(profile) { return profile.factualInputs && Object.keys(profile.factualInputs).some((key) => key !== 'mode'); }
+function enrichInputProfile(profile, { astronomicalEngine, canonicalSiderealSunSampler }) {
+  // A supplied override is intentionally an isolated fixture path. It never
+  // inherits calculated families, which prevents mixed-provider research rows.
+  if (hasSuppliedFactualOverride(profile)) {
+    const value = inputProfileToResearchProfile(profile, astronomicalEngine);
+    return Object.freeze({ profile: Object.freeze({ ...value, calculationCoverage: Object.freeze({ suppliedOverride: Object.freeze({ family: 'suppliedOverride', status: 'CALCULATED' }) }), calculationDiagnostics: Object.freeze([]) }), diagnostics: Object.freeze([]) });
+  }
+  return enrichPrivateResearchProfile({ profile, astronomicalEngine, canonicalSiderealSunSampler });
+}
 function cohortSummary(cohort) {
   return {
     schemaId: cohort.schemaId,
@@ -49,17 +61,23 @@ function cohortSummary(cohort) {
     units: cohort.units.map(({ unitId, unitKind, eventFamily, anchors }) => ({ unitId, unitKind, eventFamily, anchors: anchors.map(({ observationType, precision, coverage }) => ({ observationType, precision, coverage })) })),
   };
 }
-function runPrivateCuratedCohort({ inputPath = DEFAULT_INPUT, astronomicalEngine = new AstronomicalEngine(new AstronomyEngineProvider()), artifactName = 'JOB-FAVOURABILITY-CURATED-COHORT-REPORT' } = {}) {
+function runPrivateCuratedCohort({ inputPath = DEFAULT_INPUT, astronomicalEngine, canonicalSiderealSunSampler, artifactName = 'JOB-FAVOURABILITY-CURATED-COHORT-REPORT' } = {}) {
   const resolvedInput = privatePath(inputPath);
   const input = JSON.parse(fs.readFileSync(resolvedInput, 'utf8'));
   const curated = normalizeJobFavourabilityPrivateCohort(input);
-  const profiles = curated.profiles.map((profile) => inputProfileToResearchProfile(profile, astronomicalEngine));
+  const developmentAstronomy = !astronomicalEngine || !canonicalSiderealSunSampler ? createDevelopmentAstrology() : null;
+  const engine = astronomicalEngine || developmentAstronomy.astronomicalEngine;
+  const sampler = canonicalSiderealSunSampler || developmentAstronomy.canonicalSiderealSunSampler;
+  const enriched = curated.profiles.map((profile) => enrichInputProfile(profile, { astronomicalEngine: engine, canonicalSiderealSunSampler: sampler }));
+  const profiles = enriched.map((item) => item.profile).filter(Boolean);
+  if (!profiles.length) throw new TypeError('PRIVATE_RESEARCH_CORE_NATAL_CALCULATION_FAILED');
   const cohort = buildJobFavourabilityCohort({ profiles, cohortSalt: curated.cohortSalt });
   const featureRows = profiles.flatMap((profile) => extractJobFavourabilityFeatureRows({ profile, cohort }));
   const report = {
     ...runJobFavourabilityBacktest({ featureRows }),
     pipelineLabel: 'CURATED_COHORT_RESEARCH_ONLY',
     dataClassification: 'PRIVATE_CURATED_HISTORICAL_INPUT',
+    calculationCoverage: enriched.map((item, index) => ({ pseudonymousProfileId: curated.profiles[index].pseudonymousProfileId, coverage: item.calculationCoverage || {}, diagnostics: item.diagnostics || [] })),
   };
   const reportPaths = writePrivateJobFavourabilityArtifacts({ report, artifactName });
   const outputDirectory = privateDirectory();
@@ -81,4 +99,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { DEFAULT_INPUT, inputProfileToResearchProfile, runPrivateCuratedCohort };
+module.exports = { DEFAULT_INPUT, inputProfileToResearchProfile, enrichInputProfile, runPrivateCuratedCohort };

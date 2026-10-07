@@ -14,12 +14,25 @@ function privateDirectory(value = PRIVATE_ARTIFACT_ROOT) {
   return resolved;
 }
 function renderMetric(value) { return value === null || value === undefined ? 'NOT AVAILABLE' : String(value); }
+function calculationCoverageLines(entries = []) {
+  const byFamily = new Map();
+  for (const entry of entries) for (const value of Object.values(entry.coverage || {})) {
+    if (!value || typeof value.family !== 'string') continue;
+    if (!byFamily.has(value.family)) byFamily.set(value.family, { CALCULATED: 0, UNAVAILABLE: 0, NOT_APPLICABLE: 0, reasons: {} });
+    const total = byFamily.get(value.family);
+    if (total[value.status] !== undefined) total[value.status] += 1;
+    if (value.failureReason) total.reasons[value.failureReason] = (total.reasons[value.failureReason] || 0) + 1;
+  }
+  return [...byFamily.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([family, total]) => `- ${family}: calculated=${total.CALCULATED}; unavailable=${total.UNAVAILABLE}; not applicable=${total.NOT_APPLICABLE}; failure reasons=${Object.keys(total.reasons).length ? JSON.stringify(total.reasons) : 'NONE'}`);
+}
 function renderJobFavourabilityResearchReport(report = {}) {
   const lines = [
     '# TaraVerse Job Favourability Research Report',
     '',
     'Status: offline research only. This report does not create a production rule, future projection, customer period, probability, or forecast.',
     '',
+    ...(report.pipelineLabel ? [`Run label: ${report.pipelineLabel}`, ''] : []),
+    ...(report.dataClassification ? [`Data classification: ${report.dataClassification}`, ''] : []),
     `Ruleset: ${report.rulesetId || 'NOT AVAILABLE'}`,
     `Conclusion: ${report.conclusion || 'NO_DISCRIMINATIVE_PATTERN'}`,
     '',
@@ -42,6 +55,9 @@ function renderJobFavourabilityResearchReport(report = {}) {
     '## Missingness',
     `Feature-state counts: ${renderMetric(report.missingness && JSON.stringify(report.missingness))}`,
     '',
+    '## Calculation coverage',
+    ...(calculationCoverageLines(report.calculationCoverage || []).length ? calculationCoverageLines(report.calculationCoverage || []) : ['- NOT AVAILABLE']),
+    '',
     '## Guardrails',
     '- Candidate interactions are pre-registered and limited to order two.',
     '- H6, D10, Moon, Ashtakavarga, recurrence, and node facts are research dimensions only.',
@@ -60,4 +76,4 @@ function writePrivateJobFavourabilityArtifacts({ report, directory = PRIVATE_ART
   return Object.freeze({ jsonPath, markdownPath });
 }
 
-module.exports = { PRIVATE_ARTIFACT_ROOT, privateDirectory, renderJobFavourabilityResearchReport, writePrivateJobFavourabilityArtifacts };
+module.exports = { PRIVATE_ARTIFACT_ROOT, privateDirectory, calculationCoverageLines, renderJobFavourabilityResearchReport, writePrivateJobFavourabilityArtifacts };

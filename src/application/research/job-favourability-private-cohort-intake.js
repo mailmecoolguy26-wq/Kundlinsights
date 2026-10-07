@@ -13,6 +13,7 @@ const PRECISIONS = Object.freeze(['DAY', 'MONTH', 'YEAR']);
 const DATE_BY_PRECISION = Object.freeze({ DAY: /^\d{4}-\d{2}-\d{2}$/, MONTH: /^\d{4}-\d{2}$/, YEAR: /^\d{4}$/ });
 const TIME = /^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d{1,3})?)?$/;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const FACTUAL_INPUT_KEYS = Object.freeze(['dashaIntervals', 'transitIntervals', 'transitEvents', 'planetaryStateFacts', 'h6BeneficOccupancyFacts', 'd10Facts', 'moonSupportFacts', 'ashtakavargaFacts', 'genericCareerSignals', 'recurrenceEvidence', 'astronomyProvenance']);
 
 function freeze(value) { if (value && typeof value === 'object' && !Object.isFrozen(value)) { Object.freeze(value); Object.values(value).forEach(freeze); } return value; }
 function fail(label) { throw new TypeError(`Invalid private Job Favourability cohort: ${label}`); }
@@ -114,9 +115,16 @@ function normalizeJobFavourabilityPrivateCohort(value) {
     const birth = normalizeBirth(profile.birth);
     if (!Array.isArray(profile.events) || !profile.events.length) fail('profile.events');
     const events = profile.events.map((event) => normalizeEvent(event, birth));
-    return freeze({ pseudonymousProfileId, birth, events: freeze(events), canonicalEvents: canonicalEvents(events), factualInputs: profile.factualInputs && typeof profile.factualInputs === 'object' && !Array.isArray(profile.factualInputs) ? profile.factualInputs : freeze({}) });
+    const factualInputs = profile.factualInputs && typeof profile.factualInputs === 'object' && !Array.isArray(profile.factualInputs) ? profile.factualInputs : freeze({});
+    const suppliedKeys = Object.keys(factualInputs).filter((key) => key !== 'mode');
+    if (suppliedKeys.some((key) => !FACTUAL_INPUT_KEYS.includes(key))) fail('factualInputs.unknownKey');
+    // Explicit fixtures are a separate provenance mode. Calculated and fixture
+    // data are never merged into one research row.
+    if (suppliedKeys.length && factualInputs.mode !== 'SUPPLIED_OVERRIDE') fail('factualInputs.mode');
+    if (!suppliedKeys.length && factualInputs.mode !== undefined) fail('factualInputs.mode');
+    return freeze({ pseudonymousProfileId, birth, events: freeze(events), canonicalEvents: canonicalEvents(events), factualInputs });
   });
   return freeze({ schemaId: PRIVATE_COHORT_SCHEMA_ID, cohortSalt, profiles: freeze(profiles) });
 }
 
-module.exports = { PRIVATE_COHORT_SCHEMA_ID, POSITIVE_FAMILIES, CONTROL_FAMILIES, EVENT_FAMILIES, PRECISIONS, normalizeJobFavourabilityPrivateCohort };
+module.exports = { PRIVATE_COHORT_SCHEMA_ID, POSITIVE_FAMILIES, CONTROL_FAMILIES, EVENT_FAMILIES, PRECISIONS, FACTUAL_INPUT_KEYS, normalizeJobFavourabilityPrivateCohort };
