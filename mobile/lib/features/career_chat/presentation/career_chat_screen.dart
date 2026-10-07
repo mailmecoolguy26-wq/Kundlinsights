@@ -207,7 +207,7 @@ class _MessageBubble extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 300),
           padding: const EdgeInsets.all(13),
           decoration: BoxDecoration(
-            color: const Color(0xFF32234D),
+            color: const Color(0xFF114A46),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
@@ -401,13 +401,13 @@ class _Composer extends StatelessWidget {
 }
 
 abstract final class _Colors {
-  static const midnight = Color(0xFF0B071B);
-  static const abyss = Color(0xFF120D29);
-  static const violet = Color(0xFF1B1234);
-  static const alabaster = Color(0xFFFAF7F2);
-  static const slate = Color(0xFF9E9AA9);
-  static const gold = Color(0xFFC5A059);
-  static const border = Color(0x665E4A87);
+  static const midnight = Color(0xFF061A1A);
+  static const abyss = Color(0xFF082625);
+  static const violet = Color(0xFF0D312F);
+  static const alabaster = Color(0xFFF7F4EC);
+  static const slate = Color(0xFFA8B7B4);
+  static const gold = Color(0xFFD6B15A);
+  static const border = Color(0x66255C57);
 }
 
 abstract final class _Styles {

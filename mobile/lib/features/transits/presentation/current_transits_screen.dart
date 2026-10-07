@@ -17,12 +17,12 @@ class CurrentTransitsScreen extends StatelessWidget {
   final ProfileController profileController;
   final TransitSnapshotController controller;
 
-  static const midnight = Color(0xFF0B071B);
-  static const abyss = Color(0xFF120D29);
-  static const violet = Color(0xFF1B1234);
-  static const alabaster = Color(0xFFFAF7F2);
-  static const slate = Color(0xFF9E9AA9);
-  static const gold = Color(0xFFC5A059);
+  static const midnight = Color(0xFF061A1A);
+  static const abyss = Color(0xFF082625);
+  static const violet = Color(0xFF0D312F);
+  static const alabaster = Color(0xFFF7F4EC);
+  static const slate = Color(0xFFA8B7B4);
+  static const gold = Color(0xFFD6B15A);
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -106,7 +106,7 @@ class _ProfilePill extends StatelessWidget {
     decoration: BoxDecoration(
       color: CurrentTransitsScreen.abyss,
       borderRadius: BorderRadius.circular(999),
-      border: Border.all(color: const Color(0x55C5A059)),
+      border: Border.all(color: const Color(0x55D6B15A)),
     ),
     child: Row(
       mainAxisSize: MainAxisSize.min,
@@ -282,7 +282,7 @@ class _AllTransitsCard extends StatelessWidget {
         for (var index = 0; index < planets.length; index++) ...[
           _TransitRow(planet: planets[index]),
           if (index < planets.length - 1)
-            const Divider(height: 1, color: Color(0x335E4A87)),
+            const Divider(height: 1, color: Color(0x33255C57)),
         ],
       ],
     ),
@@ -366,7 +366,7 @@ class _MotionPill extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
     decoration: BoxDecoration(
-      border: Border.all(color: const Color(0x335E4A87)),
+      border: Border.all(color: const Color(0x33255C57)),
       borderRadius: BorderRadius.circular(99),
     ),
     child: Text(
@@ -391,7 +391,7 @@ class _CareerRelevanceCard extends StatelessWidget {
         for (var index = 0; index < items.length; index++) ...[
           _CareerRelevanceRow(item: items[index]),
           if (index < items.length - 1)
-            const Divider(height: 1, color: Color(0x335E4A87)),
+            const Divider(height: 1, color: Color(0x33255C57)),
         ],
       ],
     ),
@@ -639,7 +639,7 @@ class _SpecialStatesCard extends StatelessWidget {
               ),
             ),
             if (index < resolved.length - 1)
-              const Divider(height: 1, color: Color(0x335E4A87)),
+              const Divider(height: 1, color: Color(0x33255C57)),
           ],
         ],
       ),
@@ -654,7 +654,7 @@ class _StatusChip extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
     decoration: BoxDecoration(
-      border: Border.all(color: const Color(0x66C5A059)),
+      border: Border.all(color: const Color(0x66D6B15A)),
       borderRadius: BorderRadius.circular(99),
     ),
     child: Text(
@@ -965,7 +965,7 @@ class _DarkCard extends StatelessWidget {
           : CurrentTransitsScreen.abyss,
       borderRadius: BorderRadius.circular(16),
       border: Border.all(
-        color: emphasized ? const Color(0x77C5A059) : const Color(0x335E4A87),
+        color: emphasized ? const Color(0x77D6B15A) : const Color(0x33255C57),
       ),
     ),
     child: child,

@@ -10,12 +10,12 @@ class BirthProfilesScreen extends StatelessWidget {
   const BirthProfilesScreen({super.key, required this.controller});
   final ProfileController controller;
 
-  static const _midnight = Color(0xFF0B071B);
-  static const _abyss = Color(0xFF120D29);
-  static const _violet = Color(0xFF1B1234);
-  static const _alabaster = Color(0xFFFAF7F2);
-  static const _slate = Color(0xFF9E9AA9);
-  static const _gold = Color(0xFFC5A059);
+  static const _midnight = Color(0xFF061A1A);
+  static const _abyss = Color(0xFF082625);
+  static const _violet = Color(0xFF0D312F);
+  static const _alabaster = Color(0xFFF7F4EC);
+  static const _slate = Color(0xFFA8B7B4);
+  static const _gold = Color(0xFFD6B15A);
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -260,7 +260,7 @@ class _ProfileCard extends StatelessWidget {
     selected: active,
     label: '${profile.label}${active ? ', active profile' : ''}',
     child: Material(
-      color: active ? const Color(0xFF21153D) : BirthProfilesScreen._abyss,
+      color: active ? const Color(0xFF0D312F) : BirthProfilesScreen._abyss,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
@@ -271,7 +271,7 @@ class _ProfileCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: active ? const Color(0x99C5A059) : const Color(0x335E4A87),
+              color: active ? const Color(0x99D6B15A) : const Color(0x33255C57),
             ),
           ),
           child: Row(
@@ -281,7 +281,7 @@ class _ProfileCard extends StatelessWidget {
                 height: 46,
                 alignment: Alignment.center,
                 decoration: const BoxDecoration(
-                  color: Color(0xFF2A1B4C),
+                  color: Color(0xFF114A46),
                   shape: BoxShape.circle,
                 ),
                 child: Text(
@@ -366,9 +366,9 @@ class _ActivePill extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
     decoration: BoxDecoration(
-      color: const Color(0x332F2413),
+      color: const Color(0x33173F3B),
       borderRadius: BorderRadius.circular(999),
-      border: Border.all(color: const Color(0x66C5A059)),
+      border: Border.all(color: const Color(0x66D6B15A)),
     ),
     child: const Row(
       mainAxisSize: MainAxisSize.min,
@@ -490,7 +490,7 @@ class _ProfileDetailBirthCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: active ? const Color(0x99C5A059) : const Color(0x335E4A87),
+            color: active ? const Color(0x99D6B15A) : const Color(0x33255C57),
           ),
         ),
         child: Column(
@@ -503,7 +503,7 @@ class _ProfileDetailBirthCard extends StatelessWidget {
                   height: 40,
                   alignment: Alignment.center,
                   decoration: const BoxDecoration(
-                    color: Color(0xFF2A1B4C),
+                    color: Color(0xFF114A46),
                     shape: BoxShape.circle,
                   ),
                   child: Text(
@@ -538,7 +538,7 @@ class _ProfileDetailBirthCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 18),
-            const Divider(color: Color(0x335E4A87), height: 1),
+            const Divider(color: Color(0x33255C57), height: 1),
             const SizedBox(height: 15),
             _ProfileDetailValue(
               label: 'BIRTH DATE',
@@ -592,9 +592,9 @@ class _ProfileDetailActiveChip extends StatelessWidget {
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0x1FC5A059),
+        color: const Color(0x1F35B9AC),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0x66C5A059)),
+        border: Border.all(color: const Color(0x66D6B15A)),
       ),
       child: const Text(
         'ACTIVE',
@@ -660,7 +660,7 @@ class _ProfileDetailCareerHistoryCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 13),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0x665E4A87)),
+          border: Border.all(color: const Color(0x66255C57)),
         ),
         child: Row(
           children: [

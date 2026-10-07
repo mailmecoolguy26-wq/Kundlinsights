@@ -285,9 +285,12 @@ class _Row extends StatelessWidget {
                   ],
                 ),
               ),
-              _Badge(period.status),
+              _Badge(period.status, current: period.status == 'CURRENT'),
               const SizedBox(width: 8),
-              const Icon(Icons.chevron_right, color: _C.gold),
+              Icon(
+                Icons.chevron_right,
+                color: period.status == 'CURRENT' ? _C.gold : _C.teal,
+              ),
             ],
           ),
         ),
@@ -297,16 +300,25 @@ class _Row extends StatelessWidget {
 }
 
 class _Badge extends StatelessWidget {
-  const _Badge(this.value);
+  const _Badge(this.value, {required this.current});
   final String value;
+  final bool current;
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(99),
-      border: Border.all(color: _C.gold),
+      border: Border.all(color: current ? _C.gold : _C.border),
     ),
-    child: Text(value, style: _S.badge),
+    child: Text(
+      value,
+      style: TextStyle(
+        color: current ? _C.gold : _C.slate,
+        fontSize: 10,
+        fontWeight: FontWeight.w700,
+        letterSpacing: .8,
+      ),
+    ),
   );
 }
 
@@ -317,18 +329,20 @@ BoxDecoration _box(bool current) => BoxDecoration(
   color: current ? _C.violet : _C.abyss,
   borderRadius: BorderRadius.circular(14),
   border: Border.all(
-    color: current ? const Color(0x99C5A059) : const Color(0x335E4A87),
+    color: current ? const Color(0x99D6B15A) : const Color(0x33255C57),
   ),
 );
 String _date(DateTime d) => DateFormat('d MMM yyyy').format(d.toLocal());
 
 abstract final class _C {
-  static const midnight = Color(0xFF0B071B),
-      abyss = Color(0xFF120D29),
-      violet = Color(0xFF1B1234),
-      alabaster = Color(0xFFFAF7F2),
-      slate = Color(0xFF9E9AA9),
-      gold = Color(0xFFC5A059);
+  static const midnight = Color(0xFF061A1A),
+      abyss = Color(0xFF082625),
+      violet = Color(0xFF0D312F),
+      alabaster = Color(0xFFF7F4EC),
+      slate = Color(0xFFA8B7B4),
+      gold = Color(0xFFD6B15A),
+      teal = Color(0xFF35B9AC),
+      border = Color(0xFF255C57);
 }
 
 abstract final class _S {
@@ -344,10 +358,5 @@ abstract final class _S {
         fontSize: 16,
         fontWeight: FontWeight.w600,
       ),
-      body = TextStyle(color: _C.slate, fontSize: 13),
-      badge = TextStyle(
-        color: _C.alabaster,
-        fontSize: 10,
-        fontWeight: FontWeight.w700,
-      );
+      body = TextStyle(color: _C.slate, fontSize: 13);
 }

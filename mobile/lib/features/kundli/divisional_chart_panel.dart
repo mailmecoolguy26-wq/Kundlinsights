@@ -94,7 +94,7 @@ class DivisionalChartPanel extends StatelessWidget {
                     ),
                     trailing: const Icon(
                       Icons.chevron_right,
-                      color: Color(0xFFC5A059),
+                      color: Color(0xFFD6B15A),
                     ),
                     onTap: () => _showPlanet(
                       context,
@@ -147,7 +147,7 @@ void _showHouse(
   showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
-    backgroundColor: const Color(0xFF120D29),
+    backgroundColor: const Color(0xFF082625),
     builder: (context) => SafeArea(
       top: false,
       child: Padding(
@@ -196,7 +196,7 @@ void _showPlanet(
   showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
-    backgroundColor: const Color(0xFF120D29),
+    backgroundColor: const Color(0xFF082625),
     builder: (context) => SafeArea(
       top: false,
       child: Padding(
@@ -266,16 +266,16 @@ class _DivisionalAccessibilityFallback extends StatelessWidget {
     final t = AppLocalizations.of(context)!;
     final copy = AstrologyPresentationCopy.of(context);
     return Material(
-      color: const Color(0xFF120D29),
+      color: const Color(0xFF082625),
       borderRadius: BorderRadius.circular(16),
       child: ExpansionTile(
         tilePadding: const EdgeInsets.symmetric(horizontal: 16),
-        iconColor: const Color(0xFFC5A059),
-        collapsedIconColor: const Color(0xFFC5A059),
+        iconColor: const Color(0xFFD6B15A),
+        collapsedIconColor: const Color(0xFFD6B15A),
         title: Text(
           '${type.apiName} · ${t.chartAccessibleHouseList}',
           style: const TextStyle(
-            color: Color(0xFFFAF7F2),
+            color: Color(0xFFF7F4EC),
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -285,13 +285,13 @@ class _DivisionalAccessibilityFallback extends StatelessWidget {
                 dense: true,
                 title: Text(
                   '${copy.house(house.house)} — ${house.sign.englishName}',
-                  style: const TextStyle(color: Color(0xFFFAF7F2)),
+                  style: const TextStyle(color: Color(0xFFF7F4EC)),
                 ),
                 subtitle: Text(
                   house.planets.isEmpty
                       ? t.noPlanets
                       : house.planets.map((item) => item.body).join(', '),
-                  style: const TextStyle(color: Color(0xFF9E9AA9)),
+                  style: const TextStyle(color: Color(0xFFA8B7B4)),
                 ),
               ),
             )
@@ -329,22 +329,22 @@ class _DivisionalError extends StatelessWidget {
 
 abstract final class _DivisionalStyle {
   static const planetName = TextStyle(
-    color: Color(0xFFFAF7F2),
+    color: Color(0xFFF7F4EC),
     fontWeight: FontWeight.w600,
   );
   static const planetSubtitle = TextStyle(
-    color: Color(0xFF9E9AA9),
+    color: Color(0xFFA8B7B4),
     height: 1.35,
   );
   static const title = TextStyle(
-    color: Color(0xFFFAF7F2),
+    color: Color(0xFFF7F4EC),
     fontFamily: 'EBGaramond',
     fontSize: 25,
     fontWeight: FontWeight.w600,
   );
-  static const label = TextStyle(color: Color(0xFF9E9AA9), fontSize: 13);
+  static const label = TextStyle(color: Color(0xFFA8B7B4), fontSize: 13);
   static const value = TextStyle(
-    color: Color(0xFFFAF7F2),
+    color: Color(0xFFF7F4EC),
     fontSize: 13,
     fontWeight: FontWeight.w600,
   );

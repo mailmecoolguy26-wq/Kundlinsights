@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import '../../app/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
-const _midnight = Color(0xFF0B071B);
-const _abyss = Color(0xFF120D29);
-const _alabaster = Color(0xFFFAF7F2);
-const _slate = Color(0xFF9E9AA9);
-const _gold = Color(0xFFC5A059);
-const _border = Color(0x665E4A87);
+const _midnight = AppColors.backgroundPrimary;
+const _abyss = AppColors.surfacePrimary;
+const _alabaster = AppColors.textPrimary;
+const _slate = AppColors.textSecondary;
+const _gold = AppColors.accentTurquoise;
+const _border = AppColors.borderSubtle;
 
 class EmptyState extends StatelessWidget {
   const EmptyState({

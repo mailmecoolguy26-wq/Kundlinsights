@@ -310,7 +310,7 @@ class _Card extends StatelessWidget {
     decoration: BoxDecoration(
       color: _C.abyss,
       borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: const Color(0x335E4A87)),
+      border: Border.all(color: const Color(0x33255C57)),
     ),
     child: child,
   );
@@ -343,7 +343,7 @@ class _Pill extends StatelessWidget {
     decoration: BoxDecoration(
       color: _C.abyss,
       borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: const Color(0x55C5A059)),
+      border: Border.all(color: const Color(0x55D6B15A)),
     ),
     child: Text(label, style: _S.body),
   );
@@ -358,12 +358,12 @@ String _ord(int x) => x == 1
     : '${x}th';
 
 abstract final class _C {
-  static const midnight = Color(0xFF0B071B),
-      abyss = Color(0xFF120D29),
-      violet = Color(0xFF1B1234),
-      alabaster = Color(0xFFFAF7F2),
-      slate = Color(0xFF9E9AA9),
-      gold = Color(0xFFC5A059);
+  static const midnight = Color(0xFF061A1A),
+      abyss = Color(0xFF082625),
+      violet = Color(0xFF0D312F),
+      alabaster = Color(0xFFF7F4EC),
+      slate = Color(0xFFA8B7B4),
+      gold = Color(0xFFD6B15A);
 }
 
 abstract final class _S {

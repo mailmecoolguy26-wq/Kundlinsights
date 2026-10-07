@@ -484,7 +484,7 @@ void main() {
       final signStyle = tester
           .widget<Text>(find.byKey(const Key('chart-sign-1')))
           .style;
-      expect(signStyle?.color, const Color(0x59C5A059));
+      expect(signStyle?.color, const Color(0x59D6B15A));
       expect(signStyle?.fontSize, 9.25);
       expect(signStyle?.fontWeight, FontWeight.w500);
       final chartBounds = tester.getRect(

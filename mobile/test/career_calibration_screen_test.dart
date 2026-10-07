@@ -238,7 +238,7 @@ void main() {
     );
     expect(
       (eventCard.decoration! as BoxDecoration).color,
-      const Color(0xFF120D29),
+      const Color(0xFF082625),
     );
     expect(
       find.descendant(
@@ -368,7 +368,7 @@ void main() {
         (widget) => widget is DropdownButtonFormField<CareerEventType>,
       ),
     );
-    expect((typeField.decoration.fillColor), const Color(0xFF211D32));
+    expect((typeField.decoration.fillColor), const Color(0xFF0D312F));
     await tester.tap(
       find.byWidgetPredicate(
         (widget) => widget is DropdownButtonFormField<CareerEventType>,

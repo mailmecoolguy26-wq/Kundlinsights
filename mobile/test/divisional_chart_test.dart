@@ -120,10 +120,10 @@ void main() {
           find.text('${type.apiName} · Accessible house list'),
         );
 
-        expect(sun.style?.color, const Color(0xFFFAF7F2));
-        expect(subtitle.style?.color, const Color(0xFF9E9AA9));
-        expect(chevron.color, const Color(0xFFC5A059));
-        expect(accessibilityTitle.style?.color, const Color(0xFFFAF7F2));
+        expect(sun.style?.color, const Color(0xFFF7F4EC));
+        expect(subtitle.style?.color, const Color(0xFFA8B7B4));
+        expect(chevron.color, const Color(0xFFD6B15A));
+        expect(accessibilityTitle.style?.color, const Color(0xFFF7F4EC));
         expect(accessibilityTitle.style?.fontWeight, FontWeight.w600);
       }
 

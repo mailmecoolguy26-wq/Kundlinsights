@@ -88,7 +88,7 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
     final usesRazorpay = widget.razorpayController != null;
     if (usesRazorpay && widget.dedicatedRazorpaySurface) {
       return Scaffold(
-        backgroundColor: const Color(0xFF0B071B),
+        backgroundColor: const Color(0xFF061A1A),
         body: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
@@ -101,10 +101,10 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
                       onPressed: () => Navigator.of(context).maybePop(),
                       icon: const Icon(
                         Icons.arrow_back,
-                        color: Color(0xFFFAF7F2),
+                        color: Color(0xFFF7F4EC),
                       ),
                       style: IconButton.styleFrom(
-                        backgroundColor: const Color(0xFF181335),
+                        backgroundColor: const Color(0xFF0B2626),
                       ),
                     ),
                     const Spacer(),
@@ -239,19 +239,19 @@ class _ProfilePill extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
     decoration: BoxDecoration(
-      color: const Color(0xFF181335),
+      color: const Color(0xFF0B2626),
       borderRadius: BorderRadius.circular(999),
-      border: Border.all(color: const Color(0xFFC5A059).withValues(alpha: .45)),
+      border: Border.all(color: const Color(0xFFD6B15A).withValues(alpha: .45)),
     ),
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.circle, size: 8, color: Color(0xFFC5A059)),
+        const Icon(Icons.circle, size: 8, color: Color(0xFFD6B15A)),
         const SizedBox(width: 6),
         Text(
           label?.toUpperCase() ?? 'BIRTH PROFILE',
           style: const TextStyle(
-            color: Color(0xFFFAF7F2),
+            color: Color(0xFFF7F4EC),
             fontSize: 11,
             fontWeight: FontWeight.w700,
           ),
@@ -505,20 +505,20 @@ class _CareerCalibrationProcessing extends StatelessWidget {
     children: [
       Text(
         'CALIBRATION',
-        style: TextStyle(color: Color(0xFFF4BF50), fontWeight: FontWeight.w800),
+        style: TextStyle(color: Color(0xFFD6B15A), fontWeight: FontWeight.w800),
       ),
       SizedBox(height: 4),
       Text(
         'Career Calibration',
-        style: TextStyle(color: Color(0xFFFAF7F2), fontSize: 22),
+        style: TextStyle(color: Color(0xFFF7F4EC), fontSize: 22),
       ),
       SizedBox(height: 28),
-      Icon(Icons.autorenew, color: Color(0xFFC5A059), size: 52),
+      Icon(Icons.autorenew, color: Color(0xFFD6B15A), size: 52),
       SizedBox(height: 20),
       Text(
         'Calibrating your career timeline',
         style: TextStyle(
-          color: Color(0xFFFAF7F2),
+          color: Color(0xFFF7F4EC),
           fontSize: 27,
           fontWeight: FontWeight.w600,
         ),
@@ -527,7 +527,7 @@ class _CareerCalibrationProcessing extends StatelessWidget {
       Text(
         'We’re comparing your past career events with your birth chart and timing patterns.',
         textAlign: TextAlign.center,
-        style: TextStyle(color: Color(0xFF9E9AA9)),
+        style: TextStyle(color: Color(0xFFA8B7B4)),
       ),
       SizedBox(height: 20),
       _CalibrationStage(
@@ -560,21 +560,21 @@ class _CalibrationStage extends StatelessWidget {
     margin: const EdgeInsets.only(bottom: 8),
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
-      color: const Color(0xFF181335),
+      color: const Color(0xFF0B2626),
       borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: const Color(0xFFC5A059)),
+      border: Border.all(color: const Color(0xFFD6B15A)),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           status,
-          style: const TextStyle(color: Color(0xFFF4BF50), fontSize: 10),
+          style: const TextStyle(color: Color(0xFFD6B15A), fontSize: 10),
         ),
-        Text(title, style: const TextStyle(color: Color(0xFFFAF7F2))),
+        Text(title, style: const TextStyle(color: Color(0xFFF7F4EC))),
         Text(
           body,
-          style: const TextStyle(color: Color(0xFF9E9AA9), fontSize: 12),
+          style: const TextStyle(color: Color(0xFFA8B7B4), fontSize: 12),
         ),
       ],
     ),
@@ -590,18 +590,18 @@ class _RazorpayProcessing extends StatelessWidget {
       Text(
         'CAREER PREMIUM',
         style: TextStyle(
-          color: Color(0xFFF4BF50),
+          color: Color(0xFFD6B15A),
           fontSize: 11,
           fontWeight: FontWeight.w800,
         ),
       ),
       SizedBox(height: 10),
-      Icon(Icons.auto_awesome, color: Color(0xFFC5A059), size: 34),
+      Icon(Icons.auto_awesome, color: Color(0xFFD6B15A), size: 34),
       SizedBox(height: 10),
       Text(
         'Processing your payment',
         style: TextStyle(
-          color: Color(0xFFFAF7F2),
+          color: Color(0xFFF7F4EC),
           fontSize: 25,
           fontWeight: FontWeight.w600,
         ),
@@ -609,25 +609,25 @@ class _RazorpayProcessing extends StatelessWidget {
       SizedBox(height: AppSpacing.xs),
       Text(
         'Please wait while we securely confirm your payment.',
-        style: TextStyle(color: Color(0xFF9E9AA9)),
+        style: TextStyle(color: Color(0xFFA8B7B4)),
       ),
       SizedBox(height: AppSpacing.sm),
       Text(
         'CAREER PREMIUM · ANNUAL ACCESS',
-        style: TextStyle(color: Color(0xFFF4BF50)),
+        style: TextStyle(color: Color(0xFFD6B15A)),
       ),
-      Text('₹588.82', style: TextStyle(color: Color(0xFFFAF7F2), fontSize: 28)),
+      Text('₹588.82', style: TextStyle(color: Color(0xFFF7F4EC), fontSize: 28)),
       Text(
         '₹588.82 total, including GST',
-        style: TextStyle(color: Color(0xFF9E9AA9)),
+        style: TextStyle(color: Color(0xFFA8B7B4)),
       ),
       SizedBox(height: AppSpacing.sm),
       LinearProgressIndicator(),
-      Text('Confirming payment…', style: TextStyle(color: Color(0xFFFAF7F2))),
+      Text('Confirming payment…', style: TextStyle(color: Color(0xFFF7F4EC))),
       SizedBox(height: AppSpacing.xs),
       Text(
         'Please do not close the app or press back while your payment is being confirmed.',
-        style: TextStyle(color: Color(0xFF9E9AA9), fontSize: 12),
+        style: TextStyle(color: Color(0xFFA8B7B4), fontSize: 12),
       ),
     ],
   );
@@ -643,22 +643,22 @@ class _RazorpaySuccess extends StatelessWidget {
     children: [
       const Text(
         'PAYMENT SUCCESSFUL',
-        style: TextStyle(color: Color(0xFFF4BF50), fontWeight: FontWeight.w800),
+        style: TextStyle(color: Color(0xFFD6B15A), fontWeight: FontWeight.w800),
       ),
       const SizedBox(height: 10),
-      const Icon(Icons.verified_rounded, color: Color(0xFFC5A059), size: 38),
+      const Icon(Icons.verified_rounded, color: Color(0xFFD6B15A), size: 38),
       const SizedBox(height: 10),
       const Text(
         'Career Premium is now unlocked',
         style: TextStyle(
-          color: Color(0xFFFAF7F2),
+          color: Color(0xFFF7F4EC),
           fontSize: 24,
           fontWeight: FontWeight.w600,
         ),
       ),
       const Text(
         'You now have full access to your personalized career forecast and upcoming career windows.',
-        style: TextStyle(color: Color(0xFF9E9AA9)),
+        style: TextStyle(color: Color(0xFFA8B7B4)),
       ),
       const SizedBox(height: AppSpacing.sm),
       const Text(
@@ -690,40 +690,40 @@ class _RazorpayFailure extends StatelessWidget {
     children: [
       const Text(
         'PAYMENT FAILED',
-        style: TextStyle(color: Color(0xFFF4BF50), fontWeight: FontWeight.w800),
+        style: TextStyle(color: Color(0xFFD6B15A), fontWeight: FontWeight.w800),
       ),
       const SizedBox(height: 10),
-      const Icon(Icons.error_outline, color: Color(0xFFC5A059), size: 36),
+      const Icon(Icons.error_outline, color: Color(0xFFD6B15A), size: 36),
       Text(
         canRetry
             ? 'Your payment couldn’t be completed'
             : 'Payment needs verification',
-        style: TextStyle(color: Color(0xFFFAF7F2), fontSize: 22),
+        style: TextStyle(color: Color(0xFFF7F4EC), fontSize: 22),
       ),
       Text(
         canRetry ? 'The payment was not completed.' : 'We already have a payment order for this attempt. Check its status before trying again.',
-        style: TextStyle(color: Color(0xFF9E9AA9)),
+        style: TextStyle(color: Color(0xFFA8B7B4)),
       ),
       const Text(
         '₹588.82',
-        style: TextStyle(color: Color(0xFFFAF7F2), fontSize: 20),
+        style: TextStyle(color: Color(0xFFF7F4EC), fontSize: 20),
       ),
       if (canRetry)
         const Text(
           'If money was deducted, we’ll verify the payment status before asking you to pay again.',
-          style: TextStyle(color: Color(0xFF9E9AA9)),
+          style: TextStyle(color: Color(0xFFA8B7B4)),
         ),
       FilledButton(
         onPressed: canRetry ? onRetry : onCheck,
         style: FilledButton.styleFrom(
-          backgroundColor: const Color(0xFFF4BF50),
-          foregroundColor: const Color(0xFF0B071B),
+          backgroundColor: const Color(0xFFD6B15A),
+          foregroundColor: const Color(0xFF061A1A),
         ),
         child: Text(canRetry ? 'TRY AGAIN' : 'CHECK PAYMENT STATUS'),
       ),
       TextButton(
         onPressed: onHome,
-        style: TextButton.styleFrom(foregroundColor: const Color(0xFFF4BF50)),
+        style: TextButton.styleFrom(foregroundColor: const Color(0xFFD6B15A)),
         child: const Text('BACK TO HOME'),
       ),
     ],
@@ -740,36 +740,36 @@ class _RazorpayUnknown extends StatelessWidget {
     children: [
       const Text(
         'CAREER PREMIUM',
-        style: TextStyle(color: Color(0xFFF4BF50), fontWeight: FontWeight.w800),
+        style: TextStyle(color: Color(0xFFD6B15A), fontWeight: FontWeight.w800),
       ),
       const SizedBox(height: 10),
       const Text(
         'We’re checking your payment',
         style: TextStyle(
-          color: Color(0xFFFAF7F2),
+          color: Color(0xFFF7F4EC),
           fontSize: 24,
           fontWeight: FontWeight.w600,
         ),
       ),
       const Text(
         'Your payment may have been completed, but we haven’t confirmed it yet.',
-        style: TextStyle(color: Color(0xFF9E9AA9)),
+        style: TextStyle(color: Color(0xFFA8B7B4)),
       ),
       const Text(
         'Please don’t make another payment while we verify the status.',
-        style: TextStyle(color: Color(0xFF9E9AA9)),
+        style: TextStyle(color: Color(0xFFA8B7B4)),
       ),
       FilledButton(
         onPressed: onCheck,
         style: FilledButton.styleFrom(
-          backgroundColor: const Color(0xFFF4BF50),
-          foregroundColor: const Color(0xFF0B071B),
+          backgroundColor: const Color(0xFFD6B15A),
+          foregroundColor: const Color(0xFF061A1A),
         ),
         child: const Text('CHECK PAYMENT STATUS'),
       ),
       TextButton(
         onPressed: onHome,
-        style: TextButton.styleFrom(foregroundColor: const Color(0xFFF4BF50)),
+        style: TextButton.styleFrom(foregroundColor: const Color(0xFFD6B15A)),
         child: const Text('Back to Home'),
       ),
     ],
@@ -786,7 +786,7 @@ class _RazorpayIdle extends StatelessWidget {
       Text(
         'CAREER PREMIUM',
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: const Color(0xFFF4BF50),
+          color: const Color(0xFFD6B15A),
           fontWeight: FontWeight.w800,
           letterSpacing: 1.4,
         ),
@@ -795,7 +795,7 @@ class _RazorpayIdle extends StatelessWidget {
       Text(
         'Unlock your complete career forecast',
         style: const TextStyle(
-          color: Color(0xFFFAF7F2),
+          color: Color(0xFFF7F4EC),
           fontSize: 29,
           height: .98,
           fontWeight: FontWeight.w500,
@@ -804,16 +804,16 @@ class _RazorpayIdle extends StatelessWidget {
       const SizedBox(height: AppSpacing.xs),
       const Text(
         'Get full access to your personalized career timing and upcoming career windows.',
-        style: TextStyle(color: Color(0xFF9E9AA9)),
+        style: TextStyle(color: Color(0xFFA8B7B4)),
       ),
       const SizedBox(height: 12),
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
         decoration: BoxDecoration(
-          color: const Color(0xFF181335),
+          color: const Color(0xFF0B2626),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: const Color(0xFFC5A059).withValues(alpha: .55),
+            color: const Color(0xFFD6B15A).withValues(alpha: .55),
           ),
         ),
         child: const Row(
@@ -822,14 +822,14 @@ class _RazorpayIdle extends StatelessWidget {
             Expanded(
               child: Text(
                 'CAREER PREMIUM\nAnnual access',
-                style: TextStyle(color: Color(0xFFFAF7F2), fontSize: 13),
+                style: TextStyle(color: Color(0xFFF7F4EC), fontSize: 13),
               ),
             ),
             Text(
               '₹499 / year\n+ GST @ 18%\nTotal payable: ₹588.82',
               textAlign: TextAlign.right,
               style: TextStyle(
-                color: Color(0xFFFAF7F2),
+                color: Color(0xFFF7F4EC),
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
               ),
@@ -843,13 +843,13 @@ class _RazorpayIdle extends StatelessWidget {
           SizedBox(
             width: 3,
             height: 16,
-            child: ColoredBox(color: Color(0xFFF4BF50)),
+            child: ColoredBox(color: Color(0xFFD6B15A)),
           ),
           SizedBox(width: 8),
           Text(
             'WHAT YOU’LL UNLOCK',
             style: TextStyle(
-              color: Color(0xFFF4BF50),
+              color: Color(0xFFD6B15A),
               fontSize: 11,
               fontWeight: FontWeight.w800,
               letterSpacing: 1,
@@ -860,7 +860,7 @@ class _RazorpayIdle extends StatelessWidget {
       const SizedBox(height: AppSpacing.sm),
       Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF141025),
+          color: const Color(0xFF0B2626),
           borderRadius: BorderRadius.circular(14),
         ),
         child: const Column(
@@ -870,13 +870,13 @@ class _RazorpayIdle extends StatelessWidget {
               'Full Career Forecast',
               'Your complete personalized career timing',
             ),
-            Divider(height: 1, color: Color(0x33211D32)),
+            Divider(height: 1, color: Color(0x330D312F)),
             _RazorpayBenefit(
               Icons.bar_chart_outlined,
               'Upcoming Career Windows',
               'See important upcoming periods',
             ),
-            Divider(height: 1, color: Color(0x33211D32)),
+            Divider(height: 1, color: Color(0x330D312F)),
             _RazorpayBenefit(
               Icons.tune,
               'Career Calibration',
@@ -891,8 +891,8 @@ class _RazorpayIdle extends StatelessWidget {
         child: FilledButton(
           onPressed: onStart,
           style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFFF4BF50),
-            foregroundColor: const Color(0xFF0B071B),
+            backgroundColor: const Color(0xFFD6B15A),
+            foregroundColor: const Color(0xFF061A1A),
             padding: const EdgeInsets.symmetric(vertical: 14),
           ),
           child: const Text('UNLOCK CAREER PREMIUM — ₹588.82 →'),
@@ -902,17 +902,17 @@ class _RazorpayIdle extends StatelessWidget {
       const Center(
         child: Text(
           '₹588.82 total, including GST',
-          style: TextStyle(color: Color(0xFF9E9AA9), fontSize: 12),
+          style: TextStyle(color: Color(0xFFA8B7B4), fontSize: 12),
         ),
       ),
       const SizedBox(height: 14),
-      const Divider(color: Color(0x33211D32)),
+      const Divider(color: Color(0x330D312F)),
       const SizedBox(height: 8),
       const Center(
         child: Text(
           'PAY SECURELY WITH',
           style: TextStyle(
-            color: Color(0xFF9E9AA9),
+            color: Color(0xFFA8B7B4),
             fontSize: 10,
             fontWeight: FontWeight.w800,
             letterSpacing: 1,
@@ -935,16 +935,16 @@ class _RazorpayIdle extends StatelessWidget {
       const SizedBox(height: AppSpacing.md),
       const Row(
         children: [
-          Icon(Icons.lock_outline, size: 14, color: Color(0xFFC5A059)),
+          Icon(Icons.lock_outline, size: 14, color: Color(0xFFD6B15A)),
           SizedBox(width: 6),
           Text(
             'Secure payment',
-            style: TextStyle(color: Color(0xFF9E9AA9), fontSize: 12),
+            style: TextStyle(color: Color(0xFFA8B7B4), fontSize: 12),
           ),
           Spacer(),
           Text(
             'Terms · Privacy',
-            style: TextStyle(color: Color(0xFFC5A059), fontSize: 12),
+            style: TextStyle(color: Color(0xFFD6B15A), fontSize: 12),
           ),
         ],
       ),
@@ -968,10 +968,10 @@ class _RazorpayBenefit extends StatelessWidget {
           width: 32,
           height: 32,
           decoration: BoxDecoration(
-            color: const Color(0xFF181335),
+            color: const Color(0xFF0B2626),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, size: 17, color: const Color(0xFFC5A059)),
+          child: Icon(icon, size: 17, color: const Color(0xFFD6B15A)),
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -981,14 +981,14 @@ class _RazorpayBenefit extends StatelessWidget {
                 TextSpan(
                   text: '$title\n',
                   style: const TextStyle(
-                    color: Color(0xFFFAF7F2),
+                    color: Color(0xFFF7F4EC),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 TextSpan(
                   text: body,
                   style: const TextStyle(
-                    color: Color(0xFF9E9AA9),
+                    color: Color(0xFFA8B7B4),
                     fontSize: 12,
                   ),
                 ),
@@ -1008,13 +1008,13 @@ class _PaymentChip extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
     decoration: BoxDecoration(
-      color: const Color(0xFF141025),
-      border: Border.all(color: const Color(0xFFC5A059).withValues(alpha: .35)),
+      color: const Color(0xFF0B2626),
+      border: Border.all(color: const Color(0xFFD6B15A).withValues(alpha: .35)),
       borderRadius: BorderRadius.circular(7),
     ),
     child: Text(
       label,
-      style: const TextStyle(color: Color(0xFFFAF7F2), fontSize: 11),
+      style: const TextStyle(color: Color(0xFFF7F4EC), fontSize: 11),
     ),
   );
 }

@@ -164,7 +164,7 @@ class _AntardashaTimeline extends StatelessWidget {
                 '${_date(current.mahadasha.startUtc)} — ${_date(current.mahadasha.endUtc)}',
                 style: _S.body,
               ),
-              const Divider(color: Color(0x335E4A87), height: 22),
+              const Divider(color: Color(0x33255C57), height: 22),
               Text(
                 'Currently in ${copy.planet(current.antardasha.lord)} Antardasha',
                 style: _S.gold,
@@ -218,7 +218,7 @@ class _PratyantarTimeline extends StatelessWidget {
                 '${_date(current.mahadasha.startUtc)} — ${_date(current.mahadasha.endUtc)}',
                 style: _S.body,
               ),
-              const Divider(color: Color(0x335E4A87), height: 20),
+              const Divider(color: Color(0x33255C57), height: 20),
               Text(
                 '${copy.planet(current.antardasha.lord)} Antardasha',
                 style: _S.cardTitle,
@@ -587,7 +587,7 @@ class _PreviewRow extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Divider(color: Color(0x335E4A87), height: 1),
+        const Divider(color: Color(0x33255C57), height: 1),
         const SizedBox(height: 10),
         Text(title, style: _S.eyebrow),
         const SizedBox(height: 4),
@@ -699,7 +699,7 @@ class _Period extends StatelessWidget {
         color: active ? _C.violet : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: active ? const Color(0x77C5A059) : const Color(0x335E4A87),
+          color: active ? const Color(0x77D6B15A) : const Color(0x33255C57),
         ),
       ),
       child: Row(
@@ -797,7 +797,7 @@ class _Selectors extends StatelessWidget {
 final _segment = ButtonStyle(
   foregroundColor: const WidgetStatePropertyAll(_C.alabaster),
   backgroundColor: const WidgetStatePropertyAll(_C.violet),
-  side: const WidgetStatePropertyAll(BorderSide(color: Color(0x55C5A059))),
+  side: const WidgetStatePropertyAll(BorderSide(color: Color(0x55D6B15A))),
 );
 
 class _Timeline extends StatelessWidget {
@@ -859,7 +859,7 @@ class _DarkCard extends StatelessWidget {
       color: emphasis ? _C.violet : _C.abyss,
       borderRadius: BorderRadius.circular(16),
       border: Border.all(
-        color: emphasis ? const Color(0x77C5A059) : const Color(0x335E4A87),
+        color: emphasis ? const Color(0x77D6B15A) : const Color(0x33255C57),
       ),
     ),
     child: child,
@@ -874,9 +874,9 @@ class _Chip extends StatelessWidget {
     key: const ValueKey('dasha-profile-pill'),
     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
     decoration: BoxDecoration(
-      color: const Color(0x332F2413),
+      color: const Color(0x33173F3B),
       borderRadius: BorderRadius.circular(99),
-      border: Border.all(color: const Color(0x66C5A059)),
+      border: Border.all(color: const Color(0x66D6B15A)),
     ),
     child: Text(label, style: _S.chip),
   );
@@ -892,7 +892,7 @@ class _ProfilePill extends StatelessWidget {
     decoration: BoxDecoration(
       color: _C.abyss,
       borderRadius: BorderRadius.circular(99),
-      border: Border.all(color: const Color(0x55C5A059)),
+      border: Border.all(color: const Color(0x55D6B15A)),
     ),
     child: Text(
       label,
@@ -905,12 +905,12 @@ class _ProfilePill extends StatelessWidget {
 String _date(DateTime d) => DateFormat('d MMM yyyy').format(d.toLocal());
 
 abstract final class _C {
-  static const midnight = Color(0xFF0B071B),
-      abyss = Color(0xFF120D29),
-      violet = Color(0xFF1B1234),
-      alabaster = Color(0xFFFAF7F2),
-      slate = Color(0xFF9E9AA9),
-      gold = Color(0xFFC5A059);
+  static const midnight = Color(0xFF061A1A),
+      abyss = Color(0xFF082625),
+      violet = Color(0xFF0D312F),
+      alabaster = Color(0xFFF7F4EC),
+      slate = Color(0xFFA8B7B4),
+      gold = Color(0xFFD6B15A);
 }
 
 abstract final class _S {

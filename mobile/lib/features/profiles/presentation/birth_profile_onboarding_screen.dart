@@ -30,13 +30,13 @@ class BirthProfileOnboardingScreen extends StatefulWidget {
 
 class _BirthProfileOnboardingScreenState
     extends State<BirthProfileOnboardingScreen> {
-  static const _background = Color(0xFF0B071B);
-  static const _abyss = Color(0xFF120D29);
-  static const _violet = Color(0xFF181335);
-  static const _gold = Color(0xFFC5A059);
-  static const _champagne = Color(0xFFF4BF50);
-  static const _alabaster = Color(0xFFFAF7F2);
-  static const _slate = Color(0xFF9E9AA9);
+  static const _background = Color(0xFF061A1A);
+  static const _abyss = Color(0xFF082625);
+  static const _violet = Color(0xFF0B2626);
+  static const _gold = Color(0xFFD6B15A);
+  static const _champagne = Color(0xFFD6B15A);
+  static const _alabaster = Color(0xFFF7F4EC);
+  static const _slate = Color(0xFFA8B7B4);
 
   final _label = TextEditingController();
   final _place = TextEditingController();
@@ -334,7 +334,7 @@ class _BirthProfileOnboardingScreenState
                       child: Text(
                         _error!,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFFF3A4A4),
+                          color: const Color(0xFFE98686),
                           fontSize: 13,
                         ),
                       ),
@@ -585,15 +585,15 @@ class _Header extends StatelessWidget {
           child: adding
               ? IconButton(
                   onPressed: () => context.pop(),
-                  icon: const Icon(Icons.arrow_back, color: Color(0xFFFAF7F2)),
+                  icon: const Icon(Icons.arrow_back, color: Color(0xFFF7F4EC)),
                   style: IconButton.styleFrom(
-                    backgroundColor: const Color(0xFF181335),
+                    backgroundColor: const Color(0xFF0B2626),
                   ),
                 )
               : null,
         ),
         const Spacer(),
-        const Icon(Icons.auto_awesome, color: Color(0xFFC5A059), size: 17),
+        const Icon(Icons.auto_awesome, color: Color(0xFFD6B15A), size: 17),
         const SizedBox(width: 7),
         RichText(
           text: TextSpan(
@@ -601,12 +601,12 @@ class _Header extends StatelessWidget {
             children: const [
               TextSpan(
                 text: 'Kundli',
-                style: TextStyle(color: Color(0xFFFAF7F2)),
+                style: TextStyle(color: Color(0xFFF7F4EC)),
               ),
               TextSpan(
                 text: 'Insights',
                 style: TextStyle(
-                  color: Color(0xFFC5A059),
+                  color: Color(0xFFD6B15A),
                   fontStyle: FontStyle.italic,
                 ),
               ),
@@ -617,12 +617,12 @@ class _Header extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
           decoration: BoxDecoration(
-            color: const Color(0xFF181335),
+            color: const Color(0xFF0B2626),
             borderRadius: BorderRadius.circular(999),
           ),
           child: Text(
             '●  STEP 1/1',
-            style: _labelStyle(fontSize: 8, color: const Color(0xFFF4BF50)),
+            style: _labelStyle(fontSize: 8, color: const Color(0xFFD6B15A)),
           ),
         ),
       ],
@@ -651,7 +651,7 @@ class _FieldGroup extends StatelessWidget {
           Text(
             helper,
             style: GoogleFonts.inter(
-              color: const Color(0xFF9E9AA9),
+              color: const Color(0xFFA8B7B4),
               fontSize: 10,
             ),
           ),
@@ -687,19 +687,19 @@ class _PickerField extends StatelessWidget {
         height: 54,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
-          color: const Color(0xFF120D29),
+          color: const Color(0xFF082625),
           borderRadius: BorderRadius.circular(15),
         ),
         child: Row(
           children: [
-            Icon(icon, color: const Color(0xFFC5A059), size: 20),
+            Icon(icon, color: const Color(0xFFD6B15A), size: 20),
             const SizedBox(width: 12),
             Text(
               value,
               style: GoogleFonts.inter(
                 color: empty
-                    ? const Color(0xFF9E9AA9)
-                    : const Color(0xFFFAF7F2),
+                    ? const Color(0xFFA8B7B4)
+                    : const Color(0xFFF7F4EC),
                 fontSize: 13,
               ),
             ),
@@ -727,7 +727,7 @@ class _PeriodSelector extends StatelessWidget {
     height: 54,
     padding: const EdgeInsets.all(4),
     decoration: BoxDecoration(
-      color: const Color(0xFF120D29),
+      color: const Color(0xFF082625),
       borderRadius: BorderRadius.circular(15),
     ),
     child: Row(
@@ -769,15 +769,15 @@ class _PeriodButton extends StatelessWidget {
       child: Container(
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected && enabled ? const Color(0xFFC5A059) : null,
+          color: selected && enabled ? const Color(0xFFD6B15A) : null,
           borderRadius: BorderRadius.circular(11),
         ),
         child: Text(
           label,
           style: _labelStyle(
             color: selected && enabled
-                ? const Color(0xFF120D29)
-                : const Color(0xFF9E9AA9),
+                ? const Color(0xFF082625)
+                : const Color(0xFFA8B7B4),
             fontSize: 9,
           ),
         ),
@@ -793,9 +793,9 @@ class _PrecisionCard extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: const Color(0xFF181335),
+      color: const Color(0xFF0B2626),
       borderRadius: BorderRadius.circular(17),
-      border: Border.all(color: const Color(0xFFC5A059).withValues(alpha: .15)),
+      border: Border.all(color: const Color(0xFFD6B15A).withValues(alpha: .15)),
     ),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -804,12 +804,12 @@ class _PrecisionCard extends StatelessWidget {
           width: 34,
           height: 34,
           decoration: const BoxDecoration(
-            color: Color(0xFF251735),
+            color: Color(0xFF114A46),
             shape: BoxShape.circle,
           ),
           child: const Icon(
             Icons.info_outline,
-            color: Color(0xFFC5A059),
+            color: Color(0xFFD6B15A),
             size: 19,
           ),
         ),
@@ -821,7 +821,7 @@ class _PrecisionCard extends StatelessWidget {
               Text(
                 'Vedic Time Precision',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFFAF7F2),
+                  color: const Color(0xFFF7F4EC),
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
@@ -830,7 +830,7 @@ class _PrecisionCard extends StatelessWidget {
               Text(
                 'Accurate birth time defines the Ascendant (Lagna) sign which shifts every two hours, unlocking exact Bhavas and planetary periods.',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF9E9AA9),
+                  color: const Color(0xFFA8B7B4),
                   fontSize: 11,
                   height: 1.45,
                 ),
@@ -852,11 +852,11 @@ class _PrivacyFooter extends StatelessWidget {
       Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.lock_outline, color: Color(0xFFC5A059), size: 14),
+          const Icon(Icons.lock_outline, color: Color(0xFFD6B15A), size: 14),
           const SizedBox(width: 7),
           Text(
             '256-BIT VEDIC PRIVACY PROTECTED',
-            style: _labelStyle(fontSize: 8, color: const Color(0xFFC5A059)),
+            style: _labelStyle(fontSize: 8, color: const Color(0xFFD6B15A)),
           ),
         ],
       ),
@@ -865,7 +865,7 @@ class _PrivacyFooter extends StatelessWidget {
         'You can update your birth details later from your profile.',
         textAlign: TextAlign.center,
         style: GoogleFonts.inter(
-          color: const Color(0xFF9E9AA9),
+          color: const Color(0xFFA8B7B4),
           fontSize: 10,
           height: 1.4,
         ),
@@ -876,7 +876,7 @@ class _PrivacyFooter extends StatelessWidget {
 
 TextStyle _labelStyle({
   double fontSize = 10,
-  Color color = const Color(0xFFFAF7F2),
+  Color color = const Color(0xFFF7F4EC),
 }) => GoogleFonts.inter(
   color: color,
   fontSize: fontSize,
@@ -885,7 +885,7 @@ TextStyle _labelStyle({
 );
 
 TextStyle _headingStyle() => GoogleFonts.ebGaramond(
-  color: const Color(0xFFFAF7F2),
+  color: const Color(0xFFF7F4EC),
   fontSize: 37,
   height: .98,
   fontWeight: FontWeight.w500,

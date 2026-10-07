@@ -8,10 +8,10 @@ class CareerHubScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFF0B071B),
+    backgroundColor: const Color(0xFF061A1A),
     appBar: AppBar(
-      backgroundColor: const Color(0xFF0B071B),
-      foregroundColor: const Color(0xFFFAF7F2),
+      backgroundColor: const Color(0xFF061A1A),
+      foregroundColor: const Color(0xFFF7F4EC),
       elevation: 0,
       title: const Text('CAREER & BUSINESS'),
     ),
@@ -21,7 +21,7 @@ class CareerHubScreen extends StatelessWidget {
         const Text(
           'What do you want clarity on?',
           style: TextStyle(
-            color: Color(0xFFFAF7F2),
+            color: Color(0xFFF7F4EC),
             fontSize: 27,
             fontWeight: FontWeight.w700,
           ),
@@ -29,7 +29,7 @@ class CareerHubScreen extends StatelessWidget {
         const SizedBox(height: 8),
         const Text(
           'TaraVerse uses your saved Career Reading as evidence. It does not guarantee an outcome.',
-          style: TextStyle(color: Color(0xFFBBB6C6), height: 1.45),
+          style: TextStyle(color: Color(0xFFA8B7B4), height: 1.45),
         ),
         const SizedBox(height: 24),
         _QuestionCard(
@@ -53,7 +53,7 @@ class CareerHubScreen extends StatelessWidget {
         const Text(
           'COMING SOON',
           style: TextStyle(
-            color: Color(0xFFC5A059),
+            color: Color(0xFFD6B15A),
             fontWeight: FontWeight.w800,
             letterSpacing: 1.1,
             fontSize: 12,
@@ -67,8 +67,8 @@ class CareerHubScreen extends StatelessWidget {
           icon: const Icon(Icons.history_outlined),
           label: const Text('ADD CAREER HISTORY'),
           style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFFF4BF50),
-            side: const BorderSide(color: Color(0xFF735A2E)),
+            foregroundColor: const Color(0xFFD6B15A),
+            side: const BorderSide(color: Color(0xFF3F8179)),
           ),
         ),
         const SizedBox(height: 12),
@@ -95,7 +95,7 @@ class _QuestionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: const Color(0xFF181335),
+    color: const Color(0xFF114A46),
     borderRadius: BorderRadius.circular(16),
     child: InkWell(
       onTap: onTap,
@@ -103,12 +103,12 @@ class _QuestionCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFF735A2E)),
+          border: Border.all(color: const Color(0xFF3F8179)),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
           children: [
-            Icon(icon, color: const Color(0xFFF4BF50)),
+            Icon(icon, color: const Color(0xFF35B9AC)),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -116,20 +116,20 @@ class _QuestionCard extends StatelessWidget {
                 children: [
                   Text(title,
                       style: const TextStyle(
-                        color: Color(0xFFFAF7F2),
+                        color: Color(0xFFF7F4EC),
                         fontWeight: FontWeight.w700,
                         fontSize: 17,
                       )),
                   const SizedBox(height: 5),
                   Text(subtitle,
                       style: const TextStyle(
-                        color: Color(0xFFBBB6C6),
+                        color: Color(0xFFA8B7B4),
                         height: 1.35,
                       )),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: Color(0xFFBBB6C6)),
+            const Icon(Icons.chevron_right, color: Color(0xFFA8B7B4)),
           ],
         ),
       ),
@@ -157,9 +157,9 @@ class _ComingSoonCards extends StatelessWidget {
         .map(
           (item) => Chip(
             label: Text(item),
-            labelStyle: const TextStyle(color: Color(0xFF8F8999)),
-            backgroundColor: const Color(0xFF151025),
-            side: const BorderSide(color: Color(0xFF332B44)),
+            labelStyle: const TextStyle(color: Color(0xFF718582)),
+            backgroundColor: const Color(0xFF082625),
+            side: const BorderSide(color: Color(0xFF255C57)),
           ),
         )
         .toList(growable: false),

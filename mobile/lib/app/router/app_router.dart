@@ -464,7 +464,7 @@ class _CareerAnswerUnavailable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFF0B071B),
+    backgroundColor: const Color(0xFF061A1A),
     body: Center(
       child: TextButton(
         onPressed: () => context.go('/career'),
@@ -529,7 +529,7 @@ class AppShell extends StatelessWidget {
               final selected = states.contains(WidgetState.selected);
               return TextStyle(
                 color: selected
-                    ? _ShellNavigationColors.gold
+                    ? _ShellNavigationColors.selected
                     : _ShellNavigationColors.inactive,
                 fontSize: 11,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
@@ -610,7 +610,7 @@ class _ShellNavigationIcon extends StatelessWidget {
     child: Icon(
       icon,
       color: selected
-          ? _ShellNavigationColors.gold
+          ? _ShellNavigationColors.selected
           : _ShellNavigationColors.inactive,
       size: 22,
     ),
@@ -618,9 +618,9 @@ class _ShellNavigationIcon extends StatelessWidget {
 }
 
 abstract final class _ShellNavigationColors {
-  static const midnight = Color(0xFF0B071B);
-  static const inactive = Color(0xFF9E9AA9);
-  static const gold = Color(0xFFC5A059);
-  static const border = Color(0x335E4A87);
-  static const selectedSurface = Color(0x1FC5A059);
+  static const midnight = Color(0xFF061A1A);
+  static const inactive = Color(0xFFA8B7B4);
+  static const selected = Color(0xFF35B9AC);
+  static const border = Color(0x33255C57);
+  static const selectedSurface = Color(0x1F35B9AC);
 }

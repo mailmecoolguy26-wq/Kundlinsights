@@ -126,7 +126,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).first);
-    expect(scaffold.backgroundColor, const Color(0xFF0B071B));
+    expect(scaffold.backgroundColor, const Color(0xFF061A1A));
     expect(find.text('GOCHAR'), findsOneWidget);
     expect(find.text('Current Transits'), findsOneWidget);
     expect(find.text('a'), findsOneWidget);
@@ -164,7 +164,7 @@ void main() {
       );
 
       final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).first);
-      expect(scaffold.backgroundColor, const Color(0xFF0B071B));
+      expect(scaffold.backgroundColor, const Color(0xFF061A1A));
       expect(find.text('Moon'), findsWidgets);
       expect(find.text('Current Transit'), findsOneWidget);
       expect(find.text('CURRENT POSITION'), findsOneWidget);

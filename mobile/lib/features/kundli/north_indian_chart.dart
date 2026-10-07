@@ -696,7 +696,7 @@ class _NorthIndianChartPainter extends CustomPainter {
         ..shader = const RadialGradient(
           center: Alignment(0, -.05),
           radius: .78,
-          colors: [Color(0xFF181232), Color(0xFF0D091A)],
+          colors: [Color(0xFF0B3D3B), Color(0xFF061A1A)],
         ).createShader(Offset.zero & size)
         ..style = PaintingStyle.fill,
     );
@@ -775,17 +775,17 @@ class _LegendItem extends StatelessWidget {
 }
 
 abstract final class _ChartColors {
-  static const surface = Color(0xFF120D29);
-  static const alabaster = Color(0xFFFAF7F2);
-  static const gold = Color(0xFFC5A059);
+  static const surface = Color(0xFF082625);
+  static const alabaster = Color(0xFFF7F4EC);
+  static const gold = Color(0xFFD6B15A);
   static const degreeGold = Color(0xFFD6B878);
-  static const slate = Color(0xFF9E9AA9);
-  static const border = Color(0x665E4A87);
+  static const slate = Color(0xFFA8B7B4);
+  static const border = Color(0x66255C57);
 }
 
 abstract final class _ChartText {
   static const sign = TextStyle(
-    color: Color(0x59C5A059),
+    color: Color(0x59D6B15A),
     fontSize: 9.25,
     fontWeight: FontWeight.w500,
   );

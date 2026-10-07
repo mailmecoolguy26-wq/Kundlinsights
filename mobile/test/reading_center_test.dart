@@ -473,7 +473,7 @@ void main() {
     expect(find.text('Career structure'), findsWidgets);
     expect(find.text('Stored text.'), findsOneWidget);
     final detailScaffold = tester.widget<Scaffold>(find.byType(Scaffold).last);
-    expect(detailScaffold.backgroundColor, const Color(0xFF0B071B));
+    expect(detailScaffold.backgroundColor, const Color(0xFF061A1A));
     expect(find.text('NEXT STRONG CAREER WINDOW'), findsNothing);
     expect(find.text('WHAT TO WATCH FOR'), findsNothing);
     expect(repository.listCalls, greaterThan(0));

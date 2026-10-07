@@ -15,12 +15,12 @@ class InsightsScreen extends StatelessWidget {
   final VoidCallback? onOpenCareer;
   final VoidCallback? onOpenCareerChat;
 
-  static const midnight = Color(0xFF0B071B);
-  static const abyss = Color(0xFF120D29);
-  static const violet = Color(0xFF1B1234);
-  static const alabaster = Color(0xFFFAF7F2);
-  static const slate = Color(0xFF9E9AA9);
-  static const gold = Color(0xFFC5A059);
+  static const midnight = Color(0xFF061A1A);
+  static const abyss = Color(0xFF082625);
+  static const violet = Color(0xFF0D312F);
+  static const alabaster = Color(0xFFF7F4EC);
+  static const slate = Color(0xFFA8B7B4);
+  static const gold = Color(0xFFD6B15A);
 
   @override
   Widget build(BuildContext context) {
@@ -89,7 +89,7 @@ class _CareerChatCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0x66C5A059)),
+            border: Border.all(color: const Color(0x66255C57)),
           ),
           child: const Row(
             children: [
@@ -108,7 +108,7 @@ class _CareerChatCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: InsightsScreen.gold),
+              Icon(Icons.chevron_right, color: Color(0xFF35B9AC)),
             ],
           ),
         ),
@@ -160,7 +160,7 @@ class _TransitCard extends StatelessWidget {
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0x88C5A059)),
+            border: Border.all(color: const Color(0x88D6B15A)),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -219,7 +219,7 @@ class _CareerInsightCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0x66C5A059)),
+            border: Border.all(color: const Color(0x66255C57)),
           ),
           child: const Row(
             children: [
@@ -239,7 +239,7 @@ class _CareerInsightCard extends StatelessWidget {
                 ),
               ),
               SizedBox(width: 8),
-              _Pill('OPEN CAREER', gold: true),
+              _Pill('OPEN CAREER'),
             ],
           ),
         ),
@@ -268,7 +268,7 @@ class _InsightCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: InsightsScreen.abyss,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0x335E4A87)),
+          border: Border.all(color: const Color(0x33255C57)),
         ),
         child: Row(
           children: [
@@ -305,7 +305,7 @@ class _IconTile extends StatelessWidget {
     width: size,
     height: size,
     decoration: BoxDecoration(
-      color: const Color(0xFF2A1B4C),
+      color: const Color(0xFF114A46),
       borderRadius: BorderRadius.circular(12),
     ),
     child: Icon(icon, color: InsightsScreen.gold, size: size * .48),
@@ -320,10 +320,10 @@ class _Pill extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
     decoration: BoxDecoration(
-      color: gold ? const Color(0x332F2413) : Colors.transparent,
+      color: gold ? const Color(0x33173F3B) : Colors.transparent,
       borderRadius: BorderRadius.circular(999),
       border: Border.all(
-        color: gold ? const Color(0x66C5A059) : const Color(0x335E4A87),
+        color: gold ? const Color(0x66D6B15A) : const Color(0x33255C57),
       ),
     ),
     child: Text(

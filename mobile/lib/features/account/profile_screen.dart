@@ -23,10 +23,10 @@ class ProfileScreen extends StatelessWidget {
   final CareerExplanationLanguageController? careerExplanationLanguage;
   final PushRuntime? pushNotifications;
 
-  static const _midnight = Color(0xFF0B071B);
-  static const _alabaster = Color(0xFFFAF7F2);
-  static const _slate = Color(0xFF9E9AA9);
-  static const _gold = Color(0xFFC5A059);
+  static const _midnight = Color(0xFF061A1A);
+  static const _alabaster = Color(0xFFF7F4EC);
+  static const _slate = Color(0xFFA8B7B4);
+  static const _gold = Color(0xFFD6B15A);
 
   @override
   Widget build(BuildContext context) {
@@ -105,7 +105,7 @@ class ProfileScreen extends StatelessWidget {
                       child: Text(
                         authController.signOutError!,
                         style: const TextStyle(
-                          color: Color(0xFFF2A7A7),
+                          color: Color(0xFFE98686),
                           fontSize: 13,
                         ),
                       ),
@@ -130,7 +130,7 @@ class ProfileScreen extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(50),
                     foregroundColor: _alabaster,
-                    side: const BorderSide(color: Color(0x665E4A87)),
+                    side: const BorderSide(color: Color(0x66255C57)),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
@@ -154,9 +154,9 @@ class _CareerReadingLanguageSelector extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: const Color(0xFF160E2C),
+      color: const Color(0xFF082625),
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: const Color(0x335E4A87)),
+      border: Border.all(color: const Color(0x33255C57)),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -164,7 +164,7 @@ class _CareerReadingLanguageSelector extends StatelessWidget {
         const Text(
           'Astrology Language',
           style: TextStyle(
-            color: Color(0xFFFAF7F2),
+            color: Color(0xFFF7F4EC),
             fontSize: 15,
             fontWeight: FontWeight.w600,
           ),
@@ -187,13 +187,13 @@ class _CareerReadingLanguageSelector extends StatelessWidget {
           style: ButtonStyle(
             foregroundColor: WidgetStateProperty.resolveWith(
               (states) => states.contains(WidgetState.selected)
-                  ? const Color(0xFF0B071B)
-                  : const Color(0xFFFAF7F2),
+                  ? const Color(0xFF061A1A)
+                  : const Color(0xFFF7F4EC),
             ),
             backgroundColor: WidgetStateProperty.resolveWith(
               (states) => states.contains(WidgetState.selected)
-                  ? const Color(0xFFF4BF50)
-                  : const Color(0xFF1B1234),
+                  ? const Color(0xFF35B9AC)
+                  : const Color(0xFF0D312F),
             ),
           ),
         ),
@@ -272,9 +272,9 @@ class _NotificationSettingsState extends State<_NotificationSettings> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFF160E2C),
+          color: const Color(0xFF082625),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0x335E4A87)),
+          border: Border.all(color: const Color(0x33255C57)),
         ),
         child: Material(
           color: Colors.transparent,
@@ -284,7 +284,7 @@ class _NotificationSettingsState extends State<_NotificationSettings> {
               const Text(
                 'Notifications',
                 style: TextStyle(
-                  color: Color(0xFFFAF7F2),
+                  color: Color(0xFFF7F4EC),
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
@@ -292,11 +292,13 @@ class _NotificationSettingsState extends State<_NotificationSettings> {
               const SizedBox(height: 6),
               Text(
                 'Push notifications  ·  $_permissionLabel',
-                style: const TextStyle(color: Color(0xFF9E9AA9), fontSize: 13),
+                style: const TextStyle(color: Color(0xFFA8B7B4), fontSize: 13),
               ),
               const SizedBox(height: 8),
               SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
+                activeThumbColor: const Color(0xFF35B9AC),
+                activeTrackColor: const Color(0x6635B9AC),
                 title: const Text('Reading updates'),
                 value: value?.readingUpdates ?? false,
                 onChanged: _loading || value == null
@@ -305,6 +307,8 @@ class _NotificationSettingsState extends State<_NotificationSettings> {
               ),
               SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
+                activeThumbColor: const Color(0xFF35B9AC),
+                activeTrackColor: const Color(0x6635B9AC),
                 title: const Text('Career reminders'),
                 value: value?.careerReminders ?? false,
                 onChanged: _loading || value == null
@@ -313,6 +317,8 @@ class _NotificationSettingsState extends State<_NotificationSettings> {
               ),
               SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
+                activeThumbColor: const Color(0xFF35B9AC),
+                activeTrackColor: const Color(0x6635B9AC),
                 title: const Text('Offers & updates'),
                 value: value?.offersAndUpdates ?? false,
                 onChanged: _loading || value == null
@@ -343,7 +349,7 @@ class _PushDiagnostics extends StatelessWidget {
       'Last push type: ${service.lastPushType ?? 'None'}\n'
       'Last destination: ${service.lastResolvedDestination ?? 'None'}\n'
       'Pending intent: ${service.hasPendingIntent}',
-      style: const TextStyle(color: Color(0xFF9E9AA9), fontSize: 11),
+      style: const TextStyle(color: Color(0xFFA8B7B4), fontSize: 11),
     ),
   );
 
@@ -368,9 +374,9 @@ class _ActiveProfileCard extends StatelessWidget {
   final String profileLabel;
   final VoidCallback onTap;
 
-  static const _surface = Color(0xFF1B1234);
-  static const _alabaster = Color(0xFFFAF7F2);
-  static const _gold = Color(0xFFC5A059);
+  static const _surface = Color(0xFF0D312F);
+  static const _alabaster = Color(0xFFF7F4EC);
+  static const _gold = Color(0xFFD6B15A);
 
   @override
   Widget build(BuildContext context) => Material(
@@ -383,7 +389,7 @@ class _ActiveProfileCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0x66C5A059)),
+          border: Border.all(color: const Color(0x66D6B15A)),
         ),
         child: Row(
           children: [
@@ -392,7 +398,7 @@ class _ActiveProfileCard extends StatelessWidget {
               height: 48,
               alignment: Alignment.center,
               decoration: const BoxDecoration(
-                color: Color(0xFF2A1B4C),
+                color: Color(0xFF114A46),
                 shape: BoxShape.circle,
               ),
               child: Text(
@@ -469,7 +475,7 @@ class _SettingsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: const Color(0xFF160E2C),
+    color: const Color(0xFF082625),
     borderRadius: BorderRadius.circular(16),
     child: InkWell(
       onTap: onTap,
@@ -478,11 +484,11 @@ class _SettingsRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0x335E4A87)),
+          border: Border.all(color: const Color(0x33255C57)),
         ),
         child: Row(
           children: [
-            const Icon(Icons.account_circle_outlined, color: Color(0xFFC5A059)),
+            const Icon(Icons.account_circle_outlined, color: Color(0xFFD6B15A)),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -491,7 +497,7 @@ class _SettingsRow extends StatelessWidget {
                   Text(
                     title,
                     style: const TextStyle(
-                      color: Color(0xFFFAF7F2),
+                      color: Color(0xFFF7F4EC),
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                     ),
@@ -500,14 +506,14 @@ class _SettingsRow extends StatelessWidget {
                   Text(
                     subtitle,
                     style: const TextStyle(
-                      color: Color(0xFF9E9AA9),
+                      color: Color(0xFFA8B7B4),
                       fontSize: 13,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: Color(0xFFC5A059)),
+            const Icon(Icons.chevron_right, color: Color(0xFFD6B15A)),
           ],
         ),
       ),

@@ -233,7 +233,7 @@ void main() {
       tester.element(navigationBar),
     );
     expect(bar.selectedIndex, 0);
-    expect(navigationTheme.backgroundColor, const Color(0xFF0B071B));
+    expect(navigationTheme.backgroundColor, const Color(0xFF061A1A));
     expect(navigationTheme.indicatorColor, Colors.transparent);
     for (final label in const [
       'Home',
@@ -256,7 +256,7 @@ void main() {
             ),
           )
           .color,
-      const Color(0xFFC5A059),
+      const Color(0xFF35B9AC),
     );
     expect(
       tester
@@ -267,7 +267,7 @@ void main() {
             ),
           )
           .color,
-      const Color(0xFF9E9AA9),
+      const Color(0xFFA8B7B4),
     );
 
     await tester.tap(

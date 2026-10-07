@@ -44,22 +44,22 @@ class _KundliScreenState extends State<KundliScreen> {
     final baseTheme = Theme.of(context);
     return Theme(
       data: baseTheme.copyWith(
-        scaffoldBackgroundColor: const Color(0xFF0B071B),
+        scaffoldBackgroundColor: const Color(0xFF061A1A),
         cardTheme: const CardThemeData(
-          color: Color(0xFF120D29),
+          color: Color(0xFF082625),
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.all(Radius.circular(16)),
-            side: BorderSide(color: Color(0x335E4A87)),
+            side: BorderSide(color: Color(0x33255C57)),
           ),
         ),
         textTheme: baseTheme.textTheme.apply(
-          bodyColor: const Color(0xFFFAF7F2),
-          displayColor: const Color(0xFFFAF7F2),
+          bodyColor: const Color(0xFFF7F4EC),
+          displayColor: const Color(0xFFF7F4EC),
         ),
       ),
       child: Scaffold(
-        backgroundColor: const Color(0xFF0B071B),
+        backgroundColor: const Color(0xFF061A1A),
         body: SafeArea(
           child: Column(
             children: [
@@ -80,14 +80,22 @@ class _KundliScreenState extends State<KundliScreen> {
                   selected: {_selectedType},
                   onSelectionChanged: (selection) => _select(selection.single),
                   style: ButtonStyle(
-                    foregroundColor: const WidgetStatePropertyAll(
-                      Color(0xFFFAF7F2),
+                    foregroundColor: WidgetStateProperty.resolveWith(
+                      (states) => states.contains(WidgetState.selected)
+                          ? const Color(0xFF061A1A)
+                          : const Color(0xFFF7F4EC),
                     ),
-                    backgroundColor: const WidgetStatePropertyAll(
-                      Color(0xFF1B1234),
+                    backgroundColor: WidgetStateProperty.resolveWith(
+                      (states) => states.contains(WidgetState.selected)
+                          ? const Color(0xFF35B9AC)
+                          : const Color(0xFF0D312F),
                     ),
-                    side: const WidgetStatePropertyAll(
-                      BorderSide(color: Color(0x55C5A059)),
+                    side: WidgetStateProperty.resolveWith(
+                      (states) => BorderSide(
+                        color: states.contains(WidgetState.selected)
+                            ? const Color(0xFF35B9AC)
+                            : const Color(0xFF255C57),
+                      ),
                     ),
                   ),
                 ),
@@ -238,7 +246,7 @@ class _ModuleCard extends StatelessWidget {
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) => Material(
-    color: const Color(0xFF120D29),
+    color: const Color(0xFF082625),
     borderRadius: BorderRadius.circular(14),
     child: InkWell(
       onTap: onTap,
@@ -248,23 +256,23 @@ class _ModuleCard extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0x335E4A87)),
+          border: Border.all(color: const Color(0x33255C57)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: const Color(0xFFC5A059), size: 19),
+            Icon(icon, color: const Color(0xFFD6B15A), size: 19),
             const SizedBox(height: 7),
             Text(
               title,
               style: const TextStyle(
-                color: Color(0xFFFAF7F2),
+                color: Color(0xFFF7F4EC),
                 fontWeight: FontWeight.w600,
               ),
             ),
             Text(
               subtitle,
-              style: const TextStyle(color: Color(0xFF9E9AA9), fontSize: 11),
+              style: const TextStyle(color: Color(0xFFA8B7B4), fontSize: 11),
             ),
           ],
         ),
@@ -295,14 +303,14 @@ class _KundliHero extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
               decoration: BoxDecoration(
-                color: const Color(0xFF120D29),
+                color: const Color(0xFF082625),
                 borderRadius: BorderRadius.circular(99),
-                border: Border.all(color: const Color(0x55C5A059)),
+                border: Border.all(color: const Color(0x55D6B15A)),
               ),
               child: Text(
                 label,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Color(0xFFFAF7F2), fontSize: 12),
+                style: const TextStyle(color: Color(0xFFF7F4EC), fontSize: 12),
               ),
             ),
           ],
@@ -320,20 +328,20 @@ class _KundliHero extends StatelessWidget {
 
 abstract final class _KundliStyle {
   static const eyebrow = TextStyle(
-    color: Color(0xFFC5A059),
+    color: Color(0xFFD6B15A),
     fontSize: 10,
     fontWeight: FontWeight.w700,
     letterSpacing: 1.6,
   );
   static const title = TextStyle(
-    color: Color(0xFFFAF7F2),
+    color: Color(0xFFF7F4EC),
     fontFamily: 'EBGaramond',
     fontSize: 32,
     height: 1.08,
     fontWeight: FontWeight.w600,
   );
   static const body = TextStyle(
-    color: Color(0xFF9E9AA9),
+    color: Color(0xFFA8B7B4),
     fontSize: 13,
     height: 1.4,
   );
@@ -345,7 +353,7 @@ void _showHouseDetails(BuildContext context, D1ChartHouse house) {
   showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
-    backgroundColor: const Color(0xFF120D29),
+    backgroundColor: const Color(0xFF082625),
     builder: (context) => SafeArea(
       top: false,
       child: Padding(
@@ -359,7 +367,7 @@ void _showHouseDetails(BuildContext context, D1ChartHouse house) {
                   ? '${house.house}th Bhav'
                   : '${t.house} ${house.house}',
               style: const TextStyle(
-                color: Color(0xFFFAF7F2),
+                color: Color(0xFFF7F4EC),
                 fontFamily: 'EBGaramond',
                 fontSize: 25,
                 fontWeight: FontWeight.w600,
@@ -402,7 +410,7 @@ class _SheetFact extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Expanded(
-        child: Text(label, style: const TextStyle(color: Color(0xFF9E9AA9))),
+        child: Text(label, style: const TextStyle(color: Color(0xFFA8B7B4))),
       ),
       const SizedBox(width: 16),
       Flexible(
@@ -410,7 +418,7 @@ class _SheetFact extends StatelessWidget {
           value,
           textAlign: TextAlign.end,
           style: const TextStyle(
-            color: Color(0xFFFAF7F2),
+            color: Color(0xFFF7F4EC),
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -429,16 +437,16 @@ class _HouseAccessibilityFallback extends StatelessWidget {
     final t = AppLocalizations.of(context)!;
     final copy = AstrologyPresentationCopy.of(context);
     return Material(
-      color: const Color(0xFF120D29),
+      color: const Color(0xFF082625),
       borderRadius: BorderRadius.circular(16),
       child: ExpansionTile(
         tilePadding: const EdgeInsets.symmetric(horizontal: 16),
-        iconColor: const Color(0xFFC5A059),
-        collapsedIconColor: const Color(0xFFC5A059),
+        iconColor: const Color(0xFFD6B15A),
+        collapsedIconColor: const Color(0xFFD6B15A),
         title: Text(
           t.chartAccessibleHouseList,
           style: const TextStyle(
-            color: Color(0xFFFAF7F2),
+            color: Color(0xFFF7F4EC),
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -448,7 +456,7 @@ class _HouseAccessibilityFallback extends StatelessWidget {
                 dense: true,
                 title: Text(
                   '${copy.isHinglish ? '${house.house}th Bhav' : '${t.house} ${house.house}'} — ${house.sign.englishName}',
-                  style: const TextStyle(color: Color(0xFFFAF7F2)),
+                  style: const TextStyle(color: Color(0xFFF7F4EC)),
                 ),
                 subtitle: Text(
                   house.planets.isEmpty
@@ -459,7 +467,7 @@ class _HouseAccessibilityFallback extends StatelessWidget {
                                   '${copy.planet(planet.body)}${planet.retrograde ? ' (${copy.retrograde})' : ''}',
                             )
                             .join(', '),
-                  style: const TextStyle(color: Color(0xFF9E9AA9)),
+                  style: const TextStyle(color: Color(0xFFA8B7B4)),
                 ),
               ),
             )
@@ -533,12 +541,12 @@ class _Value extends StatelessWidget {
     child: Row(
       children: [
         Expanded(
-          child: Text(label, style: const TextStyle(color: Color(0xFF9E9AA9))),
+          child: Text(label, style: const TextStyle(color: Color(0xFFA8B7B4))),
         ),
         Text(
           value,
           style: const TextStyle(
-            color: Color(0xFFFAF7F2),
+            color: Color(0xFFF7F4EC),
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -566,27 +574,27 @@ class _PlanetRow extends StatelessWidget {
             title: Text(
               copy.planet(position.body),
               style: const TextStyle(
-                color: Color(0xFFFAF7F2),
+                color: Color(0xFFF7F4EC),
                 fontWeight: FontWeight.w600,
               ),
             ),
             subtitle: Text(
               '${position.sign.englishName} · ${position.degreeWithinSign.toStringAsFixed(2)}° · ${copy.isHinglish ? '${position.house}th Bhav' : '${t.house} ${position.house}'}\n${position.nakshatra.name} · ${t.pada} ${position.pada}',
-              style: const TextStyle(color: Color(0xFF9E9AA9), height: 1.35),
+              style: const TextStyle(color: Color(0xFFA8B7B4), height: 1.35),
             ),
             trailing: position.retrograde
                 ? Chip(
                     label: Text(
                       copy.retrograde,
                       style: const TextStyle(
-                        color: Color(0xFFC5A059),
+                        color: Color(0xFFD6B15A),
                         fontSize: 11,
                       ),
                     ),
-                    backgroundColor: const Color(0xFF2A1B4C),
-                    side: const BorderSide(color: Color(0x66C5A059)),
+                    backgroundColor: const Color(0xFF114A46),
+                    side: const BorderSide(color: Color(0x66D6B15A)),
                   )
-                : const Icon(Icons.chevron_right, color: Color(0xFFC5A059)),
+                : const Icon(Icons.chevron_right, color: Color(0xFFD6B15A)),
             onTap: () => context.goNamed(
               'planet-detail',
               pathParameters: {'planet': position.body},

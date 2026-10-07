@@ -11,11 +11,11 @@ class DashaBackButton extends StatelessWidget {
     width: 48,
     height: 48,
     child: Material(
-      color: const Color(0xFF1B1234),
+      color: const Color(0xFF0D312F),
       shape: const CircleBorder(),
       child: IconButton(
         onPressed: onPressed,
-        icon: const Icon(Icons.arrow_back, color: Color(0xFFFAF7F2)),
+        icon: const Icon(Icons.arrow_back, color: Color(0xFFF7F4EC)),
         tooltip: 'Back',
       ),
     ),

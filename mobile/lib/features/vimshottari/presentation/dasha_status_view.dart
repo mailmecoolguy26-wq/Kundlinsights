@@ -95,10 +95,10 @@ class DashaInvalidLinkScreen extends StatelessWidget {
 }
 
 abstract final class _DashaColors {
-  static const midnight = Color(0xFF0B071B);
-  static const surface = Color(0xFF181335);
-  static const alabaster = Color(0xFFFAF7F2);
-  static const slate = Color(0xFF9E9AA9);
-  static const gold = Color(0xFFF4BF50);
-  static const border = Color(0x66C5A059);
+  static const midnight = Color(0xFF061A1A);
+  static const surface = Color(0xFF0B2626);
+  static const alabaster = Color(0xFFF7F4EC);
+  static const slate = Color(0xFFA8B7B4);
+  static const gold = Color(0xFFD6B15A);
+  static const border = Color(0x66D6B15A);
 }

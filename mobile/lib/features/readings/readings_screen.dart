@@ -166,17 +166,17 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
         // pending or after the user deliberately returns from that route.
         if (wasDismissedForProfile) {
           return Scaffold(
-            backgroundColor: const Color(0xFF0B071B),
+            backgroundColor: const Color(0xFF061A1A),
             body: Center(
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.md),
                 child: Container(
                   padding: const EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF181335),
+                    color: const Color(0xFF0B2626),
                     borderRadius: BorderRadius.circular(18),
                     border: Border.all(
-                      color: const Color(0xFFC5A059).withValues(alpha: .45),
+                      color: const Color(0xFFD6B15A).withValues(alpha: .45),
                     ),
                   ),
                   child: Column(
@@ -186,7 +186,7 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
                       const Text(
                         'READINGS',
                         style: TextStyle(
-                          color: Color(0xFFF4BF50),
+                          color: Color(0xFFD6B15A),
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
                         ),
@@ -195,7 +195,7 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
                       const Text(
                         'Career Reading',
                         style: TextStyle(
-                          color: Color(0xFFFAF7F2),
+                          color: Color(0xFFF7F4EC),
                           fontSize: 28,
                           fontWeight: FontWeight.w600,
                         ),
@@ -204,7 +204,7 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
                       const Text(
                         'Your personalized Career Reading is ready',
                         style: TextStyle(
-                          color: Color(0xFFFAF7F2),
+                          color: Color(0xFFF7F4EC),
                           fontSize: 20,
                           fontWeight: FontWeight.w600,
                         ),
@@ -212,21 +212,21 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
                       const SizedBox(height: AppSpacing.xs),
                       const Text(
                         'Continue securely to unlock your complete career forecast and upcoming career windows.',
-                        style: TextStyle(color: Color(0xFF9E9AA9)),
+                        style: TextStyle(color: Color(0xFFA8B7B4)),
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       const Row(
                         children: [
                           Icon(
                             Icons.auto_awesome,
-                            color: Color(0xFFC5A059),
+                            color: Color(0xFFD6B15A),
                             size: 16,
                           ),
                           SizedBox(width: 7),
                           Text(
                             'Career calibration ready',
                             style: TextStyle(
-                              color: Color(0xFFF4BF50),
+                              color: Color(0xFFD6B15A),
                               fontSize: 12,
                             ),
                           ),
@@ -239,8 +239,8 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
                           setState(() {});
                         },
                         style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFFF4BF50),
-                          foregroundColor: const Color(0xFF0B071B),
+                          backgroundColor: const Color(0xFF35B9AC),
+                          foregroundColor: const Color(0xFF061A1A),
                         ),
                         child: const Text('CONTINUE TO CAREER READING →'),
                       ),
@@ -251,7 +251,7 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
             ),
           );
         }
-        return const Scaffold(backgroundColor: Color(0xFF0B071B));
+        return const Scaffold(backgroundColor: Color(0xFF061A1A));
       }
       final t = AppLocalizations.of(context)!;
       final hasCareerReading =
@@ -259,7 +259,7 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
           _careerReading(widget.controller.readings) != null;
       if (hasCareerReading) {
         return Scaffold(
-          backgroundColor: const Color(0xFF0B071B),
+          backgroundColor: const Color(0xFF061A1A),
           body: SafeArea(
             child: Column(
               children: [
@@ -274,7 +274,7 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
                             Text(
                               'READINGS',
                               style: TextStyle(
-                                color: Color(0xFFF4BF50),
+                                color: Color(0xFFD6B15A),
                                 fontSize: 11,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -282,7 +282,7 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
                             Text(
                               'My Readings',
                               style: TextStyle(
-                                color: Color(0xFFFAF7F2),
+                                color: Color(0xFFF7F4EC),
                                 fontSize: 30,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -293,7 +293,7 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
                       IconButton(
                         icon: const Icon(
                           Icons.refresh,
-                          color: Color(0xFFC5A059),
+                          color: Color(0xFFD6B15A),
                         ),
                         onPressed: widget.controller.refresh,
                       ),
@@ -475,10 +475,10 @@ class _GenerationCard extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
-          color: const Color(0xFF181335),
+          color: const Color(0xFF0B2626),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: const Color(0xFFC5A059).withValues(alpha: .45),
+            color: const Color(0xFFD6B15A).withValues(alpha: .45),
           ),
         ),
         child: Column(
@@ -487,7 +487,7 @@ class _GenerationCard extends StatelessWidget {
             const Text(
               'CAREER READING',
               style: TextStyle(
-                color: Color(0xFFF4BF50),
+                color: Color(0xFFD6B15A),
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
               ),
@@ -496,7 +496,7 @@ class _GenerationCard extends StatelessWidget {
             const Text(
               'Your personalized Career Reading is ready',
               style: TextStyle(
-                color: Color(0xFFFAF7F2),
+                color: Color(0xFFF7F4EC),
                 fontSize: 22,
                 fontWeight: FontWeight.w600,
               ),
@@ -504,16 +504,16 @@ class _GenerationCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             const Text(
               'Explore your career forecast, upcoming career windows, and personalized timing insights.',
-              style: TextStyle(color: Color(0xFF9E9AA9)),
+              style: TextStyle(color: Color(0xFFA8B7B4)),
             ),
             const SizedBox(height: AppSpacing.sm),
             const Row(
               children: [
-                Icon(Icons.auto_awesome, color: Color(0xFFC5A059), size: 16),
+                Icon(Icons.auto_awesome, color: Color(0xFFD6B15A), size: 16),
                 SizedBox(width: 6),
                 Text(
                   'Career Premium unlocked',
-                  style: TextStyle(color: Color(0xFFF4BF50), fontSize: 12),
+                  style: TextStyle(color: Color(0xFFD6B15A), fontSize: 12),
                 ),
               ],
             ),
@@ -524,8 +524,8 @@ class _GenerationCard extends StatelessWidget {
                 pathParameters: {'id': existingReading!.readingId},
               ),
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFF4BF50),
-                foregroundColor: const Color(0xFF0B071B),
+                backgroundColor: const Color(0xFF35B9AC),
+                foregroundColor: const Color(0xFF061A1A),
               ),
               child: const Text('VIEW CAREER READING →'),
             ),
@@ -677,11 +677,11 @@ class _ReadingCard extends StatelessWidget {
       label: '${t.careerReading}, $date',
       button: true,
       child: Material(
-        color: const Color(0xFF181335),
+        color: const Color(0xFF0B2626),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
           side: BorderSide(
-            color: const Color(0xFFC5A059).withValues(alpha: .35),
+            color: const Color(0xFFD6B15A).withValues(alpha: .35),
           ),
         ),
         child: ListTile(
@@ -691,13 +691,13 @@ class _ReadingCard extends StatelessWidget {
           ),
           title: Text(
             t.careerReading,
-            style: const TextStyle(color: Color(0xFFFAF7F2)),
+            style: const TextStyle(color: Color(0xFFF7F4EC)),
           ),
           subtitle: Text(
             '${t.createdOn}: $date',
-            style: const TextStyle(color: Color(0xFF9E9AA9)),
+            style: const TextStyle(color: Color(0xFFA8B7B4)),
           ),
-          trailing: const Icon(Icons.chevron_right, color: Color(0xFFC5A059)),
+          trailing: const Icon(Icons.chevron_right, color: Color(0xFFD6B15A)),
           onTap: () => context.pushNamed(
             'reading-detail',
             pathParameters: {'id': reading.readingId},
@@ -2567,13 +2567,13 @@ class _CareerReadingSourceChip extends StatelessWidget {
 }
 
 abstract final class _CareerReadingColors {
-  static const midnight = Color(0xFF0B071B);
-  static const surface = Color(0xFF17112F);
-  static const alabaster = Color(0xFFFAF7F2);
-  static const slate = Color(0xFF9E9AA9);
-  static const gold = Color(0xFFC5A059);
-  static const goldBorder = Color(0x66C5A059);
-  static const cardBorder = Color(0x665E4A87);
+  static const midnight = Color(0xFF061A1A);
+  static const surface = Color(0xFF0B2626);
+  static const alabaster = Color(0xFFF7F4EC);
+  static const slate = Color(0xFFA8B7B4);
+  static const gold = Color(0xFFD6B15A);
+  static const goldBorder = Color(0x66D6B15A);
+  static const cardBorder = Color(0x66255C57);
 }
 
 abstract final class _CareerReadingText {

@@ -224,7 +224,7 @@ void main() {
     expect(find.text('ACTIVE'), findsOneWidget);
     expect(
       tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor,
-      const Color(0xFF0B071B),
+      const Color(0xFF061A1A),
     );
     scope.dispose();
   });

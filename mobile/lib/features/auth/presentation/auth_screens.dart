@@ -86,13 +86,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   message,
                   key: const ValueKey('phone-auth-error'),
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFF3A4A4),
+                    color: const Color(0xFFE98686),
                     fontSize: 13,
                   ),
                 ),
               ],
               const SizedBox(height: 28),
-              _GoldActionButton(
+              _PrimaryActionButton(
                 key: const ValueKey('phone-continue'),
                 label: 'CONTINUE',
                 loading: submitting,
@@ -271,7 +271,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen>
                 key: const ValueKey('otp-error'),
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFF3A4A4),
+                  color: const Color(0xFFE98686),
                   fontSize: 13,
                 ),
               ),
@@ -279,7 +279,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen>
             const SizedBox(height: 24),
             const _OtpSecurityCard(),
             const SizedBox(height: 24),
-            _GoldActionButton(
+            _PrimaryActionButton(
               key: const ValueKey('verify-otp'),
               label: 'VERIFY & CONTINUE',
               loading: verifying,
@@ -299,7 +299,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen>
                     : _cooldownSeconds > 0
                     ? 'Resend OTP in 00:${_cooldownSeconds.toString().padLeft(2, '0')}'
                     : 'Resend code now',
-                style: GoogleFonts.inter(color: const Color(0xFFC5A059)),
+                style: GoogleFonts.inter(color: const Color(0xFFD6B15A)),
               ),
             ),
             TextButton(
@@ -307,7 +307,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen>
               onPressed: () => context.go('/login'),
               child: Text(
                 'Change number',
-                style: GoogleFonts.inter(color: const Color(0xFF9E9AA9)),
+                style: GoogleFonts.inter(color: const Color(0xFFA8B7B4)),
               ),
             ),
             const SizedBox(height: 20),
@@ -326,7 +326,7 @@ class _OtpScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFF0B071B),
+    backgroundColor: const Color(0xFF061A1A),
     resizeToAvoidBottomInset: true,
     body: SafeArea(
       child: Column(
@@ -361,8 +361,8 @@ class _OtpTopNavigation extends StatelessWidget {
         IconButton(
           key: const ValueKey('otp-back'),
           onPressed: onBack,
-          icon: const Icon(Icons.arrow_back, color: Color(0xFFFAF7F2)),
-          style: IconButton.styleFrom(backgroundColor: const Color(0xFF181335)),
+          icon: const Icon(Icons.arrow_back, color: Color(0xFFF7F4EC)),
+          style: IconButton.styleFrom(backgroundColor: const Color(0xFF0B2626)),
         ),
         const Spacer(),
         const _AuthEmblem(size: 28),
@@ -370,12 +370,12 @@ class _OtpTopNavigation extends StatelessWidget {
         Text(
           'TaraVerse',
           style: GoogleFonts.ebGaramond(
-            color: const Color(0xFFFAF7F2),
+            color: const Color(0xFFF7F4EC),
             fontSize: 23,
           ),
         ),
         const Spacer(),
-        const Icon(Icons.auto_awesome, color: Color(0xFFC5A059), size: 18),
+        const Icon(Icons.auto_awesome, color: Color(0xFFD6B15A), size: 18),
       ],
     ),
   );
@@ -397,15 +397,15 @@ class _OtpHero extends StatelessWidget {
             width: 54,
             height: 54,
             decoration: BoxDecoration(
-              color: const Color(0xFF181335),
+              color: const Color(0xFF0B2626),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: const Color(0xFFC5A059).withValues(alpha: .55),
+                color: const Color(0xFFD6B15A).withValues(alpha: .55),
               ),
             ),
             child: const Icon(
               Icons.lock_open_rounded,
-              color: Color(0xFFC5A059),
+              color: Color(0xFFD6B15A),
               size: 27,
             ),
           ),
@@ -429,18 +429,18 @@ class _RecipientRow extends StatelessWidget {
     children: [
       Text(
         'Code dispatched to',
-        style: GoogleFonts.inter(color: const Color(0xFF9E9AA9), fontSize: 12),
+        style: GoogleFonts.inter(color: const Color(0xFFA8B7B4), fontSize: 12),
       ),
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
-          color: const Color(0xFF181335),
+          color: const Color(0xFF0B2626),
           borderRadius: BorderRadius.circular(999),
         ),
         child: Text(
           phoneNumber,
           style: GoogleFonts.inter(
-            color: const Color(0xFFF4BF50),
+            color: const Color(0xFFD6B15A),
             fontSize: 12,
             fontWeight: FontWeight.w600,
           ),
@@ -451,13 +451,13 @@ class _RecipientRow extends StatelessWidget {
         onPressed: onEdit,
         icon: const Icon(
           Icons.edit_outlined,
-          color: Color(0xFFC5A059),
+          color: Color(0xFFD6B15A),
           size: 14,
         ),
         label: Text(
           'Edit',
           style: GoogleFonts.inter(
-            color: const Color(0xFFC5A059),
+            color: const Color(0xFFD6B15A),
             fontSize: 12,
             fontWeight: FontWeight.w600,
           ),
@@ -509,16 +509,16 @@ class _OtpCells extends StatelessWidget {
             onChanged: (value) => onChanged(index, value),
             onSubmitted: (_) => onSubmitted(),
             style: GoogleFonts.inter(
-              color: const Color(0xFFFAF7F2),
+              color: const Color(0xFFF7F4EC),
               fontSize: 20,
               fontWeight: FontWeight.w600,
             ),
             decoration: InputDecoration(
               hintText: '•',
-              hintStyle: const TextStyle(color: Color(0xFF625A70)),
+              hintStyle: const TextStyle(color: Color(0xFF718582)),
               counterText: '',
               filled: true,
-              fillColor: const Color(0xFF120D29),
+              fillColor: const Color(0xFF082625),
               contentPadding: const EdgeInsets.symmetric(vertical: 15),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -527,7 +527,7 @@ class _OtpCells extends StatelessWidget {
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(
-                  color: Color(0xFF181335),
+                  color: Color(0xFF0B2626),
                   width: 3,
                 ),
               ),
@@ -546,9 +546,9 @@ class _OtpSecurityCard extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-      color: const Color(0xFF181335).withValues(alpha: .72),
+      color: const Color(0xFF0B2626).withValues(alpha: .72),
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: const Color(0xFFC5A059).withValues(alpha: .15)),
+      border: Border.all(color: const Color(0xFFD6B15A).withValues(alpha: .15)),
     ),
     child: Row(
       children: [
@@ -556,12 +556,12 @@ class _OtpSecurityCard extends StatelessWidget {
           width: 34,
           height: 34,
           decoration: const BoxDecoration(
-            color: Color(0xFF251735),
+            color: Color(0xFF114A46),
             shape: BoxShape.circle,
           ),
           child: const Icon(
             Icons.shield_outlined,
-            color: Color(0xFFC5A059),
+            color: Color(0xFFD6B15A),
             size: 18,
           ),
         ),
@@ -570,7 +570,7 @@ class _OtpSecurityCard extends StatelessWidget {
           child: Text(
             'Vedic transit encryption ensures your celestial chart & planetary houses remain strictly sovereign.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF9E9AA9),
+              color: const Color(0xFFA8B7B4),
               fontSize: 11,
               height: 1.45,
             ),
@@ -590,20 +590,20 @@ class _OtpFooter extends StatelessWidget {
         children: [
           Expanded(
             child: Divider(
-              color: const Color(0xFFC5A059).withValues(alpha: .3),
+              color: const Color(0xFFD6B15A).withValues(alpha: .3),
             ),
           ),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 12),
             child: Icon(
               Icons.nightlight_round,
-              color: Color(0xFFC5A059),
+              color: Color(0xFFD6B15A),
               size: 15,
             ),
           ),
           Expanded(
             child: Divider(
-              color: const Color(0xFFC5A059).withValues(alpha: .3),
+              color: const Color(0xFFD6B15A).withValues(alpha: .3),
             ),
           ),
         ],
@@ -612,7 +612,7 @@ class _OtpFooter extends StatelessWidget {
       Text(
         'LAGNA • NAKSHATRA • KUNDLI',
         style: GoogleFonts.inter(
-          color: const Color(0xFF9E9AA9),
+          color: const Color(0xFFA8B7B4),
           fontSize: 9,
           fontWeight: FontWeight.w600,
           letterSpacing: 1.2,
@@ -623,7 +623,7 @@ class _OtpFooter extends StatelessWidget {
 }
 
 TextStyle _otpHeadlineStyle() => GoogleFonts.ebGaramond(
-  color: const Color(0xFFFAF7F2),
+  color: const Color(0xFFF7F4EC),
   fontSize: 37,
   height: .98,
   fontWeight: FontWeight.w500,
@@ -638,7 +638,7 @@ class _OtpMotifPainter extends CustomPainter {
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1
-      ..color = const Color(0xFFC5A059).withValues(alpha: .2);
+      ..color = const Color(0xFFD6B15A).withValues(alpha: .2);
     canvas.save();
     canvas.translate(center.dx, center.dy);
     canvas.rotate(rotation);
@@ -662,7 +662,7 @@ class _PhoneAuthScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFF0B071B),
+    backgroundColor: const Color(0xFF061A1A),
     resizeToAvoidBottomInset: true,
     body: SafeArea(
       child: LayoutBuilder(
@@ -696,16 +696,16 @@ class _AuthBrandHeader extends StatelessWidget {
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
         decoration: BoxDecoration(
-          color: const Color(0xFF251735),
+          color: const Color(0xFF114A46),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: const Color(0xFFD1AD5E).withValues(alpha: .2),
+            color: const Color(0xFFD6B15A).withValues(alpha: .2),
           ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.auto_awesome, color: Color(0xFFD1AD5E), size: 13),
+            const Icon(Icons.auto_awesome, color: Color(0xFFD6B15A), size: 13),
             const SizedBox(width: 7),
             Text('SACRED VEDIC ASTROLOGY', style: _authLabelStyle(fontSize: 8)),
           ],
@@ -716,7 +716,7 @@ class _AuthBrandHeader extends StatelessWidget {
         'Welcome to',
         textAlign: TextAlign.center,
         style: GoogleFonts.ebGaramond(
-          color: const Color(0xFFF7F1E3),
+          color: const Color(0xFFF7F4EC),
           fontSize: 38,
           height: .92,
           fontWeight: FontWeight.w500,
@@ -726,7 +726,7 @@ class _AuthBrandHeader extends StatelessWidget {
         'TaraVerse',
         textAlign: TextAlign.center,
         style: GoogleFonts.ebGaramond(
-          color: const Color(0xFFD1AD5E),
+          color: const Color(0xFFD6B15A),
           fontSize: 42,
           height: .96,
           fontWeight: FontWeight.w500,
@@ -737,7 +737,7 @@ class _AuthBrandHeader extends StatelessWidget {
         'Enter your mobile number to begin your\ncosmic alignment and natal analysis',
         textAlign: TextAlign.center,
         style: GoogleFonts.inter(
-          color: const Color(0xFFB9B1C8),
+          color: const Color(0xFFA8B7B4),
           fontSize: 13,
           height: 1.55,
         ),
@@ -757,11 +757,11 @@ class _AuthEmblem extends StatelessWidget {
     height: size,
     decoration: BoxDecoration(
       shape: BoxShape.circle,
-      color: const Color(0xFF171025),
-      border: Border.all(color: const Color(0xFFD1AD5E).withValues(alpha: .8)),
+      color: const Color(0xFF0B2626),
+      border: Border.all(color: const Color(0xFFD6B15A).withValues(alpha: .8)),
       boxShadow: [
         BoxShadow(
-          color: const Color(0xFFD1AD5E).withValues(alpha: .2),
+          color: const Color(0xFFD6B15A).withValues(alpha: .2),
           blurRadius: 18,
           spreadRadius: 2,
         ),
@@ -802,7 +802,7 @@ class _PhoneNumberField extends StatelessWidget {
       onChanged: onChanged,
       onSubmitted: onSubmitted,
       style: GoogleFonts.inter(
-        color: const Color(0xFFF7F1E3),
+        color: const Color(0xFFF7F4EC),
         fontSize: 18,
         fontWeight: FontWeight.w500,
         letterSpacing: 1.2,
@@ -816,15 +816,15 @@ class _PhoneNumberField extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               '+91',
-              style: GoogleFonts.inter(color: const Color(0xFFF7F1E3)),
+              style: GoogleFonts.inter(color: const Color(0xFFF7F4EC)),
             ),
             const SizedBox(width: 11),
-            Container(width: 1, height: 24, color: const Color(0xFF6E627E)),
+            Container(width: 1, height: 24, color: const Color(0xFF718582)),
             const SizedBox(width: 11),
           ],
         ),
         suffix: valid
-            ? const Icon(Icons.check_circle, color: Color(0xFFD1AD5E), size: 20)
+            ? const Icon(Icons.check_circle, color: Color(0xFFD6B15A), size: 20)
             : null,
       ),
     );
@@ -839,7 +839,7 @@ class _OtpSecurityHint extends StatelessWidget {
     children: [
       const Icon(
         Icons.verified_user_outlined,
-        color: Color(0xFFD1AD5E),
+        color: Color(0xFFD6B15A),
         size: 15,
       ),
       const SizedBox(width: 8),
@@ -847,7 +847,7 @@ class _OtpSecurityHint extends StatelessWidget {
         child: Text(
           'An encrypted OTP will be sent for confidential access',
           style: GoogleFonts.inter(
-            color: const Color(0xFFB9B1C8),
+            color: const Color(0xFFA8B7B4),
             fontSize: 11,
           ),
         ),
@@ -856,8 +856,8 @@ class _OtpSecurityHint extends StatelessWidget {
   );
 }
 
-class _GoldActionButton extends StatelessWidget {
-  const _GoldActionButton({
+class _PrimaryActionButton extends StatelessWidget {
+  const _PrimaryActionButton({
     super.key,
     required this.label,
     required this.loading,
@@ -876,10 +876,10 @@ class _GoldActionButton extends StatelessWidget {
     child: FilledButton(
       onPressed: enabled ? onPressed : null,
       style: FilledButton.styleFrom(
-        backgroundColor: const Color(0xFFD1AD5E),
-        disabledBackgroundColor: const Color(0xFFD1AD5E).withValues(alpha: .28),
-        foregroundColor: const Color(0xFF171025),
-        disabledForegroundColor: const Color(0xFF171025).withValues(alpha: .42),
+        backgroundColor: const Color(0xFF35B9AC),
+        disabledBackgroundColor: const Color(0xFF35B9AC).withValues(alpha: .28),
+        foregroundColor: const Color(0xFF0B2626),
+        disabledForegroundColor: const Color(0xFF0B2626).withValues(alpha: .42),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       child: loading
@@ -887,7 +887,7 @@ class _GoldActionButton extends StatelessWidget {
               dimension: 18,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                color: Color(0xFF171025),
+                color: Color(0xFF0B2626),
               ),
             )
           : Row(
@@ -895,7 +895,7 @@ class _GoldActionButton extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: _authLabelStyle(color: const Color(0xFF171025)),
+                  style: _authLabelStyle(color: const Color(0xFF0B2626)),
                 ),
                 const SizedBox(width: 8),
                 const Icon(Icons.arrow_forward, size: 17),
@@ -915,20 +915,20 @@ class _AuthLegalFooter extends StatelessWidget {
         children: [
           Expanded(
             child: Divider(
-              color: const Color(0xFFD1AD5E).withValues(alpha: .24),
+              color: const Color(0xFFD6B15A).withValues(alpha: .24),
             ),
           ),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 12),
             child: Icon(
               Icons.shield_outlined,
-              color: Color(0xFFD1AD5E),
+              color: Color(0xFFD6B15A),
               size: 16,
             ),
           ),
           Expanded(
             child: Divider(
-              color: const Color(0xFFD1AD5E).withValues(alpha: .24),
+              color: const Color(0xFFD6B15A).withValues(alpha: .24),
             ),
           ),
         ],
@@ -951,7 +951,7 @@ class _AuthLegalFooter extends StatelessWidget {
         ),
         textAlign: TextAlign.center,
         style: GoogleFonts.inter(
-          color: const Color(0xFFD1AD5E),
+          color: const Color(0xFFD6B15A),
           fontSize: 10.5,
           height: 1.5,
         ),
@@ -962,14 +962,14 @@ class _AuthLegalFooter extends StatelessWidget {
         children: [
           const Icon(
             Icons.verified_user_outlined,
-            color: Color(0xFF8D859D),
+            color: Color(0xFF8C9D99),
             size: 13,
           ),
           const SizedBox(width: 6),
           Text(
             '256-Bit Kundli Data Encryption',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8D859D),
+              color: const Color(0xFF8C9D99),
               fontSize: 10,
             ),
           ),
@@ -986,14 +986,14 @@ InputDecoration _darkInputDecoration({
 }) => InputDecoration(
   counterText: '',
   hintText: hint,
-  hintStyle: GoogleFonts.inter(color: const Color(0xFF71687E), fontSize: 16),
+  hintStyle: GoogleFonts.inter(color: const Color(0xFF718582), fontSize: 16),
   prefixIcon: prefix == null
       ? null
       : Padding(padding: const EdgeInsets.only(left: 16), child: prefix),
   prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
   suffixIcon: suffix,
   filled: true,
-  fillColor: const Color(0xFF171025),
+  fillColor: const Color(0xFF0B2626),
   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
   border: OutlineInputBorder(
     borderRadius: BorderRadius.circular(16),
@@ -1001,17 +1001,17 @@ InputDecoration _darkInputDecoration({
   ),
   enabledBorder: OutlineInputBorder(
     borderRadius: BorderRadius.circular(16),
-    borderSide: const BorderSide(color: Color(0xFF30243F)),
+    borderSide: const BorderSide(color: Color(0xFF255C57)),
   ),
   focusedBorder: OutlineInputBorder(
     borderRadius: BorderRadius.circular(16),
-    borderSide: const BorderSide(color: Color(0xFFD1AD5E)),
+    borderSide: const BorderSide(color: Color(0xFFD6B15A)),
   ),
 );
 
 TextStyle _authLabelStyle({
   double fontSize = 9,
-  Color color = const Color(0xFFD1AD5E),
+  Color color = const Color(0xFFD6B15A),
 }) => GoogleFonts.inter(
   color: color,
   fontSize: fontSize,
@@ -1054,7 +1054,7 @@ class _AuthEmblemPainter extends CustomPainter {
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1
-      ..color = const Color(0xFFD1AD5E);
+      ..color = const Color(0xFFD6B15A);
     canvas.drawCircle(center, radius, paint);
     final diamond = Path()
       ..moveTo(center.dx, center.dy - radius)

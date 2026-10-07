@@ -509,14 +509,14 @@ class _TechnicalRow extends StatelessWidget {
 }
 
 abstract final class _CareerActivityWindowColors {
-  static const midnight = Color(0xFF0B071B);
-  static const surface = Color(0xFF17112F);
-  static const selectorSurface = Color(0xFF120C27);
-  static const alabaster = Color(0xFFFAF7F2);
-  static const slate = Color(0xFF9E9AA9);
-  static const gold = Color(0xFFC5A059);
-  static const goldBorder = Color(0x66C5A059);
-  static const cardBorder = Color(0x665E4A87);
+  static const midnight = Color(0xFF061A1A);
+  static const surface = Color(0xFF0B2626);
+  static const selectorSurface = Color(0xFF082625);
+  static const alabaster = Color(0xFFF7F4EC);
+  static const slate = Color(0xFFA8B7B4);
+  static const gold = Color(0xFFD6B15A);
+  static const goldBorder = Color(0x66D6B15A);
+  static const cardBorder = Color(0x66255C57);
 }
 
 abstract final class _CareerActivityWindowText {

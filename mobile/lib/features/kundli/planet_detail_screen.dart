@@ -27,10 +27,10 @@ class PlanetDetailScreen extends StatelessWidget {
           .firstOrNull;
       if (position == null) {
         return Scaffold(
-          backgroundColor: const Color(0xFF0B071B),
+          backgroundColor: const Color(0xFF061A1A),
           appBar: AppBar(
-            backgroundColor: const Color(0xFF0B071B),
-            foregroundColor: const Color(0xFFFAF7F2),
+            backgroundColor: const Color(0xFF061A1A),
+            foregroundColor: const Color(0xFFF7F4EC),
             title: Text(AppLocalizations.of(context)!.planetDetail),
           ),
           body: const LoadingState(label: 'Loading planet facts'),
@@ -49,10 +49,10 @@ class _PlanetFacts extends StatelessWidget {
     final t = AppLocalizations.of(context)!;
     final copy = AstrologyPresentationCopy.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFF0B071B),
+      backgroundColor: const Color(0xFF061A1A),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0B071B),
-        foregroundColor: const Color(0xFFFAF7F2),
+        backgroundColor: const Color(0xFF061A1A),
+        foregroundColor: const Color(0xFFF7F4EC),
         title: Text(copy.planet(position.body)),
       ),
       body: SafeArea(
@@ -145,9 +145,9 @@ class _PlanetFactsCard extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(AppSpacing.md),
     decoration: BoxDecoration(
-      color: const Color(0xFF120D29),
+      color: const Color(0xFF082625),
       borderRadius: AppRadius.medium,
-      border: Border.all(color: const Color(0x335E4A87)),
+      border: Border.all(color: const Color(0x33255C57)),
     ),
     child: child,
   );
@@ -155,26 +155,26 @@ class _PlanetFactsCard extends StatelessWidget {
 
 abstract final class _PlanetStyle {
   static const eyebrow = TextStyle(
-    color: Color(0xFFC5A059),
+    color: Color(0xFFD6B15A),
     fontSize: 10,
     fontWeight: FontWeight.w700,
     letterSpacing: 1.5,
   );
   static const title = TextStyle(
-    color: Color(0xFFFAF7F2),
+    color: Color(0xFFF7F4EC),
     fontFamily: 'EBGaramond',
     fontSize: 30,
     fontWeight: FontWeight.w600,
   );
   static const section = TextStyle(
-    color: Color(0xFFFAF7F2),
+    color: Color(0xFFF7F4EC),
     fontFamily: 'EBGaramond',
     fontSize: 23,
     fontWeight: FontWeight.w600,
   );
-  static const label = TextStyle(color: Color(0xFF9E9AA9), fontSize: 13);
+  static const label = TextStyle(color: Color(0xFFA8B7B4), fontSize: 13);
   static const value = TextStyle(
-    color: Color(0xFFFAF7F2),
+    color: Color(0xFFF7F4EC),
     fontSize: 13,
     fontWeight: FontWeight.w600,
   );

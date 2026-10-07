@@ -211,7 +211,7 @@ class _KundliEmblem extends StatelessWidget {
             ),
           ],
           gradient: const RadialGradient(
-            colors: [Color(0xFF3A2A42), Color(0xFF171025)],
+            colors: [Color(0xFF0B3D3B), Color(0xFF0B2626)],
           ),
           border: Border.all(color: _SplashPalette.gold.withValues(alpha: .78)),
         ),
@@ -377,15 +377,15 @@ class _KundliEmblemPainter extends CustomPainter {
 }
 
 TextStyle _labelStyle() => GoogleFonts.inter(
-  color: const Color(0xFFBFA875),
+  color: const Color(0xFFD6B15A),
   fontSize: 8,
   fontWeight: FontWeight.w600,
   letterSpacing: 1.3,
 );
 
 abstract final class _SplashPalette {
-  static const midnight = Color(0xFF0B071B);
-  static const gold = Color(0xFFD1AD5E);
-  static const champagne = Color(0xFFE5D2A4);
-  static const alabaster = Color(0xFFF7F1E3);
+  static const midnight = Color(0xFF061A1A);
+  static const gold = Color(0xFFD6B15A);
+  static const champagne = Color(0xFFF7F4EC);
+  static const alabaster = Color(0xFFF7F4EC);
 }

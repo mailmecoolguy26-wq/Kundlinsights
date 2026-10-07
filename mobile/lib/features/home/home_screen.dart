@@ -82,14 +82,13 @@ class HomeScreen extends StatelessWidget {
 }
 
 abstract final class _HomeColors {
-  static const background = Color(0xFF0B071B);
-  static const abyss = Color(0xFF120D29);
-  static const surface = Color(0xFF211D32);
-  static const violet = Color(0xFF181335);
-  static const gold = Color(0xFFC5A059);
-  static const champagne = Color(0xFFF4BF50);
-  static const alabaster = Color(0xFFFAF7F2);
-  static const slate = Color(0xFF9E9AA9);
+  static const background = Color(0xFF061A1A);
+  static const abyss = Color(0xFF082625);
+  static const violet = Color(0xFF0B2626);
+  static const gold = Color(0xFFD6B15A);
+  static const champagne = Color(0xFFD6B15A);
+  static const alabaster = Color(0xFFF7F4EC);
+  static const slate = Color(0xFFA8B7B4);
 }
 
 class _HomeHeader extends StatelessWidget {
@@ -249,12 +248,12 @@ class _CalibrationHero extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [_HomeColors.surface, _HomeColors.violet],
+          colors: [Color(0xFF082625), Color(0xFF0B3D3B), Color(0xFF0F5C55)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: _HomeColors.gold.withValues(alpha: .27)),
+        border: Border.all(color: const Color(0xFF3F8179)),
       ),
       padding: const EdgeInsets.all(20),
       child: Column(

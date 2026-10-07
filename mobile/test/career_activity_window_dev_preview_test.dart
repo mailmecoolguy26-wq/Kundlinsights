@@ -60,7 +60,7 @@ void main() {
             ),
           )
           .color,
-      const Color(0xFF17112F),
+      const Color(0xFF0B2626),
     );
   });
   testWidgets('renders recurrence and no-window states', (tester) async {
