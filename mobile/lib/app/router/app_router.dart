@@ -37,6 +37,10 @@ import '../../features/splash/splash_launch_gate.dart';
 import '../../features/splash/presentation/stitch_splash_screen.dart';
 import '../../features/career_chat/career_chat_controller.dart';
 import '../../features/career_chat/presentation/career_chat_screen.dart';
+import '../../features/career_answers/career_answer_controller.dart';
+import '../../features/career_answers/domain/career_answer.dart';
+import '../../features/career_answers/presentation/career_hub_screen.dart';
+import '../../features/career_answers/presentation/career_answer_screen.dart';
 import '../../core/analytics/analytics.dart';
 import '../../core/push/push_notification_service.dart';
 import '../../core/push/push_permission_prompt.dart';
@@ -63,6 +67,7 @@ GoRouter createAppRouter(
   CareerEventController careerEvents, {
   Analytics? analytics,
   required CareerChatController careerChat,
+  required CareerAnswerController careerAnswers,
   RazorpayCareerPremiumController? razorpayPremium,
   required CareerExplanationLanguageController careerExplanationLanguage,
   required SplashLaunchGate splashLaunchGate,
@@ -109,6 +114,29 @@ GoRouter createAppRouter(
     return null;
   },
   routes: [
+    GoRoute(
+      path: '/career',
+      name: 'career-hub',
+      builder: (context, state) => const CareerHubScreen(),
+      routes: [
+        GoRoute(
+          path: 'answer/:questionType',
+          name: 'career-answer',
+          builder: (context, state) {
+            final question = CareerQuestionType.fromWire(
+              state.pathParameters['questionType'],
+            );
+            if (question == null) {
+              return const _CareerAnswerUnavailable();
+            }
+            return CareerAnswerScreen(
+              controller: careerAnswers,
+              questionType: question,
+            );
+          },
+        ),
+      ],
+    ),
     GoRoute(
       path: '/career-chat',
       name: 'career-chat',
@@ -354,6 +382,7 @@ GoRouter createAppRouter(
               name: 'insights',
               builder: (context, state) => InsightsScreen(
                 generation: generation,
+                onOpenCareer: () => context.push('/career'),
                 onOpenCareerChat: () => context.push('/career-chat'),
               ),
             ),
@@ -428,6 +457,21 @@ class _LoadingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       const AppPageScaffold(body: LoadingState());
+}
+
+class _CareerAnswerUnavailable extends StatelessWidget {
+  const _CareerAnswerUnavailable();
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: const Color(0xFF0B071B),
+    body: Center(
+      child: TextButton(
+        onPressed: () => context.go('/career'),
+        child: const Text('Career question unavailable'),
+      ),
+    ),
+  );
 }
 
 class _ProfileLoadError extends StatelessWidget {

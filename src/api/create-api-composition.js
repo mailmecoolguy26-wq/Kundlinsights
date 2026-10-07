@@ -118,6 +118,8 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   const readingGenerator = new CalibratedCareerReadingGenerator({ baseGenerator: baseReadingGenerator, careerReadingContextBuilder, careerReadingInterpreter });
   const { createReadingRecord, replayPersistedReading } = require('../readings');
   const secureReadingService = new SecureReadingService({ authUserResolver: userResolver, transactionExecutor: tx, repositories, secureBirthProfileLoader: birthProfileService, readingCryptoCoordinator: cryptoCoordinator, readingGenerator, readingRecordFactory: createReadingRecord, replayReading: replayPersistedReading, requiresEntitlement, idGenerator, clock });
+  const { CareerAnswerService } = require('../application/career-answers');
+  const careerAnswerService = new CareerAnswerService({ secureReadingService });
   const { CareerChatOrchestrator } = require('../application/career-chat');
   const careerChatRenderer = careerChat && careerChat.enabled === true ? new OpenAICareerChatRenderer({ apiKey: careerChat.apiKey, model: careerChat.model, timeoutMilliseconds: careerChat.timeoutMilliseconds }) : null;
   const careerChatOrchestrator = new CareerChatOrchestrator({ secureReadingService, languageModel: careerChatRenderer });
@@ -154,9 +156,9 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   const razorpayPaymentService = razorpay ? new RazorpayPaymentService({ authUserResolver: userResolver, birthProfileRepository: repositories().birthProfiles, providerOrders: repositories().providerPaymentOrders, razorpayClient: razorpay.apiClient || new RazorpayApiClient({ keyId: razorpay.keyId, keySecret: razorpay.keySecret }), productCatalog: createRazorpayProductCatalog(razorpay.products), purchaseService, unitOfWork: paymentUnitOfWork, idGenerator, clock, keyId: razorpay.keyId, keySecret: razorpay.keySecret, webhookSecret: razorpay.webhookSecret, environment: razorpay.environment }) : null;
   const { PlaceResolutionService } = require('./place-resolution-service');
   const placeResolutionService = placeResolver ? new PlaceResolutionService({ birthPlaceResolver: placeResolver }) : null;
-  const api = createApi({ authVerifier, userResolver: { resolve: userResolver }, birthProfileService, careerEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, ashtakavargaService, secureReadingService, careerChatOrchestrator, purchaseService, razorpayPaymentService, appleNotificationService, googleRtdnService, notificationSelfService, placeResolutionService, requestIdGenerator: idGenerator, corsAllowlist, isReady, logger, bodyLimit });
+  const api = createApi({ authVerifier, userResolver: { resolve: userResolver }, birthProfileService, careerEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, ashtakavargaService, secureReadingService, careerAnswerService, careerChatOrchestrator, purchaseService, razorpayPaymentService, appleNotificationService, googleRtdnService, notificationSelfService, placeResolutionService, requestIdGenerator: idGenerator, corsAllowlist, isReady, logger, bodyLimit });
   api.apiRuntime = { astronomicalEngine, canonicalSiderealSunSampler };
-  return Object.freeze({ api, services: Object.freeze({ birthProfileService, careerEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, secureReadingService, userResolver, transactionExecutor: tx }) });
+  return Object.freeze({ api, services: Object.freeze({ birthProfileService, careerEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, secureReadingService, careerAnswerService, userResolver, transactionExecutor: tx }) });
 }
 
 module.exports = { createApiComposition };

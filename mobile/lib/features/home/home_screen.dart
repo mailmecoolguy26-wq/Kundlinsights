@@ -276,9 +276,7 @@ class _CalibrationHero extends StatelessWidget {
           if (!state.isLoading)
             TextButton(
               key: ValueKey(state.primaryKey),
-              onPressed: () => state.primaryRoute == '/readings'
-                  ? context.go('/readings')
-                  : context.push('/career-calibration'),
+              onPressed: () => context.push('/career'),
               style: TextButton.styleFrom(
                 foregroundColor: _HomeColors.abyss,
                 backgroundColor: _HomeColors.gold,
@@ -296,7 +294,7 @@ class _CalibrationHero extends StatelessWidget {
             const SizedBox(height: 5),
             TextButton(
               key: const ValueKey('home-career-update-events'),
-              onPressed: () => context.push('/career-calibration'),
+              onPressed: () => context.push('/career'),
               child: Text(
                 'UPDATE CAREER EVENTS',
                 style: _labelStyle(color: _HomeColors.gold),
@@ -322,7 +320,6 @@ class _CareerHeroContent {
     required this.headline,
     required this.body,
     required this.primaryAction,
-    required this.primaryRoute,
     required this.primaryKey,
     this.showDurationCaption = false,
     this.showUpdateAction = false,
@@ -333,7 +330,6 @@ class _CareerHeroContent {
   final String headline;
   final String body;
   final String primaryAction;
-  final String primaryRoute;
   final String primaryKey;
   final bool showDurationCaption;
   final bool showUpdateAction;
@@ -354,7 +350,6 @@ _CareerHeroContent _careerHeroState(
       headline: 'Preparing your career forecast',
       body: 'Loading your saved career history and readings.',
       primaryAction: 'OPEN CAREER READING  →',
-      primaryRoute: '/readings',
       primaryKey: 'home-career-loading-cta',
       isLoading: true,
     );
@@ -368,7 +363,6 @@ _CareerHeroContent _careerHeroState(
       headline: 'Your personalized Career Reading is ready',
       body: 'View your saved Career Reading and revisit your personalized timing insights.',
       primaryAction: 'VIEW CAREER READING  →',
-      primaryRoute: '/readings',
       primaryKey: 'home-career-reading-cta',
       showUpdateAction: true,
     );
@@ -380,7 +374,6 @@ _CareerHeroContent _careerHeroState(
         headline: 'Make your career forecast more personal',
         body: 'Add a few important career events from your past so TaraVerse can better personalize the timing of your future career windows.',
         primaryAction: 'CALIBRATE MY CAREER  →',
-        primaryRoute: '/career-calibration',
         primaryKey: 'home-calibration-cta',
         showDurationCaption: true,
       );
@@ -390,7 +383,6 @@ _CareerHeroContent _careerHeroState(
         headline: 'Add one more career milestone',
         body: 'You’ve started your career history. Add another important event to give your Career Reading stronger real-life context.',
         primaryAction: 'UPDATE CAREER EVENTS  →',
-        primaryRoute: '/career-calibration',
         primaryKey: 'home-calibration-cta',
       );
     default:
@@ -399,7 +391,6 @@ _CareerHeroContent _careerHeroState(
         headline: 'Your personalized Career Reading is ready to unlock',
         body: 'Your birth chart and saved career events will be used to personalize your Career Reading and upcoming career windows.',
         primaryAction: 'CONTINUE TO CAREER READING  →',
-        primaryRoute: '/readings',
         primaryKey: 'home-career-reading-cta',
         showUpdateAction: true,
       );

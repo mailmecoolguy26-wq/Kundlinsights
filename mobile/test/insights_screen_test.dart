@@ -18,7 +18,7 @@ import 'package:kundlinsights_mobile/features/readings/domain/reading_repository
 import 'package:kundlinsights_mobile/features/readings/reading_controller.dart';
 
 void main() {
-  testWidgets('locked Career Premium shows Unlock and reuses paywall route', (
+  testWidgets('Career opens the Career and Business hub regardless of entitlement', (
     tester,
   ) async {
     final scope = await _InsightsScope.start(
@@ -27,17 +27,15 @@ void main() {
     addTearDown(scope.dispose);
     await _pumpInsights(tester, scope);
 
-    expect(find.text('PREMIUM'), findsOneWidget);
-    expect(find.text('UNLOCK'), findsOneWidget);
+    expect(find.text('OPEN CAREER'), findsOneWidget);
     expect(find.text('COMING SOON'), findsNWidgets(2));
-    expect(find.text('SEE CAREER INSIGHTS'), findsNothing);
-    await tester.tap(find.text('UNLOCK'));
+    await tester.tap(find.text('OPEN CAREER'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('Career Premium destination'), findsOneWidget);
+    expect(find.text('Career and Business destination'), findsOneWidget);
   });
 
-  testWidgets('active Career Premium opens the existing Readings route', (
+  testWidgets('eligible Career also opens the Career and Business hub', (
     tester,
   ) async {
     final scope = await _InsightsScope.start(
@@ -46,16 +44,15 @@ void main() {
     addTearDown(scope.dispose);
     await _pumpInsights(tester, scope);
 
-    expect(find.text('SEE CAREER INSIGHTS'), findsOneWidget);
-    expect(find.text('UNLOCK'), findsNothing);
+    expect(find.text('OPEN CAREER'), findsOneWidget);
     expect(find.text('COMING SOON'), findsNWidgets(2));
-    await tester.tap(find.text('SEE CAREER INSIGHTS'));
+    await tester.tap(find.text('OPEN CAREER'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('Readings destination'), findsOneWidget);
+    expect(find.text('Career and Business destination'), findsOneWidget);
   });
 
-  testWidgets('Career action remains neutral while entitlement is loading', (
+  testWidgets('Career entry remains available while entitlement is loading', (
     tester,
   ) async {
     final scope = await _InsightsScope.start(
@@ -66,12 +63,10 @@ void main() {
     await _pumpInsights(tester, scope);
 
     expect(scope.generation.eligibilityState, CareerEligibilityState.loading);
-    expect(find.text('CHECKING'), findsOneWidget);
-    expect(find.text('UNLOCK'), findsNothing);
-    expect(find.text('SEE CAREER INSIGHTS'), findsNothing);
+    expect(find.text('OPEN CAREER'), findsOneWidget);
   });
 
-  testWidgets('Career entitlement follows selected birth profile', (
+  testWidgets('Career entry stays stable across selected birth profiles', (
     tester,
   ) async {
     final scope = await _InsightsScope.start(
@@ -84,12 +79,11 @@ void main() {
     addTearDown(scope.dispose);
     await _pumpInsights(tester, scope);
 
-    expect(find.text('SEE CAREER INSIGHTS'), findsOneWidget);
+    expect(find.text('OPEN CAREER'), findsOneWidget);
     scope.profiles.select(scope.profiles.profiles.last);
     await tester.pump();
     await tester.pump();
-    expect(find.text('UNLOCK'), findsOneWidget);
-    expect(find.text('SEE CAREER INSIGHTS'), findsNothing);
+    expect(find.text('OPEN CAREER'), findsOneWidget);
   });
 
   testWidgets('Current Transits preserves existing route', (tester) async {
@@ -124,7 +118,7 @@ void main() {
       );
       expect(find.text('Insights'), findsNothing);
       expect(find.text('Current Transits'), findsOneWidget);
-      expect(find.text('UNLOCK'), findsOneWidget);
+      expect(find.text('OPEN CAREER'), findsOneWidget);
     },
   );
 }
@@ -147,13 +141,10 @@ Widget _app(
             const Scaffold(body: Text('Current Transits destination')),
       ),
       GoRoute(
-        path: '/career-premium',
-        builder: (_, _) =>
-            const Scaffold(body: Text('Career Premium destination')),
-      ),
-      GoRoute(
-        path: '/readings',
-        builder: (_, _) => const Scaffold(body: Text('Readings destination')),
+        path: '/career',
+        builder: (_, _) => const Scaffold(
+          body: Text('Career and Business destination'),
+        ),
       ),
     ],
   );

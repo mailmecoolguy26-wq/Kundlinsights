@@ -8,9 +8,11 @@ class InsightsScreen extends StatelessWidget {
   const InsightsScreen({
     super.key,
     required this.generation,
+    this.onOpenCareer,
     this.onOpenCareerChat,
   });
   final CareerReadingGenerationController generation;
+  final VoidCallback? onOpenCareer;
   final VoidCallback? onOpenCareerChat;
 
   static const midnight = Color(0xFF0B071B);
@@ -41,10 +43,7 @@ class InsightsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               _CareerInsightCard(
-                eligibilityState: generation.eligibilityState,
-                onUnlock: () => context.push('/career-premium'),
-                onSeeCareerInsights: () => context.go('/readings'),
-                onRetryEligibility: generation.refreshEligibility,
+                onTap: onOpenCareer ?? () => context.push('/career'),
               ),
               if (onOpenCareerChat != null) ...[
                 const SizedBox(height: 12),
@@ -203,109 +202,50 @@ class _TransitCard extends StatelessWidget {
 }
 
 class _CareerInsightCard extends StatelessWidget {
-  const _CareerInsightCard({
-    required this.eligibilityState,
-    required this.onUnlock,
-    required this.onSeeCareerInsights,
-    required this.onRetryEligibility,
-  });
-  final CareerEligibilityState eligibilityState;
-  final VoidCallback onUnlock;
-  final VoidCallback onSeeCareerInsights;
-  final Future<void> Function() onRetryEligibility;
+  const _CareerInsightCard({required this.onTap});
+  final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
-    final state = switch (eligibilityState) {
-      CareerEligibilityState.eligible => _CareerCardState(
-        actionLabel: 'SEE CAREER INSIGHTS',
-        onTap: onSeeCareerInsights,
-        semanticLabel: 'Career, premium, see career insights',
-      ),
-      CareerEligibilityState.ineligible => _CareerCardState(
-        actionLabel: 'UNLOCK',
-        onTap: onUnlock,
-        semanticLabel: 'Career, premium, unlock',
-      ),
-      CareerEligibilityState.error => _CareerCardState(
-        actionLabel: 'CHECK AVAILABILITY',
-        onTap: () => onRetryEligibility(),
-        semanticLabel: 'Career, premium, check availability',
-      ),
-      CareerEligibilityState.initial ||
-      CareerEligibilityState.loading => const _CareerCardState(
-        actionLabel: 'CHECKING',
-        semanticLabel: 'Career, premium, checking availability',
-      ),
-    };
-    final actionable = state.onTap != null;
-    return Semantics(
-      button: actionable,
-      enabled: actionable,
-      label: state.semanticLabel,
-      child: Opacity(
-        opacity: actionable ? 1 : .78,
-        child: Material(
-          color: InsightsScreen.abyss,
-          borderRadius: BorderRadius.circular(16),
-          child: InkWell(
-            onTap: state.onTap,
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: 'Career, open Career and Business',
+    child: Material(
+      color: InsightsScreen.abyss,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: actionable
-                      ? const Color(0x66C5A059)
-                      : const Color(0x335E4A87),
+            border: Border.all(color: const Color(0x66C5A059)),
+          ),
+          child: const Row(
+            children: [
+              _IconTile(Icons.work_outline),
+              SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Career', style: _Styles.cardTitle),
+                    SizedBox(height: 3),
+                    Text(
+                      'Career context, activity timing, and history',
+                      style: _Styles.cardBody,
+                    ),
+                  ],
                 ),
               ),
-              child: Row(
-                children: [
-                  const _IconTile(Icons.work_outline),
-                  const SizedBox(width: 13),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Career', style: _Styles.cardTitle),
-                        SizedBox(height: 3),
-                        Text(
-                          'Personalized career timing and future windows',
-                          style: _Styles.cardBody,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      const _Pill('PREMIUM', gold: true),
-                      const SizedBox(height: 6),
-                      _Pill(state.actionLabel, gold: actionable),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+              SizedBox(width: 8),
+              _Pill('OPEN CAREER', gold: true),
+            ],
           ),
         ),
       ),
-    );
-  }
-}
-
-class _CareerCardState {
-  const _CareerCardState({
-    required this.actionLabel,
-    required this.semanticLabel,
-    this.onTap,
-  });
-  final String actionLabel;
-  final String semanticLabel;
-  final VoidCallback? onTap;
+    ),
+  );
 }
 
 class _InsightCard extends StatelessWidget {

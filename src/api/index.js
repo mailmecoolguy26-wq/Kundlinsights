@@ -38,7 +38,7 @@ function dtoReadingDetail(reading) {
   };
 }
 
-function createApi({ authVerifier, userResolver, birthProfileService, careerEventService = null, careerEventAstrologyService = null, natalSummaryService = null, divisionalChartService = null, vimshottariService = null, transitSnapshotService = null, ashtakavargaService = null, secureReadingService, careerChatOrchestrator = null, purchaseService = null, razorpayPaymentService = null, appleNotificationService = null, googleRtdnService = null, notificationSelfService = null, placeResolutionService = null, entitlementService, requestIdGenerator = crypto.randomUUID, corsAllowlist = [], isReady = () => true, logger = false, bodyLimit = 16 * 1024 } = {}) {
+function createApi({ authVerifier, userResolver, birthProfileService, careerEventService = null, careerEventAstrologyService = null, natalSummaryService = null, divisionalChartService = null, vimshottariService = null, transitSnapshotService = null, ashtakavargaService = null, secureReadingService, careerAnswerService = null, careerChatOrchestrator = null, purchaseService = null, razorpayPaymentService = null, appleNotificationService = null, googleRtdnService = null, notificationSelfService = null, placeResolutionService = null, entitlementService, requestIdGenerator = crypto.randomUUID, corsAllowlist = [], isReady = () => true, logger = false, bodyLimit = 16 * 1024 } = {}) {
   required(authVerifier, 'AUTH_VERIFIER'); if (typeof authVerifier.verifyRequest !== 'function') throw new TypeError('INVALID_AUTH_VERIFIER'); required(userResolver, 'USER_RESOLVER'); required(birthProfileService, 'BIRTH_PROFILE_SERVICE'); required(secureReadingService, 'SECURE_READING_SERVICE');
   if (!Array.isArray(corsAllowlist) || !corsAllowlist.every((origin) => typeof origin === 'string' && origin.startsWith('https://') && !origin.includes('*')) || typeof isReady !== 'function' || !Number.isInteger(bodyLimit) || bodyLimit < 1024 || bodyLimit > 16 * 1024) throw new TypeError('INVALID_API_RUNTIME_OPTIONS');
   const app = Fastify({ logger, bodyLimit, requestIdHeader: 'x-request-id', genReqId: () => requestIdGenerator() });
@@ -104,6 +104,17 @@ function createApi({ authVerifier, userResolver, birthProfileService, careerEven
   if (careerChatOrchestrator) {
     if (typeof careerChatOrchestrator.respond !== 'function') throw new TypeError('INVALID_CAREER_CHAT_ORCHESTRATOR');
     app.post('/v1/birth-profiles/:id/career-chat/messages', async (request) => ({ careerChat: await careerChatOrchestrator.respond({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), ...(request.body || {}) }), requestId: request.id }));
+  }
+  if (careerAnswerService) {
+    if (typeof careerAnswerService.answer !== 'function') throw new TypeError('INVALID_CAREER_ANSWER_SERVICE');
+    app.post('/v1/birth-profiles/:id/career-answers', async (request) => ({
+      careerAnswer: await careerAnswerService.answer({
+        principal: request.principal,
+        birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'),
+        body: request.body || {},
+      }),
+      requestId: request.id,
+    }));
   }
   if (natalSummaryService) {
     if (typeof natalSummaryService.get !== 'function') throw new TypeError('INVALID_NATAL_SUMMARY_SERVICE');

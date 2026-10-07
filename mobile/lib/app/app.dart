@@ -37,6 +37,7 @@ import '../features/payments/data/razorpay_purchase_service.dart';
 import '../features/payments/data/payment_api_client.dart';
 import '../features/splash/splash_launch_gate.dart';
 import '../features/career_chat/career_chat_controller.dart';
+import '../features/career_answers/career_answer_controller.dart';
 
 class KundlInsightsApp extends ConsumerStatefulWidget {
   const KundlInsightsApp({
@@ -63,6 +64,7 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
   late final SplashLaunchGate _splashLaunchGate;
   late final CareerExplanationLanguageController _careerExplanationLanguage;
   late final CareerChatController _careerChat;
+  late final CareerAnswerController _careerAnswers;
   late final ProfileController _profiles;
   late final CareerReadingGenerationController _generation;
   late final PushNavigationAdapter _pushNavigation;
@@ -129,6 +131,7 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
     _careerChat = ref.read(
       careerChatControllerProvider((profiles, _careerExplanationLanguage)),
     );
+    _careerAnswers = ref.read(careerAnswerControllerProvider(profiles));
     final premiumProduct = ref.read(careerPremiumProductControllerProvider);
     final premiumPurchase = ref.read(
       careerPremiumPurchaseControllerProvider((
@@ -164,6 +167,7 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
       careerEvents,
       analytics: analytics,
       careerChat: _careerChat,
+      careerAnswers: _careerAnswers,
       razorpayPremium: razorpayPremium,
       careerExplanationLanguage: _careerExplanationLanguage,
       splashLaunchGate: _splashLaunchGate,

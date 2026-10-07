@@ -52,6 +52,9 @@ import '../features/payments/data/payment_api_client.dart';
 import '../features/career_chat/data/career_chat_api_repository.dart';
 import '../features/career_chat/career_chat_controller.dart';
 import '../features/career_chat/domain/career_chat_repository.dart';
+import '../features/career_answers/data/career_answer_api_repository.dart';
+import '../features/career_answers/domain/career_answer_repository.dart';
+import '../features/career_answers/career_answer_controller.dart';
 import 'app.dart';
 
 Future<void> bootstrap() async {
@@ -77,6 +80,7 @@ Future<void> bootstrap() async {
   final CareerEventRepository careerEventRepository;
   final PaymentApiClient paymentApi;
   final CareerChatRepository careerChatRepository;
+  final CareerAnswerRepository careerAnswerRepository;
   FirebasePushNotificationService? pushNotifications;
   final storePurchaseService = AppleStorePurchaseService(
     client: InAppPurchaseStorePurchaseClient(InAppPurchase.instance),
@@ -112,6 +116,7 @@ Future<void> bootstrap() async {
     careerEventRepository = const UnavailableCareerEventRepository();
     paymentApi = const UnavailablePaymentApiClient();
     careerChatRepository = const UnavailableCareerChatRepository();
+    careerAnswerRepository = const UnavailableCareerAnswerRepository();
   } else {
     await Supabase.initialize(
       url: config.supabaseUrl,
@@ -133,6 +138,7 @@ Future<void> bootstrap() async {
     careerEventRepository = CareerEventApiRepository(apiClient);
     paymentApi = AuthenticatedPaymentApiClient(apiClient);
     careerChatRepository = CareerChatApiRepository(apiClient);
+    careerAnswerRepository = CareerAnswerApiRepository(apiClient);
     pushNotifications = FirebasePushNotificationService(
       store: const SecureStateStore(),
       api: PushNotificationApiRepository(apiClient),
@@ -200,6 +206,7 @@ Future<void> bootstrap() async {
         ),
         paymentApiClientProvider.overrideWithValue(paymentApi),
         careerChatRepositoryProvider.overrideWithValue(careerChatRepository),
+        careerAnswerRepositoryProvider.overrideWithValue(careerAnswerRepository),
       ],
       child: KundlInsightsApp(
         authController: controller,
