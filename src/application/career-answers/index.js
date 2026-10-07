@@ -162,6 +162,26 @@ function present({ questionType, reading }) {
   });
 }
 
+function shapeForAccess(answer, premium) {
+  if (premium) return answer;
+  const primaryEvidence = answer.evidence.filter((item) => item.role === 'PRIMARY');
+  return immutable({
+    ...answer,
+    answer: {
+      ...answer.answer,
+      limitation: `${answer.answer.limitation} Detailed supporting context is available with Career Premium.`,
+    },
+    agreement: {
+      availableMajorSignals: primaryEvidence.length,
+      alignedMajorSignals: answer.agreement.primaryEligibility ? primaryEvidence.length : 0,
+      primaryEligibility: answer.agreement.primaryEligibility,
+      supportSignals: [],
+    },
+    evidence: primaryEvidence,
+    historicalContext: null,
+  });
+}
+
 class CareerAnswerService {
   constructor({ secureReadingService } = {}) {
     if (!secureReadingService || typeof secureReadingService.getReadingEntitlementStatus !== 'function' || typeof secureReadingService.listSecureReadings !== 'function' || typeof secureReadingService.getSecureReadingDetail !== 'function') throw new TypeError('INVALID_SECURE_READING_SERVICE');
@@ -171,18 +191,24 @@ class CareerAnswerService {
     const profileId = requiredId(birthProfileId, 'INVALID_BIRTH_PROFILE_ID');
     const request = validateQuestionRequest(body);
     const access = await this.readings.getReadingEntitlementStatus({ principal, birthProfileId: profileId });
-    if (!access || !access.career || access.career.eligible !== true) throw failure('ENTITLEMENT_REQUIRED');
+    const premium = Boolean(access && access.career && access.career.eligible === true);
     const summaries = await this.readings.listSecureReadings({ principal, birthProfileId: profileId });
     const career = (Array.isArray(summaries) ? summaries : [])
       .filter((item) => item && item.domain === 'CAREER' && item.birthProfileId === profileId)
       .sort((left, right) => String(right.createdAt).localeCompare(String(left.createdAt)) || String(right.readingId).localeCompare(String(left.readingId)));
     const selected = request.readingId ? career.find((item) => item.readingId === request.readingId) : career[0];
     if (request.readingId && !selected) throw failure('NOT_FOUND_OR_FORBIDDEN');
-    if (!selected) return present({ questionType: request.questionType, reading: null });
+    if (!selected) return shapeForAccess(
+      present({ questionType: request.questionType, reading: null }),
+      premium,
+    );
     const detail = await this.readings.getSecureReadingDetail({ principal, readingId: selected.readingId });
     if (!detail || detail.domain !== 'CAREER' || detail.birthProfileId !== profileId || detail.readingId !== selected.readingId) throw failure('NOT_FOUND_OR_FORBIDDEN');
-    return present({ questionType: request.questionType, reading: detail });
+    return shapeForAccess(
+      present({ questionType: request.questionType, reading: detail }),
+      premium,
+    );
   }
 }
 
-module.exports = { CareerAnswerService, CareerQuestionType, Answerability, CAREER_ANSWER_RULESET_VERSION, POSSIBLE_SIGNAL, validateQuestionRequest, collectEvidence, present };
+module.exports = { CareerAnswerService, CareerQuestionType, Answerability, CAREER_ANSWER_RULESET_VERSION, POSSIBLE_SIGNAL, validateQuestionRequest, collectEvidence, present, shapeForAccess };
