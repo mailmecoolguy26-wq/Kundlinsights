@@ -29,7 +29,25 @@ function renderJobFavourabilityResearchReport(report = {}) {
     const metrics = item.metrics || {}; const raw = metrics.raw || {};
     lines.push('', `### ${item.candidateId}`, `Interaction order: ${item.interactionOrder}`, `Fields: ${(item.fields || []).join(' + ') || 'NOT AVAILABLE'}`, `Employment-transition prevalence: ${renderMetric(metrics.featurePrevalence && metrics.featurePrevalence.employmentTransition)}`, `Temporal-control false-positive rate: ${renderMetric(metrics.temporalControlFalsePositiveRate)}`, `Non-employment Career-event false-positive rate: ${renderMetric(metrics.nonEmploymentCareerEventFalsePositiveRate)}`, `Precision: ${renderMetric(metrics.precision)}`, `Employment-transition recall: ${renderMetric(metrics.employmentTransitionRecall)}`, `Risk difference: ${renderMetric(metrics.riskDifference)}`, `Odds ratio: ${renderMetric(metrics.oddsRatio)}`, `Employment-transition raw: ${renderMetric(raw.positive && raw.positive.numerator)}/${renderMetric(raw.positive && raw.positive.denominator)}`, `Temporal-control raw: ${renderMetric(raw.temporalControl && raw.temporalControl.numerator)}/${renderMetric(raw.temporalControl && raw.temporalControl.denominator)}`);
   }
-  lines.push('', '## Guardrails', '- Candidate interactions are pre-registered and limited to order two.', '- H6, D10, Moon, Ashtakavarga, recurrence, and node facts are research dimensions only.', '- No feature is an employment-acquisition rule solely because it appears in this report.', '- Profile-disjoint selection and evaluation remain required before any replication conclusion.');
+  lines.push(
+    '',
+    '## H6 research-only factual/context dimensions',
+    '- `h6LordActiveAtMd`, `h6LordActiveAtAd`, and `h6LordActiveAtPd` preserve level-specific factual Dasha identity; PD is `NOT_APPLICABLE` outside DAY precision.',
+    '- `h6LordStrengthContext` preserves supplied planetary-state facts without a strength score or outcome label.',
+    '- `h2H6H10AxisContext` preserves natal lords, placements, occupants, and shared-lord facts without evaluating an axis outcome.',
+    '- `h6BeneficOccupancyContext` is emitted only when a supplied classification ruleset and occupant-body list are available; it has no interpretive result.',
+    '',
+    `H6 factual/context aggregates: ${renderMetric(report.h6FactualContext && JSON.stringify(report.h6FactualContext))}`,
+    '',
+    '## Missingness',
+    `Feature-state counts: ${renderMetric(report.missingness && JSON.stringify(report.missingness))}`,
+    '',
+    '## Guardrails',
+    '- Candidate interactions are pre-registered and limited to order two.',
+    '- H6, D10, Moon, Ashtakavarga, recurrence, and node facts are research dimensions only.',
+    '- No feature is an employment-acquisition rule solely because it appears in this report.',
+    '- Profile-disjoint selection and evaluation remain required before any replication conclusion.',
+  );
   return `${lines.join('\n')}\n`;
 }
 function writePrivateJobFavourabilityArtifacts({ report, directory = PRIVATE_ARTIFACT_ROOT, artifactName = 'JOB-FAVOURABILITY-RESEARCH' } = {}) {

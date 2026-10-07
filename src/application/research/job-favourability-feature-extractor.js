@@ -30,6 +30,12 @@ function horizonFor(anchor, horizonId) {
 function housesByNumber(d1Houses) { return new Map((Array.isArray(d1Houses && d1Houses.houses) ? d1Houses.houses : []).filter((house) => Number.isInteger(house && house.houseNumber)).map((house) => [house.houseNumber, house])); }
 function lord(house) { return typeof (house && house.rashiHouseLord) === 'string' ? house.rashiHouseLord : house && house.rashiHouseLord && typeof house.rashiHouseLord.name === 'string' ? house.rashiHouseLord.name : null; }
 function houseForSign(d1Houses, sign) { const house = (Array.isArray(d1Houses && d1Houses.houses) ? d1Houses.houses : []).find((item) => item && item.rashi && item.rashi.rashiIndex === sign); return house ? house.houseNumber : null; }
+function assignmentsByBody(d1Houses) { return new Map((Array.isArray(d1Houses && d1Houses.planetaryAssignments) ? d1Houses.planetaryAssignments : []).filter((item) => item && typeof item.body === 'string').map((item) => [item.body, item])); }
+function occupantsByHouse(d1Houses, houseNumber) {
+  return (Array.isArray(d1Houses && d1Houses.planetaryAssignments) ? d1Houses.planetaryAssignments : [])
+    .filter((item) => item && item.rashiHouseNumber === houseNumber && typeof item.body === 'string')
+    .map((item) => item.body).sort();
+}
 function normalizeDasha(value) {
   const start = value && (value.start || value.from); const end = value && (value.end || value.to);
   const periods = Array.isArray(value && value.activePeriods) ? value.activePeriods : [
@@ -48,13 +54,81 @@ function normalizeTransit(value, d1Houses) {
 }
 function dashaFeatures(profile, window, h10Lord, h6Lord, eventPrecision) {
   const source = Array.isArray(profile.dashaIntervals) ? profile.dashaIntervals.map(normalizeDasha).filter(Boolean) : null;
-  if (source === null) return freeze({ identities: state('UNAVAILABLE'), h10Lord: state(h10Lord ? 'UNAVAILABLE' : 'NOT_APPLICABLE'), h6Lord: state(h6Lord ? 'UNAVAILABLE' : 'NOT_APPLICABLE') });
+  const unavailableH6Activation = (level) => !h6Lord
+    ? state('NOT_APPLICABLE')
+    : level === 'PD' && eventPrecision !== 'DAY'
+      ? state('NOT_APPLICABLE')
+      : state('UNAVAILABLE');
+  if (source === null) return freeze({
+    identities: state('UNAVAILABLE'),
+    h10Lord: state(h10Lord ? 'UNAVAILABLE' : 'NOT_APPLICABLE'),
+    h6Lord: state(h6Lord ? 'UNAVAILABLE' : 'NOT_APPLICABLE'),
+    h6LordActiveAtMd: unavailableH6Activation('MD'),
+    h6LordActiveAtAd: unavailableH6Activation('AD'),
+    h6LordActiveAtPd: unavailableH6Activation('PD'),
+  });
   const active = source.filter((item) => intersects(item, window)).flatMap((item) => item.periods)
     .filter((item) => eventPrecision === 'DAY' || item.level !== 'PD')
     .sort((left, right) => `${left.level}|${left.lord}`.localeCompare(`${right.level}|${right.lord}`));
   const byLevel = (level) => [...new Set(active.filter((item) => item.level === level).map((item) => item.lord))].sort();
   const activation = (planet) => !planet ? state('NOT_APPLICABLE') : state('AVAILABLE', freeze({ active: active.some((item) => item.lord === planet), levels: freeze(active.filter((item) => item.lord === planet).map((item) => item.level).sort()) }));
-  return freeze({ identities: state('AVAILABLE', freeze({ md: freeze(byLevel('MD')), ad: freeze(byLevel('AD')), pd: eventPrecision === 'DAY' ? freeze(byLevel('PD')) : null, pdState: eventPrecision === 'DAY' ? 'AVAILABLE' : 'NOT_APPLICABLE' })), h10Lord: activation(h10Lord), h6Lord: activation(h6Lord) });
+  const levelActivation = (level) => !h6Lord
+    ? state('NOT_APPLICABLE')
+    : level === 'PD' && eventPrecision !== 'DAY'
+      ? state('NOT_APPLICABLE')
+      : state('AVAILABLE', freeze({ body: h6Lord, active: active.some((item) => item.level === level && item.lord === h6Lord) }));
+  return freeze({
+    identities: state('AVAILABLE', freeze({ md: freeze(byLevel('MD')), ad: freeze(byLevel('AD')), pd: eventPrecision === 'DAY' ? freeze(byLevel('PD')) : null, pdState: eventPrecision === 'DAY' ? 'AVAILABLE' : 'NOT_APPLICABLE' })),
+    h10Lord: activation(h10Lord),
+    h6Lord: activation(h6Lord),
+    h6LordActiveAtMd: levelActivation('MD'),
+    h6LordActiveAtAd: levelActivation('AD'),
+    h6LordActiveAtPd: levelActivation('PD'),
+  });
+}
+function h6LordStrengthContext(profile, h6Lord, assignments) {
+  if (!h6Lord) return state('NOT_APPLICABLE');
+  const supplied = profile.planetaryStateFacts && (profile.planetaryStateFacts.bodies || profile.planetaryStateFacts)[h6Lord];
+  if (!supplied || typeof supplied !== 'object') return state('UNAVAILABLE');
+  const dignity = supplied.dignity || {};
+  const combustion = supplied.combustion || {};
+  const motion = supplied.motion || {};
+  const placement = assignments.get(h6Lord);
+  return state('AVAILABLE', freeze({
+    body: h6Lord,
+    natalHouse: Number.isInteger(placement && placement.rashiHouseNumber) ? placement.rashiHouseNumber : null,
+    rashiIndex: Number.isInteger(placement && placement.rashi && placement.rashi.rashiIndex) ? placement.rashi.rashiIndex : null,
+    dignity: freeze({
+      isOwnSign: dignity.isOwnSign ?? dignity.ownSign ?? null,
+      isExalted: dignity.isExalted ?? dignity.exalted ?? null,
+      isDebilitated: dignity.isDebilitated ?? dignity.debilitated ?? null,
+      isMoolatrikona: dignity.isMoolatrikona ?? dignity.moolatrikona ?? null,
+    }),
+    combustion: freeze({ isCombust: combustion.isCombust ?? combustion.combust ?? null }),
+    motion: freeze({ providerState: motion.providerState ?? supplied.providerState ?? null, isRetrograde: motion.isRetrograde ?? supplied.isRetrograde ?? null }),
+  }));
+}
+function h2H6H10AxisContext(profile, houses, assignments) {
+  const houseNumbers = [2, 6, 10];
+  const values = Object.fromEntries(houseNumbers.map((number) => [`h${number}`, lord(houses.get(number))]));
+  if (Object.values(values).some((value) => !value)) return state('UNAVAILABLE');
+  const lords = Object.values(values);
+  const sharedLordBodies = [...new Set(lords.filter((body) => lords.filter((candidate) => candidate === body).length > 1))].sort();
+  return state('AVAILABLE', freeze({
+    houseLords: freeze(values),
+    lordNatalHouses: freeze(Object.fromEntries(Object.entries(values).map(([house, body]) => [house, Number.isInteger(assignments.get(body) && assignments.get(body).rashiHouseNumber) ? assignments.get(body).rashiHouseNumber : null]))),
+    occupants: freeze(Object.fromEntries(houseNumbers.map((number) => [`h${number}`, freeze(occupantsByHouse(profile.d1Houses, number))]))),
+    sharedLordBodies: freeze(sharedLordBodies),
+  }));
+}
+function h6BeneficOccupancyContext(profile, h6Lord) {
+  if (!h6Lord) return state('NOT_APPLICABLE');
+  const supplied = profile.h6BeneficOccupancyFacts;
+  if (!supplied || typeof supplied !== 'object' || typeof supplied.classificationRulesetId !== 'string' || !Array.isArray(supplied.occupantBodies) || !supplied.occupantBodies.every((body) => typeof body === 'string')) return state('UNAVAILABLE');
+  return state('AVAILABLE', freeze({
+    classificationRulesetId: supplied.classificationRulesetId,
+    occupantBodies: freeze([...new Set(supplied.occupantBodies)].sort()),
+  }));
 }
 function transitFeatures(profile, window) {
   const source = Array.isArray(profile.transitIntervals) ? profile.transitIntervals.map((item) => normalizeTransit(item, profile.d1Houses)).filter(Boolean) : null;
@@ -94,10 +168,11 @@ function provenance(profile) {
 function extractJobFavourabilityFeatureRows({ profile, cohort, horizons = HORIZON_IDS } = {}) {
   if (!profile || !cohort || !Array.isArray(cohort.units)) throw new TypeError('Research feature extraction requires supplied profile facts and a cohort.');
   const ownUnits = cohort.units.filter((unit) => unit.profileId === profile.birthProfileId);
-  const houses = housesByNumber(profile.d1Houses); const h10Lord = lord(houses.get(10)); const h6Lord = lord(houses.get(6));
+  const houses = housesByNumber(profile.d1Houses); const assignments = assignmentsByBody(profile.d1Houses); const h10Lord = lord(houses.get(10)); const h6Lord = lord(houses.get(6));
   const rows = [];
   for (const unit of ownUnits) for (const anchor of unit.anchors) for (const horizonId of horizons) {
     const window = horizonFor(anchor, horizonId);
+    const dasha = dashaFeatures(profile, window, h10Lord, h6Lord, anchor.precision);
     rows.push(freeze({
       schemaId: RESEARCH_RULESET_ID,
       pseudonymousProfileId: unit.pseudonymousProfileId,
@@ -109,8 +184,14 @@ function extractJobFavourabilityFeatureRows({ profile, cohort, horizons = HORIZO
       partition: unit.partition,
       horizon: window,
       astronomyProvenance: provenance(profile),
-      dasha: dashaFeatures(profile, window, h10Lord, h6Lord, anchor.precision),
+      dasha,
       d1CareerFactors: freeze({ h10Lord: h10Lord || null, h6Lord: h6Lord || null, h10: h10Lord ? 'AVAILABLE' : 'UNAVAILABLE', h6EmploymentServiceContext: h6Lord ? 'RESEARCH_ONLY' : 'UNAVAILABLE' }),
+      h6LordActiveAtMd: dasha.h6LordActiveAtMd,
+      h6LordActiveAtAd: dasha.h6LordActiveAtAd,
+      h6LordActiveAtPd: dasha.h6LordActiveAtPd,
+      h6LordStrengthContext: h6LordStrengthContext(profile, h6Lord, assignments),
+      h2H6H10AxisContext: h2H6H10AxisContext(profile, houses, assignments),
+      h6BeneficOccupancyContext: h6BeneficOccupancyContext(profile, h6Lord),
       transits: transitFeatures(profile, window),
       refinedTransitFacts: refinedTransitFacts(profile, window),
       d10: supportFeature(profile.d10Facts),

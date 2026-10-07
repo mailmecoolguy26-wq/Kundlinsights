@@ -24,6 +24,8 @@ function profile(id = 'profile-a') {
       { careerEventId: 'context-a', eventType: 'JOB_LOSS', observations: [observation('TERMINATION', 2027, 10, 5)] },
     ],
     dashaIntervals: [{ start: iso(2024, 1, 1), end: iso(2028, 1, 1), activePeriods: [{ level: 'MD', lord: 'Jupiter' }, { level: 'AD', lord: 'Sun' }, { level: 'PD', lord: 'Mercury' }] }],
+    planetaryStateFacts: { bodies: { Sun: { dignity: { isOwnSign: true, isExalted: false, isDebilitated: false, isMoolatrikona: true }, combustion: { isCombust: false }, motion: { providerState: 'direct', isRetrograde: false } } } },
+    h6BeneficOccupancyFacts: { classificationRulesetId: 'research-natural-benefic-facts-v1', occupantBodies: ['Venus'] },
     transitIntervals: [
       { planet: 'Jupiter', sign: 5, start: iso(2024, 4, 1), end: iso(2024, 7, 1) },
       { planet: 'Saturn', sign: 10, start: iso(2024, 1, 1), end: iso(2025, 1, 1) },
@@ -87,13 +89,42 @@ test('retains AVAILABLE, UNAVAILABLE, and NOT_APPLICABLE separately for factual 
   assert.equal(row.moon.state, 'UNAVAILABLE'); assert.equal(row.dasha.h6Lord.state, 'NOT_APPLICABLE'); assert.equal(row.dasha.identities.state, 'AVAILABLE');
 });
 
+test('extracts H6 research-only Dasha levels and natal factual contexts without an employment conclusion', () => {
+  const { rows } = setup(); const row = rows.find((item) => item.unitId === 'event:transition-a' && item.horizon.horizonId === 'PRE_30');
+  assert.equal(row.h6LordActiveAtMd.state, 'AVAILABLE'); assert.equal(row.h6LordActiveAtMd.values.active, false);
+  assert.equal(row.h6LordActiveAtAd.state, 'AVAILABLE'); assert.equal(row.h6LordActiveAtAd.values.body, 'Sun'); assert.equal(row.h6LordActiveAtAd.values.active, true);
+  assert.equal(row.h6LordActiveAtPd.state, 'AVAILABLE'); assert.equal(row.h6LordActiveAtPd.values.active, false);
+  assert.deepEqual(row.h6LordStrengthContext.values.dignity, { isOwnSign: true, isExalted: false, isDebilitated: false, isMoolatrikona: true });
+  assert.deepEqual(row.h2H6H10AxisContext.values.houseLords, { h2: 'Mars', h6: 'Sun', h10: 'Jupiter' });
+  assert.deepEqual(row.h2H6H10AxisContext.values.occupants.h6, ['Sun', 'Venus']);
+  assert.deepEqual(row.h6BeneficOccupancyContext.values, { classificationRulesetId: 'research-natural-benefic-facts-v1', occupantBodies: ['Venus'] });
+  assert.equal(/employment|offer|joining|promotion|business/i.test(JSON.stringify(row.h6LordStrengthContext.values)), false);
+});
+
+test('keeps H6 research contexts unavailable or not-applicable rather than deriving missing source facts', () => {
+  const { p, cohort } = setup(); delete p.planetaryStateFacts; delete p.h6BeneficOccupancyFacts;
+  const row = extractJobFavourabilityFeatureRows({ profile: p, cohort })[0];
+  assert.equal(row.h6LordStrengthContext.state, 'UNAVAILABLE'); assert.equal(row.h6BeneficOccupancyContext.state, 'UNAVAILABLE');
+  p.d1Houses = { houses: p.d1Houses.houses.filter((house) => house.houseNumber !== 6), planetaryAssignments: p.d1Houses.planetaryAssignments };
+  const missingH6 = extractJobFavourabilityFeatureRows({ profile: p, cohort })[0];
+  assert.equal(missingH6.h6LordActiveAtMd.state, 'NOT_APPLICABLE'); assert.equal(missingH6.h6LordStrengthContext.state, 'NOT_APPLICABLE'); assert.equal(missingH6.h6BeneficOccupancyContext.state, 'NOT_APPLICABLE');
+});
+
 test('uses only order-two pre-registered interactions, creates no composite score, and remains offline research only', () => {
   const { rows } = setup(); const report = runJobFavourabilityBacktest({ featureRows: rows });
   assert.equal(MAX_INTERACTION_ORDER, 2); assert.ok(CANDIDATE_INTERACTIONS.every((item) => item.order <= 2));
+  assert.deepEqual(CANDIDATE_INTERACTIONS.filter((item) => item.id.includes('H6') || item.id.includes('AXIS')).map((item) => item.id), [
+    'CAREER_DASHA_X_H6_LORD_ACTIVE_AD',
+    'CAREER_DASHA_X_H6_LORD_ACTIVE_PD',
+    'GENERIC_CAREER_SIGNAL_X_H6_LORD_ACTIVATION',
+    'H2_H6_H10_AXIS_CONTEXT_X_CAREER_LINKED_DASHA',
+  ]);
   assert.equal(report.futureProjectionEnabled, false); assert.equal(report.researchOnly, true); assert.equal(report.conclusion, 'RESEARCH_SIGNAL_ONLY');
+  assert.ok(report.h6FactualContext.h6LordActiveAtAd.factualValuePrevalence.denominator > 0);
+  assert.ok(report.h6FactualContext.h6BeneficOccupancyContext.factualValuePrevalence.numerator > 0);
   assert.equal(/"(?:composite)?score"\s*:/i.test(JSON.stringify(report)), false);
   assert.ok(report.candidateAnalyses.every((item) => item.incrementalDiscriminationVsGenericCareerBaseline === null || typeof item.incrementalDiscriminationVsGenericCareerBaseline === 'object'));
-  assert.match(renderJobFavourabilityResearchReport(report), /offline research only/i);
+  assert.match(renderJobFavourabilityResearchReport(report), /offline research only/i); assert.match(renderJobFavourabilityResearchReport(report), /h6LordActiveAtAd/);
   assert.throws(() => privateDirectory('/tmp/not-private-backtest'));
 });
 

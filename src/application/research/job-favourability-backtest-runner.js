@@ -16,6 +16,11 @@ function available(value) { return value && value.state === 'AVAILABLE'; }
 function anyActiveTransit(value) { return available(value) && Array.isArray(value.values) && value.values.length > 0; }
 function activeDasha(row) { return available(row.dasha && row.dasha.h10Lord) && bool(row.dasha.h10Lord.values && row.dasha.h10Lord.values.active); }
 function activeH6Dasha(row) { return available(row.dasha && row.dasha.h6Lord) && bool(row.dasha.h6Lord.values && row.dasha.h6Lord.values.active); }
+function activeH6At(row, level) {
+  const value = row[`h6LordActiveAt${level}`];
+  return available(value) && bool(value.values && value.values.active);
+}
+function h2H6H10AxisAvailable(row) { return available(row.h2H6H10AxisContext); }
 function genericCareerActive(row) { return available(row.genericCareerSignal) && bool(row.genericCareerSignal.values && row.genericCareerSignal.values.active); }
 function majorWorkHouseContext(row) {
   const houses = [2, 6, 10, 11];
@@ -24,9 +29,11 @@ function majorWorkHouseContext(row) {
 function jupiterSaturnContext(row) { return anyActiveTransit(row.transits && row.transits.jupiter) || anyActiveTransit(row.transits && row.transits.saturn); }
 
 const CANDIDATE_INTERACTIONS = Object.freeze([
-  Object.freeze({ id: 'CAREER_DASHA_X_H6_LORD_DASHA_CONTEXT', order: 2, fields: Object.freeze(['CAREER_LINKED_DASHA', 'H6_LORD_DASHA_CONTEXT']), matches: (row) => activeDasha(row) && activeH6Dasha(row) }),
+  Object.freeze({ id: 'CAREER_DASHA_X_H6_LORD_ACTIVE_AD', order: 2, fields: Object.freeze(['CAREER_LINKED_DASHA', 'H6_LORD_ACTIVE_AT_AD']), matches: (row) => activeDasha(row) && activeH6At(row, 'Ad') }),
+  Object.freeze({ id: 'CAREER_DASHA_X_H6_LORD_ACTIVE_PD', order: 2, fields: Object.freeze(['CAREER_LINKED_DASHA', 'H6_LORD_ACTIVE_AT_PD']), matches: (row) => activeDasha(row) && activeH6At(row, 'Pd') }),
   Object.freeze({ id: 'CAREER_DASHA_X_JUPITER_SATURN_HOUSE_CONTEXT', order: 2, fields: Object.freeze(['CAREER_LINKED_DASHA', 'JUPITER_SATURN_HOUSE_CONTEXT']), matches: (row) => activeDasha(row) && jupiterSaturnContext(row) }),
-  Object.freeze({ id: 'GENERIC_CAREER_SIGNAL_X_H6_CONTEXT', order: 2, fields: Object.freeze(['GENERIC_CAREER_SIGNAL', 'H6_LORD_DASHA_CONTEXT']), matches: (row) => genericCareerActive(row) && activeH6Dasha(row) }),
+  Object.freeze({ id: 'GENERIC_CAREER_SIGNAL_X_H6_LORD_ACTIVATION', order: 2, fields: Object.freeze(['GENERIC_CAREER_SIGNAL', 'H6_LORD_ACTIVATION']), matches: (row) => genericCareerActive(row) && activeH6Dasha(row) }),
+  Object.freeze({ id: 'H2_H6_H10_AXIS_CONTEXT_X_CAREER_LINKED_DASHA', order: 2, fields: Object.freeze(['H2_H6_H10_AXIS_CONTEXT', 'CAREER_LINKED_DASHA']), matches: (row) => h2H6H10AxisAvailable(row) && activeDasha(row) }),
   Object.freeze({ id: 'CAREER_DASHA_X_WORK_RELATED_TRANSIT_HOUSE_CONTEXT', order: 2, fields: Object.freeze(['CAREER_LINKED_DASHA', 'WORK_RELATED_TRANSIT_HOUSE_CONTEXT']), matches: (row) => activeDasha(row) && majorWorkHouseContext(row) }),
 ]);
 const BASELINE = Object.freeze({ id: 'GENERIC_CAREER_SIGNAL_BASELINE', order: 1, fields: Object.freeze(['GENERIC_CAREER_SIGNAL']), matches: genericCareerActive });
@@ -81,7 +88,7 @@ function metricFor(units) {
   });
 }
 function missingness(rows) {
-  const fields = ['dasha', 'transits', 'refinedTransitFacts', 'd10', 'moon', 'ashtakavarga', 'genericCareerSignal', 'historicalRecurrence']; const output = {};
+  const fields = ['dasha', 'h6LordActiveAtMd', 'h6LordActiveAtAd', 'h6LordActiveAtPd', 'h6LordStrengthContext', 'h2H6H10AxisContext', 'h6BeneficOccupancyContext', 'transits', 'refinedTransitFacts', 'd10', 'moon', 'ashtakavarga', 'genericCareerSignal', 'historicalRecurrence']; const output = {};
   for (const field of fields) {
     const states = { AVAILABLE: 0, UNAVAILABLE: 0, NOT_APPLICABLE: 0 };
     for (const row of rows) {
@@ -98,6 +105,30 @@ function provenance(rows) {
   const ids = new Map();
   for (const row of rows) { const value = row.astronomyProvenance || {}; const key = JSON.stringify(value); ids.set(key, (ids.get(key) || 0) + 1); }
   return freeze([...ids.entries()].map(([key, rowCount]) => freeze({ provenance: JSON.parse(key), rowCount })).sort((left, right) => JSON.stringify(left.provenance).localeCompare(JSON.stringify(right.provenance))));
+}
+function stateSummary(rows, selector, valuePredicate = null) {
+  const states = { AVAILABLE: 0, UNAVAILABLE: 0, NOT_APPLICABLE: 0 };
+  let valueNumerator = 0; let valueDenominator = 0;
+  for (const row of rows) {
+    const value = selector(row);
+    if (!value || states[value.state] === undefined) continue;
+    states[value.state] += 1;
+    if (value.state === 'AVAILABLE' && valuePredicate) {
+      valueDenominator += 1;
+      if (valuePredicate(value.values || {})) valueNumerator += 1;
+    }
+  }
+  return freeze({ states: freeze(states), ...(valuePredicate ? { factualValuePrevalence: freeze({ numerator: valueNumerator, denominator: valueDenominator, prevalence: rate(valueNumerator, valueDenominator) }) } : {}) });
+}
+function h6FactualContext(rows) {
+  return freeze({
+    h6LordActiveAtMd: stateSummary(rows, (row) => row.h6LordActiveAtMd, (values) => values.active === true),
+    h6LordActiveAtAd: stateSummary(rows, (row) => row.h6LordActiveAtAd, (values) => values.active === true),
+    h6LordActiveAtPd: stateSummary(rows, (row) => row.h6LordActiveAtPd, (values) => values.active === true),
+    h6LordStrengthContext: stateSummary(rows, (row) => row.h6LordStrengthContext),
+    h2H6H10AxisContext: stateSummary(rows, (row) => row.h2H6H10AxisContext),
+    h6BeneficOccupancyContext: stateSummary(rows, (row) => row.h6BeneficOccupancyContext, (values) => Array.isArray(values.occupantBodies) && values.occupantBodies.length > 0),
+  });
 }
 function prePost(rows, definition) {
   const selected = rows.filter((row) => ['PRE', 'POST'].includes(row.horizon.direction));
@@ -137,6 +168,7 @@ function runJobFavourabilityBacktest({ featureRows = [], replicationCandidateCon
     preRegisteredHorizons: freeze([...HORIZON_IDS]),
     candidateAnalyses: freeze(analyses),
     missingness: missingness(featureRows),
+    h6FactualContext: h6FactualContext(featureRows),
     provenance: provenance(featureRows),
     conclusion: conclusion(featureRows, analyses, replicationCandidateConfirmed),
     limitations: freeze(['OFFLINE_RESEARCH_ONLY', 'NO_COMPOSITE_ASTROLOGY_SCORE', 'NO_CUSTOMER_FAVOURABILITY_PERIOD', 'NO_JOB_PROBABILITY', 'NO_EXACT_JOB_DATE', 'NO_OFFER_OR_JOINING_FORECAST', 'PROFILE_DISJOINT_SELECTION_AND_EVALUATION_REQUIRED']),

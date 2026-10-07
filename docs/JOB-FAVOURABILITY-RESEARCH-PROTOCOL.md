@@ -35,6 +35,19 @@ D1 H10/H6-lord context, major-planet and node natal-house states, refined
 transit events, D10 facts, Moon facts, SAV/BAV facts, generic Career-signal
 state, and leakage-safe historical-recurrence state.
 
+The H6 research fields are explicitly factual/contextual:
+
+- `h6LordActiveAtMd`, `h6LordActiveAtAd`, and `h6LordActiveAtPd` record only
+  whether the supplied H6 lord identity occurs at that Dasha level in the
+  registered horizon. PD is `NOT_APPLICABLE` for non-DAY precision.
+- `h6LordStrengthContext` records supplied planetary-state flags (placement,
+  dignity, combustion, and motion) without producing a strength value.
+- `h2H6H10AxisContext` records the three house lords, their natal placements,
+  occupants, and any shared lord identity. It does not evaluate an axis.
+- `h6BeneficOccupancyContext` is present only when an upstream factual
+  classification ruleset and its H6 occupant list are supplied. It does not
+  assert that the condition is favourable, employment-related, or predictive.
+
 H6 is an employment/service semantic **research** context only. D10, Moon,
 Ashtakavarga, recurrence, and Rahu/Ketu remain contextual/support dimensions.
 Jupiter/Saturn transit facts remain provisional research dimensions. None can
@@ -44,10 +57,12 @@ create a Career or employment conclusion.
 
 Discovery is limited to order-two, pre-registered interactions:
 
-1. Career-linked Dasha × H6-lord Dasha context.
-2. Career-linked Dasha × Jupiter/Saturn house context.
-3. Generic Career signal × H6 context.
-4. Career-linked Dasha × work-related transit-house context.
+1. Career-linked Dasha × H6-lord active AD.
+2. Career-linked Dasha × H6-lord active PD, where DAY precision permits it.
+3. Career-linked Dasha × Jupiter/Saturn house context.
+4. Generic Career signal × H6-lord activation.
+5. H2/H6/H10 axis context × Career-linked Dasha.
+6. Career-linked Dasha × work-related transit-house context.
 
 The registry is not an exhaustive search across arbitrary planets, houses, or
 horizons. No composite astrology score is created.
