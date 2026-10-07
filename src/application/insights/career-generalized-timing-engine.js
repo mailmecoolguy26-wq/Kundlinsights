@@ -5,6 +5,7 @@
 // wired into projection, readings, chat, or mobile presentation.
 const { FULL_ASPECTS_BY_GRAHA } = require('../../drishti/reference-data');
 const { freeze } = require('../../synthesis/evidence-node');
+const { canonicalPlanetId } = require('../../jyotish');
 
 const CAREER_GENERALIZED_TIMING_RULESET_ID = 'taraverse-career-generalized-timing-v1';
 const MAJOR_WINDOW_PLANETS = freeze(['Jupiter', 'Saturn']);
@@ -87,9 +88,14 @@ function resolveCareerNatalFactors({ d1Houses } = {}) {
 }
 
 function evaluateCareerDashaActivation({ careerNatalFactors, activePeriods = [], d1CareerRelevant = false } = {}) {
-  const relevant = new Map((careerNatalFactors && careerNatalFactors.relevantPlanets || []).map((item) => [item.planet, item]));
-  const matches = (Array.isArray(activePeriods) ? activePeriods : []).filter((period) => period && ['MD', 'AD', 'PD'].includes(period.level) && relevant.has(period.lord))
-    .map((period) => freeze({ level: period.level, lord: period.lord, activatedCareerFactors: relevant.get(period.lord).relevanceReasons, matchedRuleIds: [DASHA_RULE_ID] }))
+  const relevant = new Map((careerNatalFactors && careerNatalFactors.relevantPlanets || [])
+    .map((item) => [canonicalPlanetId(item && item.planet), item])
+    .filter(([planet]) => planet));
+  const matches = (Array.isArray(activePeriods) ? activePeriods : []).filter((period) => period && ['MD', 'AD', 'PD'].includes(period.level) && relevant.has(canonicalPlanetId(period.lord)))
+    .map((period) => {
+      const factor = relevant.get(canonicalPlanetId(period.lord));
+      return freeze({ level: period.level, lord: period.lord, activatedCareerFactors: factor.relevanceReasons, matchedRuleIds: [DASHA_RULE_ID] });
+    })
     .sort((a, b) => a.level.localeCompare(b.level) || a.lord.localeCompare(b.lord));
   const byLevel = (level) => matches.filter((item) => item.level === level);
   return freeze({ active: d1CareerRelevant === true && matches.length > 0, mdEvidence: freeze(byLevel('MD')), adEvidence: freeze(byLevel('AD')), pdEvidence: freeze(byLevel('PD')), activatedCareerFactors: freeze(stable(matches.flatMap((item) => item.activatedCareerFactors))), matchedRuleIds: freeze(matches.length ? [DASHA_RULE_ID] : []) });

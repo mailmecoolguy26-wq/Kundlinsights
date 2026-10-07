@@ -56,9 +56,9 @@ test('Phase 2G resolves H10 ownership dynamically from canonical D1 houses', () 
 test('Career Dasha activation is chart-specific and does not make a planet universally Career-active', () => {
   const d1Houses = chartWithTenthSign(3);
   const factors = resolveCareerNatalFactors({ d1Houses });
-  assert.equal(evaluateCareerDashaActivation({ careerNatalFactors: factors, d1CareerRelevant: true, activePeriods: periodFor('Mercury') }).active, true);
+  assert.equal(evaluateCareerDashaActivation({ careerNatalFactors: factors, d1CareerRelevant: true, activePeriods: periodFor('mercury') }).active, true);
   assert.equal(evaluateCareerDashaActivation({ careerNatalFactors: factors, d1CareerRelevant: true, activePeriods: periodFor('Jupiter') }).active, false);
-  assert.equal(evaluateCareerDashaActivation({ careerNatalFactors: factors, d1CareerRelevant: false, activePeriods: periodFor('Mercury') }).active, false);
+  assert.equal(evaluateCareerDashaActivation({ careerNatalFactors: factors, d1CareerRelevant: false, activePeriods: periodFor('mercury') }).active, false);
 });
 
 test('major transit activation uses dynamic Career targets and records transit planet separately from natal owner', () => {
@@ -124,7 +124,7 @@ test('the internal 24-month scanner intersects supplied Dasha and major Gochar i
   const scan = scanCareerTimingWindows({
     careerNatalFactors: factors, d1Houses, d1CareerRelevant: true,
     horizonStart: '2026-01-01T00:00:00.000Z', horizonEnd: '2028-01-01T00:00:00.000Z',
-    dashaIntervals: [{ start: '2026-03-01T00:00:00.000Z', end: '2026-06-01T00:00:00.000Z', activePeriods: periodFor('Saturn') }],
+    dashaIntervals: [{ start: '2026-03-01T00:00:00.000Z', end: '2026-06-01T00:00:00.000Z', activePeriods: periodFor('saturn') }],
     transitIntervals: [
       interval('Jupiter', 10, '2026-04-01T00:00:00.000Z', '2026-05-01T00:00:00.000Z'),
       interval('Jupiter', 10, '2026-05-01T00:00:00.000Z', '2026-06-01T00:00:00.000Z'),
@@ -133,6 +133,19 @@ test('the internal 24-month scanner intersects supplied Dasha and major Gochar i
   assert.deepEqual(scan.windows.map((item) => [item.start, item.end, item.classification]), [['2026-04-01T00:00:00.000Z', '2026-06-01T00:00:00.000Z', 'BASE_TIMING_WINDOW']]);
   assert.equal(scan.integrationGate.enabled, false);
   assert.ok(scan.limitations.includes('FUTURE_PROJECTION_DISABLED'));
+});
+
+test('the scanner supports supplied historical horizons with canonical Dasha IDs', () => {
+  const d1Houses = chartWithTenthSign(10, { tenthLordSign: 10 });
+  const factors = resolveCareerNatalFactors({ d1Houses });
+  const scan = scanCareerTimingWindows({
+    careerNatalFactors: factors, d1Houses, d1CareerRelevant: true,
+    horizonStart: '2012-01-01T00:00:00.000Z', horizonEnd: '2012-03-01T00:00:00.000Z',
+    dashaIntervals: [{ start: '2012-01-01T00:00:00.000Z', end: '2012-03-01T00:00:00.000Z', activePeriods: periodFor('saturn') }],
+    transitIntervals: [interval('Jupiter', 10, '2012-01-15T00:00:00.000Z', '2012-02-15T00:00:00.000Z')],
+  });
+  assert.deepEqual(scan.windows.map((item) => [item.start, item.end]), [['2012-01-15T00:00:00.000Z', '2012-02-15T00:00:00.000Z']]);
+  assert.equal(scan.integrationGate.enabled, false);
 });
 
 test('Phase 2G does not enable the existing future-projection integration gate', () => {

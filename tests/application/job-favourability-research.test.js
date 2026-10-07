@@ -6,7 +6,8 @@ const { calculateRashiHouses } = require('../../src/bhava/calculate-rashi-houses
 const { HORIZON_IDS, buildJobFavourabilityCohort, buildTemporalControls } = require('../../src/application/research/job-favourability-cohort-builder');
 const { extractJobFavourabilityFeatureRows } = require('../../src/application/research/job-favourability-feature-extractor');
 const { MAX_INTERACTION_ORDER, CANDIDATE_INTERACTIONS, runJobFavourabilityBacktest } = require('../../src/application/research/job-favourability-backtest-runner');
-const { privateDirectory, renderJobFavourabilityResearchReport } = require('../../src/application/research/job-favourability-report');
+const { privateDirectory, calculationCoverageLines, renderJobFavourabilityResearchReport } = require('../../src/application/research/job-favourability-report');
+const { canonicalPlanetId } = require('../../src/jyotish');
 
 const iso = (year, month, day) => `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T00:00:00.000Z`;
 const coverage = (year, month, day, precision = 'DAY') => ({ start: iso(year, month, day), end: precision === 'DAY' ? iso(year, month, day + 1) : precision === 'MONTH' ? iso(year, month + 1, 1) : iso(year + 1, 1, 1) });
@@ -101,6 +102,34 @@ test('extracts H6 research-only Dasha levels and natal factual contexts without 
   assert.equal(/employment|offer|joining|promotion|business/i.test(JSON.stringify(row.h6LordStrengthContext.values)), false);
 });
 
+test('normalizes canonical planet identities at the research Dasha comparison boundary', () => {
+  for (const [display, canonical] of [['Moon', 'moon'], ['Mars', 'mars'], ['Jupiter', 'jupiter'], ['Rahu', 'rahu'], ['Ketu', 'ketu']]) {
+    assert.equal(canonicalPlanetId(display), canonical);
+    assert.equal(canonicalPlanetId(canonical), canonical);
+  }
+  assert.equal(canonicalPlanetId('Ascendant'), null);
+});
+
+test('detects matching canonical H6 lord identities at MD, AD, and DAY-precision PD without changing display facts', () => {
+  const { p, cohort } = setup();
+  // This fixture's H6 lord is displayed as Sun, while Vimshottari supplies sun.
+  p.dashaIntervals = [{
+    start: iso(2024, 1, 1), end: iso(2028, 1, 1),
+    activePeriods: [{ level: 'MD', lord: 'sun' }, { level: 'AD', lord: 'sun' }, { level: 'PD', lord: 'sun' }],
+  }];
+  const rows = extractJobFavourabilityFeatureRows({ profile: p, cohort });
+  const day = rows.find((row) => row.eventPrecision === 'DAY' && row.unitId === 'event:transition-a' && row.horizon.horizonId === 'PRE_30');
+  assert.equal(day.d1CareerFactors.h6Lord, 'Sun');
+  assert.equal(day.dasha.identities.values.md[0], 'sun');
+  assert.equal(day.h6LordActiveAtMd.values.active, true);
+  assert.equal(day.h6LordActiveAtAd.values.active, true);
+  assert.equal(day.h6LordActiveAtPd.values.active, true);
+
+  p.dashaIntervals[0].activePeriods[1].lord = 'mars';
+  const nonMatching = extractJobFavourabilityFeatureRows({ profile: p, cohort }).find((row) => row.eventPrecision === 'DAY' && row.unitId === 'event:transition-a' && row.horizon.horizonId === 'PRE_30');
+  assert.equal(nonMatching.h6LordActiveAtAd.values.active, false);
+});
+
 test('keeps H6 research contexts unavailable or not-applicable rather than deriving missing source facts', () => {
   const { p, cohort } = setup(); delete p.planetaryStateFacts; delete p.h6BeneficOccupancyFacts;
   const row = extractJobFavourabilityFeatureRows({ profile: p, cohort })[0];
@@ -122,10 +151,25 @@ test('uses only order-two pre-registered interactions, creates no composite scor
   assert.equal(report.futureProjectionEnabled, false); assert.equal(report.researchOnly, true); assert.equal(report.conclusion, 'RESEARCH_SIGNAL_ONLY');
   assert.ok(report.h6FactualContext.h6LordActiveAtAd.factualValuePrevalence.denominator > 0);
   assert.ok(report.h6FactualContext.h6BeneficOccupancyContext.factualValuePrevalence.numerator > 0);
+  assert.equal(Object.hasOwn(report.h6FactualContext.h2H6H10AxisContext, 'factualValuePrevalence'), false);
   assert.equal(/"(?:composite)?score"\s*:/i.test(JSON.stringify(report)), false);
   assert.ok(report.candidateAnalyses.every((item) => item.incrementalDiscriminationVsGenericCareerBaseline === null || typeof item.incrementalDiscriminationVsGenericCareerBaseline === 'object'));
-  assert.match(renderJobFavourabilityResearchReport(report), /offline research only/i); assert.match(renderJobFavourabilityResearchReport(report), /h6LordActiveAtAd/);
+  const labeledReport = renderJobFavourabilityResearchReport({ ...report, pipelineLabel: 'PIPELINE_VERIFICATION_ONLY', dataClassification: 'SYNTHETIC_CURATED_FIXTURE_NOT_RESEARCH_EVIDENCE' });
+  assert.match(labeledReport, /offline research only/i); assert.match(labeledReport, /h6LordActiveAtAd/); assert.match(labeledReport, /PIPELINE_VERIFICATION_ONLY/); assert.match(labeledReport, /SYNTHETIC_CURATED_FIXTURE_NOT_RESEARCH_EVIDENCE/);
   assert.throws(() => privateDirectory('/tmp/not-private-backtest'));
+});
+
+test('reports calculated, unavailable, and failure-reason coverage separately from signal prevalence', () => {
+  const lines = calculationCoverageLines([{ coverage: {
+    dasha: { family: 'dasha', status: 'CALCULATED' },
+    transits: { family: 'transits', status: 'UNAVAILABLE', failureReason: 'ProviderError' },
+    recurrence: { family: 'recurrence', status: 'NOT_APPLICABLE' },
+  } }]);
+  assert.deepEqual(lines, [
+    '- dasha: calculated=1; unavailable=0; not applicable=0; failure reasons=NONE',
+    '- recurrence: calculated=0; unavailable=0; not applicable=1; failure reasons=NONE',
+    '- transits: calculated=0; unavailable=1; not applicable=0; failure reasons={"ProviderError":1}',
+  ]);
 });
 
 test('does not alter production Career Answer DTOs or activate JOB_FAVOURABILITY_TIMING', () => {

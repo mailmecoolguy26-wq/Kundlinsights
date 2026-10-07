@@ -4,6 +4,7 @@
 // Dasha, transit, and support facts; it never calculates astrology, scores a
 // chart, or turns a conjunction into an employment conclusion.
 const { HORIZON_IDS } = require('./job-favourability-cohort-builder');
+const { canonicalPlanetId } = require('../../jyotish');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const STATES = Object.freeze(['AVAILABLE', 'UNAVAILABLE', 'NOT_APPLICABLE']);
@@ -71,12 +72,19 @@ function dashaFeatures(profile, window, h10Lord, h6Lord, eventPrecision) {
     .filter((item) => eventPrecision === 'DAY' || item.level !== 'PD')
     .sort((left, right) => `${left.level}|${left.lord}`.localeCompare(`${right.level}|${right.lord}`));
   const byLevel = (level) => [...new Set(active.filter((item) => item.level === level).map((item) => item.lord))].sort();
-  const activation = (planet) => !planet ? state('NOT_APPLICABLE') : state('AVAILABLE', freeze({ active: active.some((item) => item.lord === planet), levels: freeze(active.filter((item) => item.lord === planet).map((item) => item.level).sort()) }));
+  const matchingPeriods = (planet) => {
+    const canonicalPlanet = canonicalPlanetId(planet);
+    return canonicalPlanet ? active.filter((item) => canonicalPlanetId(item.lord) === canonicalPlanet) : [];
+  };
+  const activation = (planet) => !planet ? state('NOT_APPLICABLE') : (() => {
+    const matches = matchingPeriods(planet);
+    return state('AVAILABLE', freeze({ active: matches.length > 0, levels: freeze(matches.map((item) => item.level).sort()) }));
+  })();
   const levelActivation = (level) => !h6Lord
     ? state('NOT_APPLICABLE')
     : level === 'PD' && eventPrecision !== 'DAY'
       ? state('NOT_APPLICABLE')
-      : state('AVAILABLE', freeze({ body: h6Lord, active: active.some((item) => item.level === level && item.lord === h6Lord) }));
+      : state('AVAILABLE', freeze({ body: h6Lord, active: matchingPeriods(h6Lord).some((item) => item.level === level) }));
   return freeze({
     identities: state('AVAILABLE', freeze({ md: freeze(byLevel('MD')), ad: freeze(byLevel('AD')), pd: eventPrecision === 'DAY' ? freeze(byLevel('PD')) : null, pdState: eventPrecision === 'DAY' ? 'AVAILABLE' : 'NOT_APPLICABLE' })),
     h10Lord: activation(h10Lord),
@@ -184,6 +192,8 @@ function extractJobFavourabilityFeatureRows({ profile, cohort, horizons = HORIZO
       partition: unit.partition,
       horizon: window,
       astronomyProvenance: provenance(profile),
+      calculationCoverage: profile.calculationCoverage || {},
+      calculationDiagnostics: Array.isArray(profile.calculationDiagnostics) ? freeze(profile.calculationDiagnostics) : freeze([]),
       dasha,
       d1CareerFactors: freeze({ h10Lord: h10Lord || null, h6Lord: h6Lord || null, h10: h10Lord ? 'AVAILABLE' : 'UNAVAILABLE', h6EmploymentServiceContext: h6Lord ? 'RESEARCH_ONLY' : 'UNAVAILABLE' }),
       h6LordActiveAtMd: dasha.h6LordActiveAtMd,
