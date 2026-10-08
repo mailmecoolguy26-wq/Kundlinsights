@@ -50,16 +50,17 @@ class _CareerAnswerScreenState extends State<CareerAnswerScreen> {
             onRetry: () => widget.controller.load(widget.questionType),
           ),
           CareerAnswerLoadState.loaded =>
-            widget.controller.answer!.sourceReadingId == null
-                && widget.controller.answer!.questionType !=
+            widget.controller.answer!.sourceReadingId == null &&
+                    widget.controller.answer!.questionType !=
                         CareerQuestionType.jobFavourabilityTiming
                 ? const _CareerReadingPrerequisite()
                 : widget.controller.answer!.questionType ==
-                        CareerQuestionType.jobFavourabilityTiming
-                    ? widget.controller.answer!.limitation == 'BIRTH_PROFILE_REQUIRED'
-                        ? const _BirthProfilePrerequisite()
-                        : _JobFavourabilityBody(answer: widget.controller.answer!)
-                    : _AnswerBody(answer: widget.controller.answer!),
+                      CareerQuestionType.jobFavourabilityTiming
+                ? widget.controller.answer!.limitation ==
+                          'BIRTH_PROFILE_REQUIRED'
+                      ? const _BirthProfilePrerequisite()
+                      : _JobFavourabilityBody(answer: widget.controller.answer!)
+                : _AnswerBody(answer: widget.controller.answer!),
         },
       );
     },
@@ -80,39 +81,68 @@ class _JobFavourabilityBody extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
         children: [
           _Card(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(copy.teaserTitle, style: const TextStyle(color: Color(0xFFF7F4EC), fontSize: 24, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 10),
-              Text(copy.teaserSubtitle, style: const TextStyle(color: Color(0xFFD7E1DE), height: 1.45)),
-              const SizedBox(height: 24),
-              Text(copy.unlockTitle, style: const TextStyle(color: Color(0xFFD6B15A), fontWeight: FontWeight.w700)),
-              const SizedBox(height: 12),
-              for (final benefit in teaser.premiumBenefits) Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text('• ${copy.benefit(benefit)}', style: const TextStyle(color: Color(0xFFD7E1DE))),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () => context.push('/career-premium'),
-                  style: FilledButton.styleFrom(backgroundColor: const Color(0xFFD6B15A), foregroundColor: const Color(0xFF061A1A)),
-                  child: Text(copy.unlockCta),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  copy.teaserTitle,
+                  style: const TextStyle(
+                    color: Color(0xFFF7F4EC),
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-            ]),
+                const SizedBox(height: 10),
+                Text(
+                  copy.teaserSubtitle,
+                  style: const TextStyle(
+                    color: Color(0xFFD7E1DE),
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  copy.unlockTitle,
+                  style: const TextStyle(
+                    color: Color(0xFFD6B15A),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                for (final benefit in teaser.premiumBenefits)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      '• ${copy.benefit(benefit)}',
+                      style: const TextStyle(color: Color(0xFFD7E1DE)),
+                    ),
+                  ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => context.push('/career-premium'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFD6B15A),
+                      foregroundColor: const Color(0xFF061A1A),
+                    ),
+                    child: Text(copy.unlockCta),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       );
     }
     if (beta == null) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(24),
+          padding: const EdgeInsets.all(24),
           child: Text(
-            'A stronger Career window is not available in this beta yet.',
+            copy.unavailable,
             textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFFA8B7B4)),
+            style: const TextStyle(color: Color(0xFFA8B7B4)),
           ),
         ),
       );
@@ -123,39 +153,107 @@ class _JobFavourabilityBody extends StatelessWidget {
         const _Label('ANSWER'),
         const SizedBox(height: 8),
         _Card(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(copy.title, style: const TextStyle(color: Color(0xFFF7F4EC), fontSize: 24, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
-            Text(copy.subtitle, style: const TextStyle(color: Color(0xFFD7E1DE), height: 1.45)),
-          ]),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                copy.title,
+                style: const TextStyle(
+                  color: Color(0xFFF7F4EC),
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                copy.subtitle,
+                style: const TextStyle(color: Color(0xFFD7E1DE), height: 1.45),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 22),
         const _Label('WINDOW'),
         const SizedBox(height: 8),
         _Card(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(_jobRange(beta.window), style: const TextStyle(color: Color(0xFFD6B15A), fontWeight: FontWeight.w800, fontSize: 18)),
-            const SizedBox(height: 8),
-            Text(beta.strength == 'STRONGER' ? copy.stronger : copy.moderate, style: const TextStyle(color: Color(0xFF35B9AC), fontWeight: FontWeight.w700)),
-            if (beta.narrowerWindow != null) ...[
-              const SizedBox(height: 10),
-              Text(copy.narrower(_jobRange(beta.narrowerWindow!)), style: const TextStyle(color: Color(0xFFA8B7B4))),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _jobRange(beta.window),
+                style: const TextStyle(
+                  color: Color(0xFFD6B15A),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                beta.strength == 'STRONGER' ? copy.stronger : copy.moderate,
+                style: const TextStyle(
+                  color: Color(0xFF35B9AC),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (beta.narrowerWindow != null) ...[
+                const SizedBox(height: 10),
+                Text(
+                  copy.narrower(_jobRange(beta.narrowerWindow!)),
+                  style: const TextStyle(color: Color(0xFFA8B7B4)),
+                ),
+              ],
             ],
-          ]),
+          ),
         ),
         const SizedBox(height: 22),
         const _Label('ACTION'),
         const SizedBox(height: 8),
-        _Card(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          for (final item in beta.actionCodes) Padding(padding: const EdgeInsets.only(bottom: 8), child: Text('• ${copy.action(item)}', style: const TextStyle(color: Color(0xFFD7E1DE), height: 1.4))),
-          Text(copy.disclaimer(beta.limitationCode), style: const TextStyle(color: Color(0xFF8C9D99), height: 1.4)),
-        ])),
+        _Card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final item in beta.actionCodes)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    '• ${copy.action(item)}',
+                    style: const TextStyle(
+                      color: Color(0xFFD7E1DE),
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              Text(
+                copy.disclaimer(beta.limitationCode),
+                style: const TextStyle(color: Color(0xFF8C9D99), height: 1.4),
+              ),
+            ],
+          ),
+        ),
         const SizedBox(height: 22),
         ExpansionTile(
-          collapsedIconColor: const Color(0xFFD6B15A), iconColor: const Color(0xFFD6B15A),
-          title: Text(copy.whyTitle, style: const TextStyle(color: Color(0xFFF7F4EC), fontWeight: FontWeight.w700)),
-          subtitle: Text(copy.agreement(beta.evidenceAgreementCount), style: const TextStyle(color: Color(0xFFA8B7B4))),
-          children: [for (final reason in beta.reasonCodes) ListTile(title: Text(copy.reason(reason), style: const TextStyle(color: Color(0xFFD7E1DE))))],
+          collapsedIconColor: const Color(0xFFD6B15A),
+          iconColor: const Color(0xFFD6B15A),
+          title: Text(
+            copy.whyTitle,
+            style: const TextStyle(
+              color: Color(0xFFF7F4EC),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          subtitle: Text(
+            copy.agreement(beta.evidenceAgreementCount),
+            style: const TextStyle(color: Color(0xFFA8B7B4)),
+          ),
+          children: [
+            for (final reason in beta.reasonCodes)
+              ListTile(
+                title: Text(
+                  copy.reason(reason),
+                  style: const TextStyle(color: Color(0xFFD7E1DE)),
+                ),
+              ),
+          ],
         ),
       ],
     );
@@ -179,20 +277,71 @@ class _JobWindowCopy {
     this._narrower,
   );
   final _JobCopyLanguage language;
-  final String title; final String subtitle; final String stronger; final String moderate; final String whyTitle;
-  final String Function(int) _agreement; final String Function(String) _narrower;
+  final String title;
+  final String subtitle;
+  final String stronger;
+  final String moderate;
+  final String whyTitle;
+  final String Function(int) _agreement;
+  final String Function(String) _narrower;
   String agreement(int count) => _agreement(count);
   String narrower(String range) => _narrower(range);
-  String get teaserTitle => _isHindi ? 'एक मज़बूत करियर विंडो आने वाली है' : _isHinglish ? 'Ek stronger Career window aane wali hai' : 'A stronger career window is coming up';
-  String get teaserSubtitle => _isHindi ? 'तारावर्स ने एक ऐसी अवधि पहचानी है जहाँ करियर से जुड़े कई संकेत एक साथ आते हैं।' : _isHinglish ? 'TaraVerse ne ek aisa period identify kiya hai jahan multiple Career-related signals align hote hain.' : 'TaraVerse has identified a period where multiple career-related signals align.';
-  String get unlockTitle => _isHindi ? 'देखने के लिए करियर प्रीमियम अनलॉक करें' : _isHinglish ? 'Dekhne ke liye Career Premium unlock karein' : 'Unlock Career Premium to see';
-  String get unlockCta => _isHindi ? 'करियर प्रीमियम अनलॉक करें' : _isHinglish ? 'Career Premium unlock karein' : 'Unlock Career Premium';
+  String get teaserTitle => _isHindi
+      ? 'एक मज़बूत करियर विंडो आने वाली है'
+      : _isHinglish
+      ? 'Ek stronger Career window aane wali hai'
+      : 'A stronger career window is coming up';
+  String get teaserSubtitle => _isHindi
+      ? 'तारावर्स ने एक ऐसी अवधि पहचानी है जहाँ करियर से जुड़े कई संकेत एक साथ आते हैं।'
+      : _isHinglish
+      ? 'TaraVerse ne ek aisa period identify kiya hai jahan multiple Career-related signals align hote hain.'
+      : 'TaraVerse has identified a period where multiple career-related signals align.';
+  String get unlockTitle => _isHindi
+      ? 'देखने के लिए करियर प्रीमियम अनलॉक करें'
+      : _isHinglish
+      ? 'Dekhne ke liye Career Premium unlock karein'
+      : 'Unlock Career Premium to see';
+  String get unlockCta => _isHindi
+      ? 'करियर प्रीमियम अनलॉक करें'
+      : _isHinglish
+      ? 'Career Premium unlock karein'
+      : 'Unlock Career Premium';
+  String get unavailable => _isHindi
+      ? 'इस समय कोई मज़बूत करियर विंडो उपलब्ध नहीं है।'
+      : _isHinglish
+      ? 'Is waqt koi stronger Career window available nahi hai.'
+      : 'A stronger Career window is not available right now.';
   String benefit(String value) => switch (value) {
-    'Exact date range' => _isHindi ? 'सटीक तारीख सीमा' : _isHinglish ? 'Exact date range' : value,
-    'Why this period is stronger' => _isHindi ? 'यह अवधि क्यों मज़बूत है' : _isHinglish ? 'Yeh period stronger kyun hai' : value,
-    'What actions to take' => _isHindi ? 'कौन से व्यावहारिक कदम उठाने हैं' : _isHinglish ? 'Kaun se practical actions lene hain' : value,
-    'Supporting Dasha and transit insights' => _isHindi ? 'सहायक दशा और गोचर जानकारी' : _isHinglish ? 'Supporting Dasha aur Gochar insights' : value,
-    'Additional upcoming windows' => _isHindi ? 'अतिरिक्त आने वाली विंडो' : _isHinglish ? 'Additional upcoming windows' : value,
+    'Exact date range' =>
+      _isHindi
+          ? 'सटीक तारीख सीमा'
+          : _isHinglish
+          ? 'Exact date range'
+          : value,
+    'Why this period is stronger' =>
+      _isHindi
+          ? 'यह अवधि क्यों मज़बूत है'
+          : _isHinglish
+          ? 'Yeh period stronger kyun hai'
+          : value,
+    'What actions to take' =>
+      _isHindi
+          ? 'कौन से व्यावहारिक कदम उठाने हैं'
+          : _isHinglish
+          ? 'Kaun se practical actions lene hain'
+          : value,
+    'Supporting Dasha and transit insights' =>
+      _isHindi
+          ? 'सहायक दशा और गोचर जानकारी'
+          : _isHinglish
+          ? 'Supporting Dasha aur Gochar insights'
+          : value,
+    'Additional upcoming windows' =>
+      _isHindi
+          ? 'अतिरिक्त आने वाली विंडो'
+          : _isHinglish
+          ? 'Additional upcoming windows'
+          : value,
     _ => value,
   };
   String reason(String code) => switch (code) {
@@ -216,39 +365,85 @@ class _JobWindowCopy {
     if (presentation.isHinglish) {
       return const _JobWindowCopy._(
         _JobCopyLanguage.hinglish,
-        'Stronger Career Window', 'Ek period jahan multiple Career-related signals align hote hain.',
-        'Stronger Support', 'Moderate Support', 'WHY TARAVERSE THINKS THIS',
-        _hinglishAgreement, _hinglishNarrower,
+        'Stronger Career Window',
+        'Ek period jahan multiple Career-related signals align hote hain.',
+        'Stronger Support',
+        'Moderate Support',
+        'WHY TARAVERSE THINKS THIS',
+        _hinglishAgreement,
+        _hinglishNarrower,
       );
     }
     if (Localizations.localeOf(context).languageCode == 'hi') {
       return const _JobWindowCopy._(
         _JobCopyLanguage.hindi,
-        'मज़बूत करियर विंडो', 'एक अवधि जहाँ करियर से जुड़े कई संकेत एक साथ आते हैं।',
-        'मज़बूत सहयोग', 'मध्यम सहयोग', 'तारावर्स ऐसा क्यों सोचता है',
-        _hindiAgreement, _hindiNarrower,
+        'मज़बूत करियर विंडो',
+        'एक अवधि जहाँ करियर से जुड़े कई संकेत एक साथ आते हैं।',
+        'मज़बूत सहयोग',
+        'मध्यम सहयोग',
+        'तारावर्स ऐसा क्यों सोचता है',
+        _hindiAgreement,
+        _hindiNarrower,
       );
     }
     return const _JobWindowCopy._(
       _JobCopyLanguage.english,
-      'Stronger Career Window', 'A period where multiple career-related signals align.',
-      'Stronger Support', 'Moderate Support', 'WHY TARAVERSE THINKS THIS',
-      _englishAgreement, _englishNarrower,
+      'Stronger Career Window',
+      'A period where multiple career-related signals align.',
+      'Stronger Support',
+      'Moderate Support',
+      'WHY TARAVERSE THINKS THIS',
+      _englishAgreement,
+      _englishNarrower,
     );
   }
-  static String _englishAgreement(int value) => '$value evidence signals align in this context';
-  static String _englishNarrower(String value) => 'More focused context: $value';
-  static String _hinglishAgreement(int value) => '$value evidence signals is context mein align hote hain';
-  static String _hinglishNarrower(String value) => 'More focused context: $value';
-  static String _hindiAgreement(int value) => 'इस संदर्भ में $value प्रमाण संकेत एक साथ आते हैं';
+
+  static String _englishAgreement(int value) =>
+      '$value evidence signals align in this context';
+  static String _englishNarrower(String value) =>
+      'More focused context: $value';
+  static String _hinglishAgreement(int value) =>
+      '$value evidence signals is context mein align hote hain';
+  static String _hinglishNarrower(String value) =>
+      'More focused context: $value';
+  static String _hindiAgreement(int value) =>
+      'इस संदर्भ में $value प्रमाण संकेत एक साथ आते हैं';
   static String _hindiNarrower(String value) => 'अधिक केंद्रित संदर्भ: $value';
-  String get _reasonCareerTiming => _isHindi ? 'करियर टाइमिंग सक्रिय है' : _isHinglish ? 'Career timing active hai' : 'Career timing is activated';
-  String get _reasonJupiter => _isHindi ? 'बृहस्पति काम से जुड़े क्षेत्र को सहारा देता है' : _isHinglish ? 'Guru Dev work-related area ko support karte hain' : 'Jupiter supports a work-related area';
-  String get _reasonTransits => _isHindi ? 'मुख्य करियर गोचर सक्रिय हैं' : _isHinglish ? 'Major Career Gochar active hain' : 'Major career transits are active';
-  String get _reasonSupport => _isHindi ? 'सहायक चार्ट कारक एक साथ आते हैं' : _isHinglish ? 'Supporting chart factors align hote hain' : 'Supporting chart factors align';
-  String get _actionPrepare => _isHindi ? 'व्यावहारिक करियर सामग्री और बातचीत की तैयारी करें।' : _isHinglish ? 'Practical Career materials aur conversations ki preparation karein.' : 'Prepare practical Career materials and conversations.';
-  String get _actionReview => _isHindi ? 'वर्तमान भूमिकाओं, अवसरों और निर्णयों को वास्तविक जानकारी के साथ देखें।' : _isHinglish ? 'Current roles, opportunities aur decisions ko real-world information ke saath review karein.' : 'Review current roles, opportunities, and decisions using real-world information.';
-  String get _disclaimer => _isHindi ? 'यह बीटा कई करियर-संबंधित संकेतों के मेल का वर्णन करता है। यह रोजगार, प्रस्ताव या किसी निश्चित परिणाम की गारंटी नहीं देता।' : _isHinglish ? 'Yeh beta multiple Career-related signals ke alignment ko describe karta hai. Yeh employment, offer ya kisi specific outcome ki guarantee nahi deta.' : 'This beta describes multiple Career-related signals aligning. It does not guarantee employment, an offer, or a specific outcome.';
+  String get _reasonCareerTiming => _isHindi
+      ? 'करियर टाइमिंग सक्रिय है'
+      : _isHinglish
+      ? 'Career timing active hai'
+      : 'Career timing is activated';
+  String get _reasonJupiter => _isHindi
+      ? 'बृहस्पति काम से जुड़े क्षेत्र को सहारा देता है'
+      : _isHinglish
+      ? 'Guru Dev work-related area ko support karte hain'
+      : 'Jupiter supports a work-related area';
+  String get _reasonTransits => _isHindi
+      ? 'मुख्य करियर गोचर सक्रिय हैं'
+      : _isHinglish
+      ? 'Major Career Gochar active hain'
+      : 'Major career transits are active';
+  String get _reasonSupport => _isHindi
+      ? 'सहायक चार्ट कारक एक साथ आते हैं'
+      : _isHinglish
+      ? 'Supporting chart factors align hote hain'
+      : 'Supporting chart factors align';
+  String get _actionPrepare => _isHindi
+      ? 'व्यावहारिक करियर सामग्री और बातचीत की तैयारी करें।'
+      : _isHinglish
+      ? 'Practical Career materials aur conversations ki preparation karein.'
+      : 'Prepare practical Career materials and conversations.';
+  String get _actionReview => _isHindi
+      ? 'वर्तमान भूमिकाओं, अवसरों और निर्णयों को वास्तविक जानकारी के साथ देखें।'
+      : _isHinglish
+      ? 'Current roles, opportunities aur decisions ko real-world information ke saath review karein.'
+      : 'Review current roles, opportunities, and decisions using real-world information.';
+  String get _disclaimer => _isHindi
+      ? 'यह इनसाइट करियर से जुड़े कई संकेतों के मेल पर आधारित है। यह रोजगार, ऑफर या किसी विशेष परिणाम की गारंटी नहीं देता।'
+      : _isHinglish
+      ? 'Yeh insight multiple career-related signals ke alignment par based hai. Yeh employment, offer ya kisi specific outcome ki guarantee nahi deta.'
+      : 'This insight is based on the alignment of multiple career-related signals. It does not guarantee employment, an offer, or any specific outcome.';
   bool get _isHinglish => language == _JobCopyLanguage.hinglish;
   bool get _isHindi => language == _JobCopyLanguage.hindi;
 }
@@ -262,13 +457,31 @@ class _BirthProfilePrerequisite extends StatelessWidget {
   Widget build(BuildContext context) => Center(
     child: Padding(
       padding: const EdgeInsets.all(24),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const Text('Create your Birth Profile first', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFFF7F4EC), fontSize: 24, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 12),
-        const Text('TaraVerse needs valid birth details before it can calculate a personalized Career window.', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFFA8B7B4), height: 1.45)),
-        const SizedBox(height: 20),
-        FilledButton(onPressed: () => context.go('/profiles'), child: const Text('Create Birth Profile')),
-      ]),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Create your Birth Profile first',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFFF7F4EC),
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'TaraVerse needs valid birth details before it can calculate a personalized Career window.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Color(0xFFA8B7B4), height: 1.45),
+          ),
+          const SizedBox(height: 20),
+          FilledButton(
+            onPressed: () => context.go('/profiles'),
+            child: const Text('Create Birth Profile'),
+          ),
+        ],
+      ),
     ),
   );
 }

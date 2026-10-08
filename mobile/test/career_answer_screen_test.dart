@@ -175,44 +175,60 @@ void main() {
     expect(answer.window, isNull);
   });
 
-  testWidgets('renders the beta stronger Career window without prediction language', (tester) async {
-    final harness = await _Harness.create(_Answers(answer: _jobAnswer()));
-    addTearDown(harness.dispose);
-    await tester.pumpWidget(_screen(harness.controller, CareerQuestionType.jobFavourabilityTiming));
-    await tester.pump();
-    expect(find.text('Stronger Career Window'), findsOneWidget);
-    expect(find.text('Stronger Support'), findsOneWidget);
-    expect(find.text('ACTION'), findsOneWidget);
-    expect(find.text('WHY TARAVERSE THINKS THIS'), findsOneWidget);
-    await tester.tap(find.text('WHY TARAVERSE THINKS THIS'));
-    await tester.pumpAndSettle();
-    expect(find.text('Career timing is activated'), findsOneWidget);
-    expect(find.textContaining('guarantee employment'), findsOneWidget);
-    expect(find.textContaining('probability'), findsNothing);
-    expect(harness.repository.questionTypes, [CareerQuestionType.jobFavourabilityTiming]);
-  });
+  testWidgets(
+    'renders the stronger Career window without beta or prediction language',
+    (tester) async {
+      final harness = await _Harness.create(_Answers(answer: _jobAnswer()));
+      addTearDown(harness.dispose);
+      await tester.pumpWidget(
+        _screen(harness.controller, CareerQuestionType.jobFavourabilityTiming),
+      );
+      await tester.pump();
+      expect(find.text('Stronger Career Window'), findsOneWidget);
+      expect(find.text('Stronger Support'), findsOneWidget);
+      expect(find.text('ACTION'), findsOneWidget);
+      expect(find.text('WHY TARAVERSE THINKS THIS'), findsOneWidget);
+      await tester.tap(find.text('WHY TARAVERSE THINKS THIS'));
+      await tester.pumpAndSettle();
+      expect(find.text('Career timing is activated'), findsOneWidget);
+      expect(find.textContaining('guarantee employment'), findsOneWidget);
+      expect(find.textContaining('This beta'), findsNothing);
+      expect(find.textContaining('probability'), findsNothing);
+      expect(harness.repository.questionTypes, [
+        CareerQuestionType.jobFavourabilityTiming,
+      ]);
+    },
+  );
 
-  testWidgets('renders the date-free Career Premium teaser instead of a Career Reading prerequisite', (tester) async {
-    final harness = await _Harness.create(_Answers(answer: _jobTeaser()));
-    addTearDown(harness.dispose);
-    await tester.pumpWidget(_screen(harness.controller, CareerQuestionType.jobFavourabilityTiming));
-    await tester.pump();
-    expect(find.text('A stronger career window is coming up'), findsOneWidget);
-    expect(find.text('Unlock Career Premium'), findsWidgets);
-    expect(find.text('Create your Career Reading first'), findsNothing);
-    expect(find.textContaining('2027'), findsNothing);
-    expect(find.textContaining('Jan'), findsNothing);
-    await tester.drag(find.byType(ListView), const Offset(0, -260));
-    await tester.pump();
-    expect(find.textContaining('Exact date range'), findsOneWidget);
-  });
+  testWidgets(
+    'renders the date-free Career Premium teaser instead of a Career Reading prerequisite',
+    (tester) async {
+      final harness = await _Harness.create(_Answers(answer: _jobTeaser()));
+      addTearDown(harness.dispose);
+      await tester.pumpWidget(
+        _screen(harness.controller, CareerQuestionType.jobFavourabilityTiming),
+      );
+      await tester.pump();
+      expect(
+        find.text('A stronger career window is coming up'),
+        findsOneWidget,
+      );
+      expect(find.text('Unlock Career Premium'), findsWidgets);
+      expect(find.text('Create your Career Reading first'), findsNothing);
+      expect(find.textContaining('2027'), findsNothing);
+      expect(find.textContaining('Jan'), findsNothing);
+      await tester.drag(find.byType(ListView), const Offset(0, -260));
+      await tester.pump();
+      expect(find.textContaining('Exact date range'), findsOneWidget);
+    },
+  );
 }
 
-Widget _screen(CareerAnswerController controller, [CareerQuestionType type = CareerQuestionType.careerActivityTiming]) => MaterialApp(
-  home: CareerAnswerScreen(
-    controller: controller,
-    questionType: type,
-  ),
+Widget _screen(
+  CareerAnswerController controller, [
+  CareerQuestionType type = CareerQuestionType.careerActivityTiming,
+]) => MaterialApp(
+  home: CareerAnswerScreen(controller: controller, questionType: type),
 );
 
 CareerAnswer _jobAnswer() => CareerAnswer.fromJson({
@@ -220,11 +236,17 @@ CareerAnswer _jobAnswer() => CareerAnswer.fromJson({
   'answerability': 'SUPPORTED',
   'projectionStatus': 'BETA_CONVERGENCE_AVAILABLE',
   'sourceReadingId': 'reading-a',
-  'broadWindow': {'start': '2027-01-01T00:00:00.000Z', 'end': '2027-02-01T00:00:00.000Z'},
+  'broadWindow': {
+    'start': '2027-01-01T00:00:00.000Z',
+    'end': '2027-02-01T00:00:00.000Z',
+  },
   'strongerConcentrationWindow': null,
   'strength': 'STRONGER',
   'evidenceAgreementCount': 3,
-  'evidenceReasonCodes': ['CAREER_TIMING_ACTIVATED', 'JUPITER_WORK_RELATED_AREA'],
+  'evidenceReasonCodes': [
+    'CAREER_TIMING_ACTIVATED',
+    'JUPITER_WORK_RELATED_AREA',
+  ],
   'recommendedActionCodes': ['PREPARE_CAREER_MATERIALS_AND_CONVERSATIONS'],
   'limitationCode': 'BETA_DESCRIPTIVE_CONVERGENCE_ONLY',
   'provenance': const {},
