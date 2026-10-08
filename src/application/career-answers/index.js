@@ -131,7 +131,7 @@ function jobFavourabilityProfilePrerequisite() {
   });
 }
 
-async function jobFavourabilityContract({ reading, premium, researchEnabled, evaluator, principal, birthProfileId }) {
+async function jobFavourabilityContract({ reading, premium, researchEnabled, evaluator, principal, birthProfileId, birthProfile = null, timing = null }) {
   const signal = selectSignal(reading);
   const collected = collectEvidence(reading, signal);
   const historicalAvailable = Boolean(signal && typeof signal.recurrenceSummary === 'string' && signal.recurrenceSummary.trim());
@@ -183,7 +183,7 @@ async function jobFavourabilityContract({ reading, premium, researchEnabled, eva
   });
   let beta = null;
   try {
-    beta = await evaluator.evaluate({ principal, birthProfileId, reading });
+    beta = await evaluator.evaluate({ principal, birthProfileId, reading, birthProfile, timing });
   } catch (_) {
     return immutable({
       ...base,
@@ -307,31 +307,48 @@ function shapeForAccess(answer, premium) {
 }
 
 class CareerAnswerService {
-  constructor({ secureReadingService, jobFavourabilityResearchEnabled = false, jobFavourabilityEvaluator = null } = {}) {
+  constructor({ secureReadingService, birthProfileService = null, jobFavourabilityResearchEnabled = false, jobFavourabilityEvaluator = null } = {}) {
     if (!secureReadingService || typeof secureReadingService.getReadingEntitlementStatus !== 'function' || typeof secureReadingService.listSecureReadings !== 'function' || typeof secureReadingService.getSecureReadingDetail !== 'function') throw new TypeError('INVALID_SECURE_READING_SERVICE');
     this.readings = secureReadingService;
+    this.birthProfiles = birthProfileService && typeof birthProfileService.get === 'function' ? birthProfileService : null;
     this.jobFavourabilityResearchEnabled = jobFavourabilityResearchEnabled === true;
     this.jobFavourabilityEvaluator = jobFavourabilityEvaluator;
   }
-  async answer({ principal, birthProfileId, body } = {}) {
+  async answer({ principal, birthProfileId, body, timing = null } = {}) {
+    const measure = async (stage, operation) => {
+      const startedAt = Date.now();
+      try { return await operation(); }
+      finally {
+        if (typeof timing === 'function') timing({ stage, durationMs: Date.now() - startedAt });
+      }
+    };
     const profileId = requiredId(birthProfileId, 'INVALID_BIRTH_PROFILE_ID');
     const request = validateQuestionRequest(body);
-    const access = await this.readings.getReadingEntitlementStatus({ principal, birthProfileId: profileId });
+    const jobResearch = request.questionType === CareerQuestionType.JOB_FAVOURABILITY_TIMING && this.jobFavourabilityResearchEnabled;
+    const { access, authoritativeProfile, summaries } = await measure('ENTITLEMENT_PROFILE_PREPARATION', async () => {
+      const access = await this.readings.getReadingEntitlementStatus({ principal, birthProfileId: profileId });
+      // Read the authoritative profile once for the evaluator and give the
+      // same verified object to the reading list's ownership gate.
+      const authoritativeProfile = jobResearch && this.birthProfiles
+        ? await this.birthProfiles.get({ principal, birthProfileId: profileId })
+        : null;
+      const summaries = await this.readings.listSecureReadings({ principal, birthProfileId: profileId, authoritativeBirthProfile: authoritativeProfile });
+      return { access, authoritativeProfile, summaries };
+    });
     const premium = Boolean(access && access.career && access.career.eligible === true);
-    const summaries = await this.readings.listSecureReadings({ principal, birthProfileId: profileId });
     const career = (Array.isArray(summaries) ? summaries : [])
       .filter((item) => item && item.domain === 'CAREER' && item.birthProfileId === profileId)
       .sort((left, right) => String(right.createdAt).localeCompare(String(left.createdAt)) || String(right.readingId).localeCompare(String(left.readingId)));
     const selected = request.readingId ? career.find((item) => item.readingId === request.readingId) : career[0];
     if (request.readingId && !selected) throw failure('NOT_FOUND_OR_FORBIDDEN');
-    if (!selected && request.questionType === CareerQuestionType.JOB_FAVOURABILITY_TIMING) return jobFavourabilityContract({ reading: null, premium, researchEnabled: this.jobFavourabilityResearchEnabled, evaluator: this.jobFavourabilityEvaluator, principal, birthProfileId: profileId });
+    if (!selected && request.questionType === CareerQuestionType.JOB_FAVOURABILITY_TIMING) return jobFavourabilityContract({ reading: null, premium, researchEnabled: this.jobFavourabilityResearchEnabled, evaluator: this.jobFavourabilityEvaluator, principal, birthProfileId: profileId, birthProfile: authoritativeProfile, timing });
     if (!selected) return shapeForAccess(
       present({ questionType: request.questionType, reading: null }),
       premium,
     );
-    const detail = await this.readings.getSecureReadingDetail({ principal, readingId: selected.readingId });
+    const detail = await measure('READING_PREPARATION', () => this.readings.getSecureReadingDetail({ principal, readingId: selected.readingId }));
     if (!detail || detail.domain !== 'CAREER' || detail.birthProfileId !== profileId || detail.readingId !== selected.readingId) throw failure('NOT_FOUND_OR_FORBIDDEN');
-    if (request.questionType === CareerQuestionType.JOB_FAVOURABILITY_TIMING) return jobFavourabilityContract({ reading: detail, premium, researchEnabled: this.jobFavourabilityResearchEnabled, evaluator: this.jobFavourabilityEvaluator, principal, birthProfileId: profileId });
+    if (request.questionType === CareerQuestionType.JOB_FAVOURABILITY_TIMING) return jobFavourabilityContract({ reading: detail, premium, researchEnabled: this.jobFavourabilityResearchEnabled, evaluator: this.jobFavourabilityEvaluator, principal, birthProfileId: profileId, birthProfile: authoritativeProfile, timing });
     return shapeForAccess(
       present({ questionType: request.questionType, reading: detail }),
       premium,

@@ -256,3 +256,23 @@ test('keeps the feature-gate disabled DTO when no Career Reading exists', async 
   assert.equal(answer.broadWindow, null);
   assert.equal(answer.strongerConcentrationWindow, null);
 });
+
+test('reuses one server-authoritative birth profile for the enabled evaluator and reading ownership gate', async () => {
+  const profile = { id: 'profile-a', status: 'active', birthData: { localDate: '1990-01-01' } };
+  let listInput = null;
+  let evaluatorInput = null;
+  const secureReadingService = {
+    getReadingEntitlementStatus: async () => ({ career: { eligible: true } }),
+    listSecureReadings: async (input) => { listInput = input; return []; },
+    getSecureReadingDetail: async () => null,
+  };
+  const answer = await new CareerAnswerService({
+    secureReadingService,
+    birthProfileService: { get: async () => profile },
+    jobFavourabilityResearchEnabled: true,
+    jobFavourabilityEvaluator: { evaluate: async (input) => { evaluatorInput = input; return { status: 'PROFILE_REQUIRED' }; } },
+  }).answer({ principal: { id: 'user-a' }, birthProfileId: 'profile-a', body: { questionType: CareerQuestionType.JOB_FAVOURABILITY_TIMING } });
+  assert.equal(listInput.authoritativeBirthProfile, profile);
+  assert.equal(evaluatorInput.birthProfile, profile);
+  assert.equal(answer.limitationCode, 'BIRTH_PROFILE_REQUIRED');
+});

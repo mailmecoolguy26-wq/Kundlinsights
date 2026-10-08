@@ -351,14 +351,19 @@ class SecureReadingService {
     const { verified, user } = await this.resolve(principalInput); const id = requiredString(readingId, 'INVALID_READING_ID');
     try { const item = this.readingCrypto ? await this.decryptReading(verified, await this.execute(verified, 'app_runtime', async (context) => this.repo(context).readings.getEncryptedReadingRecord(id))) : await this.execute(verified, 'app_runtime', async (context) => this.repo(context).readings.getReadingRecord(id)); if (!item || item.userId !== user.id) fail('NOT_FOUND_OR_FORBIDDEN'); return immutableCopy({ readingId: item.readingId, birthProfileId: item.birthProfileId, status: item.status, record: item.record }); } catch (error) { safeError(error, 'NOT_FOUND_OR_FORBIDDEN'); }
   }
-  async listSecureReadings({ principal: principalInput, birthProfileId } = {}) {
+  async listSecureReadings({ principal: principalInput, birthProfileId, authoritativeBirthProfile = null } = {}) {
     const { verified, user } = await this.resolve(principalInput);
     const profileId = birthProfileId === undefined ? null : requiredString(birthProfileId, 'INVALID_BIRTH_PROFILE_ID');
     if (profileId !== null) {
       try {
-        const profile = this.secureBirthProfileLoader
-          ? await this.secureBirthProfileLoader.get({ principal: verified, birthProfileId: profileId })
-          : await this.execute(verified, 'app_runtime', async (context) => this.repo(context).birthProfiles.getBirthProfile(profileId));
+        // This optional profile is accepted only from another authenticated
+        // application service. It must match the requested id; otherwise the
+        // normal ownership-checked loader remains the sole authority.
+        const profile = authoritativeBirthProfile && authoritativeBirthProfile.id === profileId
+          ? authoritativeBirthProfile
+          : this.secureBirthProfileLoader
+            ? await this.secureBirthProfileLoader.get({ principal: verified, birthProfileId: profileId })
+            : await this.execute(verified, 'app_runtime', async (context) => this.repo(context).birthProfiles.getBirthProfile(profileId));
         if (!profile || (!this.secureBirthProfileLoader && profile.userId !== user.id)) fail('NOT_FOUND_OR_FORBIDDEN');
       } catch (error) { safeError(error, 'NOT_FOUND_OR_FORBIDDEN'); }
     }

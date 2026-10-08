@@ -38,6 +38,36 @@ function dtoReadingDetail(reading) {
   };
 }
 
+// The payload intentionally contains timing metadata only. It is safe to emit
+// in production logs because it never includes user, profile, chart, request
+// body, or result data.
+function careerAnswerTiming(request, reply) {
+  const startedAt = Date.now();
+  const stages = [];
+  let outcome = null;
+  const report = (nextOutcome) => {
+    if (outcome) return;
+    outcome = nextOutcome;
+    request.log.info({
+      event: 'CAREER_ANSWER_TIMING',
+      requestId: request.id,
+      outcome,
+      totalDurationMs: Date.now() - startedAt,
+      stages,
+    });
+  };
+  const record = ({ stage, durationMs, extra } = {}) => {
+    if (typeof stage !== 'string' || !Number.isFinite(durationMs) || durationMs < 0) return;
+    stages.push({ stage, durationMs: Math.round(durationMs), ...(typeof extra === 'string' ? { detail: extra } : {}) });
+  };
+  request.raw.once('aborted', () => report('CONNECTION_ABORTED_BEFORE_RESPONSE'));
+  reply.raw.once('finish', () => report('COMPLETED'));
+  reply.raw.once('close', () => {
+    if (!reply.raw.writableEnded) report('CONNECTION_CLOSED_BEFORE_RESPONSE');
+  });
+  return Object.freeze({ record, failed: () => report('HANDLER_ERROR_RESPONSE') });
+}
+
 function createApi({ authVerifier, userResolver, birthProfileService, careerEventService = null, careerEventAstrologyService = null, natalSummaryService = null, divisionalChartService = null, vimshottariService = null, transitSnapshotService = null, ashtakavargaService = null, secureReadingService, careerAnswerService = null, careerChatOrchestrator = null, purchaseService = null, razorpayPaymentService = null, appleNotificationService = null, googleRtdnService = null, notificationSelfService = null, placeResolutionService = null, entitlementService, requestIdGenerator = crypto.randomUUID, corsAllowlist = [], isReady = () => true, logger = false, bodyLimit = 16 * 1024 } = {}) {
   required(authVerifier, 'AUTH_VERIFIER'); if (typeof authVerifier.verifyRequest !== 'function') throw new TypeError('INVALID_AUTH_VERIFIER'); required(userResolver, 'USER_RESOLVER'); required(birthProfileService, 'BIRTH_PROFILE_SERVICE'); required(secureReadingService, 'SECURE_READING_SERVICE');
   if (!Array.isArray(corsAllowlist) || !corsAllowlist.every((origin) => typeof origin === 'string' && origin.startsWith('https://') && !origin.includes('*')) || typeof isReady !== 'function' || !Number.isInteger(bodyLimit) || bodyLimit < 1024 || bodyLimit > 16 * 1024) throw new TypeError('INVALID_API_RUNTIME_OPTIONS');
@@ -107,14 +137,23 @@ function createApi({ authVerifier, userResolver, birthProfileService, careerEven
   }
   if (careerAnswerService) {
     if (typeof careerAnswerService.answer !== 'function') throw new TypeError('INVALID_CAREER_ANSWER_SERVICE');
-    app.post('/v1/birth-profiles/:id/career-answers', async (request) => ({
-      careerAnswer: await careerAnswerService.answer({
-        principal: request.principal,
-        birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'),
-        body: request.body || {},
-      }),
-      requestId: request.id,
-    }));
+    app.post('/v1/birth-profiles/:id/career-answers', async (request, reply) => {
+      const timing = careerAnswerTiming(request, reply);
+      try {
+        return {
+          careerAnswer: await careerAnswerService.answer({
+            principal: request.principal,
+            birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'),
+            body: request.body || {},
+            timing: timing.record,
+          }),
+          requestId: request.id,
+        };
+      } catch (error) {
+        timing.failed();
+        throw error;
+      }
+    });
   }
   if (natalSummaryService) {
     if (typeof natalSummaryService.get !== 'function') throw new TypeError('INVALID_NATAL_SUMMARY_SERVICE');

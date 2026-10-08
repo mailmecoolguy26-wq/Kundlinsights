@@ -89,6 +89,42 @@ test('preserves a primary-body ingress under the explicit twenty-four-hour caden
   }
 });
 
+test('preserves slow-body ingress, retrograde re-entry, and node event sequences at the daily cadence', () => {
+  const startInstant = '2024-02-01T00:00:00.000Z';
+  const endInstant = '2024-02-16T00:00:00.000Z';
+  const coverageEnd = '2024-02-17T00:00:00.000Z';
+  const trajectories = {
+    // A normal direct ingress.
+    Jupiter: [linear(startInstant, coverageEnd, 29.6, 0.2)],
+    // Direct ingress, then a separate retrograde exit/re-entry.
+    Saturn: [
+      linear(startInstant, '2024-02-06T00:00:00.000Z', 29.6, 0.2),
+      stationary('2024-02-06T00:00:00.000Z', '2024-02-07T00:00:00.000Z', 30.6),
+      linear('2024-02-07T00:00:00.000Z', coverageEnd, 30.6, -0.2),
+    ],
+    // Mean-node direction is retrograde; both nodes retain their independent
+    // refined ingress facts in the scanner output.
+    Rahu: [linear(startInstant, coverageEnd, 30.4, -0.2)],
+    Ketu: [linear(startInstant, coverageEnd, 210.4, -0.2)],
+  };
+  const input = { trajectories, eventTypes: ['rashiIngress'], bodies: ['Jupiter', 'Saturn', 'Rahu', 'Ketu'], startInstant, endInstant };
+  const hourly = createScan({ ...input, options: { coarseScanStepMilliseconds: 3600000 } });
+  const daily = createScan({ ...input, options: { coarseScanStepMilliseconds: 86400000 } });
+
+  equivalentEvents(hourly, daily);
+  assert.deepEqual(
+    daily.events.map((event) => [event.body, event.eventType, event.fromRashi.rashiIndex, event.toRashi.rashiIndex, event.direction]),
+    [
+      ['Jupiter', 'rashiIngress', 1, 2, 'direct'],
+      ['Saturn', 'rashiIngress', 1, 2, 'direct'],
+      ['Ketu', 'rashiIngress', 8, 7, 'retrograde'],
+      ['Rahu', 'rashiIngress', 2, 1, 'retrograde'],
+      ['Saturn', 'rashiIngress', 2, 1, 'retrograde'],
+    ],
+  );
+  assert.ok(daily.events.every((event, index, events) => index === 0 || Date.parse(events[index - 1].instant) <= Date.parse(event.instant)));
+});
+
 test('reduces twenty-four-month primary-body provider calls while preserving ingress output', () => {
   const startInstant = '2024-02-01T00:00:00.000Z';
   const endInstant = '2026-02-01T00:00:00.000Z';

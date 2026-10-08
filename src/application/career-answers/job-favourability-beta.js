@@ -5,16 +5,18 @@
 const { calculateVimshottariDasha, SOLAR_RETURN_VIMSHOTTARI_RULESET } = require('../../dasha');
 const { calculateRashiHouses } = require('../../bhava');
 const { scanTransitEvents } = require('../../transit-events');
-const { canonicalPlanetId, classifyLayer1Bodies } = require('../../jyotish');
-const { calculateAshtakavargaForLayer2 } = require('../ashtakavarga');
-const { d10CareerStructure, CAREER_TRANSIT_BOUNDARY_METHOD } = require('../../orchestration/birth-career-reading-orchestrator');
-const { resolveCareerNatalFactors, evaluateCareerDashaActivation, moonSupport } = require('../insights/career-generalized-timing-engine');
+const { canonicalPlanetId } = require('../../jyotish');
+const { CAREER_TRANSIT_BOUNDARY_METHOD } = require('../../orchestration/birth-career-reading-orchestrator');
+const { resolveCareerNatalFactors, evaluateCareerDashaActivation } = require('../insights/career-generalized-timing-engine');
 
 const BODIES = Object.freeze(['Jupiter', 'Saturn', 'Rahu', 'Ketu']);
 const WORK_HOUSES = Object.freeze([2, 6, 10, 11]);
 // Match the private convergence diagnostic horizon. This is a server-side
 // policy, not a client-selectable projection range.
 const HORIZON_MONTHS = 27;
+// Layer 10 still refines every detected transition to the same boundary
+// tolerance.  Slow-body Rashi ingress discovery does not need hourly samples.
+const SLOW_BODY_INGRESS_COARSE_STEP_MILLISECONDS = 24 * 60 * 60 * 1000;
 const iso = (value) => new Date(value).toISOString();
 const valid = (value) => value && typeof value.start === 'string' && typeof value.end === 'string' && Date.parse(value.start) < Date.parse(value.end);
 const intersects = (left, right) => valid(left) && valid(right) && Date.parse(left.start) < Date.parse(right.end) && Date.parse(right.start) < Date.parse(left.end);
@@ -27,7 +29,7 @@ function lord(house) { return canonicalPlanetId(house && house.rashiHouseLord); 
 function intervals(dasha, range) { const result = []; for (const md of dasha.periods) for (const ad of md.children) for (const pd of ad.children) { const value = { start: pd.startInstant.utc, end: pd.endInstant.utc, activePeriods: [{ level: 'MD', lord: md.lord.id }, { level: 'AD', lord: ad.lord.id }, { level: 'PD', lord: pd.lord.id }] }; if (intersects(value, range)) result.push(value); } return result; }
 function transitIntervals({ engine, natal, d1, birth, range, scanner }) {
   const initial = engine.calculate(transitRequest(range.start, birth));
-  const events = scanner({ startInstant: range.start, endInstant: range.end, natalBodies: natal.bodies, natalHouses: d1, astronomicalEngine: engine, observer: { latitude: birth.latitude, longitude: birth.longitude }, bodies: BODIES, eventTypes: ['rashiIngress'] }).events.filter((event) => BODIES.includes(event.body) && event.eventType === 'rashiIngress');
+  const events = scanner({ startInstant: range.start, endInstant: range.end, natalBodies: natal.bodies, natalHouses: d1, astronomicalEngine: engine, observer: { latitude: birth.latitude, longitude: birth.longitude }, bodies: BODIES, eventTypes: ['rashiIngress'], options: { coarseScanStepMilliseconds: SLOW_BODY_INGRESS_COARSE_STEP_MILLISECONDS } }).events.filter((event) => BODIES.includes(event.body) && event.eventType === 'rashiIngress');
   const output = [];
   for (const planet of BODIES) {
     let cursor = range.start; let sign = Math.floor(initial.bodies[planet].siderealLongitudeDegrees / 30) + 1;
@@ -60,22 +62,44 @@ class JobFavourabilityBetaEvaluator {
     if (!birthProfileService || typeof birthProfileService.get !== 'function' || !astronomicalEngine || typeof astronomicalEngine.calculate !== 'function' || !canonicalSiderealSunSampler) throw new TypeError('INVALID_JOB_FAVOURABILITY_BETA_DEPENDENCIES');
     Object.assign(this, { profiles: birthProfileService, engine: astronomicalEngine, sampler: canonicalSiderealSunSampler, clock, scanner: transitScanner }); Object.freeze(this);
   }
-  async evaluate({ principal, birthProfileId, reading } = {}) {
-    const profile = await this.profiles.get({ principal, birthProfileId });
+  async evaluate({ principal, birthProfileId, reading, birthProfile = null, timing = null } = {}) {
+    const measure = async (stage, operation, extra = undefined) => {
+      const startedAt = Date.now();
+      try { return await operation(); }
+      finally {
+        if (typeof timing === 'function') timing({ stage, durationMs: Date.now() - startedAt, ...(extra === undefined ? {} : { extra }) });
+      }
+    };
+    // birthProfile may only be supplied by a server-authoritative caller. Its
+    // id is checked before use; client data is never accepted here.
+    const profile = birthProfile && birthProfile.id === birthProfileId
+      ? birthProfile
+      : await measure('PROFILE_PREPARATION', () => this.profiles.get({ principal, birthProfileId }));
     if (!profile || profile.status !== 'active' || !profile.birthData) {
       return freeze({ status: 'PROFILE_REQUIRED' });
     }
     const range = { start: iso(this.clock()), end: addMonths(iso(this.clock()), HORIZON_MONTHS) };
-    const natal = this.engine.calculate(birthRequest(profile.birthData));
-    const d1 = calculateRashiHouses({ ascendantCanonicalSiderealLongitude: natal.bodies.Ascendant.siderealLongitudeDegrees, bodies: natal.bodies });
-    const dasha = intervals(calculateVimshottariDasha({ birthInstant: natal.instant.utc, moonCanonicalSiderealLongitude: natal.bodies.Moon.siderealLongitudeDegrees, natalSunCanonicalSiderealLongitude: natal.bodies.Sun.siderealLongitudeDegrees, canonicalSiderealSunSampler: this.sampler, rulesetId: SOLAR_RETURN_VIMSHOTTARI_RULESET.id }), range);
-    const transit = transitIntervals({ engine: this.engine, natal, d1, birth: profile.birthData, range, scanner: this.scanner });
+    const { natal, d1 } = await measure('NATAL_D1', () => {
+      const computedNatal = this.engine.calculate(birthRequest(profile.birthData));
+      return { natal: computedNatal, d1: calculateRashiHouses({ ascendantCanonicalSiderealLongitude: computedNatal.bodies.Ascendant.siderealLongitudeDegrees, bodies: computedNatal.bodies }) };
+    });
+    const dasha = await measure('DASHA', () => intervals(calculateVimshottariDasha({ birthInstant: natal.instant.utc, moonCanonicalSiderealLongitude: natal.bodies.Moon.siderealLongitudeDegrees, natalSunCanonicalSiderealLongitude: natal.bodies.Sun.siderealLongitudeDegrees, canonicalSiderealSunSampler: this.sampler, rulesetId: SOLAR_RETURN_VIMSHOTTARI_RULESET.id }), range));
+    const transit = await measure('TRANSIT_SCAN', () => transitIntervals({ engine: this.engine, natal, d1, birth: profile.birthData, range, scanner: this.scanner }));
     const factors = resolveCareerNatalFactors({ d1Houses: d1 });
     const supportAvailable = Boolean(reading && (reading.careerD10Structure || reading.careerD10Corroboration || reading.careerAshtakavargaStructure || reading.careerAshtakavargaCorroboration));
-    const factualSupport = freeze({ d10Available: Boolean(reading && (reading.careerD10Structure || reading.careerD10Corroboration)), moonAvailable: Boolean(moonSupport({ d1Houses: d1, transitIntervals: transit.intervals })), ashtakavargaAvailable: Boolean(calculateAshtakavargaForLayer2(classifyLayer1Bodies(natal))), transitBoundaryMethod: CAREER_TRANSIT_BOUNDARY_METHOD, d10StructurePresent: Boolean(d10CareerStructure(natal)) });
-    const candidates = [];
-    const bounds = points(dasha, transit.intervals, range);
-    for (let index = 0; index < bounds.length - 1; index += 1) {
+    // These support layers are not used in selection, agreement, or the
+    // customer DTO. Keep their persisted-reading availability only; avoid
+    // recomputing chart layers on this latency-sensitive route.
+    const factualSupport = freeze({ d10Available: Boolean(reading && (reading.careerD10Structure || reading.careerD10Corroboration)), moonAvailable: false, ashtakavargaAvailable: false, transitBoundaryMethod: CAREER_TRANSIT_BOUNDARY_METHOD, d10StructurePresent: false });
+    if (typeof timing === 'function') {
+      timing({ stage: 'D10', durationMs: 0, extra: 'DEFERRED_UNUSED' });
+      timing({ stage: 'MOON', durationMs: 0, extra: 'DEFERRED_UNUSED' });
+      timing({ stage: 'ASHTAKAVARGA', durationMs: 0, extra: 'DEFERRED_UNUSED' });
+    }
+    const selected = await measure('CONVERGENCE_WINDOW_ASSEMBLY', () => {
+      const candidates = [];
+      const bounds = points(dasha, transit.intervals, range);
+      for (let index = 0; index < bounds.length - 1; index += 1) {
       const span = { start: bounds[index], end: bounds[index + 1] }; const dashaRow = active(dasha, span)[0]; if (!dashaRow) continue;
       const current = Object.fromEntries(BODIES.map((body) => [canonicalPlanetId(body), active(transit.intervals.filter((item) => item.planet === body), span)[0] || null]));
       const careerDasha = evaluateCareerDashaActivation({ careerNatalFactors: factors, activePeriods: dashaRow.activePeriods, d1CareerRelevant: true }).active;
@@ -87,10 +111,12 @@ class JobFavourabilityBetaEvaluator {
       const reasons = customerReasonCodes({ careerDasha, majorTransit: jupiterWork || saturnWork, jupiterWork, supportAvailable });
       candidates.push({ start: span.start, end: span.end, strength, reasons, reasonKey: reasons.join('|'), evidenceAgreementCount: reasons.length, factual: { careerDasha, workAxisDasha: work.workAxisDasha, h6LordDasha: work.h6LordDasha, jupiterNatalHouse: current.jupiter && houseForSign(d1, current.jupiter.sign), saturnNatalHouse: current.saturn && houseForSign(d1, current.saturn.sign), rahuNatalHouse: current.rahu && houseForSign(d1, current.rahu.sign), ketuNatalHouse: current.ketu && houseForSign(d1, current.ketu.sign) } });
     }
-    const windows = merge(candidates).sort((a, b) => a.start.localeCompare(b.start)); const selected = windows.find((item) => item.strength === 'STRONGER') || windows[0] || null;
+      const windows = merge(candidates).sort((a, b) => a.start.localeCompare(b.start));
+      return windows.find((item) => item.strength === 'STRONGER') || windows[0] || null;
+    });
     if (!selected) return freeze({ status: 'NO_CONCENTRATED_JOB_FAVOURABILITY', range, factualSupport });
     return freeze({ status: 'SUPPORTED', range, broadWindow: freeze({ start: selected.start, end: selected.end }), strongerConcentrationWindow: null, strength: selected.strength, evidenceAgreementCount: selected.evidenceAgreementCount, evidenceReasonCodes: freeze(selected.reasons), recommendedActionCodes: freeze(['PREPARE_CAREER_MATERIALS_AND_CONVERSATIONS', 'REVIEW_PRACTICAL_ROLES_OPPORTUNITIES_AND_DECISIONS']), limitationCode: 'BETA_DESCRIPTIVE_CONVERGENCE_ONLY', factualSupport, provenance: freeze({ dashaRulesetId: SOLAR_RETURN_VIMSHOTTARI_RULESET.id, transitBoundaryMethod: CAREER_TRANSIT_BOUNDARY_METHOD, horizonPolicy: `${HORIZON_MONTHS}_MONTH_SERVER_HORIZON`, noGenericCareerSignalUsed: true, noHistoricalRecurrenceRequired: true }) });
   }
 }
 
-module.exports = { JobFavourabilityBetaEvaluator, HORIZON_MONTHS };
+module.exports = { JobFavourabilityBetaEvaluator, HORIZON_MONTHS, SLOW_BODY_INGRESS_COARSE_STEP_MILLISECONDS };
