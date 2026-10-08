@@ -191,6 +191,21 @@ void main() {
     expect(find.textContaining('probability'), findsNothing);
     expect(harness.repository.questionTypes, [CareerQuestionType.jobFavourabilityTiming]);
   });
+
+  testWidgets('renders the date-free Career Premium teaser instead of a Career Reading prerequisite', (tester) async {
+    final harness = await _Harness.create(_Answers(answer: _jobTeaser()));
+    addTearDown(harness.dispose);
+    await tester.pumpWidget(_screen(harness.controller, CareerQuestionType.jobFavourabilityTiming));
+    await tester.pump();
+    expect(find.text('A stronger career window is coming up'), findsOneWidget);
+    expect(find.text('Unlock Career Premium'), findsWidgets);
+    expect(find.text('Create your Career Reading first'), findsNothing);
+    expect(find.textContaining('2027'), findsNothing);
+    expect(find.textContaining('Jan'), findsNothing);
+    await tester.drag(find.byType(ListView), const Offset(0, -260));
+    await tester.pump();
+    expect(find.textContaining('Exact date range'), findsOneWidget);
+  });
 }
 
 Widget _screen(CareerAnswerController controller, [CareerQuestionType type = CareerQuestionType.careerActivityTiming]) => MaterialApp(
@@ -214,6 +229,24 @@ CareerAnswer _jobAnswer() => CareerAnswer.fromJson({
   'limitationCode': 'BETA_DESCRIPTIVE_CONVERGENCE_ONLY',
   'provenance': const {},
   'rulesetVersion': 'career-answer-v1',
+});
+
+CareerAnswer _jobTeaser() => CareerAnswer.fromJson({
+  'questionType': 'JOB_FAVOURABILITY_TIMING',
+  'answerability': 'PREMIUM_REQUIRED',
+  'status': 'PREMIUM_REQUIRED',
+  'teaser': {
+    'title': 'A stronger career window is coming up',
+    'subtitle': 'TaraVerse has identified a period where multiple career-related signals align.',
+  },
+  'premiumBenefits': [
+    'Exact date range',
+    'Why this period is stronger',
+    'What actions to take',
+    'Supporting Dasha and transit insights',
+    'Additional upcoming windows',
+  ],
+  'limitationCode': 'CAREER_PREMIUM_REQUIRED',
 });
 
 CareerAnswer _answer({

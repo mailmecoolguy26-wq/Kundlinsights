@@ -32,7 +32,9 @@ class _CareerAnswerScreenState extends State<CareerAnswerScreen> {
     builder: (context, _) {
       final showPrerequisite =
           widget.controller.state == CareerAnswerLoadState.loaded &&
-          widget.controller.answer?.sourceReadingId == null;
+          widget.controller.answer?.sourceReadingId == null &&
+          widget.controller.answer?.questionType !=
+              CareerQuestionType.jobFavourabilityTiming;
       return Scaffold(
         backgroundColor: const Color(0xFF061A1A),
         appBar: AppBar(
@@ -49,10 +51,14 @@ class _CareerAnswerScreenState extends State<CareerAnswerScreen> {
           ),
           CareerAnswerLoadState.loaded =>
             widget.controller.answer!.sourceReadingId == null
+                && widget.controller.answer!.questionType !=
+                        CareerQuestionType.jobFavourabilityTiming
                 ? const _CareerReadingPrerequisite()
                 : widget.controller.answer!.questionType ==
                         CareerQuestionType.jobFavourabilityTiming
-                    ? _JobFavourabilityBody(answer: widget.controller.answer!)
+                    ? widget.controller.answer!.limitation == 'BIRTH_PROFILE_REQUIRED'
+                        ? const _BirthProfilePrerequisite()
+                        : _JobFavourabilityBody(answer: widget.controller.answer!)
                     : _AnswerBody(answer: widget.controller.answer!),
         },
       );
@@ -66,7 +72,39 @@ class _JobFavourabilityBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final copy = _JobWindowCopy.of(context);
     final beta = answer.jobFavourability;
+    final teaser = answer.jobFavourabilityTeaser;
+    if (teaser != null) {
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+        children: [
+          _Card(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(copy.teaserTitle, style: const TextStyle(color: Color(0xFFF7F4EC), fontSize: 24, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 10),
+              Text(copy.teaserSubtitle, style: const TextStyle(color: Color(0xFFD7E1DE), height: 1.45)),
+              const SizedBox(height: 24),
+              Text(copy.unlockTitle, style: const TextStyle(color: Color(0xFFD6B15A), fontWeight: FontWeight.w700)),
+              const SizedBox(height: 12),
+              for (final benefit in teaser.premiumBenefits) Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text('• ${copy.benefit(benefit)}', style: const TextStyle(color: Color(0xFFD7E1DE))),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => context.push('/career-premium'),
+                  style: FilledButton.styleFrom(backgroundColor: const Color(0xFFD6B15A), foregroundColor: const Color(0xFF061A1A)),
+                  child: Text(copy.unlockCta),
+                ),
+              ),
+            ]),
+          ),
+        ],
+      );
+    }
     if (beta == null) {
       return const Center(
         child: Padding(
@@ -79,7 +117,6 @@ class _JobFavourabilityBody extends StatelessWidget {
         ),
       );
     }
-    final copy = _JobWindowCopy.of(context);
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       children: [
@@ -146,6 +183,18 @@ class _JobWindowCopy {
   final String Function(int) _agreement; final String Function(String) _narrower;
   String agreement(int count) => _agreement(count);
   String narrower(String range) => _narrower(range);
+  String get teaserTitle => _isHindi ? 'एक मज़बूत करियर विंडो आने वाली है' : _isHinglish ? 'Ek stronger Career window aane wali hai' : 'A stronger career window is coming up';
+  String get teaserSubtitle => _isHindi ? 'तारावर्स ने एक ऐसी अवधि पहचानी है जहाँ करियर से जुड़े कई संकेत एक साथ आते हैं।' : _isHinglish ? 'TaraVerse ne ek aisa period identify kiya hai jahan multiple Career-related signals align hote hain.' : 'TaraVerse has identified a period where multiple career-related signals align.';
+  String get unlockTitle => _isHindi ? 'देखने के लिए करियर प्रीमियम अनलॉक करें' : _isHinglish ? 'Dekhne ke liye Career Premium unlock karein' : 'Unlock Career Premium to see';
+  String get unlockCta => _isHindi ? 'करियर प्रीमियम अनलॉक करें' : _isHinglish ? 'Career Premium unlock karein' : 'Unlock Career Premium';
+  String benefit(String value) => switch (value) {
+    'Exact date range' => _isHindi ? 'सटीक तारीख सीमा' : _isHinglish ? 'Exact date range' : value,
+    'Why this period is stronger' => _isHindi ? 'यह अवधि क्यों मज़बूत है' : _isHinglish ? 'Yeh period stronger kyun hai' : value,
+    'What actions to take' => _isHindi ? 'कौन से व्यावहारिक कदम उठाने हैं' : _isHinglish ? 'Kaun se practical actions lene hain' : value,
+    'Supporting Dasha and transit insights' => _isHindi ? 'सहायक दशा और गोचर जानकारी' : _isHinglish ? 'Supporting Dasha aur Gochar insights' : value,
+    'Additional upcoming windows' => _isHindi ? 'अतिरिक्त आने वाली विंडो' : _isHinglish ? 'Additional upcoming windows' : value,
+    _ => value,
+  };
   String reason(String code) => switch (code) {
     'CAREER_TIMING_ACTIVATED' => _reasonCareerTiming,
     'JUPITER_WORK_RELATED_AREA' => _reasonJupiter,
@@ -205,6 +254,24 @@ class _JobWindowCopy {
 }
 
 enum _JobCopyLanguage { english, hindi, hinglish }
+
+class _BirthProfilePrerequisite extends StatelessWidget {
+  const _BirthProfilePrerequisite();
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Text('Create your Birth Profile first', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFFF7F4EC), fontSize: 24, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 12),
+        const Text('TaraVerse needs valid birth details before it can calculate a personalized Career window.', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFFA8B7B4), height: 1.45)),
+        const SizedBox(height: 20),
+        FilledButton(onPressed: () => context.go('/profiles'), child: const Text('Create Birth Profile')),
+      ]),
+    ),
+  );
+}
 
 class _Error extends StatelessWidget {
   const _Error({required this.onRetry});

@@ -20,6 +20,7 @@ enum CareerQuestionType {
 enum CareerAnswerability {
   supported,
   insufficientEvidence,
+  premiumRequired,
   projectionDisabled,
   noConcentratedJobFavourability,
   unsupported,
@@ -80,6 +81,35 @@ class JobFavourabilityBeta {
       actionCodes: List.unmodifiable((json['recommendedActionCodes'] as List? ?? const [])
           .whereType<String>().where((value) => value.isNotEmpty)),
       limitationCode: limitationCode,
+    );
+  }
+}
+
+class JobFavourabilityTeaser {
+  const JobFavourabilityTeaser({
+    required this.title,
+    required this.subtitle,
+    required this.premiumBenefits,
+  });
+  final String title;
+  final String subtitle;
+  final List<String> premiumBenefits;
+
+  static JobFavourabilityTeaser? tryFromJson(Map<String, dynamic> json) {
+    final teaser = json['teaser'];
+    if (teaser is! Map<String, dynamic> ||
+        teaser['title'] is! String ||
+        teaser['subtitle'] is! String) {
+      return null;
+    }
+    return JobFavourabilityTeaser(
+      title: teaser['title'] as String,
+      subtitle: teaser['subtitle'] as String,
+      premiumBenefits: List.unmodifiable(
+        (json['premiumBenefits'] as List? ?? const [])
+            .whereType<String>()
+            .where((value) => value.isNotEmpty),
+      ),
     );
   }
 }
@@ -166,6 +196,7 @@ class CareerAnswer {
     required this.sourceReadingId,
     required this.rulesetVersion,
     this.jobFavourability,
+    this.jobFavourabilityTeaser,
   });
 
   final CareerQuestionType questionType;
@@ -185,12 +216,14 @@ class CareerAnswer {
   final String? sourceReadingId;
   final String rulesetVersion;
   final JobFavourabilityBeta? jobFavourability;
+  final JobFavourabilityTeaser? jobFavourabilityTeaser;
 
   factory CareerAnswer.fromJson(Map<String, dynamic> json) {
     final type = CareerQuestionType.fromWire(json['questionType']);
     final answerability = switch (json['answerability']) {
       'SUPPORTED' => CareerAnswerability.supported,
       'INSUFFICIENT_EVIDENCE' => CareerAnswerability.insufficientEvidence,
+      'PREMIUM_REQUIRED' => CareerAnswerability.premiumRequired,
       'PROJECTION_DISABLED' => CareerAnswerability.projectionDisabled,
       'NO_CONCENTRATED_JOB_FAVOURABILITY' => CareerAnswerability.noConcentratedJobFavourability,
       'UNSUPPORTED' => CareerAnswerability.unsupported,
@@ -202,8 +235,12 @@ class CareerAnswer {
       final beta = answerability == CareerAnswerability.supported
           ? JobFavourabilityBeta.tryFromJson(json)
           : null;
+      final teaser = answerability == CareerAnswerability.premiumRequired
+          ? JobFavourabilityTeaser.tryFromJson(json)
+          : null;
       if (answerability == null ||
-          (answerability == CareerAnswerability.supported && beta == null)) {
+          (answerability == CareerAnswerability.supported && beta == null) ||
+          (answerability == CareerAnswerability.premiumRequired && teaser == null)) {
         throw const FormatException('Malformed Job Favourability Answer.');
       }
       return CareerAnswer(
@@ -217,6 +254,7 @@ class CareerAnswer {
         sourceReadingId: json['sourceReadingId'] as String?,
         rulesetVersion: json['rulesetVersion'] as String? ?? '',
         jobFavourability: beta,
+        jobFavourabilityTeaser: teaser,
       );
     }
     if (type == null ||
@@ -280,6 +318,7 @@ class CareerAnswer {
           ? json['rulesetVersion'] as String
           : '',
       jobFavourability: null,
+      jobFavourabilityTeaser: null,
     );
   }
 }

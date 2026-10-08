@@ -61,7 +61,10 @@ class JobFavourabilityBetaEvaluator {
     Object.assign(this, { profiles: birthProfileService, engine: astronomicalEngine, sampler: canonicalSiderealSunSampler, clock, scanner: transitScanner }); Object.freeze(this);
   }
   async evaluate({ principal, birthProfileId, reading } = {}) {
-    const profile = await this.profiles.get({ principal, birthProfileId }); if (!profile || profile.status !== 'active') return null;
+    const profile = await this.profiles.get({ principal, birthProfileId });
+    if (!profile || profile.status !== 'active' || !profile.birthData) {
+      return freeze({ status: 'PROFILE_REQUIRED' });
+    }
     const range = { start: iso(this.clock()), end: addMonths(iso(this.clock()), HORIZON_MONTHS) };
     const natal = this.engine.calculate(birthRequest(profile.birthData));
     const d1 = calculateRashiHouses({ ascendantCanonicalSiderealLongitude: natal.bodies.Ascendant.siderealLongitudeDegrees, bodies: natal.bodies });

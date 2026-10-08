@@ -178,6 +178,47 @@ test('research-enabled beta returns only server-calculated descriptive convergen
   assert.equal(JSON.stringify(answer).match(/probability|guaranteed|job.?will|offer.?expected|ruleset.*internal/i), null);
 });
 
+test('returns a date-free premium teaser for a birth profile with no saved Career Reading and no entitlement', async () => {
+  const evaluator = { evaluate: async () => ({
+    status: 'SUPPORTED',
+    broadWindow: { start: '2027-01-01T00:00:00.000Z', end: '2027-02-01T00:00:00.000Z' },
+    strength: 'STRONGER', evidenceAgreementCount: 3,
+    evidenceReasonCodes: ['CAREER_TIMING_ACTIVATED'], recommendedActionCodes: ['PREPARE_CAREER_MATERIALS_AND_CONVERSATIONS'],
+  }) };
+  const answer = await new CareerAnswerService({
+    secureReadingService: service({ eligible: false, readings: [] }), jobFavourabilityResearchEnabled: true, jobFavourabilityEvaluator: evaluator,
+  }).answer({ principal: { id: 'user-a' }, birthProfileId: 'profile-a', body: { questionType: CareerQuestionType.JOB_FAVOURABILITY_TIMING } });
+  assert.equal(answer.answerability, Answerability.PREMIUM_REQUIRED);
+  assert.equal(answer.status, 'PREMIUM_REQUIRED');
+  assert.equal(answer.teaser.title, 'A stronger career window is coming up');
+  assert.equal(JSON.stringify(answer).match(/2027|2028|start|end|jan|feb|broadWindow|evidenceReason/i), null);
+});
+
+test('allows an entitled profile without Career History or a saved Career Reading to receive the bounded beta response', async () => {
+  const evaluator = { evaluate: async () => ({
+    status: 'SUPPORTED',
+    broadWindow: { start: '2027-01-01T00:00:00.000Z', end: '2027-02-01T00:00:00.000Z' },
+    strongerConcentrationWindow: null, strength: 'MODERATE', evidenceAgreementCount: 2,
+    evidenceReasonCodes: ['CAREER_TIMING_ACTIVATED', 'MAJOR_CAREER_TRANSITS_ACTIVE'],
+    recommendedActionCodes: ['REVIEW_PRACTICAL_ROLES_OPPORTUNITIES_AND_DECISIONS'],
+  }) };
+  const answer = await new CareerAnswerService({
+    secureReadingService: service({ eligible: true, readings: [] }), jobFavourabilityResearchEnabled: true, jobFavourabilityEvaluator: evaluator,
+  }).answer({ principal: { id: 'user-a' }, birthProfileId: 'profile-a', body: { questionType: CareerQuestionType.JOB_FAVOURABILITY_TIMING } });
+  assert.equal(answer.answerability, Answerability.SUPPORTED);
+  assert.deepEqual(answer.broadWindow, { start: '2027-01-01T00:00:00.000Z', end: '2027-02-01T00:00:00.000Z' });
+});
+
+test('returns a birth-profile prerequisite rather than a Career Reading prerequisite when profile calculation input is unavailable', async () => {
+  const answer = await new CareerAnswerService({
+    secureReadingService: service({ readings: [] }), jobFavourabilityResearchEnabled: true,
+    jobFavourabilityEvaluator: { evaluate: async () => ({ status: 'PROFILE_REQUIRED' }) },
+  }).answer({ principal: { id: 'user-a' }, birthProfileId: 'profile-a', body: { questionType: CareerQuestionType.JOB_FAVOURABILITY_TIMING } });
+  assert.equal(answer.answerability, Answerability.INSUFFICIENT_EVIDENCE);
+  assert.equal(answer.limitationCode, 'BIRTH_PROFILE_REQUIRED');
+  assert.equal(JSON.stringify(answer).includes('CAREER_READING_REQUIRED'), false);
+});
+
 test('contains a beta evaluator failure behind a safe no-concentration response', async () => {
   const answer = await new CareerAnswerService({
     secureReadingService: service(),
@@ -205,12 +246,12 @@ test('D10, Ashtakavarga, recurrence, H6 research context, and provisional Gochar
   assert.equal(answer.strongerConcentrationWindow, null);
 });
 
-test('returns the no-reading prerequisite form for JOB_FAVOURABILITY_TIMING without a timing result', async () => {
+test('keeps the feature-gate disabled DTO when no Career Reading exists', async () => {
   const answer = await new CareerAnswerService({ secureReadingService: service({ readings: [] }) }).answer({
     principal: {}, birthProfileId: 'profile-a', body: { questionType: CareerQuestionType.JOB_FAVOURABILITY_TIMING },
   });
-  assert.equal(answer.answerability, Answerability.INSUFFICIENT_EVIDENCE);
-  assert.equal(answer.projectionStatus, 'PREREQUISITE_REQUIRED');
+  assert.equal(answer.answerability, Answerability.PROJECTION_DISABLED);
+  assert.equal(answer.projectionStatus, 'DISABLED');
   assert.equal(answer.sourceReadingId, null);
   assert.equal(answer.broadWindow, null);
   assert.equal(answer.strongerConcentrationWindow, null);
