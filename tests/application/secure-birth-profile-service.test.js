@@ -24,3 +24,9 @@ test('crypto failure prevents runtime persistence and runtime failure leaves onl
   events.length=0;const runtimeFailure=new SecureBirthProfileService({...base,cryptoCoordinator:{current:async()=>tx.execute({role:'app_crypto',operation:async()=>({keyVersion:'v1',dek:Buffer.alloc(32,1)})}),forVersion:async()=>{throw new Error('unused')}}});
   await assert.rejects(runtimeFailure.create({principal:p,birthData:birth}),e=>e.code==='BIRTH_PROFILE_CREATE_FAILED');assert.deepEqual(events,['app_crypto','app_runtime']);assert.equal(inserts,1);
 });
+
+test('profile-list diagnostic records only request, stage, outcome, and safe error code before masking a decrypt failure',async()=>{
+  const diagnostics=[];const s=new SecureBirthProfileService({authUserResolver:async()=>({id:'A',status:'active'}),transactionExecutor:{execute:async({operation})=>operation({})},repositories:()=>({birthProfiles:{listEncryptedBirthProfilesForUser:async()=>[{id:'profile-1',userId:'A',keyVersion:'v1'}]}}),cryptoCoordinator:{current:async()=>{throw new Error('unused')},forVersion:async()=>{const error=new Error();error.code='DEK_UNWRAP_FAILED';throw error;}},idGenerator:()=> 'unused',clock:()=> '2026-01-01T00:00:00.000Z',listDiagnosticObserver:(value)=>diagnostics.push(value)});
+  await assert.rejects(s.list({principal:p,requestId:'request-safe'}),error=>error.code==='NOT_FOUND_OR_FORBIDDEN');
+  assert.deepEqual(diagnostics,[{requestId:'request-safe',stage:'APP_USER_RESOLUTION',outcome:'START'},{requestId:'request-safe',stage:'APP_USER_RESOLUTION',outcome:'SUCCESS'},{requestId:'request-safe',stage:'PROFILE_REPOSITORY_LIST',outcome:'START'},{requestId:'request-safe',stage:'PROFILE_REPOSITORY_LIST',outcome:'SUCCESS'},{requestId:'request-safe',stage:'PROFILE_DECRYPTION',outcome:'START'},{requestId:'request-safe',stage:'PROFILE_DECRYPTION',outcome:'FAILURE',safeErrorCode:'DEK_UNWRAP_FAILED'}]);
+});

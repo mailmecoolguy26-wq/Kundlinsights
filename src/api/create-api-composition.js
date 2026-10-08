@@ -38,7 +38,7 @@ function req(value, name) {
   return value;
 }
 
-function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canonicalSiderealSunSampler, placeResolver = null, openai = null, careerChat = null, careerAnswerPolicy = null, apple = null, google = null, razorpay = null, analytics = null, idGenerator, clock, requiresEntitlement = () => true, corsAllowlist, isReady, logger, bodyLimit, transactionDiagnosticObserver } = {}) {
+function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canonicalSiderealSunSampler, placeResolver = null, openai = null, careerChat = null, careerAnswerPolicy = null, apple = null, google = null, razorpay = null, analytics = null, idGenerator, clock, requiresEntitlement = () => true, corsAllowlist, isReady, logger, bodyLimit, transactionDiagnosticObserver, birthProfileListDiagnosticObserver } = {}) {
   const { createApi } = require('./index');
   req(db, 'DB'); req(authVerifier, 'AUTH_VERIFIER'); req(kms, 'KMS');
   req(astronomicalEngine, 'ASTRONOMICAL_ENGINE'); req(canonicalSiderealSunSampler, 'SUN_SAMPLER');
@@ -93,7 +93,7 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
     async preferences({ principal, patch = null }) { const user = await userResolver(principal); return tx.execute({ principal, role: 'app_runtime', operation: async ({ db: client }) => { const repo = new PostgresNotificationRepository({ db: client }); if (!patch) return (await repo.getPreferences(user.id)) || { readingUpdates: true, careerReminders: true, offersAndUpdates: false }; const existing = (await repo.getPreferences(user.id)) || { readingUpdates: true, careerReminders: true, offersAndUpdates: false }; return repo.upsertPreferences({ userId: user.id, readingUpdates: patch.readingUpdates == null ? existing.readingUpdates : patch.readingUpdates, careerReminders: patch.careerReminders == null ? existing.careerReminders : patch.careerReminders, offersAndUpdates: patch.offersAndUpdates == null ? existing.offersAndUpdates : patch.offersAndUpdates, updatedAt: clock() }); } }); },
     async activity({ principal, kind, resourceId = null }) { const user = await userResolver(principal); return tx.execute({ principal, role: 'app_runtime', operation: async ({ db: client }) => { const repo = new PostgresNotificationRepository({ db: client }); if (kind === 'active') return repo.recordAppActivity({ userId: user.id, at: clock() }); if (kind === 'reading') return repo.recordReadingOpened({ userId: user.id, readingId: resourceId, at: clock() }); if (kind === 'paywall') return repo.recordCareerPaywallViewed({ userId: user.id, birthProfileId: resourceId, at: clock() }); throw new RangeError('INVALID_NOTIFICATION_ACTIVITY'); } }); },
   };
-  const birthProfileService = new SecureBirthProfileService({ authUserResolver: userResolver, transactionExecutor: tx, repositories, cryptoCoordinator, idGenerator, clock });
+  const birthProfileService = new SecureBirthProfileService({ authUserResolver: userResolver, transactionExecutor: tx, repositories, cryptoCoordinator, idGenerator, clock, listDiagnosticObserver: birthProfileListDiagnosticObserver });
   const careerEventService = new CareerEventService({ authUserResolver: userResolver, transactionExecutor: tx, repositories, birthProfileService, idGenerator, clock });
   const natalSummaryService = new NatalSummaryService({ birthProfileService, astronomicalEngine });
   const divisionalChartService = new DivisionalChartService({ birthProfileService, astronomicalEngine });
