@@ -1,6 +1,7 @@
 'use strict';
 
 const { canonicalTime } = require('../../persistence/contracts');
+const { getProduct } = require('..');
 
 const LIFECYCLE_TYPES = new Set(['SUBSCRIBED', 'DID_RENEW', 'DID_FAIL_TO_RENEW', 'EXPIRED', 'REFUND', 'REVOKE', 'DID_CHANGE_RENEWAL_STATUS', 'GRACE_PERIOD_EXPIRED', 'RENEWAL_EXTENDED']);
 
@@ -51,11 +52,12 @@ function lifecycleState({ event, existing, now }) {
 }
 
 class AppleSubscriptionLifecycleReconciler {
-  constructor({ repositories, unitOfWork, idGenerator, clock } = {}) {
+  constructor({ repositories, unitOfWork, idGenerator, clock, productMapper = null } = {}) {
     this.repositories = repositories;
     this.unitOfWork = unitOfWork;
     this.idGenerator = idGenerator;
     this.clock = clock;
+    this.productMapper = productMapper;
   }
 
   async reconcile(event) {
@@ -68,9 +70,16 @@ class AppleSubscriptionLifecycleReconciler {
       if (!existing) return { reconciled: false };
       const now = canonicalTime(this.clock(), 'INVALID_PAYMENT_TIMESTAMP');
       const next = lifecycleState({ event, existing, now });
+      const providerProductId = event.providerProductId || event.renewal && event.renewal.productId || null;
+      const productId = this.productMapper && providerProductId ? this.productMapper(providerProductId) || existing.productId : existing.productId;
+      let entitlementKey = existing.entitlementKey;
+      try { entitlementKey = getProduct(productId).entitlementKey; } catch {}
       const subscription = await subscriptions.upsertVerifiedState({
         ...existing,
         id: existing.id || this.idGenerator(),
+        productId,
+        providerProductId: providerProductId || existing.providerProductId,
+        entitlementKey,
         status: next.status,
         validFrom: next.validFrom,
         validUntil: next.validUntil,

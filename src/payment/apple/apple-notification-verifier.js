@@ -11,7 +11,7 @@ function time(value) { if (!Number.isFinite(value)) fail('APPLE_NOTIFICATION_EVI
 function nullableTime(value) { return value == null ? null : time(value); }
 
 class AppleNotificationVerifier {
-  constructor({ signedDataVerifier, bundleId, appleProductId } = {}) { this.signedDataVerifier = signedDataVerifier; this.bundleId = bundleId; this.appleProductId = appleProductId; }
+  constructor({ signedDataVerifier, bundleId, appleProductId, appleProductIds, productMapper = null } = {}) { this.signedDataVerifier = signedDataVerifier; this.bundleId = bundleId; this.appleProductIds = new Set((appleProductIds || [appleProductId]).filter(Boolean)); this.productMapper = productMapper || ((productId) => productId === appleProductId ? 'career_premium_annual' : productId); }
   async verifiedOuter(signedPayload, expectedEnvironment) {
     const candidates = expectedEnvironment == null ? ['SANDBOX', 'PRODUCTION'] : [expectedEnvironment];
     let lastError;
@@ -38,18 +38,18 @@ class AppleNotificationVerifier {
     if (data.signedTransactionInfo != null) {
       const decoded = await this.signedDataVerifier.verifyAndDecodeTransaction({ signedTransaction: data.signedTransactionInfo, environment: verifiedEnvironment });
       if (!decoded || decoded.bundleId !== this.bundleId) fail('PURCHASE_EVIDENCE_INVALID');
-      if (environment(decoded.environment) !== verifiedEnvironment || decoded.productId !== this.appleProductId) fail(decoded.productId === this.appleProductId ? 'PURCHASE_EVIDENCE_INVALID' : 'PURCHASE_PRODUCT_UNSUPPORTED');
-      providerProductId = decoded.productId; logicalProductSku = 'career_premium_annual'; providerTransactionId = text(decoded.transactionId, 'PURCHASE_EVIDENCE_INVALID'); originalTransactionId = text(decoded.originalTransactionId, 'PURCHASE_EVIDENCE_INVALID');
+      if (environment(decoded.environment) !== verifiedEnvironment || !this.appleProductIds.has(decoded.productId)) fail(this.appleProductIds.has(decoded.productId) ? 'PURCHASE_EVIDENCE_INVALID' : 'PURCHASE_PRODUCT_UNSUPPORTED');
+      providerProductId = decoded.productId; logicalProductSku = this.productMapper(decoded.productId); providerTransactionId = text(decoded.transactionId, 'PURCHASE_EVIDENCE_INVALID'); originalTransactionId = text(decoded.originalTransactionId, 'PURCHASE_EVIDENCE_INVALID');
       transaction = Object.freeze({ providerTransactionId, originalTransactionId, purchasedAt: nullableTime(decoded.purchaseDate), validUntil: nullableTime(decoded.expiresDate), signedAt: nullableTime(decoded.signedDate), revocationAt: nullableTime(decoded.revocationDate), revocationReason: decoded.revocationReason == null ? null : decoded.revocationReason });
     }
     if (data.signedRenewalInfo != null) {
       const decoded = await this.signedDataVerifier.verifyAndDecodeRenewalInfo({ signedRenewalInfo: data.signedRenewalInfo, environment: verifiedEnvironment });
       if (!decoded || environment(decoded.environment) !== verifiedEnvironment) fail('PURCHASE_EVIDENCE_INVALID');
       const renewalProductId = decoded.productId || decoded.autoRenewProductId || null;
-      if (renewalProductId != null && renewalProductId !== this.appleProductId) fail('PURCHASE_PRODUCT_UNSUPPORTED');
+      if (renewalProductId != null && !this.appleProductIds.has(renewalProductId)) fail('PURCHASE_PRODUCT_UNSUPPORTED');
       const renewalOriginalTransactionId = text(decoded.originalTransactionId, 'PURCHASE_EVIDENCE_INVALID');
       if (originalTransactionId && originalTransactionId !== renewalOriginalTransactionId) fail('PURCHASE_EVIDENCE_INVALID');
-      originalTransactionId = originalTransactionId || renewalOriginalTransactionId; providerProductId = providerProductId || renewalProductId; logicalProductSku = logicalProductSku || (renewalProductId ? 'career_premium_annual' : null);
+      originalTransactionId = originalTransactionId || renewalOriginalTransactionId; providerProductId = providerProductId || renewalProductId; logicalProductSku = logicalProductSku || (renewalProductId == null ? null : this.productMapper(renewalProductId));
       renewal = Object.freeze({ originalTransactionId: renewalOriginalTransactionId, autoRenewStatus: decoded.autoRenewStatus == null ? null : decoded.autoRenewStatus, expirationIntent: decoded.expirationIntent == null ? null : decoded.expirationIntent, renewalAt: nullableTime(decoded.renewalDate), gracePeriodExpiresAt: nullableTime(decoded.gracePeriodExpiresDate), signedAt: nullableTime(decoded.signedDate), productId: renewalProductId });
     }
     return Object.freeze({ provider: 'APPLE', environment: verifiedEnvironment, providerEventId, eventType, eventSubtype: notification.subtype == null ? null : String(notification.subtype), sourceNotificationType, providerEventTime: time(notification.signedDate), bundleId: this.bundleId, appAppleId: data.appAppleId == null ? null : data.appAppleId, logicalProductSku, providerProductId, providerTransactionId, originalTransactionId, transaction, renewal });

@@ -1,5 +1,26 @@
-'use strict';const test=require('node:test');const assert=require('node:assert/strict');const {PurchaseVerificationService,PurchaseProviderRegistry,FakePurchaseProvider}=require('../../src/payment/purchase-services');const {InMemoryPurchaseRepository,InMemorySubscriptionRepository,InMemoryEntitlementRepository}=require('../../src/persistence');const {InMemoryPaymentUnitOfWork}=require('../../src/payment/unit-of-work');const {CareerAccessResolver}=require('../../src/application/readings');const T='2026-01-01T00:00:00.000Z',U='2027-01-01T00:00:00.000Z';function setup(){const r={purchases:new InMemoryPurchaseRepository(),subscriptions:new InMemorySubscriptionRepository(),entitlements:new InMemoryEntitlementRepository()};let n=0;return {r,s:new PurchaseVerificationService({authUserResolver:async p=>({id:p.id}),repositories:()=>r,unitOfWork:new InMemoryPaymentUnitOfWork({repositories:()=>r}),registry:new PurchaseProviderRegistry({APPLE:new FakePurchaseProvider({enabled:true})}),careerAccessResolver:new CareerAccessResolver(),idGenerator:()=>`i${++n}`,clock:()=>T})};}function body(status='ACTIVE',id='t'){return {provider:'APPLE',environment:'SANDBOX',productId:'career_premium_annual',evidence:{items:[{kind:'FAKE_PURCHASE',transactionId:id,originalTransactionId:id,status,purchasedAt:T,validFrom:T,validUntil:U}]}};}
-test('restore is per-item idempotent and honors subscription lifecycle access',async()=>{for(const [status,eligible] of [['ACTIVE',true],['CANCELED',true],['EXPIRED',false],['REFUNDED',false],['REVOKED',false]]){const {r,s}=setup();await s.restore({principal:{id:'u'},body:body(status,status)});assert.equal(r.purchases.listForUser('u').length,1);assert.equal((await new CareerAccessResolver().resolve({repositories:r,userId:'u',at:'2026-02-01T00:00:00.000Z'})).eligible,eligible);await s.restore({principal:{id:'u'},body:body(status,status)});assert.equal(r.purchases.listForUser('u').length,1);assert.equal(r.subscriptions.listForUser('u').length,1);}});
-test('restore protects ownership and rolls back a failed item',async()=>{const {r,s}=setup();await s.restore({principal:{id:'a'},body:body('ACTIVE','owned')});await assert.rejects(s.restore({principal:{id:'b'},body:body('ACTIVE','owned')}),(e)=>e.code==='PURCHASE_OWNERSHIP_CONFLICT');assert.equal(r.purchases.listForUser('b').length,0);const original=r.subscriptions.upsertVerifiedState;r.subscriptions.upsertVerifiedState=()=>{throw Error('fail');};await assert.rejects(s.restore({principal:{id:'b'},body:body('ACTIVE','fail')}));assert.equal(r.purchases.listForUser('b').length,0);r.subscriptions.upsertVerifiedState=original;});
-test('restore processes multiple independent items once',async()=>{const {r,s}=setup();const b=body('ACTIVE','a');b.evidence.items.push({kind:'FAKE_PURCHASE',transactionId:'b',originalTransactionId:'b',status:'ACTIVE',purchasedAt:T,validFrom:T,validUntil:U});const out=await s.restore({principal:{id:'u'},body:b});assert.equal(out.restored.length,2);assert.equal(r.purchases.listForUser('u').length,2);assert.equal(r.subscriptions.listForUser('u').length,2);});
-test('restore ignores stale subscription state',async()=>{const {r,s}=setup();await s.restore({principal:{id:'u'},body:body('ACTIVE','same')});const before=r.subscriptions.listForUser('u')[0];const older=body('EXPIRED','same');older.evidence.items[0].providerEventTime='2025-01-01T00:00:00.000Z';await s.restore({principal:{id:'u'},body:older});const after=r.subscriptions.listForUser('u')[0];assert.equal(after.status,before.status);assert.equal(after.validUntil,before.validUntil);assert.equal(after.userId,'u');});
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { PurchaseVerificationService, PurchaseProviderRegistry, FakePurchaseProvider } = require('../../src/payment/purchase-services');
+const { InMemoryPurchaseRepository, InMemorySubscriptionRepository, InMemoryEntitlementRepository } = require('../../src/persistence');
+const { InMemoryPaymentUnitOfWork } = require('../../src/payment/unit-of-work');
+const { CareerAccessResolver } = require('../../src/application/readings');
+
+const T = '2026-01-01T00:00:00.000Z';
+const U = '2027-01-01T00:00:00.000Z';
+function setup() { const repositories = { purchases: new InMemoryPurchaseRepository(), subscriptions: new InMemorySubscriptionRepository(), entitlements: new InMemoryEntitlementRepository() }; let sequence = 0; return { repositories, service: new PurchaseVerificationService({ authUserResolver: async (principal) => ({ id: principal.id }), repositories: () => repositories, unitOfWork: new InMemoryPaymentUnitOfWork({ repositories: () => repositories }), registry: new PurchaseProviderRegistry({ APPLE: new FakePurchaseProvider({ enabled: true }) }), careerAccessResolver: new CareerAccessResolver(), idGenerator: () => `id-${++sequence}`, clock: () => T }) }; }
+function verifyBody(id, birthProfileId) { return { provider: 'APPLE', environment: 'SANDBOX', productId: 'career_premium_6_month', birthProfileId, evidence: { kind: 'FAKE_PURCHASE', transactionId: id, originalTransactionId: id, status: 'ACTIVE', purchasedAt: T, validFrom: T, validUntil: U } }; }
+function restoreBody(id) { return { provider: 'APPLE', environment: 'SANDBOX', productId: 'career_premium_6_month', evidence: { items: [{ kind: 'FAKE_PURCHASE', transactionId: id, originalTransactionId: id, status: 'ACTIVE', purchasedAt: T, validFrom: T, validUntil: U }] } }; }
+
+test('restore retains an existing subscription profile association', async () => {
+  const { repositories, service } = setup();
+  await service.verify({ principal: { id: 'user-a' }, body: verifyBody('owned', 'profile-a') });
+  await service.restore({ principal: { id: 'user-a' }, body: restoreBody('owned') });
+  assert.equal(repositories.subscriptions.listForUser('user-a')[0].birthProfileId, 'profile-a');
+});
+
+test('restore never assigns an unknown lineage to the active profile', async () => {
+  const { service } = setup();
+  await assert.rejects(service.restore({ principal: { id: 'user-a' }, body: restoreBody('unknown') }), (error) => error.code === 'SUBSCRIPTION_PROFILE_RECONCILIATION_REQUIRED');
+});
