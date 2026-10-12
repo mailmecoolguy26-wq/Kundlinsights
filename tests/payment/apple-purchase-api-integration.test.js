@@ -70,14 +70,14 @@ function setup({ payloadForEvidence = () => payload() } = {}) {
 }
 
 function verify(api, token, evidence = 'active') {
-  return api.inject({ method: 'POST', url: '/v1/purchases/verify', headers: token ? { authorization: token } : {}, payload: { provider: 'APPLE', environment: 'SANDBOX', productId: PRODUCT_ID, evidence } });
+  return api.inject({ method: 'POST', url: '/v1/purchases/verify', headers: token ? { authorization: token } : {}, payload: { provider: 'APPLE', environment: 'SANDBOX', productId: PRODUCT_ID, birthProfileId: 'profile-a', evidence } });
 }
 
 function grantCredit(repositories, userId, id) {
   repositories.entitlements.createEntitlement({ id, userId, productKey: 'CAREER', status: 'active', quantity: 1, validFrom: NOW, validUntil: FUTURE });
 }
 
-test('Apple verify API persists active purchases, prefers subscriptions, and is replay-safe', async () => {
+test('Apple verify attaches the subscription to its selected owned profile and is replay-safe', async () => {
   const { api, repositories } = setup();
   grantCredit(repositories, 'user-a', 'credit-a');
 
@@ -87,8 +87,10 @@ test('Apple verify API persists active purchases, prefers subscriptions, and is 
   assert.deepEqual(first.json().entitlement.career, { eligible: true, mode: 'SUBSCRIPTION', validUntil: FUTURE });
   assert.equal(repositories.purchases.listForUser('user-a').length, 1);
   assert.equal(repositories.subscriptions.listForUser('user-a').length, 1);
+  assert.equal(repositories.subscriptions.listForUser('user-a')[0].providerProductId, PRODUCT_ID);
+  assert.equal(repositories.subscriptions.listForUser('user-a')[0].entitlementKey, 'CAREER_PREMIUM');
   assert.equal(repositories.entitlements.getEntitlement('credit-a').quantity, 1);
-  assert.equal((await new CareerAccessResolver().resolve({ repositories, userId: 'user-a', at: NOW })).consuming, false);
+  assert.equal((await new CareerAccessResolver().resolveForProfile({ repositories, userId: 'user-a', birthProfileId: 'profile-a', at: NOW })).consuming, false);
   const responseText = JSON.stringify(first.json());
   for (const forbidden of ['opaque-signed-evidence', 'signedTransaction', 'x5c', 'certificate', 'configured-root']) assert.equal(responseText.includes(forbidden), false);
 

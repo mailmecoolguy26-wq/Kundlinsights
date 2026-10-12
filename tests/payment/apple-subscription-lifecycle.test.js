@@ -22,18 +22,18 @@ function event(type, overrides = {}) {
   });
 }
 
-function setup({ withLineage = true } = {}) {
+function setup({ withLineage = true, productMapper = null } = {}) {
   const repositories = { purchases: new InMemoryPurchaseRepository(), subscriptions: new InMemorySubscriptionRepository(), entitlements: new InMemoryEntitlementRepository() };
-  if (withLineage) repositories.subscriptions.upsertVerifiedState({ id: 'subscription-a', userId: 'user-a', provider: 'APPLE', environment: 'SANDBOX', productId: 'career_premium_annual', originalTransactionId: 'original-a', status: 'ACTIVE', validFrom: START, validUntil: FUTURE, providerEventTime: '2026-09-01T00:00:00.000Z', createdAt: START });
+  if (withLineage) repositories.subscriptions.upsertVerifiedState({ id: 'subscription-a', userId: 'user-a', birthProfileId: 'profile-a', provider: 'APPLE', environment: 'SANDBOX', productId: 'career_premium_annual', originalTransactionId: 'original-a', status: 'ACTIVE', validFrom: START, validUntil: FUTURE, providerEventTime: '2026-09-01T00:00:00.000Z', createdAt: START });
   const events = new InMemoryPaymentEventRepository();
   let sequence = 0;
-  const lifecycleReconciler = new AppleSubscriptionLifecycleReconciler({ repositories: () => repositories, unitOfWork: new InMemoryPaymentUnitOfWork({ repositories: () => repositories }), idGenerator: () => `id-${++sequence}`, clock: () => NOW });
+  const lifecycleReconciler = new AppleSubscriptionLifecycleReconciler({ repositories: () => repositories, unitOfWork: new InMemoryPaymentUnitOfWork({ repositories: () => repositories }), idGenerator: () => `id-${++sequence}`, clock: () => NOW, productMapper });
   const service = new AppleNotificationService({ notificationVerifier: { async verifyAndNormalizeNotification({ signedPayload }) { return JSON.parse(signedPayload); } }, paymentEvents: events, lifecycleReconciler, idGenerator: () => `event-${++sequence}`, clock: () => NOW });
   return { repositories, events, service };
 }
 
 function subscription(repositories) { return repositories.subscriptions.listForUser('user-a')[0]; }
-async function access(repositories) { return new CareerAccessResolver().resolve({ repositories, userId: 'user-a', at: NOW }); }
+async function access(repositories) { return new CareerAccessResolver().resolveForProfile({ repositories: { ...repositories, birthProfiles: { getBirthProfile: () => ({ userId: 'user-a' }) } }, userId: 'user-a', birthProfileId: 'profile-a', at: NOW }); }
 
 test('reconciles subscribed, renewal, grace, cancellation, and auto-renew-enabled lifecycle states', async () => {
   const { repositories, service } = setup();
@@ -73,6 +73,23 @@ test('extends validity without regression, ignores stale lifecycle events, and i
   await service.handle({ signedPayload: event('DID_RENEW', { providerEventId: 'duplicate', transaction: { providerTransactionId: 'same', originalTransactionId: 'original-a', purchasedAt: START, validUntil: '2030-01-01T00:00:00.000Z' } }) });
   assert.equal(events.records.size, 3);
   assert.equal(subscription(repositories).validUntil, '2029-01-01T00:00:00.000Z');
+});
+
+test('renewal plan changes and terminal lifecycle events preserve provider SKU and normalized entitlement', async () => {
+  const { repositories, service } = setup({ productMapper: (value) => value === 'apple.12month' ? 'career_premium_12_month' : 'career_premium_6_month' });
+  repositories.subscriptions.upsertVerifiedState({ ...subscription(repositories), providerProductId: 'apple.6month', entitlementKey: 'CAREER_PREMIUM' });
+  await service.handle({ signedPayload: event('DID_RENEW', { providerEventId: 'plan-switch', providerProductId: 'apple.12month', transaction: { providerTransactionId: 'renew-12', originalTransactionId: 'original-a', purchasedAt: START, validUntil: '2028-01-01T00:00:00.000Z' } }) });
+  assert.equal(subscription(repositories).productId, 'career_premium_12_month');
+  assert.equal(subscription(repositories).providerProductId, 'apple.12month');
+  assert.equal(subscription(repositories).entitlementKey, 'CAREER_PREMIUM');
+  await service.handle({ signedPayload: event('REFUND', { providerEventId: 'refund-preserves-metadata' }) });
+  assert.equal(subscription(repositories).status, 'REFUNDED');
+  assert.equal(subscription(repositories).providerProductId, 'apple.12month');
+  assert.equal(subscription(repositories).entitlementKey, 'CAREER_PREMIUM');
+  await service.handle({ signedPayload: event('REVOKE', { providerEventId: 'revoke-preserves-metadata' }) });
+  assert.equal(subscription(repositories).status, 'REVOKED');
+  assert.equal(subscription(repositories).providerProductId, 'apple.12month');
+  assert.equal(subscription(repositories).entitlementKey, 'CAREER_PREMIUM');
 });
 
 test('does not create ownership for unknown or unknown-type events and records lifecycle failures', async () => {
