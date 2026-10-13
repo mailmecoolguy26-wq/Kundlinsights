@@ -220,6 +220,22 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
                         : widget.razorpayController!.amountMinorFor(
                             widget.razorpayProfileId!,
                           ),
+                    razorpayBaseAmountMinor: widget.razorpayProfileId == null
+                        ? null
+                        : widget.razorpayController!.baseAmountMinorFor(
+                            widget.razorpayProfileId!,
+                          ),
+                    razorpayGstAmountMinor: widget.razorpayProfileId == null
+                        ? null
+                        : widget.razorpayController!.gstAmountMinorFor(
+                            widget.razorpayProfileId!,
+                          ),
+                    razorpayGstRateBasisPoints:
+                        widget.razorpayProfileId == null
+                        ? null
+                        : widget.razorpayController!.gstRateBasisPointsFor(
+                            widget.razorpayProfileId!,
+                          ),
                     generationState:
                         widget.generationController?.generationState,
                     isAddOnPurchase: isAddOnPurchase,
@@ -324,9 +340,34 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
                   razorpayCanRetry:
                       widget.razorpayProfileId != null &&
                       widget.razorpayController != null &&
-                      widget.razorpayController!.canRetryFor(
-                        widget.razorpayProfileId!,
-                      ),
+                        widget.razorpayController!.canRetryFor(
+                          widget.razorpayProfileId!,
+                        ),
+                  razorpayLogicalSku: widget.razorpayProfileId == null || widget.razorpayController == null
+                      ? null
+                      : widget.razorpayController!.logicalSkuFor(
+                          widget.razorpayProfileId!,
+                        ),
+                  razorpayAmountMinor: widget.razorpayProfileId == null || widget.razorpayController == null
+                      ? null
+                      : widget.razorpayController!.amountMinorFor(
+                          widget.razorpayProfileId!,
+                        ),
+                  razorpayBaseAmountMinor: widget.razorpayProfileId == null || widget.razorpayController == null
+                      ? null
+                      : widget.razorpayController!.baseAmountMinorFor(
+                          widget.razorpayProfileId!,
+                        ),
+                  razorpayGstAmountMinor: widget.razorpayProfileId == null || widget.razorpayController == null
+                      ? null
+                      : widget.razorpayController!.gstAmountMinorFor(
+                          widget.razorpayProfileId!,
+                        ),
+                  razorpayGstRateBasisPoints: widget.razorpayProfileId == null || widget.razorpayController == null
+                      ? null
+                      : widget.razorpayController!.gstRateBasisPointsFor(
+                          widget.razorpayProfileId!,
+                        ),
                   isAddOnPurchase: isAddOnPurchase,
                 ),
                 if (widget.purchaseController != null && !usesRazorpay)
@@ -417,6 +458,9 @@ class _ProductAction extends StatelessWidget {
     this.razorpayCanRetry = false,
     this.razorpayLogicalSku,
     this.razorpayAmountMinor,
+    this.razorpayBaseAmountMinor,
+    this.razorpayGstAmountMinor,
+    this.razorpayGstRateBasisPoints,
     this.generationState,
     this.isAddOnPurchase = false,
   });
@@ -436,6 +480,9 @@ class _ProductAction extends StatelessWidget {
   final bool razorpayCanRetry;
   final String? razorpayLogicalSku;
   final int? razorpayAmountMinor;
+  final int? razorpayBaseAmountMinor;
+  final int? razorpayGstAmountMinor;
+  final int? razorpayGstRateBasisPoints;
   final CareerGenerationState? generationState;
   final bool isAddOnPurchase;
 
@@ -455,6 +502,9 @@ class _ProductAction extends StatelessWidget {
           return _RazorpayProcessing(
             planLabel: _razorpayPlanLabel(razorpayLogicalSku),
             amountLabel: _razorpayAmountLabel(razorpayAmountMinor),
+            baseAmountLabel: _razorpayAmountLabel(razorpayBaseAmountMinor),
+            gstAmountLabel: _razorpayAmountLabel(razorpayGstAmountMinor),
+            gstRateBasisPoints: razorpayGstRateBasisPoints,
           );
         case RazorpayCareerPremiumState.checkoutOpen:
           return const SizedBox.shrink();
@@ -464,6 +514,9 @@ class _ProductAction extends StatelessWidget {
             onHome: onBackHomePressed ?? () {},
             planLabel: _razorpayPlanLabel(razorpayLogicalSku),
             amountLabel: _razorpayAmountLabel(razorpayAmountMinor),
+            baseAmountLabel: _razorpayAmountLabel(razorpayBaseAmountMinor),
+            gstAmountLabel: _razorpayAmountLabel(razorpayGstAmountMinor),
+            gstRateBasisPoints: razorpayGstRateBasisPoints,
           );
         case RazorpayCareerPremiumState.definitiveFailure:
           return _RazorpayFailure(
@@ -472,6 +525,9 @@ class _ProductAction extends StatelessWidget {
             onCheck: onRazorpayRecover ?? () {},
             onHome: onBackHomePressed ?? () {},
             amountLabel: _razorpayAmountLabel(razorpayAmountMinor),
+            baseAmountLabel: _razorpayAmountLabel(razorpayBaseAmountMinor),
+            gstAmountLabel: _razorpayAmountLabel(razorpayGstAmountMinor),
+            gstRateBasisPoints: razorpayGstRateBasisPoints,
           );
         case RazorpayCareerPremiumState.paymentStatusUnknown:
           return _RazorpayUnknown(
@@ -910,9 +966,15 @@ class _RazorpayProcessing extends StatelessWidget {
   const _RazorpayProcessing({
     required this.planLabel,
     required this.amountLabel,
+    required this.baseAmountLabel,
+    required this.gstAmountLabel,
+    required this.gstRateBasisPoints,
   });
   final String planLabel;
   final String? amountLabel;
+  final String? baseAmountLabel;
+  final String? gstAmountLabel;
+  final int? gstRateBasisPoints;
   @override
   Widget build(BuildContext c) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -946,11 +1008,13 @@ class _RazorpayProcessing extends StatelessWidget {
         'CAREER PREMIUM · $planLabel',
         style: const TextStyle(color: Color(0xFFD6B15A)),
       ),
-      if (amountLabel != null)
-        Text(
-          amountLabel!,
-          style: const TextStyle(color: Color(0xFFF7F4EC), fontSize: 28),
-        ),
+      _RazorpayAmountBreakdown(
+        baseAmountLabel: baseAmountLabel,
+        gstAmountLabel: gstAmountLabel,
+        gstRateBasisPoints: gstRateBasisPoints,
+        totalAmountLabel: amountLabel,
+        largeTotal: true,
+      ),
       SizedBox(height: AppSpacing.sm),
       LinearProgressIndicator(),
       Text('Confirming payment…', style: TextStyle(color: Color(0xFFF7F4EC))),
@@ -969,11 +1033,17 @@ class _RazorpaySuccess extends StatelessWidget {
     required this.onHome,
     required this.planLabel,
     required this.amountLabel,
+    required this.baseAmountLabel,
+    required this.gstAmountLabel,
+    required this.gstRateBasisPoints,
   });
   final VoidCallback onContinue;
   final VoidCallback onHome;
   final String planLabel;
   final String? amountLabel;
+  final String? baseAmountLabel;
+  final String? gstAmountLabel;
+  final int? gstRateBasisPoints;
   @override
   Widget build(BuildContext c) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -998,8 +1068,12 @@ class _RazorpaySuccess extends StatelessWidget {
         style: TextStyle(color: Color(0xFFA8B7B4)),
       ),
       const SizedBox(height: AppSpacing.sm),
-      Text(
-        'Career Premium\n$planLabel${amountLabel == null ? '' : '\\nAmount paid: $amountLabel'}\nStatus: Payment confirmed',
+      Text('Career Premium\n$planLabel\nStatus: Payment confirmed'),
+      _RazorpayAmountBreakdown(
+        baseAmountLabel: baseAmountLabel,
+        gstAmountLabel: gstAmountLabel,
+        gstRateBasisPoints: gstRateBasisPoints,
+        totalAmountLabel: amountLabel,
       ),
       FilledButton(
         onPressed: onContinue,
@@ -1017,12 +1091,18 @@ class _RazorpayFailure extends StatelessWidget {
     required this.onCheck,
     required this.onHome,
     required this.amountLabel,
+    required this.baseAmountLabel,
+    required this.gstAmountLabel,
+    required this.gstRateBasisPoints,
   });
   final bool canRetry;
   final VoidCallback onRetry;
   final VoidCallback onCheck;
   final VoidCallback onHome;
   final String? amountLabel;
+  final String? baseAmountLabel;
+  final String? gstAmountLabel;
+  final int? gstRateBasisPoints;
   @override
   Widget build(BuildContext c) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1043,11 +1123,12 @@ class _RazorpayFailure extends StatelessWidget {
         canRetry ? 'The payment was not completed.' : 'We already have a payment order for this attempt. Check its status before trying again.',
         style: TextStyle(color: Color(0xFFA8B7B4)),
       ),
-      if (amountLabel != null)
-        Text(
-          amountLabel!,
-          style: const TextStyle(color: Color(0xFFF7F4EC), fontSize: 20),
-        ),
+      _RazorpayAmountBreakdown(
+        baseAmountLabel: baseAmountLabel,
+        gstAmountLabel: gstAmountLabel,
+        gstRateBasisPoints: gstRateBasisPoints,
+        totalAmountLabel: amountLabel,
+      ),
       if (canRetry)
         const Text(
           'If money was deducted, we’ll verify the payment status before asking you to pay again.',
@@ -1068,6 +1149,51 @@ class _RazorpayFailure extends StatelessWidget {
       ),
     ],
   );
+}
+
+class _RazorpayAmountBreakdown extends StatelessWidget {
+  const _RazorpayAmountBreakdown({
+    required this.baseAmountLabel,
+    required this.gstAmountLabel,
+    required this.gstRateBasisPoints,
+    required this.totalAmountLabel,
+    this.largeTotal = false,
+  });
+  final String? baseAmountLabel;
+  final String? gstAmountLabel;
+  final int? gstRateBasisPoints;
+  final String? totalAmountLabel;
+  final bool largeTotal;
+
+  @override
+  Widget build(BuildContext context) {
+    if (totalAmountLabel == null) return const SizedBox.shrink();
+    final rate = gstRateBasisPoints == null
+        ? null
+        : (gstRateBasisPoints! / 100).toStringAsFixed(
+            gstRateBasisPoints! % 100 == 0 ? 0 : 2,
+          );
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (baseAmountLabel != null)
+            Text('Base price: $baseAmountLabel'),
+          if (gstAmountLabel != null)
+            Text('GST${rate == null ? '' : ' @$rate%'}: $gstAmountLabel'),
+          Text(
+            'Total: $totalAmountLabel',
+            style: TextStyle(
+              color: const Color(0xFFF7F4EC),
+              fontSize: largeTotal ? 28 : 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _RazorpayUnknown extends StatelessWidget {
@@ -1161,7 +1287,7 @@ class _RazorpayIdleState extends State<_RazorpayIdle> {
       const SizedBox(height: AppSpacing.sm),
       _RazorpayPlanCard(
         title: '12 Months',
-        price: '₹699',
+        price: '₹699 + applicable GST',
         detail: 'Access for 12 months',
         bestValue: true,
         selected: _selectedPlan == 'career_premium_razorpay_12_month',
@@ -1171,7 +1297,7 @@ class _RazorpayIdleState extends State<_RazorpayIdle> {
       const SizedBox(height: AppSpacing.sm),
       _RazorpayPlanCard(
         title: '6 Months',
-        price: '₹399',
+        price: '₹399 + applicable GST',
         detail: 'Access for 6 months',
         selected: _selectedPlan == 'career_premium_razorpay_6_month',
         onTap: () =>

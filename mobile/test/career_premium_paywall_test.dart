@@ -611,8 +611,8 @@ void main() {
         ),
       );
 
-      expect(find.text('₹699'), findsOneWidget);
-      expect(find.text('₹399'), findsOneWidget);
+      expect(find.text('₹699 + applicable GST'), findsOneWidget);
+      expect(find.text('₹399 + applicable GST'), findsOneWidget);
       expect(find.text('Access for 12 months'), findsOneWidget);
       expect(find.text('Access for 6 months'), findsOneWidget);
       expect(find.text('Continue'), findsOneWidget);
@@ -624,6 +624,44 @@ void main() {
       product.dispose();
     },
   );
+
+  testWidgets('Razorpay result renders the server-returned GST breakdown', (
+    tester,
+  ) async {
+    final product = _controller();
+    final entitlements = _RazorpayEntitlements()
+      ..value = CareerEligibilityState.eligible;
+    final razorpay = RazorpayCareerPremiumController(
+      api: _RazorpayApi(false),
+      checkout: _RazorpayCheckout(),
+      entitlements: entitlements,
+    );
+    await razorpay.start(
+      birthProfileId: 'profile-a',
+      logicalSku: 'career_premium_razorpay_6_month',
+    );
+
+    await tester.pumpWidget(
+      _app(
+        CareerPremiumPaywall(
+          productController: product,
+          razorpayController: razorpay,
+          razorpayProfileId: 'profile-a',
+          dedicatedRazorpaySurface: true,
+          hasAccess: false,
+          entitlementMode: 'NONE',
+          onSubscribePressed: () {},
+          onContinuePressed: () {},
+        ),
+      ),
+    );
+
+    expect(find.text('Base price: ₹399'), findsOneWidget);
+    expect(find.text('GST @18%: ₹71.82'), findsOneWidget);
+    expect(find.text('Total: ₹470.82'), findsOneWidget);
+    razorpay.dispose();
+    product.dispose();
+  });
 
   testWidgets(
     'observes local purchase success and invokes the paywall return callback once',
@@ -1274,7 +1312,10 @@ class _RazorpayApi extends PaymentApiClient {
     return const {
       'orderId': 'order_1',
       'keyId': 'rzp_test_public',
-      'amountMinor': 58882,
+      'amountMinor': 47082,
+      'baseAmountMinor': 39900,
+      'gstAmountMinor': 7182,
+      'gstRateBasisPoints': 1800,
       'currency': 'INR',
     };
   }

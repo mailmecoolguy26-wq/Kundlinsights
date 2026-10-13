@@ -231,7 +231,7 @@ void main() {
         _json(
           200,
           '{"order":{"providerOrderId":"order-1","status":"CREATED",'
-          '"logicalSku":"career_premium_razorpay_6_month","amountMinor":39900,"currency":"INR","finalized":false}}',
+          '"logicalSku":"career_premium_razorpay_6_month","baseAmountMinor":39900,"gstAmountMinor":7182,"gstRateBasisPoints":1800,"amountMinor":47082,"currency":"INR","finalized":false}}',
         ),
       ]);
       final api = AuthenticatedPaymentApiClient(
@@ -259,7 +259,10 @@ void main() {
         'providerOrderId': 'order-1',
         'status': 'CREATED',
         'logicalSku': 'career_premium_razorpay_6_month',
-        'amountMinor': 39900,
+        'baseAmountMinor': 39900,
+        'gstAmountMinor': 7182,
+        'gstRateBasisPoints': 1800,
+        'amountMinor': 47082,
         'currency': 'INR',
         'finalized': false,
       });

@@ -30,7 +30,7 @@ function setup() {
     razorpayClient: { async createOrder({ amount }) { const id = `order-${++sequence}`; amounts.set(id, amount); return { id }; }, async fetchPayment(paymentId) { const orderId = paymentId.replace('pay-', 'order-'); return { id: paymentId, order_id: orderId, amount: amounts.get(orderId), currency: 'INR', status: 'captured' }; }, async fetchPaymentsForOrder() { return { items: [] }; } },
     productCatalog: createCareerPremiumRazorpayProductCatalog([]), purchaseService, unitOfWork, idGenerator, clock: () => NOW, keyId: 'rzp_test', keySecret: SECRET, webhookSecret: SECRET,
   });
-  return { repositories, service };
+  return { repositories, service, amounts };
 }
 async function pay(service, birthProfileId, logicalSku) {
   const order = await service.createOrder({ principal: { id: 'user-a' }, birthProfileId, logicalSku });
@@ -39,10 +39,13 @@ async function pay(service, birthProfileId, logicalSku) {
 }
 
 test('server-owned Razorpay plans create isolated 6/12 month profile entitlements', async () => {
-  const { service, repositories } = setup();
+  const { service, repositories, amounts } = setup();
   const six = await service.createOrder({ principal: { id: 'user-a' }, birthProfileId: 'profile-a', logicalSku: SIX });
   const twelve = await service.createOrder({ principal: { id: 'user-a' }, birthProfileId: 'profile-b', logicalSku: TWELVE });
-  assert.equal(six.amountMinor, 39900); assert.equal(twelve.amountMinor, 69900);
+  assert.deepEqual([six.baseAmountMinor, six.gstAmountMinor, six.amountMinor], [39900, 7182, 47082]);
+  assert.deepEqual([twelve.baseAmountMinor, twelve.gstAmountMinor, twelve.amountMinor], [69900, 12582, 82482]);
+  assert.equal(amounts.get(six.orderId), 47082);
+  assert.equal(amounts.get(twelve.orderId), 82482);
   await pay(service, 'profile-a', SIX); await pay(service, 'profile-b', TWELVE);
   const rows = repositories.subscriptions.listForUser('user-a');
   assert.equal(rows.length, 2);
@@ -55,17 +58,17 @@ test('Razorpay rejects foreign profiles, invalid signatures, and client amount c
   const { service } = setup();
   await assert.rejects(service.createOrder({ principal: { id: 'user-a' }, birthProfileId: 'profile-foreign', logicalSku: SIX }), (error) => error.code === 'BIRTH_PROFILE_ACCESS_DENIED');
   const order = await service.createOrder({ principal: { id: 'user-a' }, birthProfileId: 'profile-a', logicalSku: SIX, amountMinor: 1 });
-  assert.equal(order.amountMinor, 39900);
+  assert.equal(order.amountMinor, 47082);
   await assert.rejects(service.verifyAndFinalize({ principal: { id: 'user-a' }, orderId: order.orderId, paymentId: order.orderId.replace('order-', 'pay-'), signature: 'bad' }), (error) => error.code === 'RAZORPAY_SIGNATURE_INVALID');
 });
 
 test('unresolved Razorpay recovery is constrained to the exact current timed plan and profile', async () => {
   const { service, repositories } = setup();
   repositories.providerPaymentOrders.create({ id: 'legacy-order', userId: 'user-a', birthProfileId: 'profile-a', provider: 'RAZORPAY', logicalSku: 'career_premium_annual', providerOrderId: 'legacy-499', amountMinor: 58882, currency: 'INR', createdAt: NOW });
-  repositories.providerPaymentOrders.create({ id: 'twelve-order', userId: 'user-a', birthProfileId: 'profile-a', provider: 'RAZORPAY', logicalSku: TWELVE, providerOrderId: 'twelve-699', amountMinor: 69900, currency: 'INR', createdAt: NOW });
+  repositories.providerPaymentOrders.create({ id: 'twelve-order', userId: 'user-a', birthProfileId: 'profile-a', provider: 'RAZORPAY', logicalSku: TWELVE, providerOrderId: 'twelve-825', amountMinor: 82482, currency: 'INR', createdAt: NOW });
   assert.equal(await service.getLatestUnresolvedForProfile({ principal: { id: 'user-a' }, birthProfileId: 'profile-a', logicalSku: SIX }), null);
   assert.equal(await service.getLatestUnresolvedForProfile({ principal: { id: 'user-a' }, birthProfileId: 'profile-b', logicalSku: TWELVE }), null);
-  assert.deepEqual(await service.getLatestUnresolvedForProfile({ principal: { id: 'user-a' }, birthProfileId: 'profile-a', logicalSku: TWELVE }), { providerOrderId: 'twelve-699', status: 'CREATED', logicalSku: TWELVE, amountMinor: 69900, currency: 'INR', finalized: false });
+  assert.deepEqual(await service.getLatestUnresolvedForProfile({ principal: { id: 'user-a' }, birthProfileId: 'profile-a', logicalSku: TWELVE }), { providerOrderId: 'twelve-825', status: 'CREATED', logicalSku: TWELVE, amountMinor: 82482, currency: 'INR', baseAmountMinor: 69900, gstAmountMinor: 12582, gstRateBasisPoints: 1800, finalized: false });
 });
 
 test('Razorpay verification is idempotent and extends the same profile from its current valid-until', async () => {

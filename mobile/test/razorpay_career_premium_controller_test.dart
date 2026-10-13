@@ -32,8 +32,15 @@ class _Api implements PaymentApiClient {
       'orderId': 'o',
       'keyId': 'k',
       'amountMinor': logicalSku == 'career_premium_razorpay_12_month'
+          ? 82482
+          : 47082,
+      'baseAmountMinor': logicalSku == 'career_premium_razorpay_12_month'
           ? 69900
           : 39900,
+      'gstAmountMinor': logicalSku == 'career_premium_razorpay_12_month'
+          ? 12582
+          : 7182,
+      'gstRateBasisPoints': 1800,
       'currency': 'INR',
       'logicalSku': logicalSku,
     };
@@ -146,6 +153,9 @@ void main() {
         logicalSku: 'career_premium_razorpay_6_month',
       );
       expect(api.logicalSkus, ['career_premium_razorpay_6_month']);
+      expect(controller.baseAmountMinorFor('profile-a'), 39900);
+      expect(controller.gstAmountMinorFor('profile-a'), 7182);
+      expect(controller.amountMinorFor('profile-a'), 47082);
       controller.dispose();
     },
   );

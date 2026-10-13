@@ -56,6 +56,12 @@ class RazorpayCareerPremiumController extends ChangeNotifier {
       _session(birthProfileId).logicalSku;
   int? amountMinorFor(String birthProfileId) =>
       _session(birthProfileId).amountMinor;
+  int? baseAmountMinorFor(String birthProfileId) =>
+      _session(birthProfileId).baseAmountMinor;
+  int? gstAmountMinorFor(String birthProfileId) =>
+      _session(birthProfileId).gstAmountMinor;
+  int? gstRateBasisPointsFor(String birthProfileId) =>
+      _session(birthProfileId).gstRateBasisPoints;
   String? currencyFor(String birthProfileId) =>
       _session(birthProfileId).currency;
 
@@ -101,6 +107,12 @@ class RazorpayCareerPremiumController extends ChangeNotifier {
       session.logicalSku = order['logicalSku'] as String? ?? session.logicalSku;
       session.amountMinor = order['amountMinor'] as int? ?? session.amountMinor;
       session.currency = order['currency'] as String? ?? session.currency;
+      session.baseAmountMinor =
+          order['baseAmountMinor'] as int? ?? session.baseAmountMinor;
+      session.gstAmountMinor =
+          order['gstAmountMinor'] as int? ?? session.gstAmountMinor;
+      session.gstRateBasisPoints = order['gstRateBasisPoints'] as int? ??
+          session.gstRateBasisPoints;
       // A malformed response must not open a new-payment CTA when the
       // authoritative lookup indicated an order may still exist.
       return _set(session, RazorpayCareerPremiumState.paymentStatusUnknown);
@@ -155,6 +167,9 @@ class RazorpayCareerPremiumController extends ChangeNotifier {
       session.logicalSku = details['logicalSku'] as String? ?? logicalSku;
       session.amountMinor = details['amountMinor'] as int?;
       session.currency = details['currency'] as String?;
+      session.baseAmountMinor = details['baseAmountMinor'] as int?;
+      session.gstAmountMinor = details['gstAmountMinor'] as int?;
+      session.gstRateBasisPoints = details['gstRateBasisPoints'] as int?;
       if (kDebugMode) {
         debugPrint(
           'RAZORPAY_ORDER_CREATE_RESULT success=true '
@@ -264,6 +279,12 @@ class RazorpayCareerPremiumController extends ChangeNotifier {
       session.logicalSku = order['logicalSku'] as String? ?? session.logicalSku;
       session.amountMinor = order['amountMinor'] as int? ?? session.amountMinor;
       session.currency = order['currency'] as String? ?? session.currency;
+      session.baseAmountMinor =
+          order['baseAmountMinor'] as int? ?? session.baseAmountMinor;
+      session.gstAmountMinor =
+          order['gstAmountMinor'] as int? ?? session.gstAmountMinor;
+      session.gstRateBasisPoints = order['gstRateBasisPoints'] as int? ??
+          session.gstRateBasisPoints;
       if (kDebugMode) {
         debugPrint(
           'RAZORPAY_CAREER_ORDER_RESOLVED source=unresolved_order orderId=${_safeOrderId(session.orderId)} plan=${session.logicalSku} amountPaise=${session.amountMinor}',
@@ -317,6 +338,9 @@ class _RazorpayProfileSession {
   String? orderId;
   String? logicalSku;
   int? amountMinor;
+  int? baseAmountMinor;
+  int? gstAmountMinor;
+  int? gstRateBasisPoints;
   String? currency;
   bool purchaseAttemptActive = false;
 }
