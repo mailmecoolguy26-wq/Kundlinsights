@@ -36,6 +36,7 @@ abstract class PaymentApiClient {
       );
   Future<Map<String, dynamic>> getLatestUnresolvedRazorpayOrder({
     required String birthProfileId,
+    String? logicalSku,
   }) => Future.error(
     StateError('Razorpay payment configuration is unavailable.'),
   );
@@ -53,8 +54,24 @@ abstract interface class AppleProfileUnlockPaymentApiClient {
   });
 }
 
+abstract interface class ProfileScopedSubscriptionPaymentApiClient {
+  Future<void> verifyAppleCareerPremiumPurchase({
+    required String environment,
+    required String productId,
+    required String evidence,
+    required String birthProfileId,
+  });
+  Future<void> restoreGoogleCareerPremiumPurchase({
+    required String productId,
+    required String purchaseToken,
+  });
+}
+
 class AuthenticatedPaymentApiClient
-    implements PaymentApiClient, AppleProfileUnlockPaymentApiClient {
+    implements
+        PaymentApiClient,
+        AppleProfileUnlockPaymentApiClient,
+        ProfileScopedSubscriptionPaymentApiClient {
   const AuthenticatedPaymentApiClient(this._client);
   final ApiClient _client;
 
@@ -63,7 +80,6 @@ class AuthenticatedPaymentApiClient
     required String environment,
     required String productId,
     required String evidence,
-    String? birthProfileId,
   }) async {
     await _client.post<Map<String, dynamic>>(
       '/v1/purchases/verify',
@@ -128,6 +144,42 @@ class AuthenticatedPaymentApiClient
   }
 
   @override
+  Future<void> verifyAppleCareerPremiumPurchase({
+    required String environment,
+    required String productId,
+    required String evidence,
+    required String birthProfileId,
+  }) async {
+    await _client.post<Map<String, dynamic>>(
+      '/v1/purchases/verify',
+      data: {
+        'provider': 'APPLE',
+        'environment': environment,
+        'productId': productId,
+        'evidence': evidence,
+        'birthProfileId': birthProfileId,
+      },
+    );
+  }
+
+  @override
+  Future<void> restoreGoogleCareerPremiumPurchase({
+    required String productId,
+    required String purchaseToken,
+  }) async {
+    await _client.post<Map<String, dynamic>>(
+      '/v1/purchases/verify',
+      data: {
+        'provider': 'GOOGLE',
+        'environment': 'PRODUCTION',
+        'productId': productId,
+        'isRestore': true,
+        'evidence': {'purchaseToken': purchaseToken},
+      },
+    );
+  }
+
+  @override
   Future<Map<String, dynamic>> createRazorpayOrder({
     required String logicalSku,
     String? birthProfileId,
@@ -169,10 +221,14 @@ class AuthenticatedPaymentApiClient
   @override
   Future<Map<String, dynamic>> getLatestUnresolvedRazorpayOrder({
     required String birthProfileId,
+    String? logicalSku,
   }) async =>
       (await _client.get<Map<String, dynamic>>(
         '/v1/payments/razorpay/unresolved-order',
-        queryParameters: {'birthProfileId': birthProfileId},
+        queryParameters: {
+          'birthProfileId': birthProfileId,
+          if (logicalSku?.isNotEmpty ?? false) 'logicalSku': logicalSku,
+        },
       )).data ??
       const {};
 }
@@ -216,6 +272,7 @@ class UnavailablePaymentApiClient implements PaymentApiClient {
   @override
   Future<Map<String, dynamic>> getLatestUnresolvedRazorpayOrder({
     required String birthProfileId,
+    String? logicalSku,
   }) => Future.error(StateError('Payment configuration is unavailable.'));
 }
 

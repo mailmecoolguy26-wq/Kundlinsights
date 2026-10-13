@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../auth/auth_controller.dart';
 import '../auth/domain/auth_repository.dart';
 import '../profiles/profile_controller.dart';
+import '../payments/data/debug_local_storekit_entitlement_session.dart';
 import 'domain/career_reading_generation.dart';
 import 'reading_controller.dart';
 
@@ -20,9 +22,13 @@ class CareerReadingGenerationController extends ChangeNotifier {
     this._profiles,
     this._readings, {
     String Function()? idempotencyKey,
+    DebugLocalStoreKitEntitlementSession? debugLocalStoreKitEntitlementSession,
   }) : _idempotencyKey = idempotencyKey ?? _newKey {
+    _debugLocalStoreKitEntitlementSession =
+        debugLocalStoreKitEntitlementSession;
     _auth.addListener(_onScopeChanged);
     _profiles.addListener(_onScopeChanged);
+    _debugLocalStoreKitEntitlementSession?.addListener(_onLocalDebugChanged);
     _onScopeChanged();
   }
   final CareerReadingGenerationRepository repository;
@@ -30,20 +36,27 @@ class CareerReadingGenerationController extends ChangeNotifier {
   final ProfileController _profiles;
   final ReadingController _readings;
   final String Function() _idempotencyKey;
+  late final DebugLocalStoreKitEntitlementSession?
+  _debugLocalStoreKitEntitlementSession;
   CareerEligibilityState _eligibilityState = CareerEligibilityState.initial;
   CareerGenerationState _generationState = CareerGenerationState.idle;
   String? _subject,
       _profileId,
       _attemptKey,
       _createdReadingId,
-      _eligibilityMode;
+      _eligibilityMode,
+      _backendPurchaseMode,
+      _purchaseMode;
   int _generation = 0;
   bool _disposed = false;
   CareerEligibilityState get eligibilityState => _eligibilityState;
   CareerGenerationState get generationState => _generationState;
   String? get createdReadingId => _createdReadingId;
   String? get eligibilityMode => _eligibilityMode;
+  String? get backendPurchaseMode => _backendPurchaseMode;
+  String? get purchaseMode => _purchaseMode;
   String? get activeBirthProfileId => _profileId;
+  String? get activeAuthenticatedSubject => _subject;
   bool get canGenerate =>
       _eligibilityState == CareerEligibilityState.eligible &&
       _generationState != CareerGenerationState.generating;
@@ -60,6 +73,8 @@ class CareerReadingGenerationController extends ChangeNotifier {
     _attemptKey = null;
     _createdReadingId = null;
     _eligibilityMode = null;
+    _backendPurchaseMode = null;
+    _purchaseMode = null;
     _generationState = CareerGenerationState.idle;
     if (subject == null || profile == null) {
       _eligibilityState = CareerEligibilityState.initial;
@@ -94,12 +109,41 @@ class CareerReadingGenerationController extends ChangeNotifier {
           ? CareerEligibilityState.eligible
           : CareerEligibilityState.ineligible;
       _eligibilityMode = value.mode;
+      _backendPurchaseMode = value.purchaseMode;
+      _purchaseMode =
+          _debugLocalStoreKitEntitlementSession?.resolvePurchaseMode(
+            authenticatedSubject: subject,
+            birthProfileId: profile,
+            backendPurchaseMode: value.purchaseMode,
+          ) ??
+          value.purchaseMode;
+      final localSession = _debugLocalStoreKitEntitlementSession;
+      if (kDebugMode && localSession?.enabled == true) {
+        debugPrint(
+          'CAREER_PURCHASE_CONTEXT '
+          'subject=$subject '
+          'profile=$profile '
+          'hasLocalPrimary=${localSession!.hasActivePrimarySubscription(subject)} '
+          'localProfileSource=${localSession.localEntitlementSourceFor(authenticatedSubject: subject, birthProfileId: profile) ?? 'none'} '
+          'backendPurchaseMode=${value.purchaseMode ?? 'none'} '
+          'effectivePurchaseMode=${_purchaseMode ?? 'none'} '
+          'providerProductId=not_loaded',
+        );
+      }
+      _debugEligibility(profile, _eligibilityState);
     } catch (_) {
       if (!_current(generation, subject, profile)) return;
       _eligibilityState = CareerEligibilityState.error;
       _eligibilityMode = null;
+      _backendPurchaseMode = null;
+      _purchaseMode = null;
+      _debugEligibility(profile, _eligibilityState);
     }
     notifyListeners();
+  }
+
+  void _onLocalDebugChanged() {
+    if (_subject != null && _profileId != null) unawaited(refreshEligibility());
   }
 
   Future<void> generate() async {
@@ -136,12 +180,21 @@ class CareerReadingGenerationController extends ChangeNotifier {
       generation == _generation &&
       subject == _subject &&
       profile == _profileId;
+
+  void _debugEligibility(String profileId, CareerEligibilityState state) {
+    if (!kDebugMode) return;
+    debugPrint(
+      'CAREER_ENTITLEMENT_REFRESH profile=p${profileId.hashCode} state=${state.name}',
+    );
+  }
+
   @override
   void dispose() {
     _disposed = true;
     _generation++;
     _auth.removeListener(_onScopeChanged);
     _profiles.removeListener(_onScopeChanged);
+    _debugLocalStoreKitEntitlementSession?.removeListener(_onLocalDebugChanged);
     super.dispose();
   }
 }
@@ -162,6 +215,9 @@ final careerReadingGenerationControllerProvider =
         scope.$1,
         scope.$2,
         scope.$3,
+        debugLocalStoreKitEntitlementSession: ref.watch(
+          debugLocalStoreKitEntitlementSessionProvider,
+        ),
       );
       ref.onDispose(controller.dispose);
       return controller;

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,6 +10,8 @@ import 'package:kundlinsights_mobile/features/career_answers/domain/career_answe
 import 'package:kundlinsights_mobile/features/career_answers/domain/career_answer_repository.dart';
 import 'package:kundlinsights_mobile/features/career_answers/presentation/career_answer_screen.dart';
 import 'package:kundlinsights_mobile/features/career_answers/presentation/career_hub_screen.dart';
+import 'package:kundlinsights_mobile/features/payments/data/apple_store_purchase_service.dart';
+import 'package:kundlinsights_mobile/features/payments/data/debug_local_storekit_entitlement_session.dart';
 import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile.dart';
 import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile_repository.dart';
 import 'package:kundlinsights_mobile/features/profiles/profile_controller.dart';
@@ -39,6 +42,38 @@ void main() {
       }
     },
   );
+
+  testWidgets('Career hub retains normal back navigation to the app shell', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: FilledButton(
+                onPressed: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const CareerHubScreen(),
+                  ),
+                ),
+                child: const Text('Open Career'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open Career'));
+    await tester.pumpAndSettle();
+    expect(find.text('CAREER & BUSINESS'), findsOneWidget);
+    expect(find.byTooltip('Back'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Back'));
+    await tester.pumpAndSettle();
+    expect(find.text('Open Career'), findsOneWidget);
+  });
 
   testWidgets('renders loading and then a grounded possible activity answer', (
     tester,
@@ -222,6 +257,74 @@ void main() {
       expect(find.textContaining('Exact date range'), findsOneWidget);
     },
   );
+
+  test('keeps Job Favourability answers profile-scoped and refreshes after a local purchase', () async {
+    final session = DebugLocalStoreKitEntitlementSession(enabled: true);
+    final harness = await _Harness.create(
+      _Answers(answer: _jobTeaser()),
+      localDebugSession: session,
+    );
+    addTearDown(harness.dispose);
+
+    await harness.controller.load(CareerQuestionType.jobFavourabilityTiming);
+    expect(
+      harness.controller.answer?.answerability,
+      CareerAnswerability.premiumRequired,
+    );
+    expect(harness.repository.profileIds, ['profile-a']);
+
+    session.activateIfLocalXcodeTransaction(
+      purchase: _xcodePurchase(),
+      expectedProductId: 'com.taraverse.career.premium.6month',
+      authenticatedSubject: 'user-a',
+      birthProfileId: 'profile-a',
+    );
+    await _flushController();
+
+    expect(harness.controller.answer?.jobFavourability, isNotNull);
+    expect(
+      harness.controller.answer?.answerability,
+      CareerAnswerability.supported,
+    );
+    expect(harness.repository.profileIds, ['profile-a']);
+
+    harness.profiles.select(harness.profile('profile-b'));
+    await _flushController();
+    expect(
+      harness.controller.answer?.answerability,
+      CareerAnswerability.premiumRequired,
+    );
+    expect(harness.repository.profileIds, ['profile-a', 'profile-b']);
+
+    harness.profiles.select(harness.profile('profile-a'));
+    await _flushController();
+    expect(harness.controller.answer?.jobFavourability, isNotNull);
+    expect(harness.repository.profileIds, ['profile-a', 'profile-b']);
+  });
+}
+
+Future<void> _flushController() async {
+  await Future<void>.delayed(Duration.zero);
+  await Future<void>.delayed(Duration.zero);
+}
+
+StorePurchaseUpdate _xcodePurchase() => StorePurchaseUpdate(
+  status: StorePurchaseStatus.purchased,
+  productId: 'com.taraverse.career.premium.6month',
+  serverVerificationData: _xcodeJws(),
+  pendingCompletePurchase: true,
+  transactionId: 'local-profile-a-transaction',
+);
+
+String _xcodeJws() {
+  final payload = base64Url
+      .encode(
+        utf8.encode(
+          '{"environment":"Xcode","productId":"com.taraverse.career.premium.6month"}',
+        ),
+      )
+      .replaceAll('=', '');
+  return 'header.$payload.signature';
 }
 
 Widget _screen(
@@ -324,7 +427,10 @@ class _Harness {
   final CareerAnswerController controller;
   final _Answers repository;
 
-  static Future<_Harness> create(_Answers repository) async {
+  static Future<_Harness> create(
+    _Answers repository, {
+    DebugLocalStoreKitEntitlementSession? localDebugSession,
+  }) async {
     final auth = AuthController(_Auth());
     await auth.restore();
     final profiles = ProfileController(_Profiles(), auth);
@@ -332,10 +438,13 @@ class _Harness {
     return _Harness(
       auth,
       profiles,
-      CareerAnswerController(repository, profiles),
+      CareerAnswerController(repository, profiles, localDebugSession),
       repository,
     );
   }
+
+  BirthProfile profile(String id) =>
+      profiles.profiles.singleWhere((profile) => profile.id == id);
 
   void dispose() {
     controller.dispose();
@@ -396,6 +505,12 @@ class _Profiles implements BirthProfileRepository {
     BirthProfile(
       id: 'profile-a',
       displayLabel: 'Profile A',
+      status: 'active',
+      birthData: ResolvedBirthData(const {'timezone': 'UTC'}),
+    ),
+    BirthProfile(
+      id: 'profile-b',
+      displayLabel: 'Profile B',
       status: 'active',
       birthData: ResolvedBirthData(const {'timezone': 'UTC'}),
     ),

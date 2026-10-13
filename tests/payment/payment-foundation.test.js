@@ -35,7 +35,7 @@ test('payment foundation repositories provide idempotency, durable ownership, an
 });
 
 test('Career Premium catalog remains logical and has no invented provider mapping', () => {
-  assert.equal(getProduct('career_premium_annual').displayPrice, '₹599/year');
+  assert.equal(getProduct('career_premium_annual').displayPrice, null);
   assert.equal(getProductByProviderProductId('APPLE', 'not-configured'), null);
   assert.throws(() => getProduct('unknown'), (error) => error.code === 'UNKNOWN_PRODUCT_SKU');
   assert.deepEqual(SubscriptionStatus, ['ACTIVE', 'GRACE_PERIOD', 'CANCELED', 'EXPIRED', 'REVOKED', 'REFUNDED']);

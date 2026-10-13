@@ -57,7 +57,7 @@ test('verified profile unlock persists one purchase and one permanent profile en
   assert.equal(repositories.purchases.listForUser('user-a').length, 1);
   assert.equal(repositories.subscriptions.listForUser('user-a').length, 0);
   assert.equal(repositories.profileEntitlements.findForProfile({ userId: 'user-a', birthProfileId: 'profile-a', logicalSku: 'career_profile_unlock' }).purchaseRecordId, result.purchase.id);
-  assert.deepEqual(result.entitlement.career, { eligible: true, mode: 'PROFILE_UNLOCK', consuming: false, validUntil: null });
+  assert.deepEqual(result.entitlement.career, { eligible: true, mode: 'LEGACY_PROFILE_UNLOCK', consuming: false, validUntil: null });
   assert.equal('subscription' in result, false);
   assert.equal(JSON.stringify(repositories.profileEntitlements.findByPurchaseRecordId(result.purchase.id)).includes('FAKE_PURCHASE'), false);
   assert.equal(legacyResolverUsed, false);
@@ -92,7 +92,7 @@ test('different verified purchases unlock different profiles while a second purc
   assert.equal(await repositories.purchases.findByProviderTransaction({ provider: 'APPLE', environment: 'SANDBOX', providerTransactionId: 'purchase-c' }), null);
   assert.equal(repositories.profileEntitlements.records.size, 2);
   const availablePurchase = await service.verify({ principal: { id: 'user-a' }, body: unlockBody('purchase-c', 'profile-d') });
-  assert.equal(availablePurchase.entitlement.career.mode, 'PROFILE_UNLOCK');
+  assert.equal(availablePurchase.entitlement.career.mode, 'LEGACY_PROFILE_UNLOCK');
 });
 
 test('purchase ownership, profile ownership, and assignment failures leave no partial profile-unlock state', async () => {
@@ -108,11 +108,30 @@ test('purchase ownership, profile ownership, and assignment failures leave no pa
   assert.equal(repositories.profileEntitlements.records.size, 1);
 });
 
-test('legacy annual subscription verification remains on its existing subscription path', async () => {
+test('legacy annual subscription verification retains lineage without granting account-wide access', async () => {
   const { repositories, service } = setup();
   const body = { provider: 'APPLE', environment: 'SANDBOX', productId: 'career_premium_annual', evidence: { kind: 'FAKE_PURCHASE', transactionId: 'annual-purchase', purchasedAt: NOW, validFrom: NOW, validUntil: '2027-09-04T00:00:00.000Z', status: 'ACTIVE' } };
   const result = await service.verify({ principal: { id: 'user-a' }, body });
-  assert.equal(result.entitlement.career.mode, 'SUBSCRIPTION');
+  assert.equal(result.entitlement.career.mode, 'NONE');
   assert.equal(repositories.subscriptions.listForUser('user-a').length, 1);
   assert.equal(repositories.profileEntitlements.records.size, 0);
+});
+
+test('new Career Premium subscriptions require and retain one owned birth profile', async () => {
+  const { repositories, service } = setup();
+  const base = {
+    provider: 'APPLE', environment: 'SANDBOX', productId: 'career_premium_6_month',
+    evidence: { kind: 'FAKE_PURCHASE', transactionId: 'six-month-purchase', purchasedAt: NOW, validFrom: NOW, validUntil: '2027-09-04T00:00:00.000Z', status: 'ACTIVE' },
+  };
+  await assert.rejects(
+    service.verify({ principal: { id: 'user-a' }, body: base }),
+    { code: 'INVALID_BIRTH_PROFILE_ID' },
+  );
+  await assert.rejects(
+    service.verify({ principal: { id: 'user-a' }, body: { ...base, birthProfileId: 'profile-c' } }),
+    { code: 'NOT_FOUND_OR_FORBIDDEN' },
+  );
+  const result = await service.verify({ principal: { id: 'user-a' }, body: { ...base, birthProfileId: 'profile-a' } });
+  assert.equal(result.entitlement.career.mode, 'SUBSCRIPTION');
+  assert.equal(repositories.subscriptions.listForUser('user-a')[0].birthProfileId, 'profile-a');
 });

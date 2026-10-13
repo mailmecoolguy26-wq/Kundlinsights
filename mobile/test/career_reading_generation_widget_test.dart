@@ -478,6 +478,7 @@ class _HydrationApi extends PaymentApiClient {
   @override
   Future<Map<String, dynamic>> getLatestUnresolvedRazorpayOrder({
     required String birthProfileId,
+    String? logicalSku,
   }) {
     profileLookups.add(birthProfileId);
     return pending[birthProfileId]?.future ??

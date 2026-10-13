@@ -21,21 +21,24 @@ function setup({ payloadForEvidence = () => payload() } = {}) {
   return { api, repositories, purchaseService };
 }
 function restore(api, token, signedTransactions) { return api.inject({ method: 'POST', url: '/v1/purchases/restore', headers: { authorization: token }, payload: { provider: 'APPLE', environment: 'SANDBOX', evidence: { signedTransactions } } }); }
+function verifyBody(evidence) { return { provider: 'APPLE', environment: 'SANDBOX', productId: PRODUCT_ID, birthProfileId: 'profile-a', evidence }; }
 function credit(repositories, userId = 'user-a') { repositories.entitlements.createEntitlement({ id: `credit-${userId}`, userId, productKey: 'CAREER', status: 'active', quantity: 1, validFrom: NOW, validUntil: FUTURE }); }
 
 test('Apple restore persists active items, preserves credits, and is idempotent for existing purchases', async () => {
   const { api, repositories, purchaseService } = setup(); credit(repositories);
-  await purchaseService.verify({ principal: { subject: 'user-a' }, body: { provider: 'APPLE', environment: 'SANDBOX', productId: PRODUCT_ID, evidence: 'active' } });
+  await purchaseService.verify({ principal: { subject: 'user-a' }, body: verifyBody('active') });
   const response = await restore(api, 'Bearer user-a', ['active']);
   assert.equal(response.statusCode, 200); assert.equal(response.json().restored.length, 1); assert.equal(response.json().restored[0].entitlement.career.mode, 'SUBSCRIPTION');
   assert.equal(repositories.purchases.listForUser('user-a').length, 1); assert.equal(repositories.subscriptions.listForUser('user-a').length, 1); assert.equal(repositories.entitlements.getEntitlement('credit-user-a').quantity, 1);
+  assert.equal(repositories.subscriptions.listForUser('user-a')[0].providerProductId, PRODUCT_ID); assert.equal(repositories.subscriptions.listForUser('user-a')[0].entitlementKey, 'CAREER_PREMIUM');
   const replay = await restore(api, 'Bearer user-a', ['active']); assert.equal(replay.statusCode, 200); assert.equal(repositories.purchases.listForUser('user-a').length, 1); assert.equal(repositories.subscriptions.listForUser('user-a').length, 1);
   assert.equal(JSON.stringify(replay.json()).includes('active'), false); await api.close();
 });
 
 test('Apple restore reconciles one original transaction to its newest verified state and ignores stale state', async () => {
   const values = { old: payload({ transactionId: 'renewal-old', purchaseDate: Date.parse(EARLIER), expiresDate: Date.parse(PAST), signedDate: Date.parse(EARLIER) }), latest: payload({ transactionId: 'renewal-latest', signedDate: Date.parse(NOW) }) };
-  const { api, repositories } = setup({ payloadForEvidence: (evidence) => values[evidence] });
+  const { api, repositories, purchaseService } = setup({ payloadForEvidence: (evidence) => values[evidence] });
+  await purchaseService.verify({ principal: { subject: 'user-a' }, body: verifyBody('latest') });
   const restored = await restore(api, 'Bearer user-a', ['old', 'latest']); assert.equal(restored.statusCode, 200);
   assert.equal(repositories.purchases.listForUser('user-a').length, 2); assert.equal(repositories.subscriptions.listForUser('user-a').length, 1); assert.equal(repositories.subscriptions.listForUser('user-a')[0].validUntil, FUTURE);
   const stale = await restore(api, 'Bearer user-a', ['old']); assert.equal(stale.statusCode, 200); assert.equal(repositories.subscriptions.listForUser('user-a')[0].validUntil, FUTURE); assert.equal(stale.json().restored[0].entitlement.career.mode, 'SUBSCRIPTION'); await api.close();
@@ -43,18 +46,20 @@ test('Apple restore reconciles one original transaction to its newest verified s
 
 test('Apple restore handles terminal states through legacy credit fallback and protects ownership', async () => {
   const values = { expired: payload({ transactionId: 'expired', originalTransactionId: 'expired-original', purchaseDate: Date.parse(EARLIER), expiresDate: Date.parse(PAST) }), refunded: payload({ transactionId: 'refunded', originalTransactionId: 'refunded-original', revocationDate: Date.parse(NOW), revocationReason: 1 }), revoked: payload({ transactionId: 'revoked', originalTransactionId: 'revoked-original', revocationDate: Date.parse(NOW), revocationReason: 0 }) };
-  const { api, repositories } = setup({ payloadForEvidence: (evidence) => values[evidence] });
+  const { api, repositories, purchaseService } = setup({ payloadForEvidence: (evidence) => values[evidence] });
+  await purchaseService.verify({ principal: { subject: 'user-a' }, body: verifyBody('expired') });
   const expired = await restore(api, 'Bearer user-a', ['expired']); assert.equal(expired.json().restored[0].entitlement.career.mode, 'NONE'); credit(repositories);
+  await purchaseService.verify({ principal: { subject: 'user-a' }, body: verifyBody('refunded') });
+  await purchaseService.verify({ principal: { subject: 'user-a' }, body: verifyBody('revoked') });
   const refunded = await restore(api, 'Bearer user-a', ['refunded']); const revoked = await restore(api, 'Bearer user-a', ['revoked']); assert.equal(refunded.json().restored[0].entitlement.career.mode, 'CREDIT'); assert.equal(revoked.json().restored[0].entitlement.career.mode, 'CREDIT');
   const conflict = await restore(api, 'Bearer user-b', ['revoked']); assert.equal(conflict.json().error.code, 'PURCHASE_OWNERSHIP_CONFLICT'); assert.equal(repositories.purchases.listForUser('user-b').length, 0); assert.equal(repositories.subscriptions.listForUser('user-b').length, 0); await api.close();
 });
 
-test('Apple restore rejects invalid items without persistence and rolls back only a failed item', async () => {
+test('Apple restore rejects invalid and unlinked items without persistence', async () => {
   const values = { wrong: payload({ productId: 'com.example.other' }), bundle: payload({ bundleId: 'com.example.other' }), production: payload({ environment: 'Production' }), first: payload({ transactionId: 'first', originalTransactionId: 'first-original' }), second: payload({ transactionId: 'second', originalTransactionId: 'second-original' }) };
   const { api, repositories } = setup({ payloadForEvidence: (evidence) => { if (evidence === 'failure') { const error = new Error('verify'); error.code = 'APPLE_JWS_VERIFICATION_FAILED'; throw error; } return values[evidence]; } });
   for (const evidence of ['wrong', 'bundle', 'production', 'failure']) { const response = await restore(api, 'Bearer user-a', [evidence]); assert.notEqual(response.statusCode, 200); }
   const mixed = await restore(api, 'Bearer user-a', ['first', 'failure']); assert.notEqual(mixed.statusCode, 200);
   assert.equal(repositories.purchases.listForUser('user-a').length, 0); assert.equal(repositories.subscriptions.listForUser('user-a').length, 0);
-  const original = repositories.subscriptions.upsertVerifiedState; repositories.subscriptions.upsertVerifiedState = function (input) { if (input.originalTransactionId === 'second-original') { const error = new Error('fail'); error.code = 'SUBSCRIPTION_PERSISTENCE_FAILED'; throw error; } return original.call(this, input); };
-  const partial = await restore(api, 'Bearer user-a', ['first', 'second']); assert.equal(partial.json().error.code, 'SUBSCRIPTION_PERSISTENCE_FAILED'); assert.equal(repositories.purchases.listForUser('user-a').length, 1); assert.equal(repositories.subscriptions.listForUser('user-a').length, 1); await api.close();
+  const unlinked = await restore(api, 'Bearer user-a', ['first']); assert.equal(unlinked.json().error.code, 'SUBSCRIPTION_PROFILE_RECONCILIATION_REQUIRED'); assert.equal(repositories.purchases.listForUser('user-a').length, 0); assert.equal(repositories.subscriptions.listForUser('user-a').length, 0); await api.close();
 });

@@ -344,7 +344,7 @@ class SecureReadingService {
     if (!this.requiresEntitlement({ domain })) return immutableCopy({ career: { eligible: true } });
     try {
       const access = await this.execute(verified, 'app_runtime', async (context) => this.careerAccessResolver.resolveForProfile({ repositories: this.repo(context), userId: user.id, birthProfileId, at: this.clock() }));
-      return immutableCopy({ career: { eligible: access.eligible, mode: access.mode, consuming: access.consuming } });
+      return immutableCopy({ career: { state: access.eligible ? 'ACTIVE' : 'INACTIVE', eligible: access.eligible, mode: access.mode, consuming: access.consuming, entitlementKey: access.entitlementKey, source: access.entitlementSource, planKey: access.planKey, validUntil: access.validUntil, subscriptionStatus: access.subscriptionStatus, purchaseMode: access.purchaseMode } });
     } catch (error) { safeError(error, 'ENTITLEMENT_STATUS_FAILED'); }
   }
   async getSecureReading({ principal: principalInput, readingId } = {}) {

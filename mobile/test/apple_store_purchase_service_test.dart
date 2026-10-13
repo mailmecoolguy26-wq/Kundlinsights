@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kundlinsights_mobile/features/payments/career_premium_product_controller.dart';
 import 'package:kundlinsights_mobile/features/payments/data/apple_store_purchase_service.dart';
@@ -5,8 +6,17 @@ import 'package:kundlinsights_mobile/features/payments/domain/career_premium_pro
 
 const _productId = 'com.kundlinsights.career.premium.annual';
 const _profileUnlockProductId = 'com.taraverse.career.profile.unlock';
+const _primarySixMonthProductId = 'com.taraverse.career.premium.6month';
+const _primaryTwelveMonthProductId = 'com.taraverse.career.premium.12month';
+const _addOnSixMonthProductId = 'com.taraverse.career.addon.6month';
+const _addOnTwelveMonthProductId = 'com.taraverse.career.addon.12month';
 
 void main() {
+  test('uses StoreKit-required auto-consumption only on iOS', () {
+    expect(shouldAutoConsumeForStorePlatform(TargetPlatform.iOS), isTrue);
+    expect(shouldAutoConsumeForStorePlatform(TargetPlatform.android), isFalse);
+  });
+
   test(
     'maps the configured StoreKit product into normalized available state',
     () async {
@@ -87,7 +97,7 @@ void main() {
     );
     final service = AppleStorePurchaseService(
       client: client,
-      careerPremiumAnnualAppleProductId: _productId,
+      careerPremiumAnnualAppleProductId: null,
       careerProfileUnlockAppleProductId: _profileUnlockProductId,
     );
     final result = await service.loadCareerPremiumProduct();
@@ -96,6 +106,81 @@ void main() {
     expect(await service.startCareerPremiumPurchase(result.product!), isTrue);
     expect(client.consumablePurchases, [_profileUnlockProductId]);
     expect(client.nonConsumablePurchases, isEmpty);
+  });
+
+  test('uses the exact loaded primary or add-on provider product', () async {
+    final client = _StoreClient(
+      products: const [
+        StoreProductDetails(
+          id: _primarySixMonthProductId,
+          title: 'Primary six',
+          description: '',
+          localizedPrice: '₹399',
+          rawPrice: 399,
+          currencyCode: 'INR',
+        ),
+        StoreProductDetails(
+          id: _primaryTwelveMonthProductId,
+          title: 'Primary twelve',
+          description: '',
+          localizedPrice: '₹599',
+          rawPrice: 599,
+          currencyCode: 'INR',
+        ),
+        StoreProductDetails(
+          id: _addOnSixMonthProductId,
+          title: 'Add-on six',
+          description: '',
+          localizedPrice: '₹399',
+          rawPrice: 399,
+          currencyCode: 'INR',
+        ),
+        StoreProductDetails(
+          id: _addOnTwelveMonthProductId,
+          title: 'Add-on twelve',
+          description: '',
+          localizedPrice: '₹599',
+          rawPrice: 599,
+          currencyCode: 'INR',
+        ),
+      ],
+    );
+    final service = AppleStorePurchaseService(
+      client: client,
+      careerPremiumAnnualAppleProductId: null,
+      careerPremium6MonthAppleProductId: _primarySixMonthProductId,
+      careerPremium12MonthAppleProductId: _primaryTwelveMonthProductId,
+      careerPremiumAddOn6MonthAppleProductId: _addOnSixMonthProductId,
+      careerPremiumAddOn12MonthAppleProductId: _addOnTwelveMonthProductId,
+    );
+
+    final primary = await service.loadCareerPremiumProduct();
+    final addOn = await service.loadCareerPremiumProduct(purchaseMode: 'ADDON');
+    final primarySix = primary.products.singleWhere(
+      (product) => product.logicalSku == careerPremium6MonthLogicalSku,
+    );
+    final primaryTwelve = primary.products.singleWhere(
+      (product) => product.logicalSku == careerPremium12MonthLogicalSku,
+    );
+    final addOnSix = addOn.products.singleWhere(
+      (product) => product.logicalSku == careerPremiumAddOn6MonthLogicalSku,
+    );
+    final addOnTwelve = addOn.products.singleWhere(
+      (product) => product.logicalSku == careerPremiumAddOn12MonthLogicalSku,
+    );
+
+    expect(await service.startCareerPremiumPurchase(primarySix), isTrue);
+    expect(await service.startCareerPremiumPurchase(primaryTwelve), isTrue);
+    expect(await service.startCareerPremiumPurchase(addOnSix), isTrue);
+    expect(await service.startCareerPremiumPurchase(addOnTwelve), isTrue);
+    expect(client.nonConsumablePurchases, [
+      _primarySixMonthProductId,
+      _primaryTwelveMonthProductId,
+    ]);
+    expect(client.consumablePurchases, [
+      _addOnSixMonthProductId,
+      _addOnTwelveMonthProductId,
+    ]);
   });
 
   test('handles unavailable store, missing configuration, and product not found safely', () async {
@@ -147,7 +232,7 @@ void main() {
         careerPremiumAnnualAppleProductId: _productId,
       ).loadCareerPremiumProduct();
 
-      expect(queryError.state, CareerPremiumProductLoadState.unavailable);
+      expect(queryError.state, CareerPremiumProductLoadState.error);
       expect(unexpected.state, CareerPremiumProductLoadState.error);
       expect(throws.state, CareerPremiumProductLoadState.error);
     },

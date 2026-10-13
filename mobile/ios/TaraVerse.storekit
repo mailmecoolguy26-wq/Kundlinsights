@@ -1,0 +1,155 @@
+{
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : ""
+      }
+    ]
+  },
+  "identifier" : "52540F8C",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "399",
+      "familyShareable" : false,
+      "internalID" : "2E1A60E5",
+      "localizations" : [
+        {
+          "description" : "",
+          "displayName" : "",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.taraverse.career.addon.6month",
+      "referenceName" : "Career Premium Add-on 6 Month",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "699",
+      "familyShareable" : false,
+      "internalID" : "FA8AFAD5",
+      "localizations" : [
+        {
+          "description" : "",
+          "displayName" : "",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.taraverse.career.addon.12month",
+      "referenceName" : "Career Premium Add-on 12 Month",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+    "_askToBuyEnabled" : false,
+    "_billingGracePeriodEnabled" : false,
+    "_billingIssuesEnabled" : false,
+    "_disableDialogs" : false,
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_renewalBillingIssuesEnabled" : false,
+    "_storefront" : "IND",
+    "_storeKitErrors" : [
+
+    ],
+    "_timeRate" : 0
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "7A02F765",
+      "localizations" : [
+
+      ],
+      "name" : "Career Premium",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "billingPlans" : [
+            {
+              "billingPlanType" : "BILLED_UPFRONT",
+              "commitmentDisplayPrice" : "699",
+              "displayPrice" : "699",
+              "internalID" : "032BCA65",
+              "isEnabled" : true
+            }
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "699",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "175CA551",
+          "introductoryOffers" : [
+
+          ],
+          "localizations" : [
+            {
+              "description" : "",
+              "displayName" : "",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.taraverse.career.premium.12month",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Career Premium 12 Month",
+          "subscriptionGroupID" : "7A02F765",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "billingPlans" : [
+            {
+              "billingPlanType" : "BILLED_UPFRONT",
+              "commitmentDisplayPrice" : "399",
+              "displayPrice" : "399",
+              "internalID" : "DA7E0DC8",
+              "isEnabled" : true
+            }
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "399",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "CD8DAF97",
+          "introductoryOffers" : [
+
+          ],
+          "localizations" : [
+            {
+              "description" : "",
+              "displayName" : "",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.taraverse.career.premium.6month",
+          "recurringSubscriptionPeriod" : "P6M",
+          "referenceName" : "Career Premium 6 Month",
+          "subscriptionGroupID" : "7A02F765",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 5,
+    "minor" : 0
+  }
+}

@@ -36,6 +36,14 @@ class RazorpayCareerPremiumController extends ChangeNotifier {
   bool get canRetry => false;
   _RazorpayProfileSession _session(String id) =>
       _sessions.putIfAbsent(id, _RazorpayProfileSession.new);
+  String _safeOrderId(String? value) {
+    if (value == null || value.isEmpty) return 'none';
+    return value.substring(0, value.length > 8 ? 8 : value.length);
+  }
+
+  String _safeProfileId(String value) =>
+      value.hashCode.toUnsigned(32).toRadixString(16);
+
   RazorpayCareerPremiumState stateFor(String birthProfileId) =>
       _session(birthProfileId).state;
   bool canRetryFor(String birthProfileId) {
@@ -43,6 +51,13 @@ class RazorpayCareerPremiumController extends ChangeNotifier {
     return session.state == RazorpayCareerPremiumState.definitiveFailure &&
         session.orderId == null;
   }
+
+  String? logicalSkuFor(String birthProfileId) =>
+      _session(birthProfileId).logicalSku;
+  int? amountMinorFor(String birthProfileId) =>
+      _session(birthProfileId).amountMinor;
+  String? currencyFor(String birthProfileId) =>
+      _session(birthProfileId).currency;
 
   /// Reconciles one profile's persisted Razorpay order state after controller
   /// recreation. The backend remains the source of truth; no order state is
@@ -72,6 +87,7 @@ class RazorpayCareerPremiumController extends ChangeNotifier {
     try {
       final result = await api.getLatestUnresolvedRazorpayOrder(
         birthProfileId: birthProfileId,
+        logicalSku: session.logicalSku,
       );
       final order = result['order'];
       if (order is! Map) {
@@ -82,6 +98,9 @@ class RazorpayCareerPremiumController extends ChangeNotifier {
       if (orderId is String && orderId.trim().isNotEmpty) {
         session.orderId = orderId;
       }
+      session.logicalSku = order['logicalSku'] as String? ?? session.logicalSku;
+      session.amountMinor = order['amountMinor'] as int? ?? session.amountMinor;
+      session.currency = order['currency'] as String? ?? session.currency;
       // A malformed response must not open a new-payment CTA when the
       // authoritative lookup indicated an order may still exist.
       return _set(session, RazorpayCareerPremiumState.paymentStatusUnknown);
@@ -100,7 +119,10 @@ class RazorpayCareerPremiumController extends ChangeNotifier {
     _set(session, RazorpayCareerPremiumState.idle);
   }
 
-  Future<void> start({required String birthProfileId}) async {
+  Future<void> start({
+    required String birthProfileId,
+    String logicalSku = 'career_premium_annual',
+  }) async {
     if (birthProfileId.trim().isEmpty) return;
     final session = _session(birthProfileId);
     if (session.state != RazorpayCareerPremiumState.idle &&
@@ -109,30 +131,50 @@ class RazorpayCareerPremiumController extends ChangeNotifier {
     }
     _set(session, RazorpayCareerPremiumState.creatingOrder);
     session.purchaseAttemptActive = true;
+    session.logicalSku = logicalSku;
+    if (kDebugMode) {
+      debugPrint(
+        'RAZORPAY_ORDER_CREATE_START profile=${_safeProfileId(birthProfileId)} '
+        'plan=$logicalSku',
+      );
+    }
     _analytics.track(AnalyticsEvent.purchaseStarted, {
-      'sku': 'career_premium_annual',
+      'sku': logicalSku,
       'payment_provider': 'razorpay',
       'product_type': 'career_premium',
     });
+    var stage = 'create_order';
     try {
       final result = await api.createRazorpayOrder(
-        logicalSku: 'career_premium_annual',
+        logicalSku: logicalSku,
         birthProfileId: birthProfileId,
       );
       final order = result['order'];
       final details = order is Map ? order : result;
       session.orderId = details['orderId'] as String?;
+      session.logicalSku = details['logicalSku'] as String? ?? logicalSku;
+      session.amountMinor = details['amountMinor'] as int?;
+      session.currency = details['currency'] as String?;
+      if (kDebugMode) {
+        debugPrint(
+          'RAZORPAY_ORDER_CREATE_RESULT success=true '
+          'orderId=${_safeOrderId(session.orderId)} '
+          'amountPaise=${session.amountMinor} currency=${session.currency}',
+        );
+      }
       if (session.orderId == null) {
         throw StateError('Missing Razorpay order.');
       }
       _set(session, RazorpayCareerPremiumState.checkoutOpen);
+      stage = 'checkout';
       final evidence = await checkout.open(
         keyId: details['keyId'] as String,
         orderId: session.orderId!,
-        amountMinor: details['amountMinor'] as int,
-        currency: details['currency'] as String,
+        amountMinor: session.amountMinor!,
+        currency: session.currency!,
       );
       _set(session, RazorpayCareerPremiumState.verifying);
+      stage = 'verify';
       await api.verifyRazorpayPayment(
         razorpayOrderId: evidence.orderId,
         razorpayPaymentId: evidence.paymentId,
@@ -143,7 +185,20 @@ class RazorpayCareerPremiumController extends ChangeNotifier {
       // The checkout exited before any payment evidence was delivered.
       _set(session, RazorpayCareerPremiumState.definitiveFailure);
       _trackFailure(session, 'cancelled');
-    } catch (_) {
+    } catch (error) {
+      if (kDebugMode) {
+        if (stage == 'create_order') {
+          debugPrint(
+            'RAZORPAY_ORDER_CREATE_RESULT success=false '
+            'exceptionType=${error.runtimeType} message=$error',
+          );
+        } else if (stage == 'checkout') {
+          debugPrint(
+            'RAZORPAY_CHECKOUT_EXCEPTION exceptionType=${error.runtimeType} '
+            'message=$error',
+          );
+        }
+      }
       // A checkout may have completed when delivery/verification fails. Never
       // offer a new charge until authoritative recovery says it is safe.
       _set(
@@ -195,6 +250,7 @@ class RazorpayCareerPremiumController extends ChangeNotifier {
     try {
       final result = await api.getLatestUnresolvedRazorpayOrder(
         birthProfileId: birthProfileId,
+        logicalSku: session.logicalSku,
       );
       final order = result['order'];
       if (order is! Map) {
@@ -204,6 +260,14 @@ class RazorpayCareerPremiumController extends ChangeNotifier {
       final orderId = order['providerOrderId'];
       if (orderId is String && orderId.trim().isNotEmpty) {
         session.orderId = orderId;
+      }
+      session.logicalSku = order['logicalSku'] as String? ?? session.logicalSku;
+      session.amountMinor = order['amountMinor'] as int? ?? session.amountMinor;
+      session.currency = order['currency'] as String? ?? session.currency;
+      if (kDebugMode) {
+        debugPrint(
+          'RAZORPAY_CAREER_ORDER_RESOLVED source=unresolved_order orderId=${_safeOrderId(session.orderId)} plan=${session.logicalSku} amountPaise=${session.amountMinor}',
+        );
       }
       // A malformed discovery response cannot prove that a retry is safe.
       _set(session, RazorpayCareerPremiumState.paymentStatusUnknown);
@@ -251,5 +315,8 @@ class RazorpayCareerPremiumController extends ChangeNotifier {
 class _RazorpayProfileSession {
   RazorpayCareerPremiumState state = RazorpayCareerPremiumState.idle;
   String? orderId;
+  String? logicalSku;
+  int? amountMinor;
+  String? currency;
   bool purchaseAttemptActive = false;
 }

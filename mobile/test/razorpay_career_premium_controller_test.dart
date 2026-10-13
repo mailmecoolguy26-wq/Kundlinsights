@@ -10,6 +10,7 @@ import 'package:kundlinsights_mobile/features/readings/career_reading_generation
 class _Api implements PaymentApiClient {
   bool failCreate = false;
   int createCalls = 0;
+  final List<String> logicalSkus = [];
   bool failVerify = false;
   bool finalized = false;
   String? orderStatus;
@@ -25,12 +26,16 @@ class _Api implements PaymentApiClient {
     String? birthProfileId,
   }) async {
     createCalls++;
+    logicalSkus.add(logicalSku);
     if (failCreate) throw StateError('cancel');
     return {
       'orderId': 'o',
       'keyId': 'k',
-      'amountMinor': 58882,
+      'amountMinor': logicalSku == 'career_premium_razorpay_12_month'
+          ? 69900
+          : 39900,
       'currency': 'INR',
+      'logicalSku': logicalSku,
     };
   }
 
@@ -57,6 +62,7 @@ class _Api implements PaymentApiClient {
   @override
   Future<Map<String, dynamic>> getLatestUnresolvedRazorpayOrder({
     required String birthProfileId,
+    String? logicalSku,
   }) async {
     unresolvedLookups++;
     if (failUnresolvedLookup) throw StateError('unavailable');
@@ -118,6 +124,31 @@ class _Entitlements implements CareerPremiumEntitlementRefresher {
 }
 
 void main() {
+  test(
+    'Razorpay controller forwards the selected timed plan to the backend',
+    () async {
+      final api = _Api();
+      final controller = RazorpayCareerPremiumController(
+        api: api,
+        checkout: _Checkout(
+          Future.value(
+            const RazorpayPaymentEvidence(
+              orderId: 'o',
+              paymentId: 'p',
+              signature: 's',
+            ),
+          ),
+        ),
+        entitlements: _Entitlements()..value = CareerEligibilityState.eligible,
+      );
+      await controller.start(
+        birthProfileId: 'profile-a',
+        logicalSku: 'career_premium_razorpay_6_month',
+      );
+      expect(api.logicalSkus, ['career_premium_razorpay_6_month']);
+      controller.dispose();
+    },
+  );
   test(
     'success evidence verifies then requires entitlement for success',
     () async {

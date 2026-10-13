@@ -114,6 +114,46 @@ void main() {
     ios.dispose();
   });
 
+  test('uses exact add-on SKUs through the Android consumable path', () async {
+    const addOn6 = 'com.taraverse.career.addon.6month';
+    const addOn12 = 'com.taraverse.career.addon.12month';
+    final client = _StoreClient(
+      products: const [
+        StoreProductDetails(
+          id: addOn6,
+          title: 'Six months',
+          description: '',
+          localizedPrice: '₹399',
+          rawPrice: 399,
+          currencyCode: 'INR',
+        ),
+        StoreProductDetails(
+          id: addOn12,
+          title: 'Twelve months',
+          description: '',
+          localizedPrice: '₹599',
+          rawPrice: 599,
+          currencyCode: 'INR',
+        ),
+      ],
+    );
+    final service = GooglePlayPurchaseService(
+      client: client,
+      careerPremiumAnnualGoogleProductId: null,
+      careerPremiumAddOn6MonthGoogleProductId: addOn6,
+      careerPremiumAddOn12MonthGoogleProductId: addOn12,
+    );
+
+    final loaded = await service.loadCareerPremiumProduct(
+      purchaseMode: 'ADDON',
+    );
+    for (final product in loaded.products) {
+      expect(await service.startCareerPremiumPurchase(product), isTrue);
+    }
+    expect(client.consumableProductIds, [addOn6, addOn12]);
+    expect(client.nonConsumableProductIds, isEmpty);
+  });
+
   test(
     'platform selection chooses Google Play on Android and Apple elsewhere',
     () async {
@@ -163,7 +203,8 @@ const _appleProduct = StoreProductDetails(
   currencyCode: 'USD',
 );
 
-class _StoreClient implements StorePurchaseClient {
+class _StoreClient
+    implements StorePurchaseClient, ConsumableStorePurchaseClient {
   _StoreClient({
     this.available = true,
     this.products = const [],
@@ -178,6 +219,8 @@ class _StoreClient implements StorePurchaseClient {
   final queries = <String>[];
   int purchaseCalls = 0;
   int restoreCalls = 0;
+  final consumableProductIds = <String>[];
+  final nonConsumableProductIds = <String>[];
 
   @override
   Future<bool> isAvailable() async => available;
@@ -198,7 +241,15 @@ class _StoreClient implements StorePurchaseClient {
   @override
   Future<bool> buyNonConsumable(String productId) async {
     purchaseCalls++;
+    nonConsumableProductIds.add(productId);
     return false;
+  }
+
+  @override
+  Future<bool> buyConsumable(String productId) async {
+    purchaseCalls++;
+    consumableProductIds.add(productId);
+    return true;
   }
 
   @override
