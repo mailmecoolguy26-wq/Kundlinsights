@@ -9,6 +9,18 @@ JSON_PATH="$SOURCE_DIR/combined-1970.json"
 
 EXPECTED_ZIP_SHA256="c1bd0839c15a94ace5107e84694915fca3ab74907dee7b2ed4e3e5e01acc8f16"
 SOURCE_URL="https://github.com/evansiroky/timezone-boundary-builder/releases/download/2026c/timezones-1970.geojson.zip"
+BUILD_MAX_OLD_SPACE_MB="${TIMEZONE_RUNTIME_BUILD_MAX_OLD_SPACE_MB:-1024}"
+
+case "$BUILD_MAX_OLD_SPACE_MB" in
+  ''|*[!0-9]*)
+    echo "TIMEZONE_RUNTIME_BUILD_MAX_OLD_SPACE_MB must be a positive integer."
+    exit 1
+    ;;
+esac
+if [ "$BUILD_MAX_OLD_SPACE_MB" -lt 1 ]; then
+  echo "TIMEZONE_RUNTIME_BUILD_MAX_OLD_SPACE_MB must be a positive integer."
+  exit 1
+fi
 
 mkdir -p "$SOURCE_DIR"
 rm -rf "$RUNTIME_DIR"
@@ -164,7 +176,7 @@ try {
 NODE
 fi
 
-node scripts/build-timezone-runtime-artifact.js \
+node --max-old-space-size="$BUILD_MAX_OLD_SPACE_MB" scripts/build-timezone-runtime-artifact.js \
   "$JSON_PATH" \
   "$RUNTIME_DIR"
 
