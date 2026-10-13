@@ -121,7 +121,9 @@ class _JobFavourabilityBody extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                    onPressed: () => context.push('/career-premium'),
+                    onPressed: () => context.push(
+                      '/career-premium?returnQuestion=${answer.questionType.wireName}',
+                    ),
                     style: FilledButton.styleFrom(
                       backgroundColor: const Color(0xFFD6B15A),
                       foregroundColor: const Color(0xFF061A1A),

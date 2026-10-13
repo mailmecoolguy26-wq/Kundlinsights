@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 /// Checkout success is evidence only. Access is shown only after backend verify.
@@ -24,6 +25,7 @@ class RazorpayPurchaseService implements RazorpayCheckout {
     : _razorpay = razorpay ?? Razorpay() {
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _onSuccess);
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _onError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _onExternalWallet);
   }
   final Razorpay _razorpay;
   Completer<RazorpayPaymentEvidence>? _pending;
@@ -38,12 +40,30 @@ class RazorpayPurchaseService implements RazorpayCheckout {
       return Future.error(StateError('A Razorpay checkout is already active.'));
     }
     final pending = _pending = Completer<RazorpayPaymentEvidence>();
-    _razorpay.open({
-      'key': keyId,
-      'order_id': orderId,
-      'amount': amountMinor,
-      'currency': currency,
-    });
+    if (kDebugMode) {
+      debugPrint(
+        'RAZORPAY_CHECKOUT_OPEN keyPresent=${keyId.trim().isNotEmpty} '
+        'orderIdPresent=${orderId.trim().isNotEmpty} '
+        'amountPaise=$amountMinor currency=$currency',
+      );
+    }
+    try {
+      _razorpay.open({
+        'key': keyId,
+        'order_id': orderId,
+        'amount': amountMinor,
+        'currency': currency,
+      });
+    } catch (error) {
+      if (kDebugMode) {
+        debugPrint(
+          'RAZORPAY_CHECKOUT_EXCEPTION exceptionType=${error.runtimeType} '
+          'message=$error',
+        );
+      }
+      if (identical(_pending, pending)) _pending = null;
+      rethrow;
+    }
     return pending.future.whenComplete(() {
       if (identical(_pending, pending)) {
         _pending = null;
@@ -52,6 +72,7 @@ class RazorpayPurchaseService implements RazorpayCheckout {
   }
 
   void _onSuccess(PaymentSuccessResponse value) {
+    if (kDebugMode) debugPrint('RAZORPAY_PAYMENT_SUCCESS');
     final pending = _pending;
     if (pending != null &&
         !pending.isCompleted &&
@@ -69,10 +90,19 @@ class RazorpayPurchaseService implements RazorpayCheckout {
   }
 
   void _onError(PaymentFailureResponse value) {
+    if (kDebugMode) {
+      debugPrint(
+        'RAZORPAY_PAYMENT_ERROR code=${value.code} message=${value.message}',
+      );
+    }
     final pending = _pending;
     if (pending != null && !pending.isCompleted) {
       pending.completeError(const RazorpayCheckoutCancelled());
     }
+  }
+
+  void _onExternalWallet(ExternalWalletResponse value) {
+    if (kDebugMode) debugPrint('RAZORPAY_EXTERNAL_WALLET');
   }
 
   @override

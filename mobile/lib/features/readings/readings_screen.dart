@@ -557,6 +557,7 @@ class _GenerationCard extends StatelessWidget {
           productController: premiumProduct!,
           hasAccess: false,
           entitlementMode: generation.eligibilityMode,
+          purchaseMode: generation.purchaseMode,
           purchaseController: premiumPurchase,
           razorpayController: razorpayPremium,
           razorpayState: generation.activeBirthProfileId == null

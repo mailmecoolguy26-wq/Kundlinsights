@@ -1,3 +1,12 @@
+enum StoreSubscriptionPeriodUnit { day, week, month, year }
+
+class StoreSubscriptionPeriod {
+  const StoreSubscriptionPeriod({required this.value, required this.unit});
+
+  final int value;
+  final StoreSubscriptionPeriodUnit unit;
+}
+
 class CareerPremiumProduct {
   const CareerPremiumProduct({
     required this.logicalSku,
@@ -7,6 +16,7 @@ class CareerPremiumProduct {
     required this.localizedPrice,
     required this.rawPrice,
     required this.currencyCode,
+    this.subscriptionPeriod,
   });
 
   final String logicalSku;
@@ -16,6 +26,7 @@ class CareerPremiumProduct {
   final String localizedPrice;
   final double rawPrice;
   final String currencyCode;
+  final StoreSubscriptionPeriod? subscriptionPeriod;
 }
 
 enum CareerPremiumProductLoadState {

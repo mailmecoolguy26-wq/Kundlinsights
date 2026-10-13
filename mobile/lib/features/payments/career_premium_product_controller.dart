@@ -10,18 +10,25 @@ class CareerPremiumProductController extends ChangeNotifier {
   final CareerPremiumProductLoader _service;
 
   CareerPremiumProductLoadState _state = CareerPremiumProductLoadState.idle;
-  CareerPremiumProduct? _product;
+  List<CareerPremiumProduct> _products = const [];
+  String? _loadedPurchaseMode;
 
   CareerPremiumProductLoadState get state => _state;
-  CareerPremiumProduct? get product => _product;
+  List<CareerPremiumProduct> get products => _products;
+  String? get loadedPurchaseMode => _loadedPurchaseMode;
+  CareerPremiumProduct? get product =>
+      _products.isEmpty ? null : _products.first;
 
-  Future<void> load() async {
+  Future<void> load({String? purchaseMode}) async {
     _state = CareerPremiumProductLoadState.loading;
-    _product = null;
+    _products = const [];
+    _loadedPurchaseMode = purchaseMode;
     notifyListeners();
-    final result = await _service.loadCareerPremiumProduct();
+    final result = await _service.loadCareerPremiumProduct(
+      purchaseMode: purchaseMode,
+    );
     _state = result.state;
-    _product = result.product;
+    _products = List.unmodifiable(result.products);
     notifyListeners();
   }
 }

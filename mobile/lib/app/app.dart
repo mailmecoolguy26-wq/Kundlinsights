@@ -10,8 +10,8 @@ import '../l10n/app_localizations.dart';
 import 'router/app_router.dart';
 import 'router/push_navigation_adapter.dart';
 import 'theme/app_theme.dart';
-import '../core/config/app_config.dart';
 import '../core/analytics/analytics.dart';
+import '../core/config/app_config.dart';
 import '../core/push/push_notification_service.dart';
 import '../core/push/push_permission_prompt.dart';
 import '../core/push/push_runtime_boundaries.dart';
@@ -33,8 +33,8 @@ import '../features/payments/career_premium_product_controller.dart';
 import '../features/payments/data/career_premium_product_loader.dart';
 import '../features/payments/career_premium_purchase_controller.dart';
 import '../features/payments/razorpay_career_premium_controller.dart';
-import '../features/payments/data/razorpay_purchase_service.dart';
 import '../features/payments/data/payment_api_client.dart';
+import '../features/payments/data/razorpay_purchase_service.dart';
 import '../features/splash/splash_launch_gate.dart';
 import '../features/career_chat/career_chat_controller.dart';
 import '../features/career_answers/career_answer_controller.dart';
@@ -47,12 +47,16 @@ class KundlInsightsApp extends ConsumerStatefulWidget {
     this.pushNotifications,
     this.now = DateTime.now,
     this.foregroundEvents,
+    this.razorpayPaymentApi,
+    this.razorpayCheckout,
   });
   final AuthController authController;
   final SplashLaunchGate? splashLaunchGate;
   final FirebasePushNotificationService? pushNotifications;
   final NowProvider now;
   final Stream<SafeForegroundPush>? foregroundEvents;
+  final PaymentApiClient? razorpayPaymentApi;
+  final RazorpayCheckout? razorpayCheckout;
 
   @override
   ConsumerState<KundlInsightsApp> createState() => _KundlInsightsAppState();
@@ -69,18 +73,20 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
   late final CareerReadingGenerationController _generation;
   late final PushNavigationAdapter _pushNavigation;
   late final PushIntentDrain _pushDrain;
+  RazorpayCareerPremiumController? _razorpayPremium;
   PushPermissionPrompt? _pushPermissionPrompt;
   final _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
   bool _routerReady = false;
   late final AppActivityThrottle _activityThrottle;
+  late final AppActivityThrottle _entitlementRefreshThrottle;
   final _foregroundPresenter = ForegroundPushPresenter();
-  RazorpayCareerPremiumController? _razorpayPremium;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _activityThrottle = AppActivityThrottle(now: widget.now);
+    _entitlementRefreshThrottle = AppActivityThrottle(now: widget.now);
     _splashLaunchGate = widget.splashLaunchGate ?? SplashLaunchGate();
     _careerExplanationLanguage = CareerExplanationLanguageController(
       SecureCareerExplanationLanguageStorage(
@@ -143,15 +149,18 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
             : CareerPremiumStorePlatform.apple,
       )),
     );
-    final config = AppConfig.fromEnvironment();
-    final razorpayPremium = config?.isRazorpayCareerPremiumEligible != true
-        ? null
-        : _razorpayPremium = RazorpayCareerPremiumController(
-            api: ref.read(paymentApiClientProvider),
-            checkout: RazorpayPurchaseService(),
-            entitlements: CareerReadingEntitlementRefresher(generation),
-            analytics: analytics,
-          );
+    // Android deliberately uses a profile-scoped Razorpay timed purchase.
+    // iOS continues to use its StoreKit primary/add-on flow.
+    if (defaultTargetPlatform == TargetPlatform.android &&
+        widget.razorpayPaymentApi != null &&
+        widget.razorpayCheckout != null) {
+      _razorpayPremium = RazorpayCareerPremiumController(
+        api: widget.razorpayPaymentApi!,
+        checkout: widget.razorpayCheckout!,
+        entitlements: CareerReadingEntitlementRefresher(generation),
+        analytics: analytics,
+      );
+    }
     _router = createAppRouter(
       authController,
       profiles,
@@ -168,7 +177,7 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
       analytics: analytics,
       careerChat: _careerChat,
       careerAnswers: _careerAnswers,
-      razorpayPremium: razorpayPremium,
+      razorpayPremium: _razorpayPremium,
       careerExplanationLanguage: _careerExplanationLanguage,
       splashLaunchGate: _splashLaunchGate,
       pushNotifications: widget.pushNotifications,
@@ -187,6 +196,7 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
       navigate: _navigatePushIntent,
     );
     authController.addListener(_tryDrainPushIntents);
+    authController.addListener(_refreshEntitlementForAuthenticatedSession);
     _profiles.addListener(_tryDrainPushIntents);
     widget.pushNotifications?.startMessageHandling(
       analytics: analytics,
@@ -212,8 +222,12 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
     }
     _activityThrottle.onResume(
       authenticated: true,
-      record: () async =>
-          widget.pushNotifications?.activityApi?.recordAppActivity(),
+      record: () async {
+        try {
+          await widget.pushNotifications?.activityApi?.recordAppActivity();
+        } catch (_) {}
+        await _generation.refreshEligibility();
+      },
     );
   }
 
@@ -260,6 +274,17 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
     unawaited(_drainPushIntents());
   }
 
+  void _refreshEntitlementForAuthenticatedSession() {
+    if (widget.authController.state.status == AuthStatus.authenticated) {
+      unawaited(
+        _entitlementRefreshThrottle.onResume(
+          authenticated: true,
+          record: _generation.refreshEligibility,
+        ),
+      );
+    }
+  }
+
   Future<void> _drainPushIntents() async {
     final handled = await _pushDrain.drain();
     if (handled && _pushDrain.queue.hasPending) _tryDrainPushIntents();
@@ -285,9 +310,12 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     widget.authController.removeListener(_tryDrainPushIntents);
+    widget.authController.removeListener(
+      _refreshEntitlementForAuthenticatedSession,
+    );
     _profiles.removeListener(_tryDrainPushIntents);
-    _razorpayPremium?.dispose();
     _careerExplanationLanguage.dispose();
+    _razorpayPremium?.dispose();
     _router.dispose();
     _splashLaunchGate.dispose();
     super.dispose();

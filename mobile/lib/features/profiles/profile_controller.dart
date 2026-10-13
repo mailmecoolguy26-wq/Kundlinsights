@@ -28,6 +28,7 @@ class ProfileController extends ChangeNotifier {
   ProfileLoadState get state => _state;
   List<BirthProfile> get profiles => _profiles;
   BirthProfile? get activeProfile => _activeProfile;
+  String? get activeAuthenticatedSubject => _subject;
   bool get isEmpty => _state == ProfileLoadState.ready && _profiles.isEmpty;
 
   Future<void> load() async {

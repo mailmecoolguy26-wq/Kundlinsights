@@ -7,6 +7,7 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/config/app_config.dart';
+import '../core/config/development_flags.dart';
 import '../core/api/api_client.dart';
 import '../core/analytics/analytics.dart';
 import '../core/storage/secure_state_store.dart';
@@ -45,14 +46,17 @@ import '../features/career_events/data/career_event_api_repository.dart';
 import '../features/career_events/domain/career_event_repository.dart';
 import '../features/career_events/career_event_controller.dart';
 import '../features/payments/data/apple_store_purchase_service.dart';
+import '../features/payments/data/debug_local_storekit_entitlement_session.dart';
 import '../features/payments/data/google_play_purchase_service.dart';
 import '../features/payments/data/career_premium_product_loader.dart';
 import '../features/payments/career_premium_product_controller.dart';
 import '../features/payments/data/payment_api_client.dart';
+import '../features/payments/data/razorpay_purchase_service.dart';
 import '../features/career_chat/data/career_chat_api_repository.dart';
 import '../features/career_chat/career_chat_controller.dart';
 import '../features/career_chat/domain/career_chat_repository.dart';
 import '../features/career_answers/data/career_answer_api_repository.dart';
+import '../features/career_answers/data/debug_job_favourability_preview_repository.dart';
 import '../features/career_answers/domain/career_answer_repository.dart';
 import '../features/career_answers/career_answer_controller.dart';
 import 'app.dart';
@@ -86,15 +90,27 @@ Future<void> bootstrap() async {
     client: InAppPurchaseStorePurchaseClient(InAppPurchase.instance),
     careerPremiumAnnualAppleProductId:
         config?.careerPremiumAnnualAppleProductId,
-    careerProfileUnlockAppleProductId:
-        config?.careerProfileUnlockAppleProductId,
+    careerPremium6MonthAppleProductId:
+        config?.careerPremium6MonthAppleProductId,
+    careerPremium12MonthAppleProductId:
+        config?.careerPremium12MonthAppleProductId,
+    careerPremiumAddOn6MonthAppleProductId:
+        config?.careerPremiumAddOn6MonthAppleProductId,
+    careerPremiumAddOn12MonthAppleProductId:
+        config?.careerPremiumAddOn12MonthAppleProductId,
   );
   final googlePlayPurchaseService = GooglePlayPurchaseService(
     client: InAppPurchaseStorePurchaseClient(InAppPurchase.instance),
     careerPremiumAnnualGoogleProductId:
         config?.careerPremiumAnnualGoogleProductId,
-    careerProfileUnlockGoogleProductId:
-        config?.careerProfileUnlockGoogleProductId,
+    careerPremium6MonthGoogleProductId:
+        config?.careerPremium6MonthGoogleProductId,
+    careerPremium12MonthGoogleProductId:
+        config?.careerPremium12MonthGoogleProductId,
+    careerPremiumAddOn6MonthGoogleProductId:
+        config?.careerPremiumAddOn6MonthGoogleProductId,
+    careerPremiumAddOn12MonthGoogleProductId:
+        config?.careerPremiumAddOn12MonthGoogleProductId,
   );
   final premiumProductLoader = selectCareerPremiumProductLoader(
     platform: defaultTargetPlatform == TargetPlatform.android
@@ -138,13 +154,21 @@ Future<void> bootstrap() async {
     careerEventRepository = CareerEventApiRepository(apiClient);
     paymentApi = AuthenticatedPaymentApiClient(apiClient);
     careerChatRepository = CareerChatApiRepository(apiClient);
-    careerAnswerRepository = CareerAnswerApiRepository(apiClient);
+    final answerApiRepository = CareerAnswerApiRepository(apiClient);
+    careerAnswerRepository = DevelopmentFlags.careerPremiumUiPreviewEnabled
+        ? DebugJobFavourabilityPreviewRepository(answerApiRepository)
+        : answerApiRepository;
     pushNotifications = FirebasePushNotificationService(
       store: const SecureStateStore(),
       api: PushNotificationApiRepository(apiClient),
     );
   }
   final analytics = Analytics(const NoopAnalyticsProvider());
+  final debugLocalStoreKitEntitlementSession = kDebugMode
+      ? DebugLocalStoreKitEntitlementSession(
+          enabled: DevelopmentFlags.appleLocalStoreKitTestingEnabled,
+        )
+      : null;
   final controller = AuthController(
     repository,
     analytics: analytics,
@@ -205,12 +229,23 @@ Future<void> bootstrap() async {
           premiumProductLoader,
         ),
         paymentApiClientProvider.overrideWithValue(paymentApi),
+        debugLocalStoreKitEntitlementSessionProvider.overrideWithValue(
+          debugLocalStoreKitEntitlementSession,
+        ),
         careerChatRepositoryProvider.overrideWithValue(careerChatRepository),
-        careerAnswerRepositoryProvider.overrideWithValue(careerAnswerRepository),
+        careerAnswerRepositoryProvider.overrideWithValue(
+          careerAnswerRepository,
+        ),
       ],
       child: KundlInsightsApp(
         authController: controller,
         pushNotifications: pushNotifications,
+        razorpayPaymentApi: config?.isRazorpayCareerPremiumEligible == true && defaultTargetPlatform == TargetPlatform.android
+            ? paymentApi
+            : null,
+        razorpayCheckout: config?.isRazorpayCareerPremiumEligible == true && defaultTargetPlatform == TargetPlatform.android
+            ? RazorpayPurchaseService()
+            : null,
       ),
     ),
   );

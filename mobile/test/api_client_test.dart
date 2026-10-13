@@ -166,36 +166,44 @@ void main() {
       final client = ApiClient(
         config: config,
         tokens: _Tokens(),
-        dio: Dio()
-          ..httpClientAdapter = _QueueAdapter([_json(status, '{}')]),
+        dio: Dio()..httpClientAdapter = _QueueAdapter([_json(status, '{}')]),
       );
       await expectLater(
         client.get<Map<String, dynamic>>('/v1/unavailable'),
-        throwsA(isA<ApiFailure>().having(
-          (error) => error.kind,
-          'kind',
-          ApiFailureKind.server,
-        )),
+        throwsA(
+          isA<ApiFailure>().having(
+            (error) => error.kind,
+            'kind',
+            ApiFailureKind.server,
+          ),
+        ),
       );
     });
   }
 
-  test('maps a socket-style connection error to a safe network failure', () async {
-    final client = ApiClient(
-      config: config,
-      tokens: _Tokens(),
-      dio: Dio()
-        ..httpClientAdapter = _ThrowingAdapter(DioExceptionType.connectionError),
-    );
-    await expectLater(
-      client.get<Map<String, dynamic>>('/v1/offline'),
-      throwsA(isA<ApiFailure>().having(
-        (error) => error.kind,
-        'kind',
-        ApiFailureKind.network,
-      )),
-    );
-  });
+  test(
+    'maps a socket-style connection error to a safe network failure',
+    () async {
+      final client = ApiClient(
+        config: config,
+        tokens: _Tokens(),
+        dio: Dio()
+          ..httpClientAdapter = _ThrowingAdapter(
+            DioExceptionType.connectionError,
+          ),
+      );
+      await expectLater(
+        client.get<Map<String, dynamic>>('/v1/offline'),
+        throwsA(
+          isA<ApiFailure>().having(
+            (error) => error.kind,
+            'kind',
+            ApiFailureKind.network,
+          ),
+        ),
+      );
+    },
+  );
 
   test('maps a receive timeout to a safe timeout failure', () async {
     final client = ApiClient(
@@ -206,11 +214,13 @@ void main() {
     );
     await expectLater(
       client.get<Map<String, dynamic>>('/v1/slow'),
-      throwsA(isA<ApiFailure>().having(
-        (error) => error.kind,
-        'kind',
-        ApiFailureKind.timeout,
-      )),
+      throwsA(
+        isA<ApiFailure>().having(
+          (error) => error.kind,
+          'kind',
+          ApiFailureKind.timeout,
+        ),
+      ),
     );
   });
 
@@ -221,7 +231,7 @@ void main() {
         _json(
           200,
           '{"order":{"providerOrderId":"order-1","status":"CREATED",'
-          '"logicalSku":"career_premium_annual","finalized":false}}',
+          '"logicalSku":"career_premium_razorpay_6_month","amountMinor":39900,"currency":"INR","finalized":false}}',
         ),
       ]);
       final api = AuthenticatedPaymentApiClient(
@@ -234,6 +244,7 @@ void main() {
 
       final result = await api.getLatestUnresolvedRazorpayOrder(
         birthProfileId: 'profile-id',
+        logicalSku: 'career_premium_razorpay_6_month',
       );
 
       expect(
@@ -242,11 +253,14 @@ void main() {
       );
       expect(adapter.requests.single.queryParameters, {
         'birthProfileId': 'profile-id',
+        'logicalSku': 'career_premium_razorpay_6_month',
       });
       expect(result['order'], {
         'providerOrderId': 'order-1',
         'status': 'CREATED',
-        'logicalSku': 'career_premium_annual',
+        'logicalSku': 'career_premium_razorpay_6_month',
+        'amountMinor': 39900,
+        'currency': 'INR',
         'finalized': false,
       });
     },
@@ -319,7 +333,9 @@ class _ThrowingAdapter implements HttpClientAdapter {
     RequestOptions options,
     Stream<Uint8List>? requestStream,
     Future<void>? cancelFuture,
-  ) => Future<ResponseBody>.error(DioException(requestOptions: options, type: type));
+  ) => Future<ResponseBody>.error(
+    DioException(requestOptions: options, type: type),
+  );
 
   @override
   void close({bool force = false}) {}

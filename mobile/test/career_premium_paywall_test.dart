@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kundlinsights_mobile/features/payments/career_premium_product_controller.dart';
 import 'package:kundlinsights_mobile/features/payments/career_premium_purchase_controller.dart';
 import 'package:kundlinsights_mobile/features/payments/data/apple_store_purchase_service.dart';
+import 'package:kundlinsights_mobile/features/payments/data/debug_local_storekit_entitlement_session.dart';
+import 'package:kundlinsights_mobile/features/payments/domain/career_premium_product.dart';
 import 'package:kundlinsights_mobile/features/payments/data/payment_api_client.dart';
 import 'package:kundlinsights_mobile/features/payments/data/razorpay_purchase_service.dart';
 import 'package:kundlinsights_mobile/features/payments/razorpay_career_premium_controller.dart';
@@ -96,12 +99,260 @@ void main() {
       ),
     );
 
-    expect(find.text('Annual subscription — \$7.99 / year'), findsOneWidget);
+    expect(find.text(r'$7.99'), findsOneWidget);
     expect(find.textContaining('₹499'), findsNothing);
-    await tester.tap(find.text('Unlock Career Premium — \$7.99/year'));
+    await tester.tap(find.text('Continue'));
     expect(subscribeCount, 1);
     controller.dispose();
   });
+
+  testWidgets(
+    'identifies the birth profile that the subscription will unlock',
+    (tester) async {
+      final controller = _controller();
+      await controller.load();
+      await tester.pumpWidget(
+        _app(
+          CareerPremiumPaywall(
+            productController: controller,
+            hasAccess: false,
+            activeProfileLabel: 'Aarav',
+            onSubscribePressed: () {},
+            onContinuePressed: () {},
+          ),
+        ),
+      );
+      expect(find.text('Career Premium for Aarav'), findsOneWidget);
+      expect(
+        find.text(
+          'This subscription unlocks Career Premium for this birth profile.',
+        ),
+        findsOneWidget,
+      );
+      controller.dispose();
+    },
+  );
+
+  testWidgets('renders a six-month StoreKit subscription period dynamically', (
+    tester,
+  ) async {
+    final controller = _controller(
+      localizedPrice: r'$499.00',
+      subscriptionPeriod: const StoreSubscriptionPeriod(
+        value: 6,
+        unit: StoreSubscriptionPeriodUnit.month,
+      ),
+    );
+    await controller.load();
+
+    await tester.pumpWidget(_app(_lockedPaywall(controller)));
+
+    expect(find.text('6 Months'), findsOneWidget);
+    expect(find.text(r'$499.00'), findsOneWidget);
+    expect(
+      find.text(
+        'Subscription renews automatically unless canceled in Apple account settings.',
+      ),
+      findsOneWidget,
+    );
+    controller.dispose();
+  });
+
+  testWidgets('renders a yearly StoreKit subscription period dynamically', (
+    tester,
+  ) async {
+    final controller = _controller(
+      subscriptionPeriod: const StoreSubscriptionPeriod(
+        value: 1,
+        unit: StoreSubscriptionPeriodUnit.year,
+      ),
+    );
+    await controller.load();
+
+    await tester.pumpWidget(_app(_lockedPaywall(controller)));
+
+    expect(find.text('12 Months'), findsOneWidget);
+    expect(find.text('BEST VALUE'), findsOneWidget);
+    expect(find.text(r'$7.99'), findsOneWidget);
+    controller.dispose();
+  });
+
+  testWidgets('renders add-on plans without recurring subscription language', (
+    tester,
+  ) async {
+    final controller = _addOnTwoPlanController();
+    await controller.load(purchaseMode: 'ADDON');
+
+    await tester.pumpWidget(
+      _app(
+        CareerPremiumPaywall(
+          productController: controller,
+          hasAccess: false,
+          purchaseMode: 'ADDON',
+          onSubscribePressed: () {},
+          onContinuePressed: () {},
+        ),
+      ),
+    );
+
+    expect(find.text('Access for 6 months'), findsOneWidget);
+    expect(find.text('Access for 12 months'), findsOneWidget);
+    expect(
+      find.text(
+        'One-time purchase for this birth profile. Access does not renew automatically.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Renews every'), findsNothing);
+    expect(
+      find.textContaining('Subscription renews automatically'),
+      findsNothing,
+    );
+    controller.dispose();
+  });
+
+  testWidgets(
+    'reloads add-on products and continues with the exact selected add-on',
+    (tester) async {
+      final controller = _modeAwarePlanController();
+      await controller.load();
+      CareerPremiumProduct? selected;
+
+      await tester.pumpWidget(
+        _app(
+          CareerPremiumPaywall(
+            productController: controller,
+            hasAccess: false,
+            purchaseMode: 'PRIMARY_SUBSCRIPTION',
+            onSubscribePressed: () {},
+            onPlanSelected: (product) => selected = product,
+            onContinuePressed: () {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('career-premium-plan-primary-six')),
+        findsOneWidget,
+      );
+
+      await tester.pumpWidget(
+        _app(
+          CareerPremiumPaywall(
+            productController: controller,
+            hasAccess: false,
+            purchaseMode: 'ADDON',
+            onSubscribePressed: () {},
+            onPlanSelected: (product) => selected = product,
+            onContinuePressed: () {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('career-premium-plan-primary-six')),
+        findsNothing,
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('career-premium-plan-addon-six')),
+      );
+      await tester.pump();
+      await tester.tap(find.text('Continue'));
+      expect(selected?.storeProductId, 'addon-six');
+      expect(selected?.logicalSku, careerPremiumAddOn6MonthLogicalSku);
+      controller.dispose();
+    },
+  );
+
+  testWidgets(
+    'a newly mounted add-on paywall replaces stale shared primary products',
+    (tester) async {
+      final controller = _modeAwarePlanController();
+      // Reproduces another profile having already loaded primary plans through
+      // the shared product controller before this paywall is constructed.
+      await controller.load(purchaseMode: 'PRIMARY_SUBSCRIPTION');
+      expect(controller.loadedPurchaseMode, 'PRIMARY_SUBSCRIPTION');
+
+      CareerPremiumProduct? selected;
+      await tester.pumpWidget(
+        _app(
+          CareerPremiumPaywall(
+            productController: controller,
+            hasAccess: false,
+            purchaseMode: 'ADDON',
+            onSubscribePressed: () {},
+            onPlanSelected: (product) => selected = product,
+            onContinuePressed: () {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(controller.loadedPurchaseMode, 'ADDON');
+      expect(
+        find.byKey(const ValueKey('career-premium-plan-primary-six')),
+        findsNothing,
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('career-premium-plan-addon-twelve')),
+      );
+      await tester.tap(find.text('Continue'));
+      expect(selected?.storeProductId, 'addon-twelve');
+      expect(selected?.logicalSku, careerPremiumAddOn12MonthLogicalSku);
+      controller.dispose();
+    },
+  );
+
+  testWidgets('does not claim a subscription duration without metadata', (
+    tester,
+  ) async {
+    final controller = _controller();
+    await controller.load();
+
+    await tester.pumpWidget(_app(_lockedPaywall(controller)));
+
+    expect(find.text(r'$7.99'), findsOneWidget);
+    expect(find.text('Continue'), findsOneWidget);
+    expect(find.textContaining('/ year'), findsNothing);
+    expect(find.textContaining('Annual subscription'), findsNothing);
+    controller.dispose();
+  });
+
+  testWidgets(
+    'selects the twelve-month plan by default and continues with the selected plan',
+    (tester) async {
+      final controller = _twoPlanController();
+      await controller.load();
+      CareerPremiumProduct? selected;
+      await tester.binding.setSurfaceSize(const Size(320, 568));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        _app(
+          CareerPremiumPaywall(
+            productController: controller,
+            hasAccess: false,
+            onSubscribePressed: () {},
+            onPlanSelected: (product) => selected = product,
+            onContinuePressed: () {},
+          ),
+        ),
+      );
+      expect(find.text('6 Months'), findsOneWidget);
+      expect(find.text('12 Months'), findsOneWidget);
+      expect(find.text('BEST VALUE'), findsOneWidget);
+      expect(find.byIcon(Icons.check_circle), findsOneWidget);
+      final sixPlan = find.byKey(const ValueKey('career-premium-plan-six'));
+      await tester.ensureVisible(sixPlan);
+      await tester.tap(sixPlan);
+      await tester.pump();
+      await tester.ensureVisible(find.text('Continue'));
+      await tester.tap(find.text('Continue'));
+      expect(selected?.storeProductId, 'six');
+      expect(find.byType(OverflowBar), findsNothing);
+      controller.dispose();
+    },
+  );
 
   testWidgets(
     'keeps subscription, credit, and canceled-valid access unlocked',
@@ -151,7 +402,7 @@ void main() {
       );
 
       expect(find.text('Career Premium'), findsOneWidget);
-      expect(find.text('Unlock Career Premium — €6.99/year'), findsOneWidget);
+      expect(find.text('Continue'), findsOneWidget);
     }
     controller.dispose();
   });
@@ -230,7 +481,7 @@ void main() {
     await tester.pumpWidget(_app(_paywall(h, () => subscribe++)));
     await tester.pump();
     expect(find.text('Checking your App Store purchases…'), findsOneWidget);
-    expect(find.text('Unlock Career Premium — \$7.99/year'), findsNothing);
+    expect(find.text('Unlock Career Premium — \$7.99'), findsNothing);
     expect(
       tester
           .widget<TextButton>(
@@ -360,16 +611,54 @@ void main() {
         ),
       );
 
-      expect(find.textContaining('₹499 / year'), findsOneWidget);
-      expect(find.textContaining('+ GST @ 18%'), findsOneWidget);
-      expect(find.textContaining('Total payable: ₹588.82'), findsOneWidget);
-      expect(find.text('UNLOCK CAREER PREMIUM — ₹588.82 →'), findsOneWidget);
+      expect(find.text('₹699'), findsOneWidget);
+      expect(find.text('₹399'), findsOneWidget);
+      expect(find.text('Access for 12 months'), findsOneWidget);
+      expect(find.text('Access for 6 months'), findsOneWidget);
+      expect(find.text('Continue'), findsOneWidget);
       expect(find.textContaining(r'$7.99'), findsNothing);
       expect(find.text('Restore Purchases'), findsNothing);
       expect(find.textContaining('Apple ID'), findsNothing);
       expect(find.textContaining('renews automatically'), findsNothing);
       razorpay.dispose();
       product.dispose();
+    },
+  );
+
+  testWidgets(
+    'observes local purchase success and invokes the paywall return callback once',
+    (tester) async {
+      final session = DebugLocalStoreKitEntitlementSession(enabled: true);
+      final h = await _PaywallHarness.create(localDebugSession: session);
+      var dismissed = 0;
+      await tester.pumpWidget(
+        _app(
+          CareerPremiumPaywall(
+            productController: h.product,
+            purchaseController: h.purchase,
+            hasAccess: false,
+            onSubscribePressed: h.purchase.startPurchase,
+            onContinuePressed: () {},
+            onLocalDebugEntitlementActivated: () => dismissed++,
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Continue'));
+      h.store.events.add(
+        StorePurchaseUpdate(
+          productId: _productId,
+          status: StorePurchaseStatus.purchased,
+          serverVerificationData: _xcodeJws(),
+          pendingCompletePurchase: true,
+          transactionId: 'paywall-local-transaction',
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      expect(dismissed, 1);
+      h.dispose();
     },
   );
 
@@ -395,7 +684,7 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.text('Career Premium'), findsOneWidget);
-      expect(find.text('Unlock Career Premium — \$7.99/year'), findsOneWidget);
+      expect(find.text('Continue'), findsOneWidget);
       product.dispose();
     },
   );
@@ -425,11 +714,40 @@ void main() {
       );
 
       expect(tester.takeException(), isNull);
-      expect(find.text('UNLOCK CAREER PREMIUM — ₹588.82 →'), findsOneWidget);
+      expect(find.text('Continue'), findsOneWidget);
       razorpay.dispose();
       product.dispose();
     },
   );
+
+  testWidgets('Razorpay plan selector starts only the selected server plan', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final product = _controller();
+    final razorpay = _razorpayController();
+    String? selected;
+    await tester.pumpWidget(
+      _app(
+        CareerPremiumPaywall(
+          productController: product,
+          razorpayController: razorpay,
+          dedicatedRazorpaySurface: true,
+          razorpayProfileId: 'profile-a',
+          hasAccess: false,
+          onSubscribePressed: () {},
+          onContinuePressed: () {},
+          onRazorpayStartForPlan: (value) => selected = value,
+        ),
+      ),
+    );
+    await tester.tap(find.text('6 Months'));
+    await tester.tap(find.text('Continue'));
+    expect(selected, 'career_premium_razorpay_6_month');
+    razorpay.dispose();
+    product.dispose();
+  });
 
   testWidgets('Razorpay unknown state has recovery but no retry action', (
     tester,
@@ -603,13 +921,156 @@ CareerPremiumPaywall _lockedPaywall(
 
 CareerPremiumProductController _controller({
   String localizedPrice = r'$7.99',
+  StoreSubscriptionPeriod? subscriptionPeriod,
   _StoreClient? client,
 }) => CareerPremiumProductController(
   AppleStorePurchaseService(
-    client: client ?? _StoreClient(localizedPrice: localizedPrice),
+    client:
+        client ??
+        _StoreClient(
+          localizedPrice: localizedPrice,
+          subscriptionPeriod: subscriptionPeriod,
+        ),
     careerPremiumAnnualAppleProductId: _productId,
   ),
 );
+
+CareerPremiumProductController _twoPlanController() =>
+    CareerPremiumProductController(
+      AppleStorePurchaseService(
+        client: _StoreClient(
+          products: const [
+            StoreProductDetails(
+              id: 'six',
+              title: 'Six',
+              description: '',
+              localizedPrice: r'$3.99',
+              rawPrice: 3.99,
+              currencyCode: 'USD',
+              subscriptionPeriod: StoreSubscriptionPeriod(
+                value: 6,
+                unit: StoreSubscriptionPeriodUnit.month,
+              ),
+            ),
+            StoreProductDetails(
+              id: 'twelve',
+              title: 'Twelve',
+              description: '',
+              localizedPrice: r'$6.99',
+              rawPrice: 6.99,
+              currencyCode: 'USD',
+              subscriptionPeriod: StoreSubscriptionPeriod(
+                value: 1,
+                unit: StoreSubscriptionPeriodUnit.year,
+              ),
+            ),
+          ],
+        ),
+        careerPremiumAnnualAppleProductId: null,
+        careerPremium6MonthAppleProductId: 'six',
+        careerPremium12MonthAppleProductId: 'twelve',
+      ),
+    );
+
+CareerPremiumProductController _addOnTwoPlanController() =>
+    CareerPremiumProductController(
+      AppleStorePurchaseService(
+        client: _StoreClient(
+          products: const [
+            StoreProductDetails(
+              id: 'addon-six',
+              title: 'Six',
+              description: '',
+              localizedPrice: r'$3.99',
+              rawPrice: 3.99,
+              currencyCode: 'USD',
+              subscriptionPeriod: StoreSubscriptionPeriod(
+                value: 6,
+                unit: StoreSubscriptionPeriodUnit.month,
+              ),
+            ),
+            StoreProductDetails(
+              id: 'addon-twelve',
+              title: 'Twelve',
+              description: '',
+              localizedPrice: r'$6.99',
+              rawPrice: 6.99,
+              currencyCode: 'USD',
+              subscriptionPeriod: StoreSubscriptionPeriod(
+                value: 1,
+                unit: StoreSubscriptionPeriodUnit.year,
+              ),
+            ),
+          ],
+        ),
+        careerPremiumAnnualAppleProductId: null,
+        careerPremiumAddOn6MonthAppleProductId: 'addon-six',
+        careerPremiumAddOn12MonthAppleProductId: 'addon-twelve',
+      ),
+    );
+
+CareerPremiumProductController _modeAwarePlanController() =>
+    CareerPremiumProductController(
+      AppleStorePurchaseService(
+        client: _StoreClient(
+          products: const [
+            StoreProductDetails(
+              id: 'primary-six',
+              title: 'Primary six',
+              description: '',
+              localizedPrice: r'$3.99',
+              rawPrice: 3.99,
+              currencyCode: 'USD',
+              subscriptionPeriod: StoreSubscriptionPeriod(
+                value: 6,
+                unit: StoreSubscriptionPeriodUnit.month,
+              ),
+            ),
+            StoreProductDetails(
+              id: 'primary-twelve',
+              title: 'Primary twelve',
+              description: '',
+              localizedPrice: r'$6.99',
+              rawPrice: 6.99,
+              currencyCode: 'USD',
+              subscriptionPeriod: StoreSubscriptionPeriod(
+                value: 1,
+                unit: StoreSubscriptionPeriodUnit.year,
+              ),
+            ),
+            StoreProductDetails(
+              id: 'addon-six',
+              title: 'Add-on six',
+              description: '',
+              localizedPrice: r'$3.99',
+              rawPrice: 3.99,
+              currencyCode: 'USD',
+              subscriptionPeriod: StoreSubscriptionPeriod(
+                value: 6,
+                unit: StoreSubscriptionPeriodUnit.month,
+              ),
+            ),
+            StoreProductDetails(
+              id: 'addon-twelve',
+              title: 'Add-on twelve',
+              description: '',
+              localizedPrice: r'$6.99',
+              rawPrice: 6.99,
+              currencyCode: 'USD',
+              subscriptionPeriod: StoreSubscriptionPeriod(
+                value: 1,
+                unit: StoreSubscriptionPeriodUnit.year,
+              ),
+            ),
+          ],
+        ),
+        careerPremiumAnnualAppleProductId: null,
+        careerPremium6MonthAppleProductId: 'primary-six',
+        careerPremium12MonthAppleProductId: 'primary-twelve',
+        careerPremiumAddOn6MonthAppleProductId: 'addon-six',
+        careerPremiumAddOn12MonthAppleProductId: 'addon-twelve',
+      ),
+    );
 
 class _StoreClient implements StorePurchaseClient {
   _StoreClient({
@@ -617,12 +1078,16 @@ class _StoreClient implements StorePurchaseClient {
     this.localizedPrice = r'$7.99',
     this.throwOnQuery = false,
     this.waitForQuery = false,
+    this.subscriptionPeriod,
+    this.products,
   });
 
   final bool available;
   final String localizedPrice;
   final bool throwOnQuery;
   final bool waitForQuery;
+  final StoreSubscriptionPeriod? subscriptionPeriod;
+  final List<StoreProductDetails>? products;
   final query = Completer<StoreProductQueryResult>();
 
   @override
@@ -646,16 +1111,19 @@ class _StoreClient implements StorePurchaseClient {
     if (waitForQuery) return query.future;
     return Future.value(
       StoreProductQueryResult(
-        products: [
-          StoreProductDetails(
-            id: _productId,
-            title: 'Career Premium',
-            description: 'Annual access',
-            localizedPrice: localizedPrice,
-            rawPrice: 7.99,
-            currencyCode: 'USD',
-          ),
-        ],
+        products:
+            products ??
+            [
+              StoreProductDetails(
+                id: _productId,
+                title: 'Career Premium',
+                description: 'Annual access',
+                localizedPrice: localizedPrice,
+                rawPrice: 7.99,
+                currencyCode: 'USD',
+                subscriptionPeriod: subscriptionPeriod,
+              ),
+            ],
         notFoundIds: const {},
       ),
     );
@@ -680,14 +1148,24 @@ StorePurchaseUpdate _restored(String evidence) => StorePurchaseUpdate(
 );
 
 class _PaywallHarness {
-  _PaywallHarness._(this.store, this.product, this.purchase, this.api);
+  _PaywallHarness._(
+    this.store,
+    this.product,
+    this.purchase,
+    this.api,
+    this._subject,
+    this._profile,
+  );
   final _PaywallStore store;
   final CareerPremiumProductController product;
   final CareerPremiumPurchaseController purchase;
   final _PaywallApi api;
+  final ValueNotifier<String?> _subject;
+  final ValueNotifier<String?> _profile;
   static Future<_PaywallHarness> create({
     bool restoreFails = false,
     bool restorePending = false,
+    DebugLocalStoreKitEntitlementSession? localDebugSession,
   }) async {
     final store = _PaywallStore();
     final service = AppleStorePurchaseService(
@@ -697,6 +1175,8 @@ class _PaywallHarness {
     final product = CareerPremiumProductController(service);
     await product.load();
     final api = _PaywallApi(fails: restoreFails, pending: restorePending);
+    final subject = ValueNotifier<String?>('user-a');
+    final profile = ValueNotifier<String?>('profile-a');
     return _PaywallHarness._(
       store,
       product,
@@ -706,22 +1186,39 @@ class _PaywallHarness {
         productController: product,
         entitlementRefresher: _PaywallEntitlement(),
         applePaymentEnvironment: 'SANDBOX',
+        debugLocalStoreKitEntitlementSession: localDebugSession,
+        activeAuthenticatedSubject: () => subject.value,
+        activeBirthProfileId: () => profile.value,
+        entitlementScope: Listenable.merge([subject, profile]),
       ),
       api,
+      subject,
+      profile,
     );
   }
 
   void dispose() {
     purchase.dispose();
     product.dispose();
+    _subject.dispose();
+    _profile.dispose();
     store.events.close();
   }
+}
+
+String _xcodeJws() {
+  final payload = base64Url
+      .encode(utf8.encode('{"environment":"Xcode","productId":"$_productId"}'))
+      .replaceAll('=', '');
+  return 'header.$payload.signature';
 }
 
 class _PaywallStore extends _StoreClient {
   final events = StreamController<StorePurchaseUpdate>.broadcast(sync: true);
   final restore = Completer<void>();
   int restoreCalls = 0;
+  @override
+  Future<bool> buyNonConsumable(String productId) async => true;
   @override
   Stream<StorePurchaseUpdate> get purchaseUpdates => events.stream;
   @override
@@ -878,6 +1375,7 @@ class _PaywallApi implements PaymentApiClient {
   @override
   Future<Map<String, dynamic>> getLatestUnresolvedRazorpayOrder({
     required String birthProfileId,
+    String? logicalSku,
   }) async => const {'order': null};
 }
 

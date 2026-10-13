@@ -26,7 +26,7 @@ void main() {
       final store = _Store();
       final service = GooglePlayPurchaseService(
         client: store,
-        careerPremiumAnnualGoogleProductId: 'legacy.annual',
+        careerPremiumAnnualGoogleProductId: null,
         careerProfileUnlockGoogleProductId: _productId,
       );
       final result = await service.loadCareerPremiumProduct();
@@ -103,7 +103,7 @@ class _Harness {
     final store = _Store();
     final google = GooglePlayPurchaseService(
       client: store,
-      careerPremiumAnnualGoogleProductId: 'legacy.annual',
+      careerPremiumAnnualGoogleProductId: null,
       careerProfileUnlockGoogleProductId: _productId,
     );
     final productController = CareerPremiumProductController(google);

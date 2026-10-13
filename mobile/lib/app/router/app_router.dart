@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -293,42 +296,117 @@ GoRouter createAppRouter(
     GoRoute(
       path: '/career-premium',
       builder: (context, state) {
+        final returnQuestion = CareerQuestionType.fromWire(
+          state.uri.queryParameters['returnQuestion'],
+        );
+        void returnToRequestedCareerAnswer() {
+          if (context.canPop()) {
+            // The paywall is pushed from the Career answer. Preserve that
+            // route (and, behind it, the app shell/profile switcher) rather
+            // than replacing the whole stack after a successful purchase.
+            context.pop();
+            if (returnQuestion != null) {
+              unawaited(careerAnswers.load(returnQuestion));
+            }
+            return;
+          }
+          if (kDebugMode) {
+            debugPrint(
+              'PAYWALL_DISMISS destination=${returnQuestion?.wireName ?? 'home'}',
+            );
+          }
+          if (returnQuestion == null) {
+            context.go('/home');
+            return;
+          }
+          context.go('/career/answer/${returnQuestion.wireName}');
+        }
+
         // The ProfileController is the source of truth for the profile that
         // owns this top-level purchase route. Generation can be transiently
         // reset while its profile-scoped eligibility refreshes.
         final profileId = profiles.activeProfile?.id;
-        return CareerPremiumPaywall(
-          dedicatedRazorpaySurface: true,
-          activeProfileLabel: profiles.activeProfile?.label,
-          razorpayProfileId: profileId,
-          generationController: generation,
-          analytics: analytics ?? Analytics(const NoopAnalyticsProvider()),
-          productController: premiumProduct,
-          hasAccess: false,
-          purchaseController: premiumPurchase,
-          razorpayController: razorpayPremium,
-          razorpayState: profileId == null
-              ? null
-              : razorpayPremium?.stateFor(profileId),
-          onRazorpayStart: profileId == null
-              ? null
-              : () => razorpayPremium?.start(birthProfileId: profileId),
-          onRazorpayRecover: profileId == null
-              ? null
-              : () => razorpayPremium?.recover(birthProfileId: profileId),
-          onRazorpayReset: profileId == null
-              ? null
-              : () =>
-                    razorpayPremium?.returnToPaywall(birthProfileId: profileId),
-          onSubscribePressed: premiumPurchase.startPurchase,
-          onContinuePressed: generation.generate,
-          onBackHomePressed: () => context.go('/home'),
-          onPaywallDisplayed: (id) async {
-            try {
-              await pushNotifications?.activityApi?.recordCareerPaywallViewed(
-                id,
+        return ListenableBuilder(
+          listenable: generation,
+          builder: (context, _) {
+            if (generation.eligibilityState == CareerEligibilityState.initial ||
+                generation.eligibilityState == CareerEligibilityState.loading) {
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
               );
-            } catch (_) {}
+            }
+            if (generation.eligibilityState == CareerEligibilityState.error) {
+              return Scaffold(
+                body: Center(
+                  child: TextButton(
+                    onPressed: generation.refreshEligibility,
+                    child: const Text('Retry'),
+                  ),
+                ),
+              );
+            }
+            if (generation.eligibilityState ==
+                CareerEligibilityState.eligible) {
+              if (returnQuestion != null) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (context.mounted) returnToRequestedCareerAnswer();
+                });
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
+              return Scaffold(
+                body: Center(
+                  child: FilledButton(
+                    onPressed: () => context.go('/readings'),
+                    child: const Text('Career Premium Active'),
+                  ),
+                ),
+              );
+            }
+            return CareerPremiumPaywall(
+              dedicatedRazorpaySurface: true,
+              activeProfileLabel: profiles.activeProfile?.label,
+              razorpayProfileId: profileId,
+              generationController: generation,
+              analytics: analytics ?? Analytics(const NoopAnalyticsProvider()),
+              productController: premiumProduct,
+              hasAccess: false,
+              purchaseMode: generation.purchaseMode,
+              purchaseController: premiumPurchase,
+              razorpayController: razorpayPremium,
+              razorpayState: profileId == null
+                  ? null
+                  : razorpayPremium?.stateFor(profileId),
+              onRazorpayStart: profileId == null
+                  ? null
+                  : () => razorpayPremium?.start(birthProfileId: profileId),
+              onRazorpayStartForPlan: profileId == null
+                  ? null
+                  : (logicalSku) => razorpayPremium?.start(
+                      birthProfileId: profileId,
+                      logicalSku: logicalSku,
+                    ),
+              onRazorpayRecover: profileId == null
+                  ? null
+                  : () => razorpayPremium?.recover(birthProfileId: profileId),
+              onRazorpayReset: profileId == null
+                  ? null
+                  : () => razorpayPremium?.returnToPaywall(
+                      birthProfileId: profileId,
+                    ),
+              onSubscribePressed: premiumPurchase.startPurchase,
+              onPlanSelected: premiumPurchase.startPurchaseFor,
+              onContinuePressed: generation.generate,
+              onBackHomePressed: () => context.go('/home'),
+              onPaywallDisplayed: (id) async {
+                try {
+                  await pushNotifications?.activityApi
+                      ?.recordCareerPaywallViewed(id);
+                } catch (_) {}
+              },
+              onLocalDebugEntitlementActivated: returnToRequestedCareerAnswer,
+            );
           },
         );
       },

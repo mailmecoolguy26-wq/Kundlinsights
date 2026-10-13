@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_theme.dart';
@@ -16,12 +18,15 @@ class CareerPremiumPaywall extends StatefulWidget {
     required this.productController,
     required this.hasAccess,
     required this.onSubscribePressed,
+    this.onPlanSelected,
     required this.onContinuePressed,
     this.onBackHomePressed,
     this.entitlementMode,
+    this.purchaseMode,
     this.purchaseController,
     this.razorpayController,
     this.onRazorpayStart,
+    this.onRazorpayStartForPlan,
     this.razorpayState,
     this.onRazorpayRecover,
     this.onRazorpayReset,
@@ -31,17 +36,21 @@ class CareerPremiumPaywall extends StatefulWidget {
     this.generationController,
     this.analytics,
     this.onPaywallDisplayed,
+    this.onLocalDebugEntitlementActivated,
   });
 
   final CareerPremiumProductController productController;
   final bool hasAccess;
   final String? entitlementMode;
+  final String? purchaseMode;
   final VoidCallback onSubscribePressed;
+  final ValueChanged<CareerPremiumProduct>? onPlanSelected;
   final VoidCallback onContinuePressed;
   final VoidCallback? onBackHomePressed;
   final CareerPremiumPurchaseController? purchaseController;
   final RazorpayCareerPremiumController? razorpayController;
   final VoidCallback? onRazorpayStart;
+  final ValueChanged<String>? onRazorpayStartForPlan;
   final RazorpayCareerPremiumState? razorpayState;
   final VoidCallback? onRazorpayRecover;
   final VoidCallback? onRazorpayReset;
@@ -51,6 +60,7 @@ class CareerPremiumPaywall extends StatefulWidget {
   final CareerReadingGenerationController? generationController;
   final Analytics? analytics;
   final Future<void> Function(String birthProfileId)? onPaywallDisplayed;
+  final VoidCallback? onLocalDebugEntitlementActivated;
 
   @override
   State<CareerPremiumPaywall> createState() => _CareerPremiumPaywallState();
@@ -58,12 +68,18 @@ class CareerPremiumPaywall extends StatefulWidget {
 
 class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
   bool _viewRecorded = false;
+  bool _localDebugEntitlementHandled = false;
+  String? _selectedStoreProductId;
   @override
   void initState() {
     super.initState();
-    if (!widget.hasAccess &&
-        widget.productController.state == CareerPremiumProductLoadState.idle) {
-      widget.productController.load();
+    widget.purchaseController?.addListener(_onPurchaseControllerChanged);
+    if (widget.razorpayController == null &&
+        !widget.hasAccess &&
+        (widget.productController.state == CareerPremiumProductLoadState.idle ||
+            widget.productController.loadedPurchaseMode !=
+                widget.purchaseMode)) {
+      widget.productController.load(purchaseMode: widget.purchaseMode);
     }
     if (!widget.hasAccess) {
       widget.analytics?.track(AnalyticsEvent.careerPaywallViewed, {
@@ -84,8 +100,51 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
   }
 
   @override
+  void didUpdateWidget(covariant CareerPremiumPaywall oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.purchaseMode != widget.purchaseMode) {
+      // StoreKit products are mode-specific. A local debug primary purchase
+      // can change another profile to ADDON while this paywall stays mounted.
+      // Do not leave stale primary plans selected in that case.
+      _selectedStoreProductId = null;
+      if (widget.razorpayController == null && !widget.hasAccess) {
+        unawaited(
+          widget.productController.load(purchaseMode: widget.purchaseMode),
+        );
+      }
+    }
+    if (oldWidget.purchaseController != widget.purchaseController) {
+      oldWidget.purchaseController?.removeListener(
+        _onPurchaseControllerChanged,
+      );
+      widget.purchaseController?.addListener(_onPurchaseControllerChanged);
+    }
+  }
+
+  void _onPurchaseControllerChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    widget.purchaseController?.removeListener(_onPurchaseControllerChanged);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final localDebugActive =
+        widget.purchaseController?.state ==
+            CareerPremiumPurchaseState.success &&
+        widget.purchaseController?.hasLocalDebugEntitlement == true;
+    if (localDebugActive && !_localDebugEntitlementHandled) {
+      _localDebugEntitlementHandled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) widget.onLocalDebugEntitlementActivated?.call();
+      });
+    }
     final usesRazorpay = widget.razorpayController != null;
+    final isAddOnPurchase = widget.purchaseMode == 'ADDON';
     if (usesRazorpay && widget.dedicatedRazorpaySurface) {
       return Scaffold(
         backgroundColor: const Color(0xFF061A1A),
@@ -112,6 +171,17 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
                   ],
                 ),
                 const SizedBox(height: 28),
+                Text(
+                  widget.activeProfileLabel == null ||
+                          widget.activeProfileLabel!.trim().isEmpty
+                      ? 'Career Premium'
+                      : 'Career Premium for ${widget.activeProfileLabel}',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: const Color(0xFFF7F4EC),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
                 ListenableBuilder(
                   listenable: Listenable.merge([
                     widget.razorpayController!,
@@ -121,11 +191,13 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
                   builder: (context, child) => _ProductAction(
                     controller: widget.productController,
                     onSubscribePressed: widget.onSubscribePressed,
+                    onPlanSelected: widget.onPlanSelected,
                     onContinuePressed: widget.onContinuePressed,
                     onBackHomePressed: widget.onBackHomePressed,
                     purchaseController: widget.purchaseController,
                     razorpayController: widget.razorpayController,
                     onRazorpayStart: widget.onRazorpayStart,
+                    onRazorpayStartForPlan: widget.onRazorpayStartForPlan,
                     razorpayState: widget.razorpayProfileId == null
                         ? widget.razorpayState
                         : widget.razorpayController!.stateFor(
@@ -138,8 +210,19 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
                         widget.razorpayController!.canRetryFor(
                           widget.razorpayProfileId!,
                         ),
+                    razorpayLogicalSku: widget.razorpayProfileId == null
+                        ? null
+                        : widget.razorpayController!.logicalSkuFor(
+                            widget.razorpayProfileId!,
+                          ),
+                    razorpayAmountMinor: widget.razorpayProfileId == null
+                        ? null
+                        : widget.razorpayController!.amountMinorFor(
+                            widget.razorpayProfileId!,
+                          ),
                     generationState:
                         widget.generationController?.generationState,
+                    isAddOnPurchase: isAddOnPurchase,
                   ),
                 ),
               ],
@@ -168,63 +251,103 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
         ),
       );
     }
-    return ListenableBuilder(
-      listenable: Listenable.merge([
-        widget.productController,
-        if (widget.purchaseController != null) widget.purchaseController!,
-        if (widget.razorpayController != null) widget.razorpayController!,
-      ]),
-      builder: (context, child) => AppCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (!usesRazorpay) ...[
-              const Text(
-                'Career Premium',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              const Text('Unlock your complete Career reading.'),
-              const SizedBox(height: AppSpacing.sm),
-              const _Benefits(),
-              const SizedBox(height: AppSpacing.md),
-            ],
-            _ProductAction(
-              controller: widget.productController,
-              onSubscribePressed: widget.onSubscribePressed,
-              onContinuePressed: widget.onContinuePressed,
-              onBackHomePressed: widget.onBackHomePressed,
-              purchaseController: widget.purchaseController,
-              razorpayController: widget.razorpayController,
-              onRazorpayStart: widget.onRazorpayStart,
-              razorpayState: widget.razorpayState,
-              onRazorpayRecover: widget.onRazorpayRecover,
-              razorpayCanRetry:
-                  widget.razorpayProfileId != null &&
-                  widget.razorpayController != null &&
-                  widget.razorpayController!.canRetryFor(
-                    widget.razorpayProfileId!,
+    return Scaffold(
+      backgroundColor: const Color(0xFF061A1A),
+      body: SafeArea(
+        child: ListenableBuilder(
+          listenable: Listenable.merge([
+            widget.productController,
+            if (widget.purchaseController != null) widget.purchaseController!,
+            if (widget.razorpayController != null) widget.razorpayController!,
+          ]),
+          builder: (context, child) => SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(22, 20, 22, 28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Career Premium',
+                  style: TextStyle(
+                    color: Color(0xFFF7F4EC),
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
                   ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                const Text(
+                  'Unlock deeper Career insights, timing and guidance.',
+                  style: TextStyle(color: Color(0xFFA8B7B4), fontSize: 16),
+                ),
+                if (widget.activeProfileLabel != null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    'Career Premium for ${widget.activeProfileLabel}',
+                    style: const TextStyle(
+                      color: Color(0xFF63D7CF),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'This subscription unlocks Career Premium for this birth profile.',
+                    style: TextStyle(color: Color(0xFFA8B7B4)),
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.lg),
+                const _Benefits(),
+                const SizedBox(height: AppSpacing.lg),
+                const Text(
+                  'Choose your plan',
+                  style: TextStyle(
+                    color: Color(0xFFF7F4EC),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 18,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _ProductAction(
+                  controller: widget.productController,
+                  onSubscribePressed: widget.onSubscribePressed,
+                  onPlanSelected: widget.onPlanSelected,
+                  selectedStoreProductId: _selectedStoreProductId,
+                  onPlanChanged: (product) => setState(
+                    () => _selectedStoreProductId = product.storeProductId,
+                  ),
+                  onContinuePressed: widget.onContinuePressed,
+                  onBackHomePressed: widget.onBackHomePressed,
+                  purchaseController: widget.purchaseController,
+                  razorpayController: widget.razorpayController,
+                  onRazorpayStart: widget.onRazorpayStart,
+                  onRazorpayStartForPlan: widget.onRazorpayStartForPlan,
+                  razorpayState: widget.razorpayState,
+                  onRazorpayRecover: widget.onRazorpayRecover,
+                  razorpayCanRetry:
+                      widget.razorpayProfileId != null &&
+                      widget.razorpayController != null &&
+                      widget.razorpayController!.canRetryFor(
+                        widget.razorpayProfileId!,
+                      ),
+                  isAddOnPurchase: isAddOnPurchase,
+                ),
+                if (widget.purchaseController != null && !usesRazorpay)
+                  TextButton(
+                    onPressed: _restoreEnabled(widget.purchaseController!)
+                        ? widget.purchaseController!.restorePurchases
+                        : null,
+                    child: const Text('Restore Purchases'),
+                  ),
+                if (!usesRazorpay) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    isAddOnPurchase
+                        ? 'One-time purchase for this birth profile. Access does not renew automatically.'
+                        : 'Subscription renews automatically unless canceled in Apple account settings.',
+                    style: TextStyle(color: Color(0xFFA8B7B4), fontSize: 12),
+                  ),
+                ],
+              ],
             ),
-            if (widget.purchaseController != null &&
-                !usesRazorpay &&
-                widget.productController.product?.logicalSku !=
-                    appleCareerProfileUnlockLogicalSku)
-              TextButton(
-                onPressed: _restoreEnabled(widget.purchaseController!)
-                    ? widget.purchaseController!.restorePurchases
-                    : null,
-                child: const Text('Restore Purchases'),
-              ),
-            if (!usesRazorpay) ...[
-              const SizedBox(height: AppSpacing.sm),
-              const Text(
-                'Annual subscription. Payment is managed through your Apple ID '
-                'and renews automatically unless canceled in Apple account settings.',
-                style: TextStyle(fontSize: 12),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );
@@ -268,10 +391,10 @@ class _Benefits extends StatelessWidget {
   Widget build(BuildContext context) => const Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text('• Detailed Career analysis and indicators'),
-      Text('• Dasha-based Career timing'),
-      Text('• Career opportunities and challenges'),
-      Text('• Ongoing access to your saved Career reading'),
+      Text('✓ Detailed Career analysis and indicators'),
+      Text('✓ Career timing and stronger windows'),
+      Text('✓ Career opportunities and challenges'),
+      Text('✓ Access to saved Career insights'),
     ],
   );
 }
@@ -280,27 +403,41 @@ class _ProductAction extends StatelessWidget {
   const _ProductAction({
     required this.controller,
     required this.onSubscribePressed,
+    this.onPlanSelected,
+    this.selectedStoreProductId,
+    this.onPlanChanged,
     required this.onContinuePressed,
     this.onBackHomePressed,
     this.purchaseController,
     this.razorpayController,
     this.onRazorpayStart,
+    this.onRazorpayStartForPlan,
     this.razorpayState,
     this.onRazorpayRecover,
     this.razorpayCanRetry = false,
+    this.razorpayLogicalSku,
+    this.razorpayAmountMinor,
     this.generationState,
+    this.isAddOnPurchase = false,
   });
   final CareerPremiumProductController controller;
   final VoidCallback onSubscribePressed;
+  final ValueChanged<CareerPremiumProduct>? onPlanSelected;
+  final String? selectedStoreProductId;
+  final ValueChanged<CareerPremiumProduct>? onPlanChanged;
   final VoidCallback onContinuePressed;
   final VoidCallback? onBackHomePressed;
   final CareerPremiumPurchaseController? purchaseController;
   final RazorpayCareerPremiumController? razorpayController;
   final VoidCallback? onRazorpayStart;
+  final ValueChanged<String>? onRazorpayStartForPlan;
   final RazorpayCareerPremiumState? razorpayState;
   final VoidCallback? onRazorpayRecover;
   final bool razorpayCanRetry;
+  final String? razorpayLogicalSku;
+  final int? razorpayAmountMinor;
   final CareerGenerationState? generationState;
+  final bool isAddOnPurchase;
 
   @override
   Widget build(BuildContext context) {
@@ -315,13 +452,18 @@ class _ProductAction extends StatelessWidget {
       switch (razorpayState) {
         case RazorpayCareerPremiumState.creatingOrder:
         case RazorpayCareerPremiumState.verifying:
-          return const _RazorpayProcessing();
+          return _RazorpayProcessing(
+            planLabel: _razorpayPlanLabel(razorpayLogicalSku),
+            amountLabel: _razorpayAmountLabel(razorpayAmountMinor),
+          );
         case RazorpayCareerPremiumState.checkoutOpen:
           return const SizedBox.shrink();
         case RazorpayCareerPremiumState.success:
           return _RazorpaySuccess(
             onContinue: onContinuePressed,
             onHome: onBackHomePressed ?? () {},
+            planLabel: _razorpayPlanLabel(razorpayLogicalSku),
+            amountLabel: _razorpayAmountLabel(razorpayAmountMinor),
           );
         case RazorpayCareerPremiumState.definitiveFailure:
           return _RazorpayFailure(
@@ -329,6 +471,7 @@ class _ProductAction extends StatelessWidget {
             onRetry: onRazorpayStart ?? () {},
             onCheck: onRazorpayRecover ?? () {},
             onHome: onBackHomePressed ?? () {},
+            amountLabel: _razorpayAmountLabel(razorpayAmountMinor),
           );
         case RazorpayCareerPremiumState.paymentStatusUnknown:
           return _RazorpayUnknown(
@@ -357,6 +500,11 @@ class _ProductAction extends StatelessWidget {
     }
     if (restoreState == CareerPremiumRestoreState.notFound) {
       return const Text('No previous Career Premium purchase was found.');
+    }
+    if (restoreState == CareerPremiumRestoreState.reconciliationRequired) {
+      return const Text(
+        'This local StoreKit restore needs the original debug profile association.',
+      );
     }
     if (restoreState == CareerPremiumRestoreState.error) {
       return const Text('Unable to restore purchases. Please try again.');
@@ -436,8 +584,16 @@ class _ProductAction extends StatelessWidget {
         ],
       );
     }
+    if (purchaseState == CareerPremiumPurchaseState.success &&
+        purchaseController?.hasLocalDebugEntitlement == true) {
+      return const Text(
+        'Career Premium is active for this local debug session.',
+      );
+    }
     if (razorpay != null) {
-      return _RazorpayIdle(onStart: onRazorpayStart ?? () {});
+      return _RazorpayIdle(
+        onStart: onRazorpayStartForPlan ?? (_) => onRazorpayStart?.call(),
+      );
     }
     switch (controller.state) {
       case CareerPremiumProductLoadState.idle:
@@ -448,26 +604,44 @@ class _ProductAction extends StatelessWidget {
           child: LinearProgressIndicator(),
         );
       case CareerPremiumProductLoadState.available:
-        final product = controller.product!;
+        final products = controller.products;
+        final selected = products.firstWhere(
+          (product) => product.storeProductId == selectedStoreProductId,
+          orElse: () => products.firstWhere(
+            (product) =>
+                product.logicalSku == careerPremium12MonthLogicalSku ||
+                product.logicalSku == careerPremiumAddOn12MonthLogicalSku,
+            orElse: () => products.first,
+          ),
+        );
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Annual subscription — ${product.localizedPrice} / year'),
-            const SizedBox(height: AppSpacing.sm),
-            Semantics(
-              button: true,
-              label:
-                  'Unlock Career Premium — ${product.localizedPrice} per year',
-              child: FilledButton(
-                onPressed:
-                    restoreState == null ||
-                        restoreState == CareerPremiumRestoreState.idle
-                    ? (razorpay == null ? onSubscribePressed : onRazorpayStart)
-                    : null,
-                child: Text(
-                  'Unlock Career Premium — ${product.localizedPrice}/year',
+            ...products.map(
+              (product) => Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: _PlanCard(
+                  product: product,
+                  selected: product.storeProductId == selected.storeProductId,
+                  isAddOnPurchase: isAddOnPurchase,
+                  onTap: () => onPlanChanged?.call(product),
                 ),
               ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            FilledButton(
+              onPressed:
+                  restoreState == null ||
+                      restoreState == CareerPremiumRestoreState.idle
+                  ? () {
+                      if (onPlanSelected != null) {
+                        onPlanSelected!(selected);
+                      } else {
+                        onSubscribePressed();
+                      }
+                    }
+                  : null,
+              child: const Text('Continue'),
             ),
           ],
         );
@@ -495,6 +669,137 @@ class _ProductAction extends StatelessWidget {
         );
     }
   }
+}
+
+class _PlanCard extends StatelessWidget {
+  const _PlanCard({
+    required this.product,
+    required this.selected,
+    required this.isAddOnPurchase,
+    required this.onTap,
+  });
+  final CareerPremiumProduct product;
+  final bool selected;
+  final bool isAddOnPurchase;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isTwelveMonth =
+        product.logicalSku == careerPremium12MonthLogicalSku ||
+        product.logicalSku == careerPremiumAddOn12MonthLogicalSku ||
+        product.subscriptionPeriod?.unit == StoreSubscriptionPeriodUnit.year ||
+        (product.subscriptionPeriod?.unit ==
+                StoreSubscriptionPeriodUnit.month &&
+            product.subscriptionPeriod?.value == 12);
+    final period = product.subscriptionPeriod;
+    final label = isTwelveMonth ? '12 Months' : '6 Months';
+    final renewal = isAddOnPurchase
+        ? isTwelveMonth
+              ? 'Access for 12 months'
+              : 'Access for 6 months'
+        : isTwelveMonth
+        ? 'Renews every year'
+        : 'Renews every 6 months';
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '$label plan',
+      child: InkWell(
+        key: ValueKey('career-premium-plan-${product.storeProductId}'),
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFF123B3B) : const Color(0xFF0B2626),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: selected
+                  ? const Color(0xFF36D1C4)
+                  : const Color(0xFF1E4B49),
+              width: selected ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            label,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFFF7F4EC),
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        if (isTwelveMonth) ...[
+                          const SizedBox(width: 8),
+                          const _BestValueChip(),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      product.localizedPrice,
+                      style: const TextStyle(
+                        color: Color(0xFFF7F4EC),
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      period == null
+                          ? isAddOnPurchase
+                                ? 'Access details available at checkout'
+                                : 'Subscription details available at checkout'
+                          : renewal,
+                      style: const TextStyle(color: Color(0xFFA8B7B4)),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                selected ? Icons.check_circle : Icons.radio_button_unchecked,
+                color: selected
+                    ? const Color(0xFF36D1C4)
+                    : const Color(0xFFA8B7B4),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BestValueChip extends StatelessWidget {
+  const _BestValueChip();
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+    decoration: BoxDecoration(
+      color: const Color(0xFFD6B15A).withValues(alpha: .16),
+      borderRadius: BorderRadius.circular(999),
+    ),
+    child: const Text(
+      'BEST VALUE',
+      style: TextStyle(
+        color: Color(0xFFD6B15A),
+        fontSize: 10,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+  );
 }
 
 class _CareerCalibrationProcessing extends StatelessWidget {
@@ -581,10 +886,35 @@ class _CalibrationStage extends StatelessWidget {
   );
 }
 
+String _razorpayPlanLabel(String? logicalSku) {
+  switch (logicalSku) {
+    case 'career_premium_razorpay_6_month':
+      return '6-MONTH ACCESS';
+    case 'career_premium_razorpay_12_month':
+      return '12-MONTH ACCESS';
+    default:
+      return 'CAREER PREMIUM';
+  }
+}
+
+String? _razorpayAmountLabel(int? amountMinor) {
+  if (amountMinor == null || amountMinor < 0) return null;
+  final rupees = amountMinor ~/ 100;
+  final paise = amountMinor % 100;
+  return paise == 0
+      ? '₹$rupees'
+      : '₹$rupees.${paise.toString().padLeft(2, '0')}';
+}
+
 class _RazorpayProcessing extends StatelessWidget {
-  const _RazorpayProcessing();
+  const _RazorpayProcessing({
+    required this.planLabel,
+    required this.amountLabel,
+  });
+  final String planLabel;
+  final String? amountLabel;
   @override
-  Widget build(BuildContext c) => const Column(
+  Widget build(BuildContext c) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(
@@ -613,14 +943,14 @@ class _RazorpayProcessing extends StatelessWidget {
       ),
       SizedBox(height: AppSpacing.sm),
       Text(
-        'CAREER PREMIUM · ANNUAL ACCESS',
-        style: TextStyle(color: Color(0xFFD6B15A)),
+        'CAREER PREMIUM · $planLabel',
+        style: const TextStyle(color: Color(0xFFD6B15A)),
       ),
-      Text('₹588.82', style: TextStyle(color: Color(0xFFF7F4EC), fontSize: 28)),
-      Text(
-        '₹588.82 total, including GST',
-        style: TextStyle(color: Color(0xFFA8B7B4)),
-      ),
+      if (amountLabel != null)
+        Text(
+          amountLabel!,
+          style: const TextStyle(color: Color(0xFFF7F4EC), fontSize: 28),
+        ),
       SizedBox(height: AppSpacing.sm),
       LinearProgressIndicator(),
       Text('Confirming payment…', style: TextStyle(color: Color(0xFFF7F4EC))),
@@ -634,9 +964,16 @@ class _RazorpayProcessing extends StatelessWidget {
 }
 
 class _RazorpaySuccess extends StatelessWidget {
-  const _RazorpaySuccess({required this.onContinue, required this.onHome});
+  const _RazorpaySuccess({
+    required this.onContinue,
+    required this.onHome,
+    required this.planLabel,
+    required this.amountLabel,
+  });
   final VoidCallback onContinue;
   final VoidCallback onHome;
+  final String planLabel;
+  final String? amountLabel;
   @override
   Widget build(BuildContext c) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -661,8 +998,8 @@ class _RazorpaySuccess extends StatelessWidget {
         style: TextStyle(color: Color(0xFFA8B7B4)),
       ),
       const SizedBox(height: AppSpacing.sm),
-      const Text(
-        'Career Premium\nAnnual access\nAmount paid: ₹588.82\nTaxes: Including GST\nStatus: Payment confirmed',
+      Text(
+        'Career Premium\n$planLabel${amountLabel == null ? '' : '\\nAmount paid: $amountLabel'}\nStatus: Payment confirmed',
       ),
       FilledButton(
         onPressed: onContinue,
@@ -679,11 +1016,13 @@ class _RazorpayFailure extends StatelessWidget {
     required this.onRetry,
     required this.onCheck,
     required this.onHome,
+    required this.amountLabel,
   });
   final bool canRetry;
   final VoidCallback onRetry;
   final VoidCallback onCheck;
   final VoidCallback onHome;
+  final String? amountLabel;
   @override
   Widget build(BuildContext c) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -704,10 +1043,11 @@ class _RazorpayFailure extends StatelessWidget {
         canRetry ? 'The payment was not completed.' : 'We already have a payment order for this attempt. Check its status before trying again.',
         style: TextStyle(color: Color(0xFFA8B7B4)),
       ),
-      const Text(
-        '₹588.82',
-        style: TextStyle(color: Color(0xFFF7F4EC), fontSize: 20),
-      ),
+      if (amountLabel != null)
+        Text(
+          amountLabel!,
+          style: const TextStyle(color: Color(0xFFF7F4EC), fontSize: 20),
+        ),
       if (canRetry)
         const Text(
           'If money was deducted, we’ll verify the payment status before asking you to pay again.',
@@ -776,9 +1116,15 @@ class _RazorpayUnknown extends StatelessWidget {
   );
 }
 
-class _RazorpayIdle extends StatelessWidget {
+class _RazorpayIdle extends StatefulWidget {
   const _RazorpayIdle({required this.onStart});
-  final VoidCallback onStart;
+  final ValueChanged<String> onStart;
+  @override
+  State<_RazorpayIdle> createState() => _RazorpayIdleState();
+}
+
+class _RazorpayIdleState extends State<_RazorpayIdle> {
+  String _selectedPlan = 'career_premium_razorpay_12_month';
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -807,35 +1153,29 @@ class _RazorpayIdle extends StatelessWidget {
         style: TextStyle(color: Color(0xFFA8B7B4)),
       ),
       const SizedBox(height: 12),
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
-        decoration: BoxDecoration(
-          color: const Color(0xFF0B2626),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: const Color(0xFFD6B15A).withValues(alpha: .55),
-          ),
-        ),
-        child: const Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Text(
-                'CAREER PREMIUM\nAnnual access',
-                style: TextStyle(color: Color(0xFFF7F4EC), fontSize: 13),
-              ),
-            ),
-            Text(
-              '₹499 / year\n+ GST @ 18%\nTotal payable: ₹588.82',
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                color: Color(0xFFF7F4EC),
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
+      Text(
+        'Choose your plan',
+        style: Theme.of(context).textTheme.titleMedium
+            ?.copyWith(color: const Color(0xFFF7F4EC)),
+      ),
+      const SizedBox(height: AppSpacing.sm),
+      _RazorpayPlanCard(
+        title: '12 Months',
+        price: '₹699',
+        detail: 'Access for 12 months',
+        bestValue: true,
+        selected: _selectedPlan == 'career_premium_razorpay_12_month',
+        onTap: () =>
+            setState(() => _selectedPlan = 'career_premium_razorpay_12_month'),
+      ),
+      const SizedBox(height: AppSpacing.sm),
+      _RazorpayPlanCard(
+        title: '6 Months',
+        price: '₹399',
+        detail: 'Access for 6 months',
+        selected: _selectedPlan == 'career_premium_razorpay_6_month',
+        onTap: () =>
+            setState(() => _selectedPlan = 'career_premium_razorpay_6_month'),
       ),
       const SizedBox(height: AppSpacing.md),
       const Row(
@@ -889,19 +1229,20 @@ class _RazorpayIdle extends StatelessWidget {
       SizedBox(
         width: double.infinity,
         child: FilledButton(
-          onPressed: onStart,
+          onPressed: () => widget.onStart(_selectedPlan),
           style: FilledButton.styleFrom(
             backgroundColor: const Color(0xFFD6B15A),
             foregroundColor: const Color(0xFF061A1A),
             padding: const EdgeInsets.symmetric(vertical: 14),
           ),
-          child: const Text('UNLOCK CAREER PREMIUM — ₹588.82 →'),
+          child: const Text('Continue'),
         ),
       ),
       const SizedBox(height: AppSpacing.xs),
       const Center(
         child: Text(
-          '₹588.82 total, including GST',
+          'One-time payment for this birth profile.\nAccess does not renew automatically.',
+          textAlign: TextAlign.center,
           style: TextStyle(color: Color(0xFFA8B7B4), fontSize: 12),
         ),
       ),
@@ -949,6 +1290,95 @@ class _RazorpayIdle extends StatelessWidget {
         ],
       ),
     ],
+  );
+}
+
+class _RazorpayPlanCard extends StatelessWidget {
+  const _RazorpayPlanCard({
+    required this.title,
+    required this.price,
+    required this.detail,
+    required this.selected,
+    required this.onTap,
+    this.bestValue = false,
+  });
+  final String title;
+  final String price;
+  final String detail;
+  final bool selected;
+  final VoidCallback onTap;
+  final bool bestValue;
+  @override
+  Widget build(BuildContext context) => Semantics(
+    selected: selected,
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF103737) : const Color(0xFF0B2626),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected ? const Color(0xFF55D6D0) : const Color(0x3349B5AE),
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: Color(0xFFF7F4EC),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (bestValue) ...[
+                        const SizedBox(width: 8),
+                        const Text(
+                          'BEST VALUE',
+                          style: TextStyle(
+                            color: Color(0xFFD6B15A),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    detail,
+                    style: const TextStyle(
+                      color: Color(0xFFA8B7B4),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              price,
+              style: const TextStyle(
+                color: Color(0xFFF7F4EC),
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (selected)
+              const Padding(
+                padding: EdgeInsets.only(left: 8),
+                child: Icon(Icons.check_circle, color: Color(0xFF55D6D0)),
+              ),
+          ],
+        ),
+      ),
+    ),
   );
 }
 
