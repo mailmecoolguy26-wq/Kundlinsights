@@ -27,6 +27,15 @@ test('classifies Gochar questions deterministically and keeps career timing with
   assert.deepEqual(classifyTaraTransitIntent('What happens when Rahu changes houses?'), { intent: TaraTransitIntent.UPCOMING_TRANSIT_EFFECT, planet: 'rahu', area: 'GENERAL' });
   assert.equal(classifyTaraTransitIntent('How are current transits affecting my career?').intent, TaraTransitIntent.LIFE_AREA_TRANSIT_EFFECT);
 });
+test('gives an explicit future date or change cue priority over a planet’s current transit', () => {
+  const dated = classifyTaraTransitIntent('Rahu ka transit on 5th dec mere liye kaisa rahega');
+  assert.equal(dated.intent, TaraTransitIntent.UPCOMING_TRANSIT_EFFECT);
+  assert.equal(dated.planet, 'rahu');
+  assert.deepEqual(dated.requestedDate, { day: 5, month: 11, label: '5 Dec' });
+  assert.equal(classifyTaraTransitIntent('5 dec ko Rahu house change karega to kya hoga').intent, TaraTransitIntent.UPCOMING_TRANSIT_EFFECT);
+  assert.equal(classifyTaraTransitIntent('Rahu abhi mujhe kaise affect kar raha hai').intent, TaraTransitIntent.PLANET_TRANSIT_EFFECT);
+  assert.equal(classifyTaraTransitIntent('Rahu ka next transit kaisa rahega').intent, TaraTransitIntent.UPCOMING_TRANSIT_EFFECT);
+});
 test('uses the selected profile context and factual transit evidence without hardcoded placements', async () => {
   const calls = []; const transit = capability(calls);
   const first = await transit.respond({ principal: {}, birthProfileId: 'profile-a', message: 'How is Jupiter affecting my career?' });
@@ -104,6 +113,36 @@ test('explains an upcoming Jupiter ingress through calculated occupation, aspect
   assert.match(result.message, /aspect-activated houses: 2nd, 10th, 12th/i);
   assert.match(result.message, /lordship-related houses: 1st and 7th/i);
   assert.doesNotMatch(result.message, /available chart context|grounded area of emphasis/i);
+});
+test('uses the calculated post-ingress Rahu snapshot instead of answering from the current house', async () => {
+  const current = context('profile-a', 10);
+  current.insightContext.upcomingTransitions = [{ type: 'INGRESS', planet: 'Rahu', at: '2026-12-05T12:00:00.000Z' }];
+  const future = context('profile-a', 10);
+  future.snapshot.transitBodies.Rahu = { ...future.snapshot.transitBodies.Rahu, transitNatalHouseNumber: 6 };
+  const calls = [];
+  const transit = new TaraTransitCapability({
+    transitSnapshotService: { contextForTara: async (input) => { calls.push(input); return input.at === '2026-12-05T12:00:00.000Z' ? future : current; } },
+    clock: () => '2026-10-14T00:00:00.000Z',
+  });
+  const result = await transit.respond({ principal: {}, birthProfileId: 'profile-a', message: 'Rahu ka transit on 5th dec mere liye kaisa rahega', language: 'HINGLISH' });
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].horizonDays, 66);
+  assert.match(result.message, /Rahu aapke 6th house mein move karega, 05 Dec 2026 ko/i);
+  assert.match(result.message, /Current transit ke comparison mein focus finances, savings, family, speech, possessions se work routines, service, competition, debts, disputes, health, problem-solving ki taraf shift hoga/i);
+  assert.doesNotMatch(result.message, /Rahu abhi aapke 2nd house/i);
+});
+test('treats a typed future date as a hint and corrects it with the calculated ingress date', async () => {
+  const current = context('profile-a', 10);
+  current.insightContext.upcomingTransitions = [{ type: 'INGRESS', planet: 'Rahu', at: '2026-12-07T12:00:00.000Z' }];
+  const future = context('profile-a', 10);
+  future.snapshot.transitBodies.Rahu = { ...future.snapshot.transitBodies.Rahu, transitNatalHouseNumber: 6 };
+  const transit = new TaraTransitCapability({
+    transitSnapshotService: { contextForTara: async (input) => input.at === '2026-12-07T12:00:00.000Z' ? future : current },
+    clock: () => '2026-10-14T00:00:00.000Z',
+  });
+  const result = await transit.respond({ principal: {}, birthProfileId: 'profile-a', message: 'Rahu transit on 5th Dec kya hoga?' });
+  assert.match(result.message, /You asked about 5 Dec, but the calculated Rahu ingress is on 07 Dec 2026/i);
+  assert.match(result.message, /moves into your 6th house on 07 Dec 2026/i);
 });
 test('uses each planet’s own engine-supported future aspect pattern and natal lordship', async () => {
   const cases = [

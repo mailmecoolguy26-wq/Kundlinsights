@@ -8,6 +8,7 @@ const { scanTransitEvents } = require('../../transit-events');
 const { adaptTransitInsight } = require('./transit-insight-adapter');
 
 const TRANSIT_TIMELINE_HORIZON_DAYS = 30;
+const MAX_TARA_TRANSIT_HORIZON_DAYS = 400;
 
 function fail(code) { throw repositoryError(code); }
 
@@ -60,8 +61,9 @@ class TransitSnapshotService {
     Object.freeze(this);
   }
 
-  async contextForTara({ principal, birthProfileId, at } = {}) {
+  async contextForTara({ principal, birthProfileId, at, horizonDays = TRANSIT_TIMELINE_HORIZON_DAYS } = {}) {
     const instant = parseUtcInstant(at);
+    if (!Number.isInteger(horizonDays) || horizonDays <= 0 || horizonDays > MAX_TARA_TRANSIT_HORIZON_DAYS) fail('INVALID_TRANSIT_HORIZON');
     const profile = await this.birthProfileService.get({ principal, birthProfileId });
     if (!profile || profile.status !== 'active') fail('NOT_FOUND_OR_FORBIDDEN');
     try {
@@ -82,7 +84,7 @@ class TransitSnapshotService {
         try { source = await this.careerInsightSource.latestForProfile({ principal, birthProfileId: profile.id }); }
         catch (_) { source = null; }
       }
-      const horizon = { from: instant.utc, to: new Date(instant.epochMilliseconds + TRANSIT_TIMELINE_HORIZON_DAYS * 86_400_000).toISOString() };
+      const horizon = { from: instant.utc, to: new Date(instant.epochMilliseconds + horizonDays * 86_400_000).toISOString() };
       let scan = null;
       try {
         scan = this.transitScanner({ startInstant: horizon.from, endInstant: horizon.to, natalBodies: natal.bodies, natalHouses, astronomicalEngine: this.astronomicalEngine, observer: { latitude: profile.birthData.latitude, longitude: profile.birthData.longitude } });
@@ -99,4 +101,4 @@ class TransitSnapshotService {
   }
 }
 
-module.exports = { TransitSnapshotService, parseUtcInstant, TRANSIT_TIMELINE_HORIZON_DAYS };
+module.exports = { TransitSnapshotService, parseUtcInstant, TRANSIT_TIMELINE_HORIZON_DAYS, MAX_TARA_TRANSIT_HORIZON_DAYS };
