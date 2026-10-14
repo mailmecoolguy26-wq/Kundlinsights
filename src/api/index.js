@@ -140,7 +140,14 @@ function createApi({ authVerifier, userResolver, birthProfileService, careerEven
     app.post('/v1/birth-profiles/:id/tara/conversations', async (request, reply) => { const conversation = await taraConversationService.create({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), title: request.body && request.body.title }); reply.code(201); return { conversation, requestId: request.id }; });
     app.get('/v1/birth-profiles/:id/tara/conversations', async (request) => ({ conversations: await taraConversationService.list({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID') }), requestId: request.id }));
     app.get('/v1/birth-profiles/:id/tara/conversations/:conversationId', async (request) => ({ ...await taraConversationService.get({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), conversationId: id(request.params.conversationId, 'TARA_CONVERSATION_ID') }), requestId: request.id }));
-    app.post('/v1/birth-profiles/:id/tara/conversations/:conversationId/messages', async (request, reply) => { const result = await taraConversationService.message({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), conversationId: id(request.params.conversationId, 'TARA_CONVERSATION_ID'), body: request.body || {} }); reply.code(201); return { ...result, requestId: request.id }; });
+    app.post('/v1/birth-profiles/:id/tara/conversations/:conversationId/messages', async (request, reply) => {
+      const birthProfileId = id(request.params.id, 'BIRTH_PROFILE_ID');
+      const diagnosticLog = (entry) => request.log.info(entry);
+      const result = await taraConversationService.message({ principal: request.principal, birthProfileId, conversationId: id(request.params.conversationId, 'TARA_CONVERSATION_ID'), body: request.body || {}, diagnosticLog });
+      request.log.info({ event: 'TARA_BACKEND_RESPONSE', state: result.tara && result.tara.career && result.tara.career.state || null, actionType: result.assistantMessage.action && result.assistantMessage.action.type || null, actionLabel: result.assistantMessage.action && result.assistantMessage.action.label || null, messageId: result.assistantMessage.messageId, birthProfileId });
+      reply.code(201);
+      return { ...result, requestId: request.id };
+    });
   }
   if (careerAnswerService) {
     if (typeof careerAnswerService.answer !== 'function') throw new TypeError('INVALID_CAREER_ANSWER_SERVICE');

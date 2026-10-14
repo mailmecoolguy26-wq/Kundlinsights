@@ -21,6 +21,10 @@ function unsupportedMessage(language) {
     ? 'Main abhi is area ke liye reliable personalized answer dene ke liye ready nahi hoon.'
     : 'I’m not ready to give you a reliable personalized answer for this area yet.';
 }
+function diagnostic(log, event, { state = null, action = null, messageId = null, birthProfileId = null } = {}) {
+  if (typeof log !== 'function') return;
+  log({ event, state, actionType: action && action.type || null, actionLabel: action && action.label || null, messageId, birthProfileId });
+}
 
 class TaraOrchestrator {
   constructor({ careerCapability } = {}) {
@@ -28,16 +32,18 @@ class TaraOrchestrator {
     this.career = careerCapability;
   }
 
-  async respond({ principal, birthProfileId, message, conversationContext = [], language = 'ENGLISH' } = {}) {
+  async respond({ principal, birthProfileId, message, conversationContext = [], language = 'ENGLISH', diagnosticLog = null } = {}) {
     const domain = classifyTaraDomain(message);
     if (domain !== 'CAREER') return Object.freeze({ domain, answerability: 'UNSUPPORTED', capability: null, message: unsupportedMessage(language) });
-    const career = await this.career.respond({ principal, birthProfileId, message, conversationContext, language });
+    const career = await this.career.respond({ principal, birthProfileId, message, conversationContext, language, diagnosticLog });
+    diagnostic(diagnosticLog, 'TARA_BACKEND_ORCHESTRATOR', { state: career.state, action: career.action, birthProfileId });
     return Object.freeze({
       domain,
       answerability: career.answerability,
       capability: 'CAREER_GROUNDED',
       message: career.message,
       career,
+      action: career.action || null,
     });
   }
 }

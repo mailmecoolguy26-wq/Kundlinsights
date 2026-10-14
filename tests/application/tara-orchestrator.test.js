@@ -44,6 +44,14 @@ test('keeps premium timing results date-free and exposes an explicit premium act
   assert.doesNotMatch(response.message, /2026|Nov|Jan/);
 });
 
+test('preserves the premium action through the Tara orchestrator boundary', async () => {
+  const capability = new TaraCareerCapability({ careerAnswerService: { answer: async () => ({ questionType: 'JOB_FAVOURABILITY_TIMING', answerability: 'PREMIUM_REQUIRED' }) } });
+  const tara = new TaraOrchestrator({ careerCapability: capability });
+  const response = await tara.respond({ principal: {}, birthProfileId: 'profile-a', message: 'When is my career likely to improve?' });
+  assert.equal(response.career.state, TaraCareerResponseState.PREMIUM_REQUIRED);
+  assert.deepEqual(response.action, { type: 'OPEN_CAREER_PREMIUM', label: 'Unlock Career Premium' });
+});
+
 test('maps current phase and keeps unsupported Career questions safe', async () => {
   assert.equal(classifyTaraCareerIntent('What is my current career phase?'), TaraCareerIntent.CURRENT_CAREER_PHASE);
   const capability = new TaraCareerCapability({ careerAnswerService: { answer: async () => { throw new Error('should not be called'); } } });

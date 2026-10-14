@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { TaraConversationService } = require('../../src/application/tara-conversations/tara-conversation-service');
-const { TaraOrchestrator } = require('../../src/application/tara');
+const { TaraOrchestrator, TaraCareerCapability } = require('../../src/application/tara');
 
 const principal = Object.freeze({ provider: 'supabase', subject: 'subject-a', isAnonymous: false });
 const otherPrincipal = Object.freeze({ provider: 'supabase', subject: 'subject-b', isAnonymous: false });
@@ -83,6 +83,32 @@ test('persists an allowlisted Career Premium action only for the same profile th
   const loaded = await service.get({ principal, birthProfileId: 'profile-a', conversationId: created.conversationId });
   assert.deepEqual(loaded.messages.at(-1).action, { type: 'OPEN_CAREER_PREMIUM', label: 'Unlock Career Premium' });
   await assert.rejects(() => service.get({ principal: otherPrincipal, birthProfileId: 'profile-b', conversationId: created.conversationId }), (error) => error.code === 'NOT_FOUND_OR_FORBIDDEN');
+});
+
+test('returns the premium action from POST through the grounded Tara chain', async () => {
+  const taraOrchestrator = new TaraOrchestrator({
+    careerCapability: new TaraCareerCapability({
+      careerAnswerService: {
+        answer: async () => ({
+          questionType: 'JOB_FAVOURABILITY_TIMING',
+          answerability: 'PREMIUM_REQUIRED',
+        }),
+      },
+    }),
+  });
+  const { service } = fixture({ taraOrchestrator });
+  const created = await service.create({ principal, birthProfileId: 'profile-a' });
+  const result = await service.message({
+    principal,
+    birthProfileId: 'profile-a',
+    conversationId: created.conversationId,
+    body: { message: 'When is my career likely to improve?' },
+  });
+  assert.equal(result.tara.career.state, 'PREMIUM_REQUIRED');
+  assert.deepEqual(result.assistantMessage.action, {
+    type: 'OPEN_CAREER_PREMIUM',
+    label: 'Unlock Career Premium',
+  });
 });
 
 test('serializes persisted JSONB action metadata from GET without exposing raw metadata', async () => {
