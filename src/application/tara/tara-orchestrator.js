@@ -1,8 +1,9 @@
 'use strict';
 
-const DOMAINS = Object.freeze(['CAREER', 'RELATIONSHIPS', 'WEALTH_PROPERTY', 'CHART', 'TAROT', 'GENERAL']);
+const DOMAINS = Object.freeze(['CAREER', 'TRANSIT', 'RELATIONSHIPS', 'WEALTH_PROPERTY', 'CHART', 'TAROT', 'GENERAL']);
 
 const DOMAIN_KEYWORDS = Object.freeze({
+  TRANSIT: /\b(gochar|transit|transits|planetary movement|planet changing house|jupiter|saturn|rahu|ketu|mars)\b/i,
   CAREER: /\b(career|job|offer|joining|promotion|salary|switch|work|business)\b/i,
   RELATIONSHIPS: /\b(relationship|marriage|marry|wedding|spouse|partner|love)\b/i,
   WEALTH_PROPERTY: /\b(wealth|property|home|house|real estate|investment|money)\b/i,
@@ -13,7 +14,7 @@ const DOMAIN_KEYWORDS = Object.freeze({
 function invalid(code) { const error = new Error(code); error.code = code; throw error; }
 function classifyTaraDomain(message) {
   if (typeof message !== 'string' || !(message = message.trim()) || message.length > 2000) invalid('INVALID_TARA_MESSAGE');
-  for (const domain of ['CAREER', 'RELATIONSHIPS', 'WEALTH_PROPERTY', 'CHART', 'TAROT']) if (DOMAIN_KEYWORDS[domain].test(message)) return domain;
+  for (const domain of ['TRANSIT', 'CAREER', 'RELATIONSHIPS', 'WEALTH_PROPERTY', 'CHART', 'TAROT']) if (DOMAIN_KEYWORDS[domain].test(message)) return domain;
   return 'GENERAL';
 }
 function unsupportedMessage(language) {
@@ -27,13 +28,19 @@ function diagnostic(log, event, { state = null, action = null, messageId = null,
 }
 
 class TaraOrchestrator {
-  constructor({ careerCapability } = {}) {
+  constructor({ careerCapability, transitCapability } = {}) {
     if (!careerCapability || typeof careerCapability.respond !== 'function') throw new TypeError('INVALID_TARA_CAREER_CAPABILITY');
     this.career = careerCapability;
+    this.transit = transitCapability && typeof transitCapability.respond === 'function' ? transitCapability : null;
   }
 
   async respond({ principal, birthProfileId, message, conversationContext = [], language = 'ENGLISH', diagnosticLog = null } = {}) {
     const domain = classifyTaraDomain(message);
+    if (domain === 'TRANSIT') {
+      if (!this.transit) return Object.freeze({ domain, answerability: 'UNSUPPORTED', capability: null, message: unsupportedMessage(language) });
+      const transit = await this.transit.respond({ principal, birthProfileId, message, conversationContext, language, diagnosticLog });
+      return Object.freeze({ domain, answerability: transit.answerability, capability: 'TRANSIT_GROUNDED', message: transit.message, transit, action: null });
+    }
     if (domain !== 'CAREER') return Object.freeze({ domain, answerability: 'UNSUPPORTED', capability: null, message: unsupportedMessage(language) });
     const career = await this.career.respond({ principal, birthProfileId, message, conversationContext, language, diagnosticLog });
     diagnostic(diagnosticLog, 'TARA_BACKEND_ORCHESTRATOR', { state: career.state, action: career.action, birthProfileId });

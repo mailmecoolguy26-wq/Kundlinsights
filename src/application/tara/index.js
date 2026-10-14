@@ -1,3 +1,3 @@
 'use strict';
 
-module.exports = { ...require('./tara-orchestrator'), ...require('./tara-career-capability') };
+module.exports = { ...require('./tara-orchestrator'), ...require('./tara-career-capability'), ...require('./tara-transit-capability') };

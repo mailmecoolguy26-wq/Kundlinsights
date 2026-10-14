@@ -13,7 +13,7 @@ class ProviderBackedCareerGenerator {
       if (typeof diagnosticLog === 'function') diagnosticLog({ event: 'CAREER_READING_INTERPRETER_STEP', step: 'BUILD_PROMPT', status: 'FAILED', errorClass: typeof error.name === 'string' ? error.name : 'Error' });
       throw error;
     }
-    return this.providerAdapter.generate({ prompt, diagnosticLog });
+    return this.providerAdapter.generate({ prompt, ...(typeof diagnosticLog === 'function' ? { diagnosticLog } : {}) });
   }
 }
 module.exports = { ProviderBackedCareerGenerator };

@@ -60,7 +60,7 @@ class TransitSnapshotService {
     Object.freeze(this);
   }
 
-  async get({ principal, birthProfileId, at } = {}) {
+  async contextForTara({ principal, birthProfileId, at } = {}) {
     const instant = parseUtcInstant(at);
     const profile = await this.birthProfileService.get({ principal, birthProfileId });
     if (!profile || profile.status !== 'active') fail('NOT_FOUND_OR_FORBIDDEN');
@@ -88,10 +88,14 @@ class TransitSnapshotService {
         scan = this.transitScanner({ startInstant: horizon.from, endInstant: horizon.to, natalBodies: natal.bodies, natalHouses, astronomicalEngine: this.astronomicalEngine, observer: { latitude: profile.birthData.latitude, longitude: profile.birthData.longitude } });
       } catch (_) { scan = null; }
       const insightContext = adaptTransitInsight({ snapshot, insights: source && source.birthProfileId === profile.id ? source.insights : [], scan, horizon });
-      return toTransitSnapshotDto({ birthProfileId: profile.id, snapshot, insightContext });
+      return Object.freeze({ birthProfileId: profile.id, snapshot, natalBodies: natal.bodies, natalHouses, insightContext });
     } catch (_) {
       fail('TRANSIT_SNAPSHOT_CALCULATION_FAILED');
     }
+  }
+  async get({ principal, birthProfileId, at } = {}) {
+    const context = await this.contextForTara({ principal, birthProfileId, at });
+    return toTransitSnapshotDto({ birthProfileId: context.birthProfileId, snapshot: context.snapshot, insightContext: context.insightContext });
   }
 }
 
