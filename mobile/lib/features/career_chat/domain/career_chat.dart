@@ -52,11 +52,13 @@ class TaraConversationMessage {
     required this.role,
     required this.content,
     required this.createdAt,
+    this.action,
   });
   final String messageId;
   final CareerChatRole role;
   final String content;
   final DateTime createdAt;
+  final TaraConversationAction? action;
   factory TaraConversationMessage.fromJson(Map<String, dynamic> json) =>
       TaraConversationMessage(
         messageId: json['messageId'] as String,
@@ -65,7 +67,18 @@ class TaraConversationMessage {
             : CareerChatRole.user,
         content: json['content'] as String,
         createdAt: DateTime.parse(json['createdAt'] as String),
+        action: TaraConversationAction.fromJson(json['action']),
       );
+}
+
+class TaraConversationAction {
+  const TaraConversationAction({required this.type, required this.label});
+  final String type;
+  final String label;
+  static TaraConversationAction? fromJson(Object? value) {
+    if (value is! Map || value['type'] != 'OPEN_CAREER_PREMIUM' || value['label'] is! String) return null;
+    return TaraConversationAction(type: 'OPEN_CAREER_PREMIUM', label: value['label'] as String);
+  }
 }
 
 class TaraConversationDetail {

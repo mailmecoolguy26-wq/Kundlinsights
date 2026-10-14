@@ -11,18 +11,22 @@ import 'domain/career_chat.dart';
 import 'domain/career_chat_repository.dart';
 
 class CareerChatMessage {
-  CareerChatMessage.user(this.text)
+  CareerChatMessage.user(this.text, {this.birthProfileId})
     : role = CareerChatRole.user,
-      response = null;
-  CareerChatMessage.assistant(this.response)
+      response = null,
+      action = null;
+  CareerChatMessage.assistant(this.response, {this.birthProfileId})
     : role = CareerChatRole.assistant,
-      text = response!.answer.headlineFact;
-  CareerChatMessage.persisted({required this.role, required this.text})
+      text = response!.answer.headlineFact,
+      action = null;
+  CareerChatMessage.persisted({required this.role, required this.text, required this.birthProfileId, this.action})
     : response = null;
 
   final CareerChatRole role;
   final String text;
   final CareerChatResponse? response;
+  final TaraConversationAction? action;
+  final String? birthProfileId;
   bool failed = false;
 }
 
@@ -81,6 +85,11 @@ class CareerChatController extends ChangeNotifier {
       _language.language == CareerExplanationLanguage.hinglish
       ? CareerChatLanguage.hinglish
       : CareerChatLanguage.english;
+
+  bool canOpenCareerPremium(CareerChatMessage message) =>
+      message.action?.type == 'OPEN_CAREER_PREMIUM' &&
+      message.birthProfileId != null &&
+      message.birthProfileId == _profiles.activeProfile?.id;
 
   Future<void> send(String rawMessage) async {
     final message = rawMessage.trim();
@@ -169,6 +178,11 @@ class CareerChatController extends ChangeNotifier {
     await loadHistory();
   }
 
+  Future<void> refreshCurrentConversation() async {
+    final id = _conversationId;
+    if (id != null) await openConversation(id);
+  }
+
   void startNewConversation() {
     _conversationId = null;
     _messages.clear();
@@ -183,7 +197,7 @@ class CareerChatController extends ChangeNotifier {
       ..addAll(
         detail.messages.map(
           (item) =>
-              CareerChatMessage.persisted(role: item.role, text: item.content),
+              CareerChatMessage.persisted(role: item.role, text: item.content, birthProfileId: detail.conversation.birthProfileId, action: item.action),
         ),
       );
   }

@@ -8,7 +8,7 @@ const { TaraOrchestrator } = require('../../src/application/tara');
 const principal = Object.freeze({ provider: 'supabase', subject: 'subject-a', isAnonymous: false });
 const otherPrincipal = Object.freeze({ provider: 'supabase', subject: 'subject-b', isAnonymous: false });
 
-function fixture({ taraOrchestrator } = {}) {
+function fixture({ taraOrchestrator, careerEntitlementResolver = null } = {}) {
   const conversations = [];
   const messages = [];
   let next = 0;
@@ -32,8 +32,8 @@ function fixture({ taraOrchestrator } = {}) {
         return { rows: messages.filter((item) => item.conversation_id === values[0]) };
       }
       if (sql.startsWith('insert into app.tara_conversation_messages')) {
-        const [id, conversationId, role, content, createdAt] = values;
-        const row = { id, conversation_id: conversationId, role, content, created_at: createdAt };
+        const [id, conversationId, role, content, createdAt, metadata] = values;
+        const row = { id, conversation_id: conversationId, role, content, created_at: createdAt, metadata: metadata ? JSON.parse(metadata) : {} };
         messages.push(row);
         return { rows: [row] };
       }
@@ -54,6 +54,7 @@ function fixture({ taraOrchestrator } = {}) {
     } },
     transactionExecutor: { execute: async ({ operation }) => operation({ db }) },
     taraOrchestrator: taraOrchestrator || { respond: async ({ message }) => ({ message: `Grounded: ${message}` }) },
+    careerEntitlementResolver,
     idGenerator: () => `id-${++next}`,
     clock: () => '2026-10-14T00:00:00.000Z',
   });
@@ -72,6 +73,25 @@ test('persists and reloads chronological Ask Tara history for the owned profile'
   const history = await service.list({ principal, birthProfileId: 'profile-a' });
   assert.equal(history.length, 1);
   assert.equal(history[0].lastMessagePreview, 'Grounded: What should I explore next?');
+});
+
+test('persists an allowlisted Career Premium action only for the same profile thread', async () => {
+  const { service } = fixture({ taraOrchestrator: { respond: async () => ({ message: 'Exact timing is part of Career Premium.', action: { type: 'OPEN_CAREER_PREMIUM', label: 'Unlock Career Premium' } }) } });
+  const created = await service.create({ principal, birthProfileId: 'profile-a' });
+  const result = await service.message({ principal, birthProfileId: 'profile-a', conversationId: created.conversationId, body: { message: 'When should I switch jobs?' } });
+  assert.deepEqual(result.assistantMessage.action, { type: 'OPEN_CAREER_PREMIUM', label: 'Unlock Career Premium' });
+  const loaded = await service.get({ principal, birthProfileId: 'profile-a', conversationId: created.conversationId });
+  assert.deepEqual(loaded.messages.at(-1).action, { type: 'OPEN_CAREER_PREMIUM', label: 'Unlock Career Premium' });
+  await assert.rejects(() => service.get({ principal: otherPrincipal, birthProfileId: 'profile-b', conversationId: created.conversationId }), (error) => error.code === 'NOT_FOUND_OR_FORBIDDEN');
+});
+
+test('hides persisted Career Premium actions when the exact profile becomes entitled', async () => {
+  const premium = { getReadingEntitlementStatus: async () => ({ career: { eligible: true } }) };
+  const { service } = fixture({ careerEntitlementResolver: premium, taraOrchestrator: { respond: async () => ({ message: 'Exact timing is part of Career Premium.', action: { type: 'OPEN_CAREER_PREMIUM', label: 'Unlock Career Premium' } }) } });
+  const created = await service.create({ principal, birthProfileId: 'profile-a' });
+  await service.message({ principal, birthProfileId: 'profile-a', conversationId: created.conversationId, body: { message: 'When should I switch jobs?' } });
+  const loaded = await service.get({ principal, birthProfileId: 'profile-a', conversationId: created.conversationId });
+  assert.equal(loaded.messages.at(-1).action, null);
 });
 
 test('keeps different detected domains in one profile-scoped Tara thread', async () => {

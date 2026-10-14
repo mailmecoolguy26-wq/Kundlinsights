@@ -109,6 +109,14 @@ class _CareerChatScreenState extends State<CareerChatScreen> {
                         onRetry: () => widget.controller.retry(message),
                         onFollowUp: _send,
                         onGenerate: () => context.go('/readings'),
+                        onAction: widget.controller.canOpenCareerPremium(message)
+                            ? () async {
+                                await context.push('/career-premium');
+                                if (context.mounted) {
+                                  await widget.controller.refreshCurrentConversation();
+                                }
+                              }
+                            : null,
                       ),
                     ],
                     if (widget.controller.requiresPremium) ...[
@@ -272,11 +280,13 @@ class _MessageBubble extends StatelessWidget {
     required this.onRetry,
     required this.onFollowUp,
     required this.onGenerate,
+    this.onAction,
   });
   final CareerChatMessage message;
   final VoidCallback onRetry;
   final ValueChanged<String> onFollowUp;
   final VoidCallback onGenerate;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -314,7 +324,21 @@ class _MessageBubble extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: _Colors.border),
         ),
-        child: Text(message.text, style: _Styles.body),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(message.text, style: _Styles.body),
+          if (message.action != null && onAction != null) ...[
+            const SizedBox(height: 10),
+            TextButton(
+              key: const ValueKey('ask-tara-open-career-premium'),
+              onPressed: onAction,
+              style: TextButton.styleFrom(foregroundColor: _Colors.gold),
+              child: Text(message.action!.label),
+            ),
+          ],
+        ],
+      ),
       );
     }
     final presentation = CareerChatPresentation.fromResponse(message.response!);

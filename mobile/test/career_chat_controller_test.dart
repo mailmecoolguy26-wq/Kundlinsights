@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kundlinsights_mobile/features/auth/auth_controller.dart';
 import 'package:kundlinsights_mobile/features/auth/domain/auth_repository.dart';
 import 'package:kundlinsights_mobile/features/career_chat/career_chat_controller.dart';
 import 'package:kundlinsights_mobile/features/career_chat/domain/career_chat.dart';
 import 'package:kundlinsights_mobile/features/career_chat/domain/career_chat_repository.dart';
+import 'package:kundlinsights_mobile/features/career_chat/presentation/career_chat_screen.dart';
 import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile.dart';
 import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile_repository.dart';
 import 'package:kundlinsights_mobile/features/profiles/profile_controller.dart';
@@ -82,6 +84,29 @@ void main() {
       expect(controller.messages.first.text, 'Question for A');
     },
   );
+
+  test('keeps a premium action scoped to its selected profile', () async {
+    await controller.send('timing A');
+    final profileAAction = controller.messages.last;
+    expect(profileAAction.action?.type, 'OPEN_CAREER_PREMIUM');
+    expect(profileAAction.birthProfileId, 'profile-a');
+    expect(controller.canOpenCareerPremium(profileAAction), isTrue);
+    final profileB = profiles.profiles.singleWhere((item) => item.id == 'profile-b');
+    profiles.select(profileB);
+    expect(controller.canOpenCareerPremium(profileAAction), isFalse);
+    expect(controller.messages, isEmpty);
+    await controller.send('timing B');
+    expect(controller.messages.last.action?.type, 'OPEN_CAREER_PREMIUM');
+    expect(repository.profileIds.last, 'profile-b');
+  });
+
+  testWidgets('renders the structured Career Premium action beneath Tara response', (tester) async {
+    await tester.pumpWidget(MaterialApp(home: CareerChatScreen(controller: controller)));
+    await controller.send('timing A');
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('ask-tara-open-career-premium')), findsOneWidget);
+    expect(find.text('Unlock Career Premium'), findsOneWidget);
+  });
 }
 
 class _MemoryTaraRepository implements CareerChatRepository {
@@ -161,6 +186,12 @@ class _MemoryTaraRepository implements CareerChatRepository {
         role: CareerChatRole.assistant,
         content: 'Grounded reply for $message',
         createdAt: now,
+        action: message.startsWith('timing')
+            ? const TaraConversationAction(
+                type: 'OPEN_CAREER_PREMIUM',
+                label: 'Unlock Career Premium',
+              )
+            : null,
       ),
     ]);
     _conversations[conversationId] = TaraConversationSummary(
