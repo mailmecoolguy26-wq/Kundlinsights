@@ -1,12 +1,25 @@
 'use strict';
 const test = require('node:test'); const assert = require('node:assert/strict');
 const { TaraTransitCapability, TaraTransitIntent, classifyTaraTransitIntent, TaraOrchestrator } = require('../../src/application/tara');
+const { calculateRashiHouses } = require('../../src/bhava');
+const { BODIES, calculateGocharSnapshot } = require('../../src/gochar');
 
 function context(profile = 'profile-a', jupiterHouse = 10) {
   const body = (planet, house, motion = 'direct') => ({ body: planet, transitRashi: { englishName: planet === 'Jupiter' ? 'Gemini' : 'Pisces' }, transitNatalHouseNumber: house, motion, sameRashiNatalBodies: [], aspectsNatalBodies: [], aspectsNatalHouses: [] });
   return { birthProfileId: profile, snapshot: { transitBodies: { Jupiter: body('Jupiter', jupiterHouse), Saturn: body('Saturn', 6, 'retrograde'), Rahu: body('Rahu', 2), Ketu: body('Ketu', 8), Mars: body('Mars', 11) } }, natalHouses: { houses: [{ houseNumber: 10, rashiHouseLord: { name: 'Jupiter' } }, { houseNumber: 6, rashiHouseLord: { name: 'Saturn' } }] }, insightContext: { upcomingTransitions: [{ type: 'INGRESS', planet: 'Rahu', at: '2027-01-01T00:00:00.000Z' }] } };
 }
 function capability(calls) { return new TaraTransitCapability({ transitSnapshotService: { contextForTara: async (input) => { calls.push(input); return context(input.birthProfileId, input.birthProfileId === 'profile-b' ? 4 : 10); } }, clock: () => '2026-10-14T00:00:00.000Z' }); }
+function longitude(rashi) { return (rashi - 1) * 30 + 1; }
+function engineFutureContext(planet) {
+  const natalBodies = { Ascendant: { canonicalSiderealLongitudeDegrees: longitude(1), siderealLongitudeDegrees: longitude(1) } };
+  for (const [index, body] of BODIES.entries()) natalBodies[body] = { canonicalSiderealLongitudeDegrees: longitude(index + 1), siderealLongitudeDegrees: longitude(index + 1), motion: 'direct' };
+  const natalHouses = calculateRashiHouses({ ascendantCanonicalSiderealLongitude: longitude(1), bodies: natalBodies });
+  const snapshot = calculateGocharSnapshot({
+    snapshotInstant: '2027-01-10T00:00:00.000Z', natalBodies, natalHouses,
+    transitBodies: { [planet]: { canonicalSiderealLongitudeDegrees: longitude(6), motion: 'direct' } }, bodies: [planet],
+  });
+  return { birthProfileId: 'profile-a', snapshot, natalHouses, insightContext: { upcomingTransitions: [{ type: 'INGRESS', planet, at: '2027-01-10T00:00:00.000Z' }] } };
+}
 
 test('classifies Gochar questions deterministically and keeps career timing with Career', () => {
   assert.equal(classifyTaraTransitIntent('What kind of effect gochar will have on my kundli?').intent, TaraTransitIntent.CURRENT_TRANSIT_OVERVIEW);
@@ -54,6 +67,52 @@ test('renders concise customer-facing sections without dumping every planet or i
   assert.match(jupiter.message, /^Jupiter is currently activating/m);
   assert.match(jupiter.message, /What to pay attention to:/);
   assert.match(jupiter.message, /Why: Jupiter is transiting/);
+});
+test('explains an upcoming Jupiter ingress through calculated occupation, aspects, lordship, and natal interactions', async () => {
+  const current = context('profile-a', 10);
+  current.insightContext.upcomingTransitions = [{ type: 'INGRESS', planet: 'Jupiter', at: '2027-01-10T00:00:00.000Z' }];
+  const future = context('profile-a', 6);
+  future.natalHouses = { houses: [{ houseNumber: 1, rashiHouseLord: { name: 'Jupiter' } }, { houseNumber: 7, rashiHouseLord: { name: 'Jupiter' } }] };
+  future.snapshot.transitBodies.Jupiter = {
+    ...future.snapshot.transitBodies.Jupiter,
+    transitNatalHouseNumber: 6,
+    aspectsNatalHouses: [{ houseNumber: 2 }, { houseNumber: 10 }, { houseNumber: 12 }],
+    aspectsNatalBodies: [{ natalBody: 'Mars' }],
+    sameRashiNatalBodies: [{ body: 'Venus' }],
+  };
+  const calls = [];
+  const transit = new TaraTransitCapability({
+    transitSnapshotService: { contextForTara: async (input) => { calls.push(input); return input.at === '2027-01-10T00:00:00.000Z' ? future : current; } },
+    clock: () => '2026-10-14T00:00:00.000Z',
+  });
+  const result = await transit.respond({ principal: {}, birthProfileId: 'profile-a', message: 'What happens when Jupiter changes houses?' });
+  assert.equal(calls.length, 2);
+  assert.match(result.message, /When Jupiter moves into your 6th house on 10 Jan 2027/i);
+  assert.match(result.message, /Jupiter will also aspect your 2nd, 10th, 12th houses/i);
+  assert.match(result.message, /Because Jupiter rules your 1st and 7th houses/i);
+  assert.match(result.message, /natal Mars and Venus/i);
+  assert.match(result.message, /direct 6th-house themes/i);
+  assert.match(result.message, /aspect-activated houses: 2nd, 10th, 12th/i);
+  assert.match(result.message, /lordship-related houses: 1st and 7th/i);
+  assert.doesNotMatch(result.message, /available chart context|grounded area of emphasis/i);
+});
+test('uses each planet’s own engine-supported future aspect pattern and natal lordship', async () => {
+  const cases = [
+    { planet: 'Jupiter', aspects: '2nd, 10th, 12th', lordships: '9th and 12th' },
+    { planet: 'Mars', aspects: '1st, 9th, 12th', lordships: '1st and 8th' },
+    { planet: 'Saturn', aspects: '3rd, 8th, 12th', lordships: '10th and 11th' },
+    { planet: 'Mercury', aspects: '12th', lordships: '3rd and 6th' },
+  ];
+  for (const expected of cases) {
+    const factual = engineFutureContext(expected.planet);
+    const transit = new TaraTransitCapability({
+      transitSnapshotService: { contextForTara: async () => factual },
+      clock: () => '2026-10-14T00:00:00.000Z',
+    });
+    const result = await transit.respond({ principal: {}, birthProfileId: 'profile-a', message: `What happens when ${expected.planet} changes houses?` });
+    assert.match(result.message, new RegExp(`${expected.planet} will also aspect your ${expected.aspects} house`, 'i'));
+    assert.match(result.message, new RegExp(`${expected.planet} rules your ${expected.lordships} house`, 'i'));
+  }
 });
 test('routes a transit question through the transit capability, while job timing remains Career', async () => {
   const calls = []; const tara = new TaraOrchestrator({ careerCapability: { respond: async () => ({ answerability: 'SUPPORTED', message: 'Career result.' }) }, transitCapability: capability(calls) });

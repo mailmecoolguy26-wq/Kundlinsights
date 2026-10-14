@@ -1,6 +1,6 @@
 'use strict';
 
-const TRANSIT_PLANETS = Object.freeze(['Jupiter', 'Saturn', 'Rahu', 'Ketu', 'Mars']);
+const TRANSIT_PLANETS = Object.freeze(['Jupiter', 'Saturn', 'Rahu', 'Ketu', 'Mars', 'Mercury']);
 const LIFE_AREAS = Object.freeze({ CAREER: [2, 6, 10, 11], RELATIONSHIPS: [5, 7], WEALTH_PROPERTY: [2, 4, 8, 11], GENERAL: [] });
 const HOUSE_THEMES = Object.freeze({
   1: Object.freeze(['self', 'identity', 'vitality', 'personal direction']), 2: Object.freeze(['finances', 'savings', 'family', 'speech', 'possessions']),
@@ -13,11 +13,11 @@ const HOUSE_THEMES = Object.freeze({
 const TaraTransitIntent = Object.freeze({ CURRENT_TRANSIT_OVERVIEW: 'CURRENT_TRANSIT_OVERVIEW', PLANET_TRANSIT_EFFECT: 'PLANET_TRANSIT_EFFECT', UPCOMING_TRANSIT_EFFECT: 'UPCOMING_TRANSIT_EFFECT', LIFE_AREA_TRANSIT_EFFECT: 'LIFE_AREA_TRANSIT_EFFECT', UNSUPPORTED_TRANSIT: 'UNSUPPORTED_TRANSIT' });
 
 function normalize(value) { return String(value || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim(); }
-function planetFor(text) { return ['jupiter', 'saturn', 'rahu', 'ketu', 'mars'].find((value) => new RegExp(`\\b${value}\\b`).test(text)) || null; }
+function planetFor(text) { return TRANSIT_PLANETS.map((planet) => planet.toLowerCase()).find((value) => new RegExp(`\\b${value}\\b`).test(text)) || null; }
 function areaFor(text) { if (/\bcareer|job|work|business\b/.test(text)) return 'CAREER'; if (/\brelationship|marriage|marry|spouse|partner|love\b/.test(text)) return 'RELATIONSHIPS'; if (/\bwealth|money|property|real estate|investment\b/.test(text)) return 'WEALTH_PROPERTY'; return 'GENERAL'; }
 function classifyTaraTransitIntent(message) {
   const text = normalize(message); const planet = planetFor(text); const area = areaFor(text);
-  if (!/\b(gochar|transit|transits|planetary movement|planet changing house|jupiter|saturn|rahu|ketu|mars)\b/.test(text)) return Object.freeze({ intent: TaraTransitIntent.UNSUPPORTED_TRANSIT, planet: null, area: 'GENERAL' });
+  if (!/\b(gochar|transit|transits|planetary movement|planet changing house|jupiter|saturn|rahu|ketu|mars|mercury)\b/.test(text)) return Object.freeze({ intent: TaraTransitIntent.UNSUPPORTED_TRANSIT, planet: null, area: 'GENERAL' });
   if (/\b(next|when|change|changes|upcoming)\b/.test(text) && planet) return Object.freeze({ intent: TaraTransitIntent.UPCOMING_TRANSIT_EFFECT, planet, area });
   if (planet) return Object.freeze({ intent: TaraTransitIntent.PLANET_TRANSIT_EFFECT, planet, area });
   if (area !== 'GENERAL') return Object.freeze({ intent: TaraTransitIntent.LIFE_AREA_TRANSIT_EFFECT, planet: null, area });
@@ -42,12 +42,33 @@ function evidenceFor({ snapshot, natalHouses, intent }) {
 function displayDate(value) { const date = typeof value === 'string' ? new Date(value) : null; return date && !Number.isNaN(date.getTime()) ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(date) : null; }
 function names(values) { return values.length ? values.join(', ') : 'the themes shown by this transit'; }
 function ordinal(value) { return `${value}${value % 10 === 1 && value % 100 !== 11 ? 'st' : value % 10 === 2 && value % 100 !== 12 ? 'nd' : value % 10 === 3 && value % 100 !== 13 ? 'rd' : 'th'}`; }
+function ordinalList(values) { return values.map(ordinal).join(values.length === 2 ? ' and ' : ', '); }
 function retrogradePhrase(item) { if (!item.retrograde || item.planet === 'Rahu' || item.planet === 'Ketu') return ''; if (item.planet === 'Saturn') return ' Its calculated retrograde state places additional emphasis on review, responsibility and pace.'; if (item.planet === 'Jupiter') return ' Its calculated retrograde state places additional emphasis on revisiting learning, guidance and longer-term direction.'; return ' Its calculated retrograde state places additional emphasis on revisiting how this transit is being expressed.'; }
 function meaning(item, { area = 'GENERAL' } = {}) { const themes = area === 'CAREER' ? careerThemes([item.currentHouse]) : item.houseThemes; return `${item.planet} is activating ${names(themes)}.`; }
 function why(item) { const lordship = item.natalHouseLordship.length ? `${item.planet} also rules your ${item.natalHouseLordship.map(ordinal).join(' and ')} house${item.natalHouseLordship.length > 1 ? 's' : ''}` : null; const aspects = item.transitInteractions.housesAspected.length ? `it influences your ${item.transitInteractions.housesAspected.map(ordinal).join(' and ')} house${item.transitInteractions.housesAspected.length > 1 ? 's' : ''}` : null; return [ `${item.planet} is transiting your ${ordinal(item.currentHouse)} house in ${item.currentSign}`, lordship, aspects ].filter(Boolean).join('; ') + '.'; }
 function attention(item, { area = 'GENERAL' } = {}) { const themes = area === 'CAREER' ? careerThemes([item.currentHouse, ...item.natalHouseLordship]) : [...item.houseThemes, ...item.lordshipThemes].slice(0, 4); return `What to pay attention to: ${names(themes)}.${retrogradePhrase(item)}`; }
 function relevantForArea(item, area) { const houses = LIFE_AREAS[area] || []; return houses.includes(item.currentHouse) || item.natalHouseLordship.some((house) => houses.includes(house)) || item.transitInteractions.housesAspected.some((house) => houses.includes(house)); }
 function overview(evidence) { const byPlanet = new Map(evidence.map((item) => [item.planet, item])); const jupiter = byPlanet.get('Jupiter'), saturn = byPlanet.get('Saturn'), nodes = [byPlanet.get('Rahu'), byPlanet.get('Ketu')].filter(Boolean); const strongest = [jupiter, saturn].filter(Boolean); const nodeThemes = [...new Set(nodes.flatMap((item) => item.houseThemes))].slice(0, 4); const attentionThemes = [...new Set(strongest.flatMap((item) => item.houseThemes))].slice(0, 5); return `The strongest transit influences in your chart right now are ${strongest.map((item) => item.planet).join(' and ')}${nodes.length ? ', with Rahu and Ketu adding a secondary layer' : ''}.\n\n${strongest.map((item) => `${item.planet}: ${meaning(item)}`).join('\n')} ${nodes.length ? `Rahu/Ketu: ${names(nodeThemes)} are receiving additional attention.` : ''}\n\nWhat to pay attention to: ${names(attentionThemes)}.\n\nWhy: ${strongest.map(why).join(' ')}`; }
+function upcomingMessage({ item, date }) {
+  const aspects = item.transitInteractions.housesAspected;
+  const aspectSentence = aspects.length
+    ? `${item.planet} will also aspect your ${ordinalList(aspects)} house${aspects.length > 1 ? 's' : ''}, activating ${names(item.aspectThemes)}.`
+    : null;
+  const lordshipSentence = item.natalHouseLordship.length
+    ? `Because ${item.planet} rules your ${ordinalList(item.natalHouseLordship)} house${item.natalHouseLordship.length > 1 ? 's' : ''}, those areas are also connected to this transit.`
+    : null;
+  const interactionBodies = [...new Set([...item.transitInteractions.natalPlanetsAspected, ...item.natalInteractions.conjunctions])];
+  const interactionSentence = interactionBodies.length
+    ? `${item.planet} will also connect with your natal ${interactionBodies.join(' and ')} through calculated aspect or same-sign association.`
+    : null;
+  const summary = [
+    `direct ${ordinal(item.currentHouse)}-house themes: ${names(item.houseThemes)}`,
+    aspects.length ? `aspect-activated houses: ${ordinalList(aspects)}` : null,
+    item.natalHouseLordship.length ? `lordship-related houses: ${ordinalList(item.natalHouseLordship)}` : null,
+  ].filter(Boolean);
+  const extendedContext = [aspectSentence, lordshipSentence, interactionSentence].filter(Boolean).join(' ');
+  return `When ${item.planet} moves into your ${ordinal(item.currentHouse)} house${date ? ` on ${date}` : ''}, the direct emphasis shifts toward ${names(item.houseThemes)}.${extendedContext ? `\n\nBut the effect does not stop at the ${ordinal(item.currentHouse)} house.\n\n${extendedContext}` : ''}\n\nOverall, this transit activates:\n${summary.map((value) => `- ${value}`).join('\n')}\n\nWhy: ${why(item)}`;
+}
 function diagnostic(log, event, fields) { if (typeof log === 'function') log({ event, ...fields }); }
 function unsupported() { return 'I can explain your current Gochar from calculated chart data, but I’m not ready to answer that transit question reliably yet.'; }
 
@@ -66,7 +87,20 @@ class TaraTransitCapability {
     if (intent.intent === TaraTransitIntent.UPCOMING_TRANSIT_EFFECT) {
       const planet = evidence[0].planet; const transition = (context.insightContext && context.insightContext.upcomingTransitions || []).find((item) => item.planet === planet && item.type === 'INGRESS');
       const date = transition && displayDate(transition.at);
-      messageOut = date ? `${planet} has a calculated upcoming sign transition on ${date}. Its effect should be understood through the natal house it activates at that time; TaraVerse will only describe that once the calculated transition context is available.` : `I can explain ${planet}'s current calculated transit, but I’m not able to safely state the next change date from the available transit window.`;
+      if (!transition || !date) {
+        messageOut = `I can explain ${planet}'s current calculated transit, but I’m not able to safely state the next change date from the available transit window.`;
+      } else {
+        try {
+          const futureContext = await this.transits.contextForTara({ principal, birthProfileId, at: transition.at });
+          const futureEvidence = evidenceFor({ snapshot: futureContext.snapshot, natalHouses: futureContext.natalHouses, intent });
+          const futureItem = futureEvidence.find((item) => item.planet === planet);
+          messageOut = futureItem
+            ? upcomingMessage({ item: futureItem, date })
+            : `I can explain ${planet}'s current calculated transit, but I’m unable to calculate its upcoming ingress context reliably right now.`;
+        } catch (_) {
+          messageOut = `I can explain ${planet}'s current calculated transit, but I’m unable to calculate its upcoming ingress context reliably right now.`;
+        }
+      }
     } else if (intent.intent === TaraTransitIntent.LIFE_AREA_TRANSIT_EFFECT) {
       const relevant = evidence.filter((item) => relevantForArea(item, intent.area));
       const selected = relevant.slice(0, 3);
