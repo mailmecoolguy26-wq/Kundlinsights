@@ -79,7 +79,7 @@ class CareerChatApiRepository implements CareerChatRepository {
     required String message,
     required CareerChatLanguage language,
   }) async {
-    await _client.post<Map<String, dynamic>>(
+    final response = await _client.post<Map<String, dynamic>>(
       '${_path(birthProfileId)}/${Uri.encodeComponent(conversationId)}/messages',
       data: {
         'message': message,
@@ -88,10 +88,37 @@ class CareerChatApiRepository implements CareerChatRepository {
             : 'ENGLISH',
       },
     );
-    // The endpoint returns message pair; reload keeps the client chronology canonical.
-    return getConversation(
+    // The endpoint returns the just-persisted pair, including allowlisted
+    // server-authored actions. Reload to keep chronology canonical, but retain
+    // that just-created action if a lagging history read does not yet return its
+    // metadata. This never invents an action or changes its profile scope.
+    final postedAssistant = response.data?['assistantMessage'];
+    final assistantId = postedAssistant is Map
+        ? postedAssistant['messageId']
+        : null;
+    final action = postedAssistant is Map
+        ? TaraConversationAction.fromJson(postedAssistant['action'])
+        : null;
+    final detail = await getConversation(
       birthProfileId: birthProfileId,
       conversationId: conversationId,
+    );
+    if (assistantId is! String || action == null) return detail;
+    return TaraConversationDetail(
+      conversation: detail.conversation,
+      messages: detail.messages
+          .map(
+            (item) => item.messageId != assistantId
+                ? item
+                : TaraConversationMessage(
+                    messageId: item.messageId,
+                    role: item.role,
+                    content: item.content,
+                    createdAt: item.createdAt,
+                    action: item.action ?? action,
+                  ),
+          )
+          .toList(growable: false),
     );
   }
 
