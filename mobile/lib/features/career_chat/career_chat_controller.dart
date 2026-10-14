@@ -100,14 +100,14 @@ class CareerChatController extends ChangeNotifier {
       message.birthProfileId != null &&
       message.birthProfileId == _profiles.activeProfile?.id;
 
-  Future<void> send(String rawMessage) async {
+  Future<bool> send(String rawMessage) async {
     final message = rawMessage.trim();
     final profile = _profiles.activeProfile;
     if (_sending ||
         message.isEmpty ||
         message.length > 2000 ||
         profile == null) {
-      return;
+      return false;
     }
     _ensureProfile(profile.id);
     unawaited(
@@ -118,27 +118,51 @@ class CareerChatController extends ChangeNotifier {
       }),
     );
     _failure = null;
+    final priorMatchingUserMessages = _matchingUserMessages(message);
+    final optimisticMessage = CareerChatMessage.user(
+      message,
+      birthProfileId: profile.id,
+    );
+    _messages.add(optimisticMessage);
     _sending = true;
+    _debugSend('TARA_LOCAL_APPEND', profileId: profile.id);
     notifyListeners();
     try {
       final conversation = _conversationId == null
           ? await _repository.createConversation(birthProfileId: profile.id)
           : null;
       if (conversation != null) _conversationId = conversation.conversationId;
+      _debugSend('TARA_API_SEND_START', profileId: profile.id);
       final detail = await _repository.sendConversationMessage(
         birthProfileId: profile.id,
         conversationId: _conversationId!,
         message: message,
         language: language,
       );
-      if (_profiles.activeProfile?.id != profile.id) return;
-      _apply(detail);
+      if (_profiles.activeProfile?.id != profile.id) return false;
+      _debugSend('TARA_STATE_BEFORE_RELOAD', profileId: profile.id);
+      _apply(
+        detail,
+        optimisticMessage: optimisticMessage,
+        priorMatchingUserMessages: priorMatchingUserMessages,
+      );
+      _debugSend('TARA_STATE_AFTER_RELOAD', profileId: profile.id);
+      _debugSend('TARA_API_SEND_SUCCESS', profileId: profile.id);
+      return true;
     } on ApiFailure catch (error) {
-      if (_profiles.activeProfile?.id != profile.id) return;
+      if (_profiles.activeProfile?.id != profile.id) return false;
       _failure = error;
-    } catch (_) {
-      if (_profiles.activeProfile?.id != profile.id) return;
+      optimisticMessage.failed = true;
+      _debugSend('TARA_API_SEND_FAILURE', profileId: profile.id, error: error);
+      notifyListeners();
+      return false;
+    } catch (error) {
+      if (_profiles.activeProfile?.id != profile.id) return false;
       _failure = null;
+      optimisticMessage.failed = true;
+      _debugSend('TARA_API_SEND_FAILURE', profileId: profile.id, error: error);
+      notifyListeners();
+      return false;
     } finally {
       if (_profiles.activeProfile?.id == profile.id) {
         _sending = false;
@@ -150,7 +174,7 @@ class CareerChatController extends ChangeNotifier {
   Future<void> retry(CareerChatMessage message) {
     if (!message.failed) return Future.value();
     _messages.remove(message);
-    return send(message.text);
+    return send(message.text).then((_) {});
   }
 
   Future<void> loadHistory() async {
@@ -199,12 +223,14 @@ class CareerChatController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _apply(TaraConversationDetail detail) {
+  void _apply(
+    TaraConversationDetail detail, {
+    CareerChatMessage? optimisticMessage,
+    int priorMatchingUserMessages = 0,
+  }) {
     _conversationId = detail.conversation.conversationId;
-    _messages
-      ..clear()
-      ..addAll(
-        detail.messages.map(
+    final persistedMessages = detail.messages
+        .map(
           (item) => CareerChatMessage.persisted(
             messageId: item.messageId,
             role: item.role,
@@ -212,8 +238,26 @@ class CareerChatController extends ChangeNotifier {
             birthProfileId: detail.conversation.birthProfileId,
             action: item.action,
           ),
-        ),
-      );
+        )
+        .toList(growable: true);
+    // The message POST is followed by a canonical history reload. Keep the
+    // locally accepted user message if a lagging read has not included it yet.
+    // Count prior matching messages so repeated identical questions are not
+    // confused with the just-submitted one.
+    if (optimisticMessage != null &&
+        persistedMessages
+                .where(
+                  (item) =>
+                      item.role == CareerChatRole.user &&
+                      item.text == optimisticMessage.text,
+                )
+                .length <=
+            priorMatchingUserMessages) {
+      persistedMessages.add(optimisticMessage);
+    }
+    _messages
+      ..clear()
+      ..addAll(persistedMessages);
     if (kDebugMode) {
       for (final message in _messages.where(
         (message) => message.role == CareerChatRole.assistant,
@@ -245,6 +289,24 @@ class CareerChatController extends ChangeNotifier {
 
   void _ensureProfile(String id) {
     if (_profileId != id) _onProfileChanged();
+  }
+
+  int _matchingUserMessages(String text) => _messages
+      .where((item) => item.role == CareerChatRole.user && item.text == text)
+      .length;
+
+  void _debugSend(String prefix, {required String profileId, Object? error}) {
+    if (!kDebugMode) return;
+    final errorCode = error is ApiFailure ? error.code : null;
+    debugPrint(
+      '$prefix '
+      'conversationId=$_conversationId '
+      'birthProfileId=$profileId '
+      'messageCount=${_messages.length} '
+      'sendState=${_sending ? 'sending' : 'idle'} '
+      'errorClass=${error?.runtimeType} '
+      'errorCode=$errorCode',
+    );
   }
 
   @override

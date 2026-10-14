@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -23,11 +25,34 @@ class _CareerChatScreenState extends State<CareerChatScreen> {
     super.dispose();
   }
 
-  void _send([String? value]) {
+  Future<void> _send([String? value]) async {
     final text = value ?? _input.text;
     if (text.trim().isEmpty || widget.controller.isSending) return;
-    _input.clear();
-    widget.controller.send(text);
+    if (kDebugMode) {
+      debugPrint(
+        'TARA_SEND_TAP '
+        'conversationId=${widget.controller.conversationId} '
+        'birthProfileId=${widget.controller.activeProfileId} '
+        'messageCount=${widget.controller.messages.length} '
+        'sendState=${widget.controller.isSending ? 'sending' : 'idle'}',
+      );
+    }
+    final accepted = await widget.controller.send(text);
+    // Prompt chips do not own the composer text. For typed input, clear only
+    // after the controller has accepted it into canonical conversation state.
+    // Avoid erasing text the user entered while the request was in flight.
+    if (accepted && value == null && mounted && _input.text == text) {
+      if (kDebugMode) {
+        debugPrint(
+          'TARA_INPUT_CLEAR '
+          'conversationId=${widget.controller.conversationId} '
+          'birthProfileId=${widget.controller.activeProfileId} '
+          'messageCount=${widget.controller.messages.length} '
+          'sendState=${widget.controller.isSending ? 'sending' : 'idle'}',
+        );
+      }
+      _input.clear();
+    }
   }
 
   @override
@@ -100,7 +125,7 @@ class _CareerChatScreenState extends State<CareerChatScreen> {
                                 'Is there a supportive period for property?',
                                 'What should I pay attention to right now?',
                               ],
-                        onTap: _send,
+                        onTap: (prompt) => unawaited(_send(prompt)),
                       ),
                     ],
                     for (final message in widget.controller.messages) ...[
@@ -108,7 +133,7 @@ class _CareerChatScreenState extends State<CareerChatScreen> {
                       _MessageBubble(
                         message: message,
                         onRetry: () => widget.controller.retry(message),
-                        onFollowUp: _send,
+                        onFollowUp: (prompt) => unawaited(_send(prompt)),
                         onGenerate: () => context.go('/readings'),
                         onAction: _premiumAction(context, message),
                       ),
@@ -131,7 +156,7 @@ class _CareerChatScreenState extends State<CareerChatScreen> {
                 controller: _input,
                 sending: widget.controller.isSending,
                 placeholder: hinglish ? 'Tara se poochiye...' : 'Ask Tara...',
-                onSend: _send,
+                onSend: () => unawaited(_send()),
               ),
             ],
           ),
@@ -144,8 +169,9 @@ class _CareerChatScreenState extends State<CareerChatScreen> {
     BuildContext context,
     CareerChatMessage message,
   ) {
-    final shouldRenderPremiumAction = widget.controller
-        .canOpenCareerPremium(message);
+    final shouldRenderPremiumAction = widget.controller.canOpenCareerPremium(
+      message,
+    );
     if (kDebugMode && message.action != null) {
       debugPrint(
         'TARA_ACTION_RENDER '

@@ -123,6 +123,12 @@ class CareerChatApiRepository implements CareerChatRepository {
     final action = postedAssistant is Map
         ? TaraConversationAction.fromJson(postedAssistant['action'])
         : null;
+    _debugAction('TARA_STATE_BEFORE_RELOAD', {
+      'conversationId': conversationId,
+      'birthProfileId': birthProfileId,
+      'messageCount': 0,
+      'sendState': 'post_succeeded',
+    });
     final detail = await getConversation(
       birthProfileId: birthProfileId,
       conversationId: conversationId,
@@ -145,6 +151,12 @@ class CareerChatApiRepository implements CareerChatRepository {
                 )
                 .toList(growable: false),
           );
+    _debugAction('TARA_STATE_AFTER_RELOAD', {
+      'conversationId': result.conversation.conversationId,
+      'birthProfileId': result.conversation.birthProfileId,
+      'messageCount': result.messages.length,
+      'sendState': 'post_succeeded',
+    });
     for (final item in result.messages.where(
       (item) => item.role == CareerChatRole.assistant,
     )) {

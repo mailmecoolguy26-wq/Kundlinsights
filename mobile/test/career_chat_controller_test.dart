@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kundlinsights_mobile/features/auth/auth_controller.dart';
 import 'package:kundlinsights_mobile/features/auth/domain/auth_repository.dart';
+import 'package:kundlinsights_mobile/core/errors/api_failure.dart';
 import 'package:kundlinsights_mobile/features/career_chat/career_chat_controller.dart';
 import 'package:kundlinsights_mobile/features/career_chat/domain/career_chat.dart';
 import 'package:kundlinsights_mobile/features/career_chat/domain/career_chat_repository.dart';
@@ -91,7 +92,9 @@ void main() {
     expect(profileAAction.action?.type, 'OPEN_CAREER_PREMIUM');
     expect(profileAAction.birthProfileId, 'profile-a');
     expect(controller.canOpenCareerPremium(profileAAction), isTrue);
-    final profileB = profiles.profiles.singleWhere((item) => item.id == 'profile-b');
+    final profileB = profiles.profiles.singleWhere(
+      (item) => item.id == 'profile-b',
+    );
     profiles.select(profileB);
     expect(controller.canOpenCareerPremium(profileAAction), isFalse);
     expect(controller.messages, isEmpty);
@@ -100,13 +103,106 @@ void main() {
     expect(repository.profileIds.last, 'profile-b');
   });
 
-  testWidgets('renders the structured Career Premium action beneath Tara response', (tester) async {
-    await tester.pumpWidget(MaterialApp(home: CareerChatScreen(controller: controller)));
-    await controller.send('timing A');
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('ask-tara-open-career-premium')), findsOneWidget);
-    expect(find.text('Unlock Career Premium'), findsOneWidget);
+  test('keeps an optimistic user message when sending fails', () async {
+    repository.sendFailure = const ApiFailure(ApiFailureKind.network);
+
+    final accepted = await controller.send('Please keep this question');
+
+    expect(accepted, isFalse);
+    expect(controller.messages, hasLength(1));
+    expect(controller.messages.single.text, 'Please keep this question');
+    expect(controller.messages.single.failed, isTrue);
   });
+
+  test(
+    'does not lose an optimistic user message during a stale reload',
+    () async {
+      repository.returnStaleHistoryAfterSend = true;
+
+      final accepted = await controller.send('Question retained during reload');
+
+      expect(accepted, isTrue);
+      expect(
+        controller.messages.where(
+          (item) => item.text == 'Question retained during reload',
+        ),
+        hasLength(1),
+      );
+    },
+  );
+
+  test(
+    'clears old conversation state intentionally when the profile changes',
+    () async {
+      await controller.send('Question for A');
+      final profileB = profiles.profiles.singleWhere(
+        (item) => item.id == 'profile-b',
+      );
+
+      profiles.select(profileB);
+
+      expect(controller.messages, isEmpty);
+      expect(controller.conversationId, isNull);
+    },
+  );
+
+  testWidgets(
+    'renders the structured Career Premium action beneath Tara response',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(home: CareerChatScreen(controller: controller)),
+      );
+      await controller.send('timing A');
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('ask-tara-open-career-premium')),
+        findsOneWidget,
+      );
+      expect(find.text('Unlock Career Premium'), findsOneWidget);
+    },
+  );
+
+  testWidgets('clears typed input only after a successful send', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(home: CareerChatScreen(controller: controller)),
+    );
+    const question = 'Will my Career improve?';
+
+    await tester.enterText(find.byType(TextField), question);
+    await tester.tap(find.byTooltip('Send'));
+    await tester.pumpAndSettle();
+
+    expect(controller.messages.first.text, question);
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      isEmpty,
+    );
+  });
+
+  testWidgets(
+    'keeps typed input and failed message recoverable on send failure',
+    (tester) async {
+      repository.sendFailure = const ApiFailure(ApiFailureKind.network);
+      await tester.pumpWidget(
+        MaterialApp(home: CareerChatScreen(controller: controller)),
+      );
+      const question = 'Please do not lose this';
+
+      await tester.enterText(find.byType(TextField), question);
+      await tester.tap(find.byTooltip('Send'));
+      await tester.pumpAndSettle();
+
+      expect(controller.messages.single.text, question);
+      expect(controller.messages.single.failed, isTrue);
+      expect(find.text('Retry'), findsOneWidget);
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        question,
+      );
+    },
+  );
 }
 
 class _MemoryTaraRepository implements CareerChatRepository {
@@ -114,6 +210,8 @@ class _MemoryTaraRepository implements CareerChatRepository {
   final Map<String, List<TaraConversationMessage>> _messages = {};
   final List<String> profileIds = [];
   int _next = 0;
+  Object? sendFailure;
+  bool returnStaleHistoryAfterSend = false;
 
   @override
   Future<TaraConversationSummary> createConversation({
@@ -168,6 +266,8 @@ class _MemoryTaraRepository implements CareerChatRepository {
     required CareerChatLanguage language,
   }) async {
     profileIds.add(birthProfileId);
+    final failure = sendFailure;
+    if (failure != null) throw failure;
     final conversation = _conversations[conversationId]!;
     if (conversation.birthProfileId != birthProfileId) {
       throw StateError('Profile mismatch');
@@ -204,6 +304,12 @@ class _MemoryTaraRepository implements CareerChatRepository {
       updatedAt: now,
       lastMessagePreview: rows.last.content,
     );
+    if (returnStaleHistoryAfterSend) {
+      return TaraConversationDetail(
+        conversation: conversation,
+        messages: const [],
+      );
+    }
     return getConversation(
       birthProfileId: birthProfileId,
       conversationId: conversationId,
