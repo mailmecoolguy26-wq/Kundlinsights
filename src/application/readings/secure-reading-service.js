@@ -14,6 +14,10 @@ function safeError(error, fallback) {
   if (error && allowed.has(error.code)) throw error;
   fail(fallback);
 }
+function diagnostic(log, event, { state = null, error = null } = {}) {
+  if (typeof log !== 'function') return;
+  log({ event, ...(state ? { state } : {}), ...(error ? { safeErrorCode: typeof error.code === 'string' ? error.code : 'UNKNOWN_ERROR', errorClass: typeof error.name === 'string' ? error.name : 'Error' } : {}) });
+}
 function publicReading(item) { return immutableCopy({ readingId: item.readingId, domain: item.record.domain, engineProfileId: item.record.engineProfileId, createdAt: item.record.createdAt, status: item.status }); }
 function publicReadingSummary(item) {
   return immutableCopy({
@@ -280,7 +284,7 @@ class SecureReadingService {
     const raw = await this.execute(verified, 'app_runtime', async (context) => this.repo(context).readings.getEncryptedReadingRecordByIdempotencyKey(user.id, idempotencyKey));
     return raw ? this.decryptReading(verified, raw) : null;
   }
-  async generateSecureReading({ principal: principalInput, birthProfileId, domain, idempotencyKey, readingInstant, locale } = {}) {
+  async generateSecureReading({ principal: principalInput, birthProfileId, domain, idempotencyKey, readingInstant, locale, diagnosticLog = null } = {}) {
     const { verified, user } = await this.resolve(principalInput);
     const profileId = requiredString(birthProfileId, 'INVALID_BIRTH_PROFILE_ID'); const key = requiredString(idempotencyKey, 'INVALID_IDEMPOTENCY_KEY'); const readingDomain = requiredString(domain, 'INVALID_READING_DOMAIN');
     const prior = await this.existing({ verified, user, idempotencyKey: key }); if (prior) return publicReading(prior);
@@ -295,16 +299,17 @@ class SecureReadingService {
       try {
         const access = await this.execute(verified, 'app_runtime', async (context) => this.careerAccessResolver.resolveForProfile({ repositories: this.repo(context), userId: user.id, birthProfileId: profileId, at: this.clock() }));
         if (!access.eligible) fail('ENTITLEMENT_EXHAUSTED');
-      } catch (error) { safeError(error, 'ENTITLEMENT_EXHAUSTED'); }
+        diagnostic(diagnosticLog, 'CAREER_READING_ENTITLEMENT', { state: 'ELIGIBLE' });
+      } catch (error) { diagnostic(diagnosticLog, 'CAREER_READING_ENTITLEMENT', { state: 'FAILED', error }); safeError(error, 'ENTITLEMENT_EXHAUSTED'); }
     }
     let generated;
-    try { generated = await this.readingGenerator.generate({ principal: verified, birthProfile: profile, domain: readingDomain, readingInstant, locale }); if (!generated || !generated.input || !generated.result) fail('READING_GENERATION_FAILED'); } catch (error) { safeError(error, 'READING_GENERATION_FAILED'); }
+    try { generated = await this.readingGenerator.generate({ principal: verified, birthProfile: profile, domain: readingDomain, readingInstant, locale, diagnosticLog }); if (!generated || !generated.input || !generated.result) fail('READING_GENERATION_FAILED'); diagnostic(diagnosticLog, 'CAREER_READING_CALCULATION', { state: 'SUCCEEDED' }); } catch (error) { diagnostic(diagnosticLog, 'CAREER_READING_CALCULATION', { state: 'FAILED', error }); safeError(error, 'READING_GENERATION_FAILED'); }
     let record;
     try { record = this.readingRecordFactory({ readingId: this.idGenerator(), createdAt: this.clock(), input: generated.input, result: generated.result }); } catch (error) { safeError(error, 'READING_GENERATION_FAILED'); }
     let encrypted;
     if (this.readingCrypto) {
       try { const operationKey = await this.readingCrypto.current(verified, user.id); encrypted = await this.withKey(operationKey, (codec) => codec.encodeRecord({ userId: user.id, record })); }
-      catch (error) { safeError(error, 'READING_PERSISTENCE_FAILED'); }
+      catch (error) { diagnostic(diagnosticLog, 'CAREER_READING_PERSIST', { state: 'ENCRYPTION_FAILED', error }); safeError(error, 'READING_PERSISTENCE_FAILED'); }
     }
     try {
       const persisted = await this.execute(verified, 'app_runtime', async (context) => {
@@ -331,9 +336,11 @@ class SecureReadingService {
         return { kind: 'created', value: inserted };
       });
       const item = persisted.kind === 'existing' && this.readingCrypto ? await this.decryptReading(verified, persisted.value) : persisted.value;
+      diagnostic(diagnosticLog, 'CAREER_READING_PERSIST', { state: persisted.kind === 'existing' ? 'IDEMPOTENT_EXISTING' : 'CREATED' });
       return publicReading(item);
     } catch (error) {
-      if (error && error.code === 'DUPLICATE_READING_IDEMPOTENCY_KEY') { const winner = await this.existing({ verified, user, idempotencyKey: key }); if (winner) return publicReading(winner); fail('IDEMPOTENCY_CONFLICT'); }
+      if (error && error.code === 'DUPLICATE_READING_IDEMPOTENCY_KEY') { const winner = await this.existing({ verified, user, idempotencyKey: key }); if (winner) { diagnostic(diagnosticLog, 'CAREER_READING_PERSIST', { state: 'IDEMPOTENT_RACE_WINNER' }); return publicReading(winner); } diagnostic(diagnosticLog, 'CAREER_READING_PERSIST', { state: 'FAILED', error }); fail('IDEMPOTENCY_CONFLICT'); }
+      diagnostic(diagnosticLog, 'CAREER_READING_PERSIST', { state: 'FAILED', error });
       safeError(error, 'READING_PERSISTENCE_FAILED');
     }
   }

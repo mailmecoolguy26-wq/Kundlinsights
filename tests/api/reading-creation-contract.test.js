@@ -65,7 +65,9 @@ test('caller reading instant and locale are not forwarded as public creation aut
     locale: 'xx-XX',
   }));
   assert.equal(created.statusCode, 201);
-  assert.deepEqual(calls[0], {
+  const { diagnosticLog, ...requestToService } = calls[0];
+  assert.equal(typeof diagnosticLog, 'function');
+  assert.deepEqual(requestToService, {
     principal,
     birthProfileId: 'profile-a',
     domain: 'CAREER',

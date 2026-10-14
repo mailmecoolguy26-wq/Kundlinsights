@@ -37,6 +37,16 @@ test('SEC-P6 blocks anonymous, disabled/wrong-owner, exhausted, generation-faile
   const generation = setup({ generatorFails: true }); await rejects(generation.service.generateSecureReading(request), 'READING_GENERATION_FAILED'); assert.equal(generation.entitlements.getEntitlement('ent-a').quantity, 1);
   const persistence = setup({ insertFails: true }); await rejects(persistence.service.generateSecureReading(request), 'READING_PERSISTENCE_FAILED'); assert.equal(persistence.entitlements.getEntitlement('ent-a').quantity, 1);
 });
+test('Career reading diagnostics identify entitlement, calculation, and persistence boundaries without profile payloads', async () => {
+  const diagnostics = []; const request = { principal: principal('subject-a'), birthProfileId: 'profile-a', domain: 'CAREER', idempotencyKey: 'diagnostic-generation', diagnosticLog: (entry) => diagnostics.push(entry) };
+  await rejects(setup({ generatorFails: true }).service.generateSecureReading(request), 'READING_GENERATION_FAILED');
+  assert.deepEqual(diagnostics, [
+    { event: 'CAREER_READING_ENTITLEMENT', state: 'ELIGIBLE' },
+    { event: 'CAREER_READING_CALCULATION', state: 'FAILED', safeErrorCode: 'UNKNOWN_ERROR', errorClass: 'Error' },
+  ]);
+  assert.equal(JSON.stringify(diagnostics).includes('profile-a'), false);
+  assert.equal(JSON.stringify(diagnostics).includes('birthData'), false);
+});
 test('Career generation uses a profile unlock without consuming credit and isolates sibling profiles', async () => {
   const fixture = setup({ entitlement: 1, profileUnlock: true }); const request = { principal: principal('subject-a'), domain: 'CAREER', readingInstant: T0, locale: 'en-IN' };
   await fixture.service.generateSecureReading({ ...request, birthProfileId: 'profile-a', idempotencyKey: 'profile-unlock-a' });
