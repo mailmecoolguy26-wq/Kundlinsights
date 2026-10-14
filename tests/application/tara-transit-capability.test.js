@@ -21,14 +21,14 @@ test('uses the selected profile context and factual transit evidence without har
   assert.equal(calls.length, 2); assert.equal(calls[0].birthProfileId, 'profile-a'); assert.equal(calls[1].birthProfileId, 'profile-b');
   assert.equal(first.evidence[0].currentHouse, 10); assert.equal(second.evidence[0].currentHouse, 4);
   assert.deepEqual(first.evidence[0].natalHouseLordship, [10]);
-  assert.match(first.message, /10th natal house/); assert.match(second.message, /4th natal house/);
+  assert.match(first.message, /10th house/); assert.match(second.message, /4th house/);
   assert.doesNotMatch(first.message, /probability|will happen/i);
 });
 test('uses multi-theme houses and chart-specific lordship rather than reducing houses to generic life labels', async () => {
   const calls = []; const transit = capability(calls);
   const jupiter = await transit.respond({ principal: {}, birthProfileId: 'profile-a', message: 'How is Jupiter affecting me right now?' });
   assert.match(jupiter.message, /career, profession, authority/i);
-  assert.match(jupiter.message, /also rules the 10th house/i);
+  assert.match(jupiter.message, /also rules your 10th house/i);
   assert.doesNotMatch(jupiter.message, /bringing emphasis to relationships/i);
   const fifth = { ...context('profile-a', 5), natalHouses: { houses: [{ houseNumber: 2, rashiHouseLord: { name: 'Jupiter' } }] } };
   const fifthTransit = new TaraTransitCapability({ transitSnapshotService: { contextForTara: async () => fifth }, clock: () => '2026-10-14T00:00:00.000Z' });
@@ -41,6 +41,19 @@ test('career filtering uses relevant house and lordship evidence rather than a s
   const result = await transit.respond({ principal: {}, birthProfileId: 'profile-a', message: 'How are current transits affecting my career?' });
   assert.match(result.message, /work routines, service, competition, problem-solving/i);
   assert.doesNotMatch(result.message, /Ketu.*career/i);
+});
+test('renders concise customer-facing sections without dumping every planet or internal fallback wording', async () => {
+  const transit = capability([]);
+  const overview = await transit.respond({ principal: {}, birthProfileId: 'profile-a', message: 'What kind of effect will gochar have on my kundli?' });
+  assert.match(overview.message, /The strongest transit influences/i);
+  assert.match(overview.message, /What to pay attention to:/);
+  assert.match(overview.message, /Why:/);
+  assert.doesNotMatch(overview.message, /available chart context|grounded area of emphasis|current priorities|transit-related part/i);
+  assert.doesNotMatch(overview.message, /Mars:/);
+  const jupiter = await transit.respond({ principal: {}, birthProfileId: 'profile-a', message: 'How is Jupiter affecting me right now?' });
+  assert.match(jupiter.message, /^Jupiter is currently activating/m);
+  assert.match(jupiter.message, /What to pay attention to:/);
+  assert.match(jupiter.message, /Why: Jupiter is transiting/);
 });
 test('routes a transit question through the transit capability, while job timing remains Career', async () => {
   const calls = []; const tara = new TaraOrchestrator({ careerCapability: { respond: async () => ({ answerability: 'SUPPORTED', message: 'Career result.' }) }, transitCapability: capability(calls) });
