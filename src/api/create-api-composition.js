@@ -123,10 +123,10 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   const jobFavourabilityEvaluator = new JobFavourabilityBetaEvaluator({ birthProfileService, astronomicalEngine, canonicalSiderealSunSampler, clock });
   const careerAnswerService = new CareerAnswerService({ secureReadingService, birthProfileService, jobFavourabilityResearchEnabled: Boolean(careerAnswerPolicy && careerAnswerPolicy.jobFavourabilityResearchEnabled === true), jobFavourabilityEvaluator });
   const { CareerChatOrchestrator } = require('../application/career-chat');
-  const { TaraOrchestrator } = require('../application/tara');
+  const { TaraOrchestrator, TaraCareerCapability } = require('../application/tara');
   const careerChatRenderer = careerChat && careerChat.enabled === true ? new OpenAICareerChatRenderer({ apiKey: careerChat.apiKey, model: careerChat.model, timeoutMilliseconds: careerChat.timeoutMilliseconds }) : null;
   const careerChatOrchestrator = new CareerChatOrchestrator({ secureReadingService, languageModel: careerChatRenderer });
-  const taraOrchestrator = new TaraOrchestrator({ careerCapability: careerChatOrchestrator });
+  const taraOrchestrator = new TaraOrchestrator({ careerCapability: new TaraCareerCapability({ careerAnswerService }) });
   const { TaraConversationService } = require('../application/tara-conversations/tara-conversation-service');
   const taraConversationService = new TaraConversationService({ authUserResolver: userResolver, birthProfileService, transactionExecutor: tx, taraOrchestrator, idGenerator, clock });
   const transitSnapshotService = new TransitSnapshotService({ birthProfileService, astronomicalEngine, careerInsightSource: new LatestCareerReadingTransitSource({ secureReadingService }) });

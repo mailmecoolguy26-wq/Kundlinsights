@@ -34,9 +34,9 @@ class TaraOrchestrator {
     const career = await this.career.respond({ principal, birthProfileId, message, conversationContext, language });
     return Object.freeze({
       domain,
-      answerability: career.answer.answerability,
+      answerability: career.answerability,
       capability: 'CAREER_GROUNDED',
-      message: career.renderedAnswer && career.renderedAnswer.message ? career.renderedAnswer.message : career.answer.headlineFact,
+      message: career.message,
       career,
     });
   }
