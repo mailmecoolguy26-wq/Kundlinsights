@@ -14,14 +14,22 @@ class CareerChatMessage {
   CareerChatMessage.user(this.text, {this.birthProfileId})
     : role = CareerChatRole.user,
       response = null,
-      action = null;
+      action = null,
+      messageId = null;
   CareerChatMessage.assistant(this.response, {this.birthProfileId})
     : role = CareerChatRole.assistant,
       text = response!.answer.headlineFact,
-      action = null;
-  CareerChatMessage.persisted({required this.role, required this.text, required this.birthProfileId, this.action})
-    : response = null;
+      action = null,
+      messageId = null;
+  CareerChatMessage.persisted({
+    required this.messageId,
+    required this.role,
+    required this.text,
+    required this.birthProfileId,
+    this.action,
+  }) : response = null;
 
+  final String? messageId;
   final CareerChatRole role;
   final String text;
   final CareerChatResponse? response;
@@ -80,6 +88,7 @@ class CareerChatController extends ChangeNotifier {
   bool get isSending => _sending;
   bool get requiresPremium => _failure?.code == 'ENTITLEMENT_REQUIRED';
   bool get hasActiveProfile => _profiles.activeProfile != null;
+  String? get activeProfileId => _profiles.activeProfile?.id;
   String? get activeProfileName => _profiles.activeProfile?.label;
   CareerChatLanguage get language =>
       _language.language == CareerExplanationLanguage.hinglish
@@ -196,10 +205,28 @@ class CareerChatController extends ChangeNotifier {
       ..clear()
       ..addAll(
         detail.messages.map(
-          (item) =>
-              CareerChatMessage.persisted(role: item.role, text: item.content, birthProfileId: detail.conversation.birthProfileId, action: item.action),
+          (item) => CareerChatMessage.persisted(
+            messageId: item.messageId,
+            role: item.role,
+            text: item.content,
+            birthProfileId: detail.conversation.birthProfileId,
+            action: item.action,
+          ),
         ),
       );
+    if (kDebugMode) {
+      for (final message in _messages.where(
+        (message) => message.role == CareerChatRole.assistant,
+      )) {
+        debugPrint(
+          'TARA_ACTION_CONTROLLER '
+          'messageId=${message.messageId} '
+          'actionType=${message.action?.type} '
+          'actionLabel=${message.action?.label} '
+          'birthProfileId=${message.birthProfileId}',
+        );
+      }
+    }
   }
 
   void _onProfileChanged() {

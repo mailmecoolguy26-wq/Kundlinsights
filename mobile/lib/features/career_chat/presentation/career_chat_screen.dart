@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -109,14 +110,7 @@ class _CareerChatScreenState extends State<CareerChatScreen> {
                         onRetry: () => widget.controller.retry(message),
                         onFollowUp: _send,
                         onGenerate: () => context.go('/readings'),
-                        onAction: widget.controller.canOpenCareerPremium(message)
-                            ? () async {
-                                await context.push('/career-premium');
-                                if (context.mounted) {
-                                  await widget.controller.refreshCurrentConversation();
-                                }
-                              }
-                            : null,
+                        onAction: _premiumAction(context, message),
                       ),
                     ],
                     if (widget.controller.requiresPremium) ...[
@@ -145,6 +139,29 @@ class _CareerChatScreenState extends State<CareerChatScreen> {
       );
     },
   );
+
+  VoidCallback? _premiumAction(
+    BuildContext context,
+    CareerChatMessage message,
+  ) {
+    final shouldRenderPremiumAction = widget.controller
+        .canOpenCareerPremium(message);
+    if (kDebugMode && message.action != null) {
+      debugPrint(
+        'TARA_ACTION_RENDER '
+        'actionType=${message.action?.type} '
+        'messageBirthProfileId=${message.birthProfileId} '
+        'activeBirthProfileId=${widget.controller.activeProfileId} '
+        'profileIdsMatch=${message.birthProfileId == widget.controller.activeProfileId} '
+        'shouldRenderPremiumAction=$shouldRenderPremiumAction',
+      );
+    }
+    if (!shouldRenderPremiumAction) return null;
+    return () async {
+      await context.push('/career-premium');
+      if (context.mounted) await widget.controller.refreshCurrentConversation();
+    };
+  }
 
   Future<void> _openHistory(BuildContext context) async {
     await widget.controller.loadHistory();
@@ -324,21 +341,21 @@ class _MessageBubble extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: _Colors.border),
         ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(message.text, style: _Styles.body),
-          if (message.action != null && onAction != null) ...[
-            const SizedBox(height: 10),
-            TextButton(
-              key: const ValueKey('ask-tara-open-career-premium'),
-              onPressed: onAction,
-              style: TextButton.styleFrom(foregroundColor: _Colors.gold),
-              child: Text(message.action!.label),
-            ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(message.text, style: _Styles.body),
+            if (message.action != null && onAction != null) ...[
+              const SizedBox(height: 10),
+              TextButton(
+                key: const ValueKey('ask-tara-open-career-premium'),
+                onPressed: onAction,
+                style: TextButton.styleFrom(foregroundColor: _Colors.gold),
+                child: Text(message.action!.label),
+              ),
+            ],
           ],
-        ],
-      ),
+        ),
       );
     }
     final presentation = CareerChatPresentation.fromResponse(message.response!);

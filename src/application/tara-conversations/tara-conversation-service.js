@@ -6,7 +6,21 @@ function fail(code) { const error = new Error(code); error.code = code; throw er
 function required(value, code) { if (typeof value !== 'string' || !value.trim()) fail(code); return value.trim(); }
 function titleFor(message) { const value = required(message, 'INVALID_TARA_MESSAGE').replace(/\s+/g, ' ').trim(); return value.length <= 72 ? value : `${value.slice(0, 69).trimEnd()}…`; }
 function publicConversation(row) { return Object.freeze({ conversationId: row.id, birthProfileId: row.birth_profile_id, title: row.title, createdAt: row.created_at, updatedAt: row.updated_at, lastMessagePreview: row.last_message_preview || null }); }
-function publicAction(metadata) { const action = metadata && metadata.action; return action && action.type === 'OPEN_CAREER_PREMIUM' && action.label === 'Unlock Career Premium' ? Object.freeze({ type: action.type, label: action.label }) : null; }
+function metadataObject(value) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+  if (typeof value !== 'string') return null;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch (_) {
+    return null;
+  }
+}
+function publicAction(metadata) {
+  const parsed = metadataObject(metadata);
+  const action = parsed && parsed.action;
+  return action && typeof action === 'object' && !Array.isArray(action) && action.type === 'OPEN_CAREER_PREMIUM' && action.label === 'Unlock Career Premium' ? Object.freeze({ type: action.type, label: action.label }) : null;
+}
 function publicMessage(row, { allowPremiumAction = true } = {}) { return Object.freeze({ messageId: row.id, role: row.role, content: row.content, createdAt: row.created_at, action: allowPremiumAction ? publicAction(row.metadata) : null }); }
 
 class TaraConversationService {
