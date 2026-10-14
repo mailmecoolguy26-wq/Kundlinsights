@@ -68,6 +68,15 @@ test('renders concise customer-facing sections without dumping every planet or i
   assert.match(jupiter.message, /What to pay attention to:/);
   assert.match(jupiter.message, /Why: Jupiter is transiting/);
 });
+test('renders Hinglish copy without changing calculated Transit evidence', async () => {
+  const transit = capability([]);
+  const english = await transit.respond({ principal: {}, birthProfileId: 'profile-a', message: 'How is Jupiter affecting me right now?', language: 'ENGLISH' });
+  const hinglish = await transit.respond({ principal: {}, birthProfileId: 'profile-a', message: 'How is Jupiter affecting me right now?', language: 'HINGLISH' });
+  assert.deepEqual(hinglish.evidence, english.evidence);
+  assert.match(hinglish.message, /Jupiter abhi aapke 10th house ko activate kar raha hai/i);
+  assert.match(hinglish.message, /Dhyaan dene wali cheez:/i);
+  assert.match(hinglish.message, /Why: Jupiter abhi Gemini mein aapke 10th house se transit kar raha hai/i);
+});
 test('explains an upcoming Jupiter ingress through calculated occupation, aspects, lordship, and natal interactions', async () => {
   const current = context('profile-a', 10);
   current.insightContext.upcomingTransitions = [{ type: 'INGRESS', planet: 'Jupiter', at: '2027-01-10T00:00:00.000Z' }];

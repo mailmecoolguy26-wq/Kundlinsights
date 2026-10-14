@@ -1,9 +1,11 @@
 'use strict';
 
+const { TaraLanguageStyle, detectTaraLanguageStyle, normalizeHinglishForIntent, resolvedTaraLanguageStyle } = require('./tara-language');
+
 const DOMAINS = Object.freeze(['CAREER', 'TRANSIT', 'RELATIONSHIPS', 'WEALTH_PROPERTY', 'CHART', 'TAROT', 'GENERAL']);
 
 const DOMAIN_KEYWORDS = Object.freeze({
-  TRANSIT: /\b(gochar|transit|transits|planetary movement|planet changing house|jupiter|saturn|rahu|ketu|mars)\b/i,
+  TRANSIT: /\b(gochar|transit|transits|planetary movement|planet changing house|jupiter|saturn|rahu|ketu|mars|mercury)\b/i,
   CAREER: /\b(career|job|offer|joining|promotion|salary|switch|work|business)\b/i,
   RELATIONSHIPS: /\b(relationship|marriage|marry|wedding|spouse|partner|love)\b/i,
   WEALTH_PROPERTY: /\b(wealth|property|home|house|real estate|investment|money)\b/i,
@@ -35,14 +37,18 @@ class TaraOrchestrator {
   }
 
   async respond({ principal, birthProfileId, message, conversationContext = [], language = 'ENGLISH', diagnosticLog = null } = {}) {
-    const domain = classifyTaraDomain(message);
+    const normalizedMessage = detectTaraLanguageStyle(message) === TaraLanguageStyle.HINGLISH
+      ? normalizeHinglishForIntent(message)
+      : message;
+    const responseLanguage = resolvedTaraLanguageStyle({ message, requestedLanguage: language });
+    const domain = classifyTaraDomain(normalizedMessage);
     if (domain === 'TRANSIT') {
-      if (!this.transit) return Object.freeze({ domain, answerability: 'UNSUPPORTED', capability: null, message: unsupportedMessage(language) });
-      const transit = await this.transit.respond({ principal, birthProfileId, message, conversationContext, language, diagnosticLog });
+      if (!this.transit) return Object.freeze({ domain, answerability: 'UNSUPPORTED', capability: null, message: unsupportedMessage(responseLanguage) });
+      const transit = await this.transit.respond({ principal, birthProfileId, message: normalizedMessage, conversationContext, language: responseLanguage, diagnosticLog });
       return Object.freeze({ domain, answerability: transit.answerability, capability: 'TRANSIT_GROUNDED', message: transit.message, transit, action: null });
     }
-    if (domain !== 'CAREER') return Object.freeze({ domain, answerability: 'UNSUPPORTED', capability: null, message: unsupportedMessage(language) });
-    const career = await this.career.respond({ principal, birthProfileId, message, conversationContext, language, diagnosticLog });
+    if (domain !== 'CAREER') return Object.freeze({ domain, answerability: 'UNSUPPORTED', capability: null, message: unsupportedMessage(responseLanguage) });
+    const career = await this.career.respond({ principal, birthProfileId, message: normalizedMessage, conversationContext, language: responseLanguage, diagnosticLog });
     diagnostic(diagnosticLog, 'TARA_BACKEND_ORCHESTRATOR', { state: career.state, action: career.action, birthProfileId });
     return Object.freeze({
       domain,

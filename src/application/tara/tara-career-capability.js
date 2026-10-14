@@ -23,15 +23,15 @@ function range(window) { const start = displayDate(window && window.start); cons
 function diagnostic(log, { state = null, action = null, birthProfileId = null } = {}) { if (typeof log === 'function') log({ event: 'TARA_BACKEND_CAPABILITY', state, actionType: action && action.type || null, actionLabel: action && action.label || null, messageId: null, birthProfileId }); }
 function unsupportedCareerMessage(language) { return language === 'HINGLISH' ? 'Main abhi aapki Career phase aur stronger Career timing windows mein help kar sakti hoon, lekin is specific Career question ka reliable answer dene ke liye ready nahi hoon.' : 'I can currently help with your Career phase and stronger Career timing windows, but I’m not ready to answer that specific Career question reliably yet.'; }
 function renderCareerAnswer(answer, language) {
-  if (answer.answerability === Answerability.PREMIUM_REQUIRED) return 'I can see a stronger Career window for this profile, but the exact timing is part of Career Premium.';
+  if (answer.answerability === Answerability.PREMIUM_REQUIRED) return language === 'HINGLISH' ? 'Is profile ke liye stronger Career window identify hua hai, lekin exact timing Career Premium ka part hai.' : 'I can see a stronger Career window for this profile, but the exact timing is part of Career Premium.';
   if (answer.questionType === CareerQuestionType.JOB_FAVOURABILITY_TIMING && answer.answerability === Answerability.SUPPORTED) {
     const window = range(answer.broadWindow);
     if (!window) return 'TaraVerse has grounded Career timing context, but cannot safely describe a bounded window right now.';
     return language === 'HINGLISH' ? `Aapka stronger Career window ${window} hai. Is period mein multiple Career-related signals align hote hain. Yeh employment, offer ya kisi specific outcome ki guarantee nahi deta.` : `Your stronger Career window is ${window}. Multiple Career-related signals align in this period. This does not guarantee employment, an offer, or any specific outcome.`;
   }
-  if (answer.answer && typeof answer.answer.summary === 'string') return `${answer.answer.headline || 'Career insight'} ${answer.answer.summary} ${answer.answer.limitation || ''}`.trim();
-  if (answer.answerability === Answerability.PROJECTION_DISABLED) return 'Stronger Career timing is not available until TaraVerse’s validated methodology gate is enabled.';
-  return 'TaraVerse cannot safely provide a more specific grounded Career answer right now.';
+  if (answer.answer && typeof answer.answer.summary === 'string') return language === 'HINGLISH' ? `Aapke Career ke liye: ${answer.answer.headline || 'Career insight'} ${answer.answer.summary} ${answer.answer.limitation || ''}`.trim() : `${answer.answer.headline || 'Career insight'} ${answer.answer.summary} ${answer.answer.limitation || ''}`.trim();
+  if (answer.answerability === Answerability.PROJECTION_DISABLED) return language === 'HINGLISH' ? 'Stronger Career timing abhi TaraVerse ki validated methodology gate enable hone tak available nahi hai.' : 'Stronger Career timing is not available until TaraVerse’s validated methodology gate is enabled.';
+  return language === 'HINGLISH' ? 'TaraVerse abhi is Career question ka safely more specific grounded answer nahi de sakta.' : 'TaraVerse cannot safely provide a more specific grounded Career answer right now.';
 }
 class TaraCareerCapability {
   constructor({ careerAnswerService } = {}) { if (!careerAnswerService || typeof careerAnswerService.answer !== 'function') throw new TypeError('INVALID_TARA_CAREER_ANSWER_SERVICE'); this.answers = careerAnswerService; }
