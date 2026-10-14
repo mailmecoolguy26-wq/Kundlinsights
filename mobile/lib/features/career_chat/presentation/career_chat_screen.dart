@@ -45,13 +45,22 @@ class _CareerChatScreenState extends State<CareerChatScreen> {
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('CAREER CHAT', style: _Styles.eyebrow),
+              const Text('ASK TARA', style: _Styles.eyebrow),
               Text(
-                widget.controller.activeProfileName ?? 'Career',
+                widget.controller.activeProfileName ?? 'TaraVerse',
                 style: _Styles.profile,
               ),
             ],
           ),
+          actions: [
+            TextButton(
+              onPressed: () => _openHistory(context),
+              child: const Text(
+                'History',
+                style: TextStyle(color: _Colors.gold),
+              ),
+            ),
+          ],
         ),
         body: SafeArea(
           top: false,
@@ -61,37 +70,34 @@ class _CareerChatScreenState extends State<CareerChatScreen> {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
                   children: [
-                    const Text(
-                      'Ask about your Career timing',
-                      style: _Styles.title,
-                    ),
+                    const Text('Ask Tara', style: _Styles.title),
                     const SizedBox(height: 8),
                     Text(
-                      'Chatting about: ${widget.controller.activeProfileName ?? 'your active profile'}',
+                      'For ${widget.controller.activeProfileName ?? 'your active profile'}',
                       style: _Styles.body,
                     ),
                     const SizedBox(height: 16),
                     if (widget.controller.messages.isEmpty) ...[
                       Text(
                         hinglish
-                            ? 'Job, promotion, switch, salary growth ya current Career timing ke baare mein pooch sakte hain.'
-                            : 'Ask about your job, promotion, switch, salary growth, or current Career timing.',
+                            ? 'Apne selected profile ke liye Career, relationships, chart aur life timing ke baare mein pooch sakte hain.'
+                            : 'Ask about Career, relationships, your chart, or life timing for this profile.',
                         style: _Styles.body,
                       ),
                       const SizedBox(height: 14),
                       _PromptWrap(
                         prompts: hinglish
                             ? const [
-                                'Meri next job ka timing?',
-                                'Promotion ka timing kab relevant ho sakta hai?',
-                                'Job switch ka timing check karo',
-                                'Career mein abhi kya chal raha hai?',
+                                'Meri Career timing kab strong ho sakti hai?',
+                                'Meri chart relationships ke baare mein kya dikhati hai?',
+                                'Property ke liye supportive period hai?',
+                                'Abhi mujhe kis baat par dhyan dena chahiye?',
                               ]
                             : const [
-                                'When is my next job window?',
-                                'When could promotion timing become relevant?',
-                                'Should I consider a job switch?',
-                                'What is happening in my Career right now?',
+                                'When is my career likely to improve?',
+                                'What does my chart indicate about relationships?',
+                                'Is there a supportive period for property?',
+                                'What should I pay attention to right now?',
                               ],
                         onTap: _send,
                       ),
@@ -122,9 +128,7 @@ class _CareerChatScreenState extends State<CareerChatScreen> {
               _Composer(
                 controller: _input,
                 sending: widget.controller.isSending,
-                placeholder: hinglish
-                    ? 'Career ke baare mein poochiye...'
-                    : 'Ask about your Career...',
+                placeholder: hinglish ? 'Tara se poochiye...' : 'Ask Tara...',
                 onSend: _send,
               ),
             ],
@@ -133,6 +137,82 @@ class _CareerChatScreenState extends State<CareerChatScreen> {
       );
     },
   );
+
+  Future<void> _openHistory(BuildContext context) async {
+    await widget.controller.loadHistory();
+    if (!context.mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: _Colors.midnight,
+      showDragHandle: true,
+      builder: (sheetContext) => ListenableBuilder(
+        listenable: widget.controller,
+        builder: (_, _) => SafeArea(
+          child: SizedBox(
+            height: 440,
+            child: Column(
+              children: [
+                ListTile(
+                  title: const Text(
+                    'Conversation history',
+                    style: TextStyle(
+                      color: _Colors.alabaster,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  trailing: TextButton(
+                    onPressed: () {
+                      widget.controller.startNewConversation();
+                      Navigator.pop(sheetContext);
+                    },
+                    child: const Text('New'),
+                  ),
+                ),
+                Expanded(
+                  child: widget.controller.conversations.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'No conversations yet.',
+                            style: _Styles.body,
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: widget.controller.conversations.length,
+                          itemBuilder: (_, index) {
+                            final conversation =
+                                widget.controller.conversations[index];
+                            return ListTile(
+                              title: Text(
+                                conversation.title,
+                                style: const TextStyle(
+                                  color: _Colors.alabaster,
+                                ),
+                              ),
+                              subtitle: Text(
+                                conversation.lastMessagePreview ?? '',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: _Styles.body,
+                              ),
+                              onTap: () async {
+                                await widget.controller.openConversation(
+                                  conversation.conversationId,
+                                );
+                                if (sheetContext.mounted) {
+                                  Navigator.pop(sheetContext);
+                                }
+                              },
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _AccessRequired extends StatelessWidget {
@@ -150,7 +230,7 @@ class _AccessRequired extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Career Premium is required for Career Chat.',
+          'Career Premium is required for this Career question.',
           style: _Styles.body,
         ),
         const SizedBox(height: 8),
@@ -226,6 +306,17 @@ class _MessageBubble extends StatelessWidget {
         ),
       );
     }
+    if (message.response == null) {
+      return Container(
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: _Colors.abyss,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _Colors.border),
+        ),
+        child: Text(message.text, style: _Styles.body),
+      );
+    }
     final presentation = CareerChatPresentation.fromResponse(message.response!);
     return Container(
       padding: const EdgeInsets.all(15),
@@ -237,7 +328,7 @@ class _MessageBubble extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('CAREER CHAT', style: _Styles.eyebrow),
+          const Text('ASK TARA', style: _Styles.eyebrow),
           const SizedBox(height: 7),
           Text(presentation.headline, style: _Styles.assistantTitle),
           if (presentation.body != null) ...[

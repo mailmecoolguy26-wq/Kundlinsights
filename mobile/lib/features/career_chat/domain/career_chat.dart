@@ -20,6 +20,63 @@ class CareerChatContextMessage {
   };
 }
 
+class TaraConversationSummary {
+  const TaraConversationSummary({
+    required this.conversationId,
+    required this.birthProfileId,
+    required this.title,
+    required this.createdAt,
+    required this.updatedAt,
+    this.lastMessagePreview,
+  });
+  final String conversationId;
+  final String birthProfileId;
+  final String title;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final String? lastMessagePreview;
+  factory TaraConversationSummary.fromJson(Map<String, dynamic> json) =>
+      TaraConversationSummary(
+        conversationId: json['conversationId'] as String,
+        birthProfileId: json['birthProfileId'] as String,
+        title: json['title'] as String,
+        createdAt: DateTime.parse(json['createdAt'] as String),
+        updatedAt: DateTime.parse(json['updatedAt'] as String),
+        lastMessagePreview: json['lastMessagePreview'] as String?,
+      );
+}
+
+class TaraConversationMessage {
+  const TaraConversationMessage({
+    required this.messageId,
+    required this.role,
+    required this.content,
+    required this.createdAt,
+  });
+  final String messageId;
+  final CareerChatRole role;
+  final String content;
+  final DateTime createdAt;
+  factory TaraConversationMessage.fromJson(Map<String, dynamic> json) =>
+      TaraConversationMessage(
+        messageId: json['messageId'] as String,
+        role: json['role'] == 'assistant'
+            ? CareerChatRole.assistant
+            : CareerChatRole.user,
+        content: json['content'] as String,
+        createdAt: DateTime.parse(json['createdAt'] as String),
+      );
+}
+
+class TaraConversationDetail {
+  const TaraConversationDetail({
+    required this.conversation,
+    required this.messages,
+  });
+  final TaraConversationSummary conversation;
+  final List<TaraConversationMessage> messages;
+}
+
 class CareerChatRequest {
   const CareerChatRequest({
     required this.message,

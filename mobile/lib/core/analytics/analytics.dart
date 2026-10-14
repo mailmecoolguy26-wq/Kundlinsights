@@ -7,6 +7,7 @@ enum AnalyticsEvent {
   birthProfileCreated('birth_profile_created'),
   careerOpened('career_opened'),
   careerChatQuestionSent('career_chat_question_sent'),
+  taraQuestionSent('tara_question_sent'),
   careerPaywallViewed('career_paywall_viewed'),
   purchaseStarted('purchase_started'),
   purchaseFailed('purchase_failed'),

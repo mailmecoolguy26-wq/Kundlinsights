@@ -422,10 +422,10 @@ GoRouter createAppRouter(
               name: 'home',
               builder: (context, state) => HomeScreen(
                 profileController: profiles,
-                natalController: natal,
-                vimshottariController: vimshottari,
                 careerEventController: careerEvents,
                 readingController: readings,
+                careerGenerationController: generation,
+                careerChatController: careerChat,
               ),
             ),
           ],

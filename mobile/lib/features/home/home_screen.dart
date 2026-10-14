@@ -4,13 +4,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../career_events/career_event_controller.dart';
-import '../kundli/north_indian_chart.dart';
-import '../natal/natal_summary_controller.dart';
+import '../career_chat/career_chat_controller.dart';
 import '../profiles/domain/birth_profile.dart';
 import '../profiles/profile_controller.dart';
-import '../readings/astrology_presentation_copy.dart';
+import '../readings/career_reading_generation_controller.dart';
 import '../readings/reading_controller.dart';
-import '../vimshottari/vimshottari_controller.dart';
 
 /// Home is presentation-only: every astrological value is supplied by the
 /// profile, natal, Vimshottari, or career-event controllers already in scope.
@@ -18,38 +16,45 @@ class HomeScreen extends StatelessWidget {
   const HomeScreen({
     super.key,
     required this.profileController,
-    required this.natalController,
-    required this.vimshottariController,
     required this.careerEventController,
     required this.readingController,
+    required this.careerGenerationController,
+    required this.careerChatController,
   });
 
   final ProfileController profileController;
-  final NatalSummaryController natalController;
-  final VimshottariController vimshottariController;
   final CareerEventController careerEventController;
   final ReadingController readingController;
+  final CareerReadingGenerationController careerGenerationController;
+  final CareerChatController careerChatController;
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: Listenable.merge([
       profileController,
-      natalController,
-      vimshottariController,
       careerEventController,
       readingController,
+      careerGenerationController,
+      careerChatController,
     ]),
     builder: (context, child) => Scaffold(
       backgroundColor: _HomeColors.background,
+      floatingActionButton: FloatingActionButton.extended(
+        key: const ValueKey('home-ask-tara-fab'),
+        onPressed: () => context.push('/career-chat'),
+        backgroundColor: const Color(0xFF0D756E),
+        foregroundColor: _HomeColors.alabaster,
+        icon: const Icon(Icons.auto_awesome),
+        label: Text(
+          'Ask Tara',
+          style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+        ),
+      ),
       body: SafeArea(
         child: RefreshIndicator(
           color: _HomeColors.gold,
           onRefresh: () async {
-            await Future.wait([
-              natalController.refresh(),
-              vimshottariController.refreshCurrent(),
-              careerEventController.refresh(),
-            ]);
+            await careerEventController.refresh();
           },
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -60,19 +65,17 @@ class HomeScreen extends StatelessWidget {
               _Greeting(profile: profileController.activeProfile),
               const SizedBox(height: 14),
               _ProfileSelector(profile: profileController.activeProfile),
-              const SizedBox(height: 24),
-              _CalibrationHero(
+              const SizedBox(height: 22),
+              _WhatMattersNowHero(
                 careerEvents: careerEventController,
                 readings: readingController,
               ),
               const SizedBox(height: 30),
-              const _SectionTitle('Your Current Career Phase'),
+              const _SectionTitle('What do you want clarity on?'),
               const SizedBox(height: 12),
-              _CareerPhaseCard(controller: vimshottariController),
+              const _LifeAreaCards(),
               const SizedBox(height: 30),
-              const _SectionTitle('Your Kundli', subtitle: 'Lagna Chart'),
-              const SizedBox(height: 12),
-              _KundliPreview(controller: natalController),
+              _CareerPremiumCard(controller: careerGenerationController),
             ],
           ),
         ),
@@ -237,14 +240,17 @@ class _ProfileSelector extends StatelessWidget {
   }
 }
 
-class _CalibrationHero extends StatelessWidget {
-  const _CalibrationHero({required this.careerEvents, required this.readings});
+class _WhatMattersNowHero extends StatelessWidget {
+  const _WhatMattersNowHero({
+    required this.careerEvents,
+    required this.readings,
+  });
   final CareerEventController careerEvents;
   final ReadingController readings;
 
   @override
   Widget build(BuildContext context) {
-    final state = _careerHeroState(careerEvents, readings);
+    final state = _whatMattersNowState(careerEvents, readings);
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -259,7 +265,10 @@ class _CalibrationHero extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(state.eyebrow, style: _labelStyle(color: _HomeColors.champagne)),
+          Text(
+            'WHAT MATTERS NOW',
+            style: _labelStyle(color: _HomeColors.champagne),
+          ),
           const SizedBox(height: 11),
           Text(state.headline, style: _headlineStyle(fontSize: 28)),
           const SizedBox(height: 10),
@@ -274,39 +283,21 @@ class _CalibrationHero extends StatelessWidget {
           const SizedBox(height: 18),
           if (!state.isLoading)
             TextButton(
-              key: ValueKey(state.primaryKey),
+              key: const ValueKey('home-what-matters-career-cta'),
               onPressed: () => context.push('/career'),
               style: TextButton.styleFrom(
                 foregroundColor: _HomeColors.abyss,
-                backgroundColor: _HomeColors.gold,
+                backgroundColor: const Color(0xFF35B9AC),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 15,
                   vertical: 12,
                 ),
               ),
               child: Text(
-                state.primaryAction,
+                'EXPLORE CAREER & BUSINESS  →',
                 style: _labelStyle(color: _HomeColors.abyss),
               ),
             ),
-          if (state.showUpdateAction) ...[
-            const SizedBox(height: 5),
-            TextButton(
-              key: const ValueKey('home-career-update-events'),
-              onPressed: () => context.push('/career'),
-              child: Text(
-                'UPDATE CAREER EVENTS',
-                style: _labelStyle(color: _HomeColors.gold),
-              ),
-            ),
-          ],
-          if (state.showDurationCaption) ...[
-            const SizedBox(height: 9),
-            Text(
-              'Takes about 2 minutes',
-              style: GoogleFonts.inter(color: _HomeColors.slate, fontSize: 10),
-            ),
-          ],
         ],
       ),
     );
@@ -315,27 +306,17 @@ class _CalibrationHero extends StatelessWidget {
 
 class _CareerHeroContent {
   const _CareerHeroContent({
-    required this.eyebrow,
     required this.headline,
     required this.body,
-    required this.primaryAction,
-    required this.primaryKey,
-    this.showDurationCaption = false,
-    this.showUpdateAction = false,
     this.isLoading = false,
   });
 
-  final String eyebrow;
   final String headline;
   final String body;
-  final String primaryAction;
-  final String primaryKey;
-  final bool showDurationCaption;
-  final bool showUpdateAction;
   final bool isLoading;
 }
 
-_CareerHeroContent _careerHeroState(
+_CareerHeroContent _whatMattersNowState(
   CareerEventController careerEvents,
   ReadingController readings,
 ) {
@@ -345,11 +326,8 @@ _CareerHeroContent _careerHeroState(
   if (careerEvents.state != CareerEventLoadState.loaded ||
       readings.listState != ReadingListState.loaded) {
     return const _CareerHeroContent(
-      eyebrow: 'PERSONALIZED CAREER FORECAST',
-      headline: 'Preparing your career forecast',
-      body: 'Loading your saved career history and readings.',
-      primaryAction: 'OPEN CAREER READING  →',
-      primaryKey: 'home-career-loading-cta',
+      headline: 'Your next insight is ready to explore',
+      body: 'Preparing the insights available for this birth profile.',
       isLoading: true,
     );
   }
@@ -358,195 +336,233 @@ _CareerHeroContent _careerHeroState(
   );
   if (hasCareerReading) {
     return const _CareerHeroContent(
-      eyebrow: 'YOUR CAREER READING',
-      headline: 'Your personalized Career Reading is ready',
-      body: 'View your saved Career Reading and revisit your personalized timing insights.',
-      primaryAction: 'VIEW CAREER READING  →',
-      primaryKey: 'home-career-reading-cta',
-      showUpdateAction: true,
+      headline: 'Your Career Reading is ready',
+      body: 'Explore it to understand your current Career context.',
     );
   }
-  switch (careerEvents.events.length) {
-    case 0:
-      return const _CareerHeroContent(
-        eyebrow: 'PERSONALIZED CAREER FORECAST',
-        headline: 'Make your career forecast more personal',
-        body: 'Add a few important career events from your past so TaraVerse can better personalize the timing of your future career windows.',
-        primaryAction: 'CALIBRATE MY CAREER  →',
-        primaryKey: 'home-calibration-cta',
-        showDurationCaption: true,
-      );
-    case 1:
-      return const _CareerHeroContent(
-        eyebrow: 'CAREER CALIBRATION',
-        headline: 'Add one more career milestone',
-        body: 'You’ve started your career history. Add another important event to give your Career Reading stronger real-life context.',
-        primaryAction: 'UPDATE CAREER EVENTS  →',
-        primaryKey: 'home-calibration-cta',
-      );
-    default:
-      return const _CareerHeroContent(
-        eyebrow: 'CAREER CALIBRATION READY',
-        headline: 'Your personalized Career Reading is ready to unlock',
-        body: 'Your birth chart and saved career events will be used to personalize your Career Reading and upcoming career windows.',
-        primaryAction: 'CONTINUE TO CAREER READING  →',
-        primaryKey: 'home-career-reading-cta',
-        showUpdateAction: true,
-      );
-  }
+  return const _CareerHeroContent(
+    headline: 'Your next insight is ready to explore',
+    body: 'Choose an area of life below to see what your chart indicates right now.',
+  );
 }
 
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.title, {this.subtitle});
+  const _SectionTitle(this.title);
   final String title;
-  final String? subtitle;
   @override
-  Widget build(BuildContext context) => Row(
+  Widget build(BuildContext context) =>
+      Row(children: [Text(title, style: _headlineStyle(fontSize: 26))]);
+}
+
+class _LifeAreaCards extends StatelessWidget {
+  const _LifeAreaCards();
+
+  @override
+  Widget build(BuildContext context) => Column(
     children: [
-      Text(title, style: _headlineStyle(fontSize: 26)),
-      if (subtitle != null) ...[
-        const SizedBox(width: 9),
-        Text(
-          subtitle!,
-          style: _labelStyle(color: _HomeColors.gold, fontSize: 9),
-        ),
-      ],
+      _LifeAreaCard(
+        key: const ValueKey('home-life-area-career'),
+        icon: Icons.work_outline,
+        title: 'Career & Business',
+        subtitle: 'Understand your current phase, timing and guidance.',
+        onTap: () => context.push('/career'),
+      ),
+      const SizedBox(height: 10),
+      const _LifeAreaCard(
+        key: ValueKey('home-life-area-relationships'),
+        icon: Icons.favorite_border,
+        title: 'Relationships',
+        subtitle: 'Relationship insights are coming next.',
+        comingSoon: true,
+      ),
+      const SizedBox(height: 10),
+      const _LifeAreaCard(
+        key: ValueKey('home-life-area-wealth'),
+        icon: Icons.account_balance_wallet_outlined,
+        title: 'Wealth & Property',
+        subtitle: 'Wealth and property insights are coming next.',
+        comingSoon: true,
+      ),
+      const SizedBox(height: 10),
+      const _LifeAreaCard(
+        key: ValueKey('home-life-area-tarot'),
+        icon: Icons.auto_awesome_outlined,
+        title: 'Tarot',
+        subtitle: 'A new way to explore guidance, coming soon.',
+        comingSoon: true,
+      ),
     ],
   );
 }
 
-class _CareerPhaseCard extends StatelessWidget {
-  const _CareerPhaseCard({required this.controller});
-  final VimshottariController controller;
+class _LifeAreaCard extends StatelessWidget {
+  const _LifeAreaCard({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.onTap,
+    this.comingSoon = false,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback? onTap;
+  final bool comingSoon;
+
   @override
   Widget build(BuildContext context) {
-    final copy = AstrologyPresentationCopy.of(context);
-    if (controller.currentState == VimshottariLoadState.initial ||
-        controller.currentState == VimshottariLoadState.loading) {
-      return const _StateCard(label: 'Loading your current dasha…');
-    }
-    final current = controller.current;
-    if (controller.currentState == VimshottariLoadState.error ||
-        current == null) {
-      return _RetryCard(
-        title: 'Current career phase unavailable',
-        onRetry: controller.refreshCurrent,
-      );
-    }
-    return _DarkCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'CURRENT DASHA',
-            style: _labelStyle(color: _HomeColors.champagne),
-          ),
-          const SizedBox(height: 11),
-          Text(
-            '${copy.planet(current.mahadasha.lord)} → ${copy.planet(current.antardasha.lord)}',
-            style: _headlineStyle(fontSize: 28),
-          ),
-          const SizedBox(height: 7),
-          Text(
-            '${DateFormat.yMMMd().format(current.mahadasha.startUtc.toLocal())} – ${DateFormat.yMMMd().format(current.antardasha.endUtc.toLocal())}',
-            style: GoogleFonts.inter(color: _HomeColors.slate, fontSize: 11),
-          ),
-          const SizedBox(height: 12),
-          TextButton(
-            key: const ValueKey('home-dasha-cta'),
-            onPressed: () => context.push('/vimshottari'),
-            child: Text(
-              'UNDERSTAND THIS PHASE  →',
-              style: _labelStyle(color: _HomeColors.gold),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _KundliPreview extends StatelessWidget {
-  const _KundliPreview({required this.controller});
-  final NatalSummaryController controller;
-  @override
-  Widget build(BuildContext context) {
-    if (controller.state == NatalSummaryLoadState.initial ||
-        controller.state == NatalSummaryLoadState.loading) {
-      return const _StateCard(label: 'Loading your Lagna chart…');
-    }
-    final natal = controller.summary;
-    if (controller.state == NatalSummaryLoadState.error || natal == null) {
-      return _RetryCard(
-        title: 'Kundli preview unavailable',
-        onRetry: controller.refresh,
-      );
-    }
-    final summary = natal.summary;
-    return _DarkCard(
-      child: Column(
-        children: [
-          SizedBox(
-            width: 250,
-            child: FittedBox(
-              child: SizedBox(
-                width: 800,
-                child: NorthIndianKundliChart(
-                  houses: buildD1ChartHouses(natal),
-                  onHouseTap: (_) {},
-                  onPlanetTap: (_) {},
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              _Identity(
-                label: 'Lagna',
-                value: summary.ascendant.sign.englishName,
-              ),
-              _Identity(label: 'Moon', value: summary.moonSign.englishName),
-              _Identity(label: 'Nakshatra', value: summary.moonNakshatra.name),
-            ],
-          ),
-          const SizedBox(height: 14),
-          TextButton(
-            key: const ValueKey('home-kundli-cta'),
-            onPressed: () => context.go('/kundli'),
-            child: Text(
-              'OPEN MY KUNDLI  →',
-              style: _labelStyle(color: _HomeColors.gold),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Identity extends StatelessWidget {
-  const _Identity({required this.label, required this.value});
-  final String label;
-  final String value;
-  @override
-  Widget build(BuildContext context) => Expanded(
-    child: Column(
-      children: [
-        Text(label, style: _labelStyle(fontSize: 8, color: _HomeColors.slate)),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          textAlign: TextAlign.center,
-          style: GoogleFonts.inter(
-            color: _HomeColors.alabaster,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-          ),
+    final card = Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: comingSoon ? const Color(0xFF08211F) : null,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: comingSoon ? const Color(0xFF255C57) : const Color(0xFF3F8179),
         ),
-      ],
-    ),
-  );
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            color: comingSoon ? _HomeColors.slate : const Color(0xFF35B9AC),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: GoogleFonts.inter(
+                          color: comingSoon
+                              ? _HomeColors.slate
+                              : _HomeColors.alabaster,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    if (comingSoon)
+                      Text(
+                        'COMING NEXT',
+                        style: _labelStyle(
+                          fontSize: 8,
+                          color: _HomeColors.slate,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.inter(
+                    color: _HomeColors.slate,
+                    fontSize: 12,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (!comingSoon)
+            const Icon(Icons.chevron_right, color: _HomeColors.slate),
+        ],
+      ),
+    );
+    if (comingSoon) return card;
+    return Material(
+      color: const Color(0xFF103B38),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: card,
+      ),
+    );
+  }
+}
+
+class _CareerPremiumCard extends StatelessWidget {
+  const _CareerPremiumCard({required this.controller});
+  final CareerReadingGenerationController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final loading =
+        controller.eligibilityState == CareerEligibilityState.initial ||
+        controller.eligibilityState == CareerEligibilityState.loading;
+    final active =
+        controller.eligibilityState == CareerEligibilityState.eligible;
+    final title = active ? 'Career Premium is active' : 'Career Premium';
+    final body = loading
+        ? 'Checking access for this birth profile…'
+        : active
+        ? 'Your selected birth profile can explore deeper Career insights.'
+        : 'Explore deeper Career insights, timing and stronger windows.';
+    return _DarkCard(
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: active ? const Color(0xFF0E514B) : _HomeColors.violet,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              active
+                  ? Icons.verified_outlined
+                  : Icons.workspace_premium_outlined,
+              color: active ? const Color(0xFF35B9AC) : _HomeColors.gold,
+            ),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'ACCESS FOR THIS PROFILE',
+                  style: _labelStyle(color: _HomeColors.slate, fontSize: 8),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    color: _HomeColors.alabaster,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  body,
+                  style: GoogleFonts.inter(
+                    color: _HomeColors.slate,
+                    fontSize: 12,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (!loading)
+            TextButton(
+              key: const ValueKey('home-career-premium-cta'),
+              onPressed: () => context.push('/career'),
+              child: Text(
+                active ? 'VIEW' : 'UNLOCK',
+                style: _labelStyle(color: _HomeColors.gold, fontSize: 9),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 class _DarkCard extends StatelessWidget {
@@ -561,53 +577,6 @@ class _DarkCard extends StatelessWidget {
       border: Border.all(color: _HomeColors.gold.withValues(alpha: .16)),
     ),
     child: child,
-  );
-}
-
-class _StateCard extends StatelessWidget {
-  const _StateCard({required this.label});
-  final String label;
-  @override
-  Widget build(BuildContext context) => _DarkCard(
-    child: SizedBox(
-      height: 130,
-      child: Center(
-        child: Semantics(
-          label: label,
-          child: const CircularProgressIndicator(color: _HomeColors.gold),
-        ),
-      ),
-    ),
-  );
-}
-
-class _RetryCard extends StatelessWidget {
-  const _RetryCard({required this.title, required this.onRetry});
-  final String title;
-  final Future<void> Function() onRetry;
-  @override
-  Widget build(BuildContext context) => _DarkCard(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: GoogleFonts.inter(
-            color: _HomeColors.alabaster,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Please try again.',
-          style: GoogleFonts.inter(color: _HomeColors.slate, fontSize: 12),
-        ),
-        TextButton(
-          onPressed: onRetry,
-          child: Text('RETRY', style: _labelStyle(color: _HomeColors.gold)),
-        ),
-      ],
-    ),
   );
 }
 

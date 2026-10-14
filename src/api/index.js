@@ -68,7 +68,7 @@ function careerAnswerTiming(request, reply) {
   return Object.freeze({ record, failed: () => report('HANDLER_ERROR_RESPONSE') });
 }
 
-function createApi({ authVerifier, userResolver, birthProfileService, careerEventService = null, careerEventAstrologyService = null, natalSummaryService = null, divisionalChartService = null, vimshottariService = null, transitSnapshotService = null, ashtakavargaService = null, secureReadingService, careerAnswerService = null, careerChatOrchestrator = null, purchaseService = null, razorpayPaymentService = null, appleNotificationService = null, googleRtdnService = null, notificationSelfService = null, placeResolutionService = null, entitlementService, requestIdGenerator = crypto.randomUUID, corsAllowlist = [], isReady = () => true, logger = false, bodyLimit = 16 * 1024 } = {}) {
+function createApi({ authVerifier, userResolver, birthProfileService, careerEventService = null, careerEventAstrologyService = null, natalSummaryService = null, divisionalChartService = null, vimshottariService = null, transitSnapshotService = null, ashtakavargaService = null, secureReadingService, careerAnswerService = null, careerChatOrchestrator = null, taraConversationService = null, purchaseService = null, razorpayPaymentService = null, appleNotificationService = null, googleRtdnService = null, notificationSelfService = null, placeResolutionService = null, entitlementService, requestIdGenerator = crypto.randomUUID, corsAllowlist = [], isReady = () => true, logger = false, bodyLimit = 16 * 1024 } = {}) {
   required(authVerifier, 'AUTH_VERIFIER'); if (typeof authVerifier.verifyRequest !== 'function') throw new TypeError('INVALID_AUTH_VERIFIER'); required(userResolver, 'USER_RESOLVER'); required(birthProfileService, 'BIRTH_PROFILE_SERVICE'); required(secureReadingService, 'SECURE_READING_SERVICE');
   if (!Array.isArray(corsAllowlist) || !corsAllowlist.every((origin) => typeof origin === 'string' && origin.startsWith('https://') && !origin.includes('*')) || typeof isReady !== 'function' || !Number.isInteger(bodyLimit) || bodyLimit < 1024 || bodyLimit > 16 * 1024) throw new TypeError('INVALID_API_RUNTIME_OPTIONS');
   const app = Fastify({ logger, bodyLimit, requestIdHeader: 'x-request-id', genReqId: () => requestIdGenerator() });
@@ -134,6 +134,13 @@ function createApi({ authVerifier, userResolver, birthProfileService, careerEven
   if (careerChatOrchestrator) {
     if (typeof careerChatOrchestrator.respond !== 'function') throw new TypeError('INVALID_CAREER_CHAT_ORCHESTRATOR');
     app.post('/v1/birth-profiles/:id/career-chat/messages', async (request) => ({ careerChat: await careerChatOrchestrator.respond({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), ...(request.body || {}) }), requestId: request.id }));
+  }
+  if (taraConversationService) {
+    for (const method of ['create', 'list', 'get', 'message']) if (typeof taraConversationService[method] !== 'function') throw new TypeError('INVALID_TARA_CONVERSATION_SERVICE');
+    app.post('/v1/birth-profiles/:id/tara/conversations', async (request, reply) => { const conversation = await taraConversationService.create({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), title: request.body && request.body.title }); reply.code(201); return { conversation, requestId: request.id }; });
+    app.get('/v1/birth-profiles/:id/tara/conversations', async (request) => ({ conversations: await taraConversationService.list({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID') }), requestId: request.id }));
+    app.get('/v1/birth-profiles/:id/tara/conversations/:conversationId', async (request) => ({ ...await taraConversationService.get({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), conversationId: id(request.params.conversationId, 'TARA_CONVERSATION_ID') }), requestId: request.id }));
+    app.post('/v1/birth-profiles/:id/tara/conversations/:conversationId/messages', async (request, reply) => { const result = await taraConversationService.message({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), conversationId: id(request.params.conversationId, 'TARA_CONVERSATION_ID'), body: request.body || {} }); reply.code(201); return { ...result, requestId: request.id }; });
   }
   if (careerAnswerService) {
     if (typeof careerAnswerService.answer !== 'function') throw new TypeError('INVALID_CAREER_ANSWER_SERVICE');

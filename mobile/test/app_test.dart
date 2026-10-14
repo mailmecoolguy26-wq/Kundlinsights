@@ -16,7 +16,6 @@ import 'package:kundlinsights_mobile/features/divisional/domain/divisional_chart
 import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile.dart';
 import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile_repository.dart';
 import 'package:kundlinsights_mobile/features/profiles/profile_controller.dart';
-import 'package:kundlinsights_mobile/features/vimshottari/domain/vimshottari.dart';
 import 'package:kundlinsights_mobile/features/vimshottari/domain/vimshottari_repository.dart';
 import 'package:kundlinsights_mobile/features/vimshottari/vimshottari_controller.dart';
 import 'package:kundlinsights_mobile/features/ashtakavarga/domain/ashtakavarga.dart';
@@ -347,9 +346,6 @@ void main() {
       await tester.pumpWidget(_app(controller, profiles));
       await controller.restore();
       await tester.pumpAndSettle();
-      await tester.drag(find.byType(ListView).first, const Offset(0, -900));
-      await tester.pumpAndSettle();
-      expect(find.text('Aquarius'), findsWidgets);
       await tester.tap(find.text('Kundli').last);
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(find.text('PLANETARY POSITIONS'), 240);
@@ -424,39 +420,19 @@ void main() {
     },
   );
 
-  testWidgets('Home shows factual current Dasha with a timeline CTA', (
-    tester,
-  ) async {
-    await tester.pumpWidget(_app(controller, profiles, vimshottari: _Dasha()));
-    await controller.restore();
-    await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Mercury → Venus'), 240);
-    expect(find.text('Mercury → Venus'), findsOneWidget);
-    expect(find.text('UNDERSTAND THIS PHASE  →'), findsOneWidget);
-  });
-
-  testWidgets('Home uses the active profile and real Kundli summary', (
-    tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(900, 1200));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets('Home is compact and opens Ask Tara', (tester) async {
     await tester.pumpWidget(_app(controller, profiles));
     await controller.restore();
     await tester.pumpAndSettle();
 
     expect(find.textContaining('My Profile · 26 Nov 1990'), findsOneWidget);
-    expect(find.text('MP'), findsOneWidget);
-    expect(find.text('Active Growth Phase'), findsNothing);
-    expect(find.text('Saturn → Mercury'), findsNothing);
-
-    await tester.drag(find.byType(ListView).first, const Offset(0, -900));
+    expect(find.text('Your Current Cycle'), findsNothing);
+    expect(find.text('Your Birth Chart'), findsNothing);
+    expect(find.byKey(const ValueKey('home-ask-tara-fab')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('home-ask-tara-fab')));
     await tester.pumpAndSettle();
-    expect(find.text('Aquarius'), findsWidgets);
-    expect(find.text('Shatabhisha'), findsOneWidget);
-
-    await tester.tap(find.byKey(const ValueKey('home-kundli-cta')));
-    await tester.pumpAndSettle();
-    expect(find.text('My Kundli'), findsOneWidget);
+    expect(find.text('Ask Tara'), findsOneWidget);
+    expect(find.text('What does my chart indicate about relationships?'), findsOneWidget);
   });
 
   testWidgets('Home profile selector preserves profile navigation', (
@@ -569,60 +545,6 @@ class _Natal implements NatalSummaryRepository {
   @override
   Future<NatalSummary> getNatalSummary(String birthProfileId) async =>
       _natalSummary(birthProfileId);
-}
-
-class _Dasha implements VimshottariRepository {
-  @override
-  Future<DashaScopedTimeline> getMahadashaTimeline({
-    required String birthProfileId,
-  }) => Future.error(UnimplementedError());
-  @override
-  Future<DashaScopedTimeline> getAntardashaTimeline({
-    required String birthProfileId,
-    required DateTime mahadashaStartUtc,
-  }) => Future.error(UnimplementedError());
-  @override
-  Future<DashaScopedTimeline> getPratyantarTimeline({
-    required String birthProfileId,
-    required DateTime mahadashaStartUtc,
-    required DateTime antardashaStartUtc,
-  }) => Future.error(UnimplementedError());
-  @override
-  Future<DashaPeriodInsight> getPeriodInsight({
-    required String birthProfileId,
-    required DateTime pratyantarStartUtc,
-  }) => Future.error(UnimplementedError());
-  @override
-  Future<VimshottariCurrent> getCurrent({
-    required String birthProfileId,
-    required DateTime atUtc,
-  }) async => VimshottariCurrent(
-    birthProfileId: birthProfileId,
-    at: atUtc.toIso8601String(),
-    mahadasha: _period('Mercury'),
-    antardasha: _period('Venus'),
-    pratyantardasha: _period('Sun'),
-  );
-
-  @override
-  Future<VimshottariTimeline> getTimeline({
-    required String birthProfileId,
-    required DateTime fromUtc,
-    required DateTime toUtc,
-    required VimshottariLevel level,
-  }) async => VimshottariTimeline(
-    birthProfileId: birthProfileId,
-    level: level,
-    from: fromUtc.toIso8601String(),
-    to: toUtc.toIso8601String(),
-    periods: [_period('Mercury')],
-  );
-
-  DashaPeriod _period(String lord) => DashaPeriod(
-    lord: lord,
-    start: '2027-01-01T00:00:00.000Z',
-    end: '2027-02-01T00:00:00.000Z',
-  );
 }
 
 class _DivisionalCharts implements DivisionalChartRepository {

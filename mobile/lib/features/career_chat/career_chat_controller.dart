@@ -17,6 +17,8 @@ class CareerChatMessage {
   CareerChatMessage.assistant(this.response)
     : role = CareerChatRole.assistant,
       text = response!.answer.headlineFact;
+  CareerChatMessage.persisted({required this.role, required this.text})
+    : response = null;
 
   final CareerChatRole role;
   final String text;
@@ -46,9 +48,14 @@ final careerChatControllerProvider =
     });
 
 class CareerChatController extends ChangeNotifier {
-  CareerChatController(this._repository, this._profiles, this._language, {Analytics? analytics})
-    : _analytics = analytics ?? Analytics(const NoopAnalyticsProvider()) {
+  CareerChatController(
+    this._repository,
+    this._profiles,
+    this._language, {
+    Analytics? analytics,
+  }) : _analytics = analytics ?? Analytics(const NoopAnalyticsProvider()) {
     _profiles.addListener(_onProfileChanged);
+    _onProfileChanged();
   }
 
   final CareerChatRepository _repository;
@@ -57,10 +64,15 @@ class CareerChatController extends ChangeNotifier {
   final Analytics _analytics;
   final List<CareerChatMessage> _messages = [];
   String? _profileId;
+  String? _conversationId;
+  List<TaraConversationSummary> _conversations = const [];
   bool _sending = false;
+  bool _disposed = false;
   ApiFailure? _failure;
 
   List<CareerChatMessage> get messages => List.unmodifiable(_messages);
+  List<TaraConversationSummary> get conversations => _conversations;
+  String? get conversationId => _conversationId;
   bool get isSending => _sending;
   bool get requiresPremium => _failure?.code == 'ENTITLEMENT_REQUIRED';
   bool get hasActiveProfile => _profiles.activeProfile != null;
@@ -80,34 +92,34 @@ class CareerChatController extends ChangeNotifier {
       return;
     }
     _ensureProfile(profile.id);
-    final user = CareerChatMessage.user(message);
-    _messages.add(user);
-    unawaited(_analytics.track(AnalyticsEvent.careerChatQuestionSent, {
-      'birth_profile_id': profile.id,
-      'source': 'career_chat',
-      'is_premium': true,
-    }));
+    unawaited(
+      _analytics.track(AnalyticsEvent.taraQuestionSent, {
+        'birth_profile_id': profile.id,
+        'source': 'ask_tara',
+        'is_premium': true,
+      }),
+    );
     _failure = null;
     _sending = true;
     notifyListeners();
     try {
-      final response = await _repository.send(
+      final conversation = _conversationId == null
+          ? await _repository.createConversation(birthProfileId: profile.id)
+          : null;
+      if (conversation != null) _conversationId = conversation.conversationId;
+      final detail = await _repository.sendConversationMessage(
         birthProfileId: profile.id,
-        request: CareerChatRequest(
-          message: message,
-          conversationContext: _context(),
-          language: language,
-        ),
+        conversationId: _conversationId!,
+        message: message,
+        language: language,
       );
       if (_profiles.activeProfile?.id != profile.id) return;
-      _messages.add(CareerChatMessage.assistant(response));
+      _apply(detail);
     } on ApiFailure catch (error) {
       if (_profiles.activeProfile?.id != profile.id) return;
-      user.failed = true;
       _failure = error;
     } catch (_) {
       if (_profiles.activeProfile?.id != profile.id) return;
-      user.failed = true;
       _failure = null;
     } finally {
       if (_profiles.activeProfile?.id == profile.id) {
@@ -123,27 +135,69 @@ class CareerChatController extends ChangeNotifier {
     return send(message.text);
   }
 
-  List<CareerChatContextMessage> _context() => _messages
-      .take(_messages.length - 1)
-      .where((message) => !message.failed)
-      .map(
-        (message) =>
-            CareerChatContextMessage(role: message.role, text: message.text),
-      )
-      .toList()
-      .reversed
-      .take(8)
-      .toList()
-      .reversed
-      .toList();
+  Future<void> loadHistory() async {
+    final profile = _profiles.activeProfile;
+    if (profile == null) return;
+    _ensureProfile(profile.id);
+    try {
+      final conversations = await _repository.listConversations(
+        birthProfileId: profile.id,
+      );
+      if (_disposed || _profiles.activeProfile?.id != profile.id) return;
+      _conversations = conversations;
+      notifyListeners();
+    } catch (_) {
+      // History is additive. A transient history load failure must not block
+      // Home, profile switching, or the grounded chat flow.
+      if (!_disposed && _profiles.activeProfile?.id == profile.id) {
+        _conversations = const [];
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> openConversation(String id) async {
+    final profile = _profiles.activeProfile;
+    if (profile == null) return;
+    _ensureProfile(profile.id);
+    _apply(
+      await _repository.getConversation(
+        birthProfileId: profile.id,
+        conversationId: id,
+      ),
+    );
+    await loadHistory();
+  }
+
+  void startNewConversation() {
+    _conversationId = null;
+    _messages.clear();
+    _failure = null;
+    notifyListeners();
+  }
+
+  void _apply(TaraConversationDetail detail) {
+    _conversationId = detail.conversation.conversationId;
+    _messages
+      ..clear()
+      ..addAll(
+        detail.messages.map(
+          (item) =>
+              CareerChatMessage.persisted(role: item.role, text: item.content),
+        ),
+      );
+  }
 
   void _onProfileChanged() {
     final id = _profiles.activeProfile?.id;
     if (id != _profileId) {
       _profileId = id;
       _messages.clear();
+      _conversationId = null;
+      _conversations = const [];
       _sending = false;
       _failure = null;
+      if (id != null) unawaited(loadHistory());
       notifyListeners();
     }
   }
@@ -154,6 +208,7 @@ class CareerChatController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _profiles.removeListener(_onProfileChanged);
     super.dispose();
   }
