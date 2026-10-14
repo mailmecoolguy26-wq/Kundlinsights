@@ -12,12 +12,14 @@ const HOUSE_THEMES = Object.freeze({
 });
 const TaraTransitIntent = Object.freeze({ CURRENT_TRANSIT_OVERVIEW: 'CURRENT_TRANSIT_OVERVIEW', PLANET_TRANSIT_EFFECT: 'PLANET_TRANSIT_EFFECT', UPCOMING_TRANSIT_EFFECT: 'UPCOMING_TRANSIT_EFFECT', LIFE_AREA_TRANSIT_EFFECT: 'LIFE_AREA_TRANSIT_EFFECT', UNSUPPORTED_TRANSIT: 'UNSUPPORTED_TRANSIT' });
 const MONTHS = Object.freeze({ jan: 0, january: 0, feb: 1, february: 1, mar: 2, march: 2, apr: 3, april: 3, may: 4, jun: 5, june: 5, jul: 6, july: 6, aug: 7, august: 7, sep: 8, sept: 8, september: 8, oct: 9, october: 9, nov: 10, november: 10, dec: 11, december: 11 });
+const UPCOMING_TRANSIT_HORIZON_DAYS = 400;
+const DAILY_COARSE_SCAN_MILLISECONDS = 86_400_000;
 
 function normalize(value) { return String(value || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim(); }
 function planetFor(text) { return TRANSIT_PLANETS.map((planet) => planet.toLowerCase()).find((value) => new RegExp(`\\b${value}\\b`).test(text)) || null; }
 function areaFor(text) { if (/\bcareer|job|work|business\b/.test(text)) return 'CAREER'; if (/\brelationship|marriage|marry|spouse|partner|love\b/.test(text)) return 'RELATIONSHIPS'; if (/\bwealth|money|property|real estate|investment\b/.test(text)) return 'WEALTH_PROPERTY'; return 'GENERAL'; }
 function requestedDateHint(text) { const match = /\b(?:on\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)(?:\s+ko)?\b/.exec(text); if (!match) return null; const day = Number(match[1]); const month = MONTHS[match[2]]; return Number.isInteger(month) && day >= 1 && day <= 31 ? Object.freeze({ day, month, label: `${day} ${match[2].slice(0, 1).toUpperCase()}${match[2].slice(1, 3)}` }) : null; }
-function hasFutureCue(text) { return /\b(next|when|change|changes|upcoming|agla|jab|shift|move|hoga|rahega)\b/.test(text); }
+function hasFutureCue(text) { return /\b(next|when|kab|change|changes|upcoming|agla|jab|shift|move|hoga|rahega)\b/.test(text); }
 function classifyTaraTransitIntent(message) {
   const text = normalize(message); const planet = planetFor(text); const area = areaFor(text); const requestedDate = requestedDateHint(text);
   if (!/\b(gochar|transit|transits|planetary movement|planet changing house|jupiter|saturn|rahu|ketu|mars|mercury)\b/.test(text)) return Object.freeze({ intent: TaraTransitIntent.UNSUPPORTED_TRANSIT, planet: null, area: 'GENERAL' });
@@ -29,7 +31,7 @@ function classifyTaraTransitIntent(message) {
 }
 function isoNow(clock) { const value = new Date(clock()); if (Number.isNaN(value.getTime())) throw new TypeError('INVALID_TARA_TRANSIT_CLOCK'); return value.toISOString(); }
 function requestedDateInstant(hint, now) { if (!hint) return null; const current = new Date(now); let value = new Date(Date.UTC(current.getUTCFullYear(), hint.month, hint.day)); if (value.getTime() < Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), current.getUTCDate())) value = new Date(Date.UTC(current.getUTCFullYear() + 1, hint.month, hint.day)); return Number.isNaN(value.getTime()) || value.getUTCMonth() !== hint.month ? null : value.toISOString(); }
-function horizonDaysFor({ now, requestedDate }) { if (!requestedDate) return 30; const days = Math.ceil((Date.parse(requestedDate) - Date.parse(now)) / 86_400_000) + 14; return Math.max(30, Math.min(400, days)); }
+function horizonDaysFor({ now, requestedDate }) { if (!requestedDate) return UPCOMING_TRANSIT_HORIZON_DAYS; const days = Math.ceil((Date.parse(requestedDate) - Date.parse(now)) / 86_400_000) + 14; return Math.max(30, Math.min(UPCOMING_TRANSIT_HORIZON_DAYS, days)); }
 function sameUtcDate(left, right) { return typeof left === 'string' && typeof right === 'string' && left.slice(0, 10) === right.slice(0, 10); }
 function transitionFor({ transitions, planet, requestedDate }) { const candidates = transitions.filter((item) => item.planet === planet && item.type === 'INGRESS'); if (!candidates.length) return null; if (!requestedDate) return Object.freeze({ transition: candidates[0], dateMatched: null }); const ordered = candidates.slice().sort((left, right) => Math.abs(Date.parse(left.at) - Date.parse(requestedDate)) - Math.abs(Date.parse(right.at) - Date.parse(requestedDate))); return Object.freeze({ transition: ordered[0], dateMatched: sameUtcDate(ordered[0].at, requestedDate) }); }
 function houseLords(houses) { const out = new Map(); for (const house of houses.houses || []) { const lord = typeof house.rashiHouseLord === 'string' ? house.rashiHouseLord : house.rashiHouseLord && house.rashiHouseLord.name; if (Number.isInteger(house.houseNumber) && typeof lord === 'string') out.set(lord, [...(out.get(lord) || []), house.houseNumber]); } return out; }
@@ -91,20 +93,28 @@ class TaraTransitCapability {
   async respond({ principal, birthProfileId, message, language = 'ENGLISH', diagnosticLog = null } = {}) {
     const intent = classifyTaraTransitIntent(message);
     diagnostic(diagnosticLog, 'TARA_TRANSIT_ROUTE', { domain: 'TRANSIT', intent: intent.intent, planet: intent.planet, birthProfileId });
+    if (intent.intent === TaraTransitIntent.UPCOMING_TRANSIT_EFFECT) diagnostic(diagnosticLog, 'TARA_TRANSIT_UPCOMING_ROUTE', { planet: intent.planet });
     if (intent.intent === TaraTransitIntent.UNSUPPORTED_TRANSIT) { const result = Object.freeze({ intent: intent.intent, state: 'UNSUPPORTED_TRANSIT', answerability: 'UNSUPPORTED', message: unsupported(language), evidence: Object.freeze([]) }); diagnostic(diagnosticLog, 'TARA_TRANSIT_RESPONSE', { state: result.state, birthProfileId }); return result; }
     const now = isoNow(this.clock); const requestedDate = requestedDateInstant(intent.requestedDate, now);
     let context;
-    try { context = await this.transits.contextForTara({ principal, birthProfileId, at: now, horizonDays: intent.intent === TaraTransitIntent.UPCOMING_TRANSIT_EFFECT ? horizonDaysFor({ now, requestedDate }) : 30 }); diagnostic(diagnosticLog, 'TARA_TRANSIT_CALCULATION', { status: 'SUCCEEDED', birthProfileId }); } catch (_) { const result = Object.freeze({ intent: intent.intent, state: 'CALCULATION_UNAVAILABLE', answerability: 'INSUFFICIENT_EVIDENCE', message: language === 'HINGLISH' ? 'Main aapka current transit picture abhi reliably calculate nahi kar pa rahi hoon.' : 'I’m unable to calculate your current transit picture reliably right now.', evidence: Object.freeze([]) }); diagnostic(diagnosticLog, 'TARA_TRANSIT_CALCULATION', { status: 'FAILED', birthProfileId }); diagnostic(diagnosticLog, 'TARA_TRANSIT_RESPONSE', { state: result.state, birthProfileId }); return result; }
+    const upcomingScan = intent.intent === TaraTransitIntent.UPCOMING_TRANSIT_EFFECT
+      ? { horizonDays: horizonDaysFor({ now, requestedDate }), scanBodies: [intent.planet[0].toUpperCase() + intent.planet.slice(1)], scanEventTypes: ['rashiIngress'], scanOptions: { coarseScanStepMilliseconds: DAILY_COARSE_SCAN_MILLISECONDS } }
+      : null;
+    if (upcomingScan) diagnostic(diagnosticLog, 'TARA_TRANSIT_SCAN_START', { planet: intent.planet, scanStart: now, scanHorizonDays: upcomingScan.horizonDays });
+    try { context = await this.transits.contextForTara({ principal, birthProfileId, at: now, horizonDays: upcomingScan ? upcomingScan.horizonDays : 30, ...(upcomingScan ? { scanBodies: upcomingScan.scanBodies, scanEventTypes: upcomingScan.scanEventTypes, scanOptions: upcomingScan.scanOptions } : {}) }); diagnostic(diagnosticLog, 'TARA_TRANSIT_CALCULATION', { status: 'SUCCEEDED', birthProfileId }); } catch (_) { const result = Object.freeze({ intent: intent.intent, state: 'CALCULATION_UNAVAILABLE', answerability: 'INSUFFICIENT_EVIDENCE', message: language === 'HINGLISH' ? 'Main aapka current transit picture abhi reliably calculate nahi kar pa rahi hoon.' : 'I’m unable to calculate your current transit picture reliably right now.', evidence: Object.freeze([]) }); diagnostic(diagnosticLog, 'TARA_TRANSIT_CALCULATION', { status: 'FAILED', birthProfileId }); diagnostic(diagnosticLog, 'TARA_TRANSIT_RESPONSE', { state: result.state, birthProfileId }); return result; }
     const evidence = evidenceFor({ snapshot: context.snapshot, natalHouses: context.natalHouses, intent });
     diagnostic(diagnosticLog, 'TARA_TRANSIT_EVIDENCE', { evidenceItemCount: evidence.length, birthProfileId });
     if (!evidence.length) { const result = Object.freeze({ intent: intent.intent, state: 'INSUFFICIENT_EVIDENCE', answerability: 'INSUFFICIENT_EVIDENCE', message: language === 'HINGLISH' ? 'Main requested transit influence ko abhi reliably identify nahi kar pa rahi hoon.' : 'I’m unable to identify the requested transit influence reliably right now.', evidence }); diagnostic(diagnosticLog, 'TARA_TRANSIT_RESPONSE', { state: result.state, birthProfileId }); return result; }
     let messageOut;
     if (intent.intent === TaraTransitIntent.UPCOMING_TRANSIT_EFFECT) {
-      const planet = evidence[0].planet; const selected = transitionFor({ transitions: context.insightContext && context.insightContext.upcomingTransitions || [], planet, requestedDate }); const transition = selected && selected.transition;
+      const planet = evidence[0].planet; const transitions = context.insightContext && context.insightContext.upcomingTransitions || [];
+      diagnostic(diagnosticLog, 'TARA_TRANSIT_SCAN_RESULT', { planet: intent.planet, eventCount: transitions.length, candidateEventTypes: [...new Set(transitions.map((item) => item.type).filter(Boolean))] });
+      const selected = transitionFor({ transitions, planet, requestedDate }); const transition = selected && selected.transition;
       const date = transition && displayDate(transition.at);
       if (!transition || !date) {
         messageOut = language === 'HINGLISH' ? `Main ${planet} ka current calculated transit explain kar sakti hoon, lekin available calculated window mein next change date safely identify nahi ho raha hai.` : `I can explain ${planet}'s current calculated transit, but I’m not able to safely state the next change date from the available transit window.`;
       } else {
+        diagnostic(diagnosticLog, 'TARA_TRANSIT_INGRESS_MATCH', { planet: intent.planet, matchedIngressDate: transition.at, matchedDestinationSign: transition.toSign || null });
         try {
           const futureContext = await this.transits.contextForTara({ principal, birthProfileId, at: transition.at });
           const futureEvidence = evidenceFor({ snapshot: futureContext.snapshot, natalHouses: futureContext.natalHouses, intent });

@@ -61,7 +61,7 @@ class TransitSnapshotService {
     Object.freeze(this);
   }
 
-  async contextForTara({ principal, birthProfileId, at, horizonDays = TRANSIT_TIMELINE_HORIZON_DAYS } = {}) {
+  async contextForTara({ principal, birthProfileId, at, horizonDays = TRANSIT_TIMELINE_HORIZON_DAYS, scanBodies, scanEventTypes, scanOptions } = {}) {
     const instant = parseUtcInstant(at);
     if (!Number.isInteger(horizonDays) || horizonDays <= 0 || horizonDays > MAX_TARA_TRANSIT_HORIZON_DAYS) fail('INVALID_TRANSIT_HORIZON');
     const profile = await this.birthProfileService.get({ principal, birthProfileId });
@@ -87,7 +87,17 @@ class TransitSnapshotService {
       const horizon = { from: instant.utc, to: new Date(instant.epochMilliseconds + horizonDays * 86_400_000).toISOString() };
       let scan = null;
       try {
-        scan = this.transitScanner({ startInstant: horizon.from, endInstant: horizon.to, natalBodies: natal.bodies, natalHouses, astronomicalEngine: this.astronomicalEngine, observer: { latitude: profile.birthData.latitude, longitude: profile.birthData.longitude } });
+        scan = this.transitScanner({
+          startInstant: horizon.from,
+          endInstant: horizon.to,
+          natalBodies: natal.bodies,
+          natalHouses,
+          astronomicalEngine: this.astronomicalEngine,
+          observer: { latitude: profile.birthData.latitude, longitude: profile.birthData.longitude },
+          ...(scanBodies === undefined ? {} : { bodies: scanBodies }),
+          ...(scanEventTypes === undefined ? {} : { eventTypes: scanEventTypes }),
+          ...(scanOptions === undefined ? {} : { options: scanOptions }),
+        });
       } catch (_) { scan = null; }
       const insightContext = adaptTransitInsight({ snapshot, insights: source && source.birthProfileId === profile.id ? source.insights : [], scan, horizon });
       return Object.freeze({ birthProfileId: profile.id, snapshot, natalBodies: natal.bodies, natalHouses, insightContext });

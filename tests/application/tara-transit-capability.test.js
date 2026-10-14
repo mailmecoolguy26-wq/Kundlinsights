@@ -36,6 +36,16 @@ test('gives an explicit future date or change cue priority over a planet’s cur
   assert.equal(classifyTaraTransitIntent('Rahu abhi mujhe kaise affect kar raha hai').intent, TaraTransitIntent.PLANET_TRANSIT_EFFECT);
   assert.equal(classifyTaraTransitIntent('Rahu ka next transit kaisa rahega').intent, TaraTransitIntent.UPCOMING_TRANSIT_EFFECT);
 });
+test('routes Hinglish Rahu and Ketu gochar timing questions to upcoming transit', () => {
+  assert.deepEqual(
+    classifyTaraTransitIntent('Rahu ka gochar kab hoga'),
+    { intent: TaraTransitIntent.UPCOMING_TRANSIT_EFFECT, planet: 'rahu', area: 'GENERAL' },
+  );
+  assert.deepEqual(
+    classifyTaraTransitIntent('Ketu ka next gochar kab hoga'),
+    { intent: TaraTransitIntent.UPCOMING_TRANSIT_EFFECT, planet: 'ketu', area: 'GENERAL' },
+  );
+});
 test('uses the selected profile context and factual transit evidence without hardcoded placements', async () => {
   const calls = []; const transit = capability(calls);
   const first = await transit.respond({ principal: {}, birthProfileId: 'profile-a', message: 'How is Jupiter affecting my career?' });
@@ -130,6 +140,40 @@ test('uses the calculated post-ingress Rahu snapshot instead of answering from t
   assert.match(result.message, /Rahu aapke 6th house mein move karega, 05 Dec 2026 ko/i);
   assert.match(result.message, /Current transit ke comparison mein focus finances, savings, family, speech, possessions se work routines, service, competition, debts, disputes, health, problem-solving ki taraf shift hoga/i);
   assert.doesNotMatch(result.message, /Rahu abhi aapke 2nd house/i);
+});
+test('finds the calculated Ketu ingress and requests a bounded node-only scan', async () => {
+  const current = context('profile-a', 10);
+  current.insightContext.upcomingTransitions = [{ type: 'INGRESS', planet: 'Ketu', at: '2026-12-06T12:00:00.000Z', toSign: 'Aquarius' }];
+  const future = context('profile-a', 10);
+  future.snapshot.transitBodies.Ketu = { ...future.snapshot.transitBodies.Ketu, transitNatalHouseNumber: 6 };
+  const calls = []; const diagnostics = [];
+  const transit = new TaraTransitCapability({
+    transitSnapshotService: { contextForTara: async (input) => { calls.push(input); return input.at === '2026-12-06T12:00:00.000Z' ? future : current; } },
+    clock: () => '2026-10-14T00:00:00.000Z',
+  });
+
+  const result = await transit.respond({ principal: {}, birthProfileId: 'profile-a', message: 'Ketu ka next gochar kab hoga', language: 'HINGLISH', diagnosticLog: (entry) => diagnostics.push(entry) });
+
+  assert.equal(result.intent, TaraTransitIntent.UPCOMING_TRANSIT_EFFECT);
+  assert.equal(calls[0].horizonDays, 400);
+  assert.deepEqual(calls[0].scanBodies, ['Ketu']);
+  assert.deepEqual(calls[0].scanEventTypes, ['rashiIngress']);
+  assert.equal(calls[0].scanOptions.coarseScanStepMilliseconds, 86_400_000);
+  assert.match(result.message, /Ketu aapke 6th house mein move karega, 06 Dec 2026 ko/i);
+  assert.ok(diagnostics.some((entry) => entry.event === 'TARA_TRANSIT_INGRESS_MATCH' && entry.matchedDestinationSign === 'Aquarius'));
+});
+test('returns the safe bounded-window limitation when no calculated ingress exists', async () => {
+  const current = context('profile-a', 10);
+  current.insightContext.upcomingTransitions = [];
+  const transit = new TaraTransitCapability({
+    transitSnapshotService: { contextForTara: async () => current },
+    clock: () => '2026-10-14T00:00:00.000Z',
+  });
+
+  const result = await transit.respond({ principal: {}, birthProfileId: 'profile-a', message: 'Rahu ka gochar kab hoga', language: 'HINGLISH' });
+
+  assert.equal(result.intent, TaraTransitIntent.UPCOMING_TRANSIT_EFFECT);
+  assert.match(result.message, /available calculated window mein next change date safely identify nahi ho raha/i);
 });
 test('treats a typed future date as a hint and corrects it with the calculated ingress date', async () => {
   const current = context('profile-a', 10);
