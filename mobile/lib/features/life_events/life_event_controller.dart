@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../auth/auth_controller.dart';
 import '../auth/domain/auth_repository.dart';
+import '../../core/errors/api_failure.dart';
 import '../profiles/profile_controller.dart';
 import 'domain/life_event.dart';
 import 'domain/life_event_repository.dart';
@@ -25,6 +26,8 @@ class LifeEventController extends ChangeNotifier {
   String? _subject;
   int _generation = 0;
   bool _disposed = false;
+
+  String? get activeProfileId => _profileId;
 
   void _scope() {
     final subject = auth.state.status == AuthStatus.authenticated
@@ -51,14 +54,24 @@ class LifeEventController extends ChangeNotifier {
     final generation = ++_generation;
     if (profileId == null || subject == null || _disposed) return;
 
+    _log('LIFE_EVENT_RELOAD', profileId: profileId);
     loading = true;
     _notify();
     try {
       final result = await repository.list(profileId);
       if (!_isCurrent(generation, profileId, subject)) return;
       events = result;
+      _log('LIFE_EVENT_RELOAD', profileId: profileId, outcome: 'success');
     } catch (exception) {
-      if (_isCurrent(generation, profileId, subject)) error = exception;
+      if (_isCurrent(generation, profileId, subject)) {
+        error = exception;
+        _log(
+          'LIFE_EVENT_RELOAD',
+          profileId: profileId,
+          outcome: 'failure',
+          exception: exception,
+        );
+      }
     } finally {
       if (_isCurrent(generation, profileId, subject)) {
         loading = false;
@@ -70,6 +83,8 @@ class LifeEventController extends ChangeNotifier {
   Future<bool> save(LifeEventInput input, {LifeEvent? editing}) async {
     final profileId = _profileId;
     if (profileId == null || _disposed) return false;
+    final stage = editing == null ? 'LIFE_EVENT_CREATE' : 'LIFE_EVENT_UPDATE';
+    _log('${stage}_START', profileId: profileId, input: input);
     try {
       if (editing == null) {
         await repository.create(profileId, input);
@@ -77,10 +92,17 @@ class LifeEventController extends ChangeNotifier {
         await repository.update(profileId, editing.id, input);
       }
       await refresh();
+      _log('${stage}_SUCCESS', profileId: profileId, input: input);
       return !_disposed;
     } catch (exception) {
       if (!_disposed) {
         error = exception;
+        _log(
+          '${stage}_FAILURE',
+          profileId: profileId,
+          input: input,
+          exception: exception,
+        );
         _notify();
       }
       return false;
@@ -103,6 +125,26 @@ class LifeEventController extends ChangeNotifier {
 
   void _notify() {
     if (!_disposed) notifyListeners();
+  }
+
+  void _log(
+    String stage, {
+    required String profileId,
+    LifeEventInput? input,
+    String? outcome,
+    Object? exception,
+  }) {
+    if (!kDebugMode) return;
+    final status = exception is ApiFailure ? exception.kind.name : null;
+    final safeCode = exception is ApiFailure ? exception.code : null;
+    debugPrint(
+      '$stage birthProfileId=$profileId'
+      '${input == null ? '' : ' category=${input.category.wire} eventType=${input.type.wire} datePrecision=${input.date.precision.wire}'}'
+      '${outcome == null ? '' : ' outcome=$outcome'}'
+      '${status == null ? '' : ' errorClass=$status'}'
+      '${safeCode == null ? '' : ' safeErrorCode=$safeCode'}'
+      '${exception != null && status == null ? ' errorClass=${exception.runtimeType}' : ''}',
+    );
   }
 
   @override

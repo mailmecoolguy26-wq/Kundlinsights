@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../domain/life_event.dart';
 import '../life_event_controller.dart';
@@ -344,21 +345,61 @@ class _LifeEventFormState extends State<_LifeEventForm> {
   }
 
   Future<void> _save() async {
-    final saved = await widget.controller.save(
-      LifeEventInput(
-        category: category,
-        type: type,
-        date: LifeEventDate(
-          precision: precision,
-          year: year,
-          month: precision == LifeEventPrecision.year ? null : month,
-          day: precision == LifeEventPrecision.day ? day : null,
-        ),
-        note: _note.text,
+    final input = LifeEventInput(
+      category: category,
+      type: type,
+      date: LifeEventDate(
+        precision: precision,
+        year: year,
+        month: precision == LifeEventPrecision.year ? null : month,
+        day: precision == LifeEventPrecision.day ? day : null,
       ),
-      editing: widget.event,
+      note: _note.text,
     );
-    if (saved && mounted) Navigator.of(context).pop();
+    _log('LIFE_EVENT_SAVE_TAP', input);
+    final validationError = _validationError(input.date);
+    if (validationError != null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(validationError)));
+      }
+      return;
+    }
+    _log('LIFE_EVENT_FORM_VALID', input);
+    final saved = await widget.controller.save(input, editing: widget.event);
+    if (!mounted) return;
+    if (saved) {
+      Navigator.of(context).pop();
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Life Event could not be saved. Please try again.'),
+      ),
+    );
+  }
+
+  String? _validationError(LifeEventDate date) {
+    if (date.year < 1 || date.year > 9999) return 'Enter a valid year.';
+    if (date.precision != LifeEventPrecision.year &&
+        (date.month == null || date.month! < 1 || date.month! > 12)) {
+      return 'Enter a valid month.';
+    }
+    if (date.precision == LifeEventPrecision.day &&
+        (date.day == null || date.day! < 1 || date.day! > 31)) {
+      return 'Enter a valid day.';
+    }
+    return null;
+  }
+
+  void _log(String stage, LifeEventInput input) {
+    if (!kDebugMode) return;
+    debugPrint(
+      '$stage birthProfileId=${widget.controller.activeProfileId ?? 'none'}'
+      ' category=${input.category.wire}'
+      ' eventType=${input.type.wire}'
+      ' datePrecision=${input.date.precision.wire}',
+    );
   }
 }
 

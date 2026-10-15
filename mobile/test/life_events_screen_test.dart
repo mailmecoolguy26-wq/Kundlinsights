@@ -107,6 +107,33 @@ void main() {
     expect(_areaField(tester).initialValue, LifeEventCategory.careerBusiness);
   });
 
+  testWidgets(
+    'Profile Life Events creates a Property event for the active profile',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(home: LifeEventsScreen(controller: controller)),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Property'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('add-life-event')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(repository.createdProfiles, ['profile-a']);
+      expect(
+        repository.createdInputs.single.category,
+        LifeEventCategory.property,
+      );
+      expect(
+        repository.createdInputs.single.type,
+        LifeEventType.propertyPurchase,
+      );
+      expect(controller.events.any((event) => event.id == 'created-1'), isTrue);
+    },
+  );
+
   testWidgets('editing a Vehicle event uses its persisted Area and type', (
     tester,
   ) async {
@@ -252,6 +279,49 @@ void main() {
       expect(repository.listedProfiles.last, 'profile-b');
     },
   );
+
+  test(
+    'creates Vehicle, Marriage, and Child Birth payloads without remapping',
+    () async {
+      for (final input in [
+        const LifeEventInput(
+          category: LifeEventCategory.vehicle,
+          type: LifeEventType.vehiclePurchase,
+          date: LifeEventDate(precision: LifeEventPrecision.year, year: 2020),
+        ),
+        const LifeEventInput(
+          category: LifeEventCategory.relationshipsFamily,
+          type: LifeEventType.marriage,
+          date: LifeEventDate(
+            precision: LifeEventPrecision.month,
+            year: 2021,
+            month: 6,
+          ),
+        ),
+        const LifeEventInput(
+          category: LifeEventCategory.relationshipsFamily,
+          type: LifeEventType.childBirth,
+          date: LifeEventDate(
+            precision: LifeEventPrecision.day,
+            year: 2022,
+            month: 3,
+            day: 4,
+          ),
+        ),
+      ]) {
+        expect(await controller.save(input), isTrue);
+      }
+
+      expect(
+        repository.createdInputs.map((input) => (input.category, input.type)),
+        [
+          (LifeEventCategory.vehicle, LifeEventType.vehiclePurchase),
+          (LifeEventCategory.relationshipsFamily, LifeEventType.marriage),
+          (LifeEventCategory.relationshipsFamily, LifeEventType.childBirth),
+        ],
+      );
+    },
+  );
 }
 
 ChoiceChip _chip(WidgetTester tester, String label) =>
@@ -300,6 +370,7 @@ class _LifeEvents implements LifeEventRepository {
   };
   final List<String> listedProfiles = [];
   final List<String> createdProfiles = [];
+  final List<LifeEventInput> createdInputs = [];
   final List<String> updatedProfiles = [];
   final List<String> deletedProfiles = [];
   int _id = 0;
@@ -316,6 +387,7 @@ class _LifeEvents implements LifeEventRepository {
   @override
   Future<LifeEvent> create(String profileId, LifeEventInput input) async {
     createdProfiles.add(profileId);
+    createdInputs.add(input);
     final value = _event(
       'created-${++_id}',
       profileId,
