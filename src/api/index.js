@@ -178,7 +178,7 @@ function createApi({ authVerifier, userResolver, birthProfileService, careerEven
       const birthProfileId = id(request.params.id, 'BIRTH_PROFILE_ID');
       const diagnosticLog = (entry) => request.log.info(entry);
       const result = await taraConversationService.message({ principal: request.principal, birthProfileId, conversationId: id(request.params.conversationId, 'TARA_CONVERSATION_ID'), body: request.body || {}, diagnosticLog });
-      request.log.info({ event: 'TARA_BACKEND_RESPONSE', state: result.tara && result.tara.career && result.tara.career.state || null, actionType: result.assistantMessage.action && result.assistantMessage.action.type || null, actionLabel: result.assistantMessage.action && result.assistantMessage.action.label || null, messageId: result.assistantMessage.messageId, birthProfileId });
+      request.log.info({ event: 'TARA_BACKEND_RESPONSE', state: result.tara && ((result.tara.career && result.tara.career.state) || (result.tara.property && result.tara.property.state)) || null, actionType: result.assistantMessage.action && result.assistantMessage.action.type || null, actionLabel: result.assistantMessage.action && result.assistantMessage.action.label || null, messageId: result.assistantMessage.messageId, birthProfileId });
       reply.code(201);
       return { ...result, requestId: request.id };
     });

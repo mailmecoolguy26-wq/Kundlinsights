@@ -98,9 +98,19 @@ function transitEvidence(snapshot, houses) {
   return freeze({ activeMajor: freeze(activeMajor), activeSupport: freeze(out.filter((item) => item.supportOnly && item.propertyActive)), all: freeze(out), active: activeMajor.length > 0 });
 }
 function ashtakavargaEvidence(raw, houses) {
-  const bySign = new Map(raw.rawSarvashtakavarga.rashis.map((item) => [item.rashi.rashiIndex, item.favorableMarkCount]));
+  // Raw Ashtakavarga rashi rows intentionally use the compact factual shape
+  // `{ rashiIndex, favorableMarkCount }`; unlike the public DTO they do not
+  // contain a nested `rashi` object.  This layer is context only, so an
+  // unavailable individual value must remain null rather than failing a
+  // grounded Property answer.
+  const bySign = new Map((raw && raw.rawSarvashtakavarga && raw.rawSarvashtakavarga.rashis || [])
+    .filter((item) => item && Number.isInteger(item.rashiIndex))
+    .map((item) => [item.rashiIndex, item.favorableMarkCount]));
   const byHouse = houseMap(houses);
-  return freeze({ policy: 'CONTEXT_ONLY_NO_THRESHOLDS', sav: freeze([2, 4, 11].map((house) => freeze({ house, bindu: bySign.get(byHouse.get(house).rashi.rashiIndex) ?? null }))), bav: 'AVAILABLE_RAW_ONLY' });
+  return freeze({ policy: 'CONTEXT_ONLY_NO_THRESHOLDS', sav: freeze([2, 4, 11].map((house) => {
+    const rashiIndex = byHouse.get(house) && byHouse.get(house).rashi && byHouse.get(house).rashi.rashiIndex;
+    return freeze({ house, bindu: Number.isInteger(rashiIndex) ? bySign.get(rashiIndex) ?? null : null });
+  })), bav: 'AVAILABLE_RAW_ONLY' });
 }
 function classify({ natal, d4, dasha, transit }) {
   if (natal.classification === 'STRONG' && d4.confirmation === 'CONFIRMS' && dasha.classification === 'STRONG' && transit.active) return 'STRONG';
@@ -160,23 +170,35 @@ class PropertyAnswerService {
     log('PROPERTY_CALCULATION_START', { state: 'STARTED' });
     const profile = await this.profiles.get({ principal, birthProfileId }); if (!profile || profile.status !== 'active') fail('NOT_FOUND_OR_FORBIDDEN');
     const instant = at || new Date(this.clock()).toISOString();
+    let stage = 'PROFILE';
     try {
+      stage = 'NATAL';
       const natal = this.engine.calculate(request(profile.birthData)); const houses = calculateRashiHouses({ ascendantCanonicalSiderealLongitude: natal.bodies.Ascendant.siderealLongitudeDegrees, bodies: natal.bodies });
       const natalFacts = natalEvidence(houses); log('PROPERTY_NATAL_EVIDENCE', { state: natalFacts.classification, evidenceCount: natalFacts.connections.length });
+      stage = 'D4';
       const d4 = d4Evidence(natal, houses); log('PROPERTY_D4_EVIDENCE', { state: d4.confirmation, evidenceCount: d4.fourthHouse.occupants.length });
+      stage = 'DASHA';
       const dashaTree = calculateVimshottariDasha({ birthInstant: natal.instant.utc, moonCanonicalSiderealLongitude: natal.bodies.Moon.siderealLongitudeDegrees, natalSunCanonicalSiderealLongitude: natal.bodies.Sun.siderealLongitudeDegrees, canonicalSiderealSunSampler: this.sampler, rulesetId: SOLAR_RETURN_VIMSHOTTARI_RULESET.id });
       const dasha = dashaEvidence(houses, dashaAt(dashaTree, instant)); log('PROPERTY_DASHA_EVIDENCE', { state: dasha.classification, evidenceCount: dasha.factors.length });
+      stage = 'TRANSIT';
       const transitBodies = this.engine.calculate(transitRequest(instant, profile.birthData)); const snapshot = calculateGocharSnapshot({ snapshotInstant: instant, natalBodies: natal.bodies, natalHouses: houses, transitBodies: transitBodies.bodies }); const transit = transitEvidence(snapshot, houses); log('PROPERTY_TRANSIT_EVIDENCE', { state: transit.active ? 'ACTIVE' : 'LIMITED', evidenceCount: transit.activeMajor.length });
+      stage = 'ASHTAKAVARGA';
       const rawAshtaka = calculateAshtakavargaForLayer2(classifyLayer1Bodies(natal)); const ashtakavarga = ashtakavargaEvidence(rawAshtaka, houses); log('PROPERTY_ASHTAKAVARGA_EVIDENCE', { state: 'CONTEXT_ONLY', evidenceCount: ashtakavarga.sav.length });
+      stage = 'CALIBRATION';
       const events = await this.lifeEvents.getRelevantLifeEvents({ principal, birthProfileId, categories: ['PROPERTY'] }); const history = calibration(events); log('PROPERTY_CALIBRATION', { state: history.state, evidenceCount: history.eventCount });
+      stage = 'RESULT';
       const final = classify({ natal: natalFacts, d4, dasha, transit });
+      stage = 'WINDOW';
       const window = intent === PropertyIntent.PROPERTY_SALE_TIMING ? null : strongerWindow({ engine: this.engine, scanner: this.scanner, birth: profile.birthData, natalBodies: natal.bodies, houses, dashaTree, natal: natalFacts, d1: houses, d4, start: instant });
       const financing = transit.all.some((item) => item.propertyActive && item.contexts.some((house) => [6, 12].includes(house))) || dasha.factors.some((item) => item.corePropertyConnection && item.contextConnection);
       const shared = transit.all.some((item) => item.propertyActive && item.contexts.includes(8)) || dasha.factors.some((item) => item.corePropertyConnection && item.rulesHouses.includes(8));
       const result = freeze({ intent, answerability: intent === PropertyIntent.PROPERTY_SALE_TIMING ? 'LIMITED_EVIDENCE' : 'SUPPORTED', classification: final, state: limitation(intent) || final, strongerWindow: window, evidence: freeze({ natal: natalFacts, d4: freeze({ ...d4, d4Houses: undefined }), dasha, transit, ashtakavarga, lifeEvents: history }), contexts: freeze({ financing: financing ? (intent === PropertyIntent.PROPERTY_LOAN_CONTEXT ? 'STRONGER_FINANCING_INVOLVEMENT' : 'FINANCING_CONTEXT') : 'LIMITED_EVIDENCE', sharedAsset: shared ? (intent === PropertyIntent.PROPERTY_INHERITANCE_CONTEXT ? 'SHARED_OR_INHERITED_ASSET_THEME_ACTIVE' : 'SHARED_ASSET_CONTEXT') : 'LIMITED_EVIDENCE', expenditure: transit.all.some((item) => item.propertyActive && item.contexts.includes(12)) ? 'EXPENDITURE_CONTEXT' : 'NONE' }), limitations: freeze(['NO_OUTCOME_GUARANTEE', 'NO_EXACT_PURCHASE_DATE', ...(intent === PropertyIntent.PROPERTY_SALE_TIMING ? ['SALE_METHODOLOGY_DEFERRED'] : [])]), provenance: freeze({ dashaRulesetId: SOLAR_RETURN_VIMSHOTTARI_RULESET.id, d4RulesetId: 'parashari-chaturthamsha-v1', ashtakavargaPolicy: 'RAW_CONTEXT_ONLY' }) });
       log('PROPERTY_RESULT', { state: result.state, classification: result.classification, evidenceCount: transit.activeMajor.length }); return result;
-    } catch (error) { log('PROPERTY_RESULT', { state: 'FAILED', safeErrorCode: error && error.code || 'PROPERTY_CALCULATION_FAILED' }); throw error; }
+    } catch (error) {
+      log('PROPERTY_RESULT', { stage, state: 'FAILED', safeErrorCode: error && error.code || 'PROPERTY_CALCULATION_FAILED', errorClass: error && error.name || 'Error' });
+      throw error;
+    }
   }
 }
 
-module.exports = { PropertyAnswerService, PropertyIntent, natalEvidence, d4Evidence, dashaEvidence, transitEvidence, calibration, propertyTransitStateBoundaries, classify };
+module.exports = { PropertyAnswerService, PropertyIntent, natalEvidence, d4Evidence, dashaEvidence, transitEvidence, ashtakavargaEvidence, calibration, propertyTransitStateBoundaries, classify };

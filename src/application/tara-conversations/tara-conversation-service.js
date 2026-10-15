@@ -23,6 +23,7 @@ function publicAction(metadata) {
 }
 function publicMessage(row, { allowPremiumAction = true } = {}) { return Object.freeze({ messageId: row.id, role: row.role, content: row.content, createdAt: row.created_at, action: allowPremiumAction ? publicAction(row.metadata) : null }); }
 function diagnostic(log, event, { state = null, action = null, messageId = null, birthProfileId = null } = {}) { if (typeof log === 'function') log({ event, state, actionType: action && action.type || null, actionLabel: action && action.label || null, messageId, birthProfileId }); }
+function taraState(response) { return response && ((response.career && response.career.state) || (response.property && response.property.state)) || null; }
 
 class TaraConversationService {
   constructor({ authUserResolver, birthProfileService, transactionExecutor, taraOrchestrator, careerEntitlementResolver = null, idGenerator, clock } = {}) {
@@ -38,11 +39,11 @@ class TaraConversationService {
   async message({ principal, birthProfileId, conversationId, body = {}, diagnosticLog = null } = {}) { const message = required(body.message, 'INVALID_TARA_MESSAGE'); if (message.length > 2000) fail('INVALID_TARA_MESSAGE'); const { verified, user } = await this._user(principal); await this._profile(verified, user, birthProfileId); const existing = await this.get({ principal: verified, birthProfileId, conversationId }); const context = existing.messages.slice(-8).map((item) => ({ role: item.role === 'user' ? 'USER' : 'ASSISTANT', text: item.content })); const now = this.clock(); const userMessage = publicMessage((await this._runtime(verified, (db) => db.query('insert into app.tara_conversation_messages (id,conversation_id,role,content,created_at) values ($1,$2,$3,$4,$5) returning id,role,content,created_at', [this.ids(), conversationId, 'user', message, now]))).rows[0]);
     let response;
     try { response = await this.tara.respond({ principal: verified, birthProfileId, message, conversationContext: context, language: body.language || 'ENGLISH', diagnosticLog }); } catch (error) { throw error; }
-    diagnostic(diagnosticLog, 'TARA_BACKEND_SERVICE', { state: response.career && response.career.state || null, action: response.action, birthProfileId });
+    diagnostic(diagnosticLog, 'TARA_BACKEND_SERVICE', { state: taraState(response), action: response.action, birthProfileId });
     const content = response.message;
     const metadata = response.action ? { action: response.action } : {};
     const assistantMessage = publicMessage((await this._runtime(verified, (db) => db.query('insert into app.tara_conversation_messages (id,conversation_id,role,content,created_at,metadata) values ($1,$2,$3,$4,$5,$6::jsonb) returning id,role,content,created_at,metadata', [this.ids(), conversationId, 'assistant', content, this.clock(), JSON.stringify(metadata)]))).rows[0]);
-    diagnostic(diagnosticLog, 'TARA_BACKEND_PERSIST', { state: response.career && response.career.state || null, action: assistantMessage.action, messageId: assistantMessage.messageId, birthProfileId });
+    diagnostic(diagnosticLog, 'TARA_BACKEND_PERSIST', { state: taraState(response), action: assistantMessage.action, messageId: assistantMessage.messageId, birthProfileId });
     await this._runtime(verified, (db) => db.query('update app.tara_conversations set title=case when title=$4 then $5 else title end,updated_at=$6 where id=$1 and user_id=$2 and birth_profile_id=$3', [conversationId, user.id, birthProfileId, 'New conversation', titleFor(message), this.clock()]));
     return Object.freeze({ userMessage, assistantMessage, tara: response });
   }

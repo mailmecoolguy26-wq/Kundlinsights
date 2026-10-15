@@ -8,6 +8,7 @@ function intentFor(message) {
   if (/sell|sale|bech|bechna/.test(text)) return PropertyIntent.PROPERTY_SALE_TIMING;
   if (/loan|mortgage|debt|karz/.test(text)) return PropertyIntent.PROPERTY_LOAN_CONTEXT;
   if (/inherit|inheritance|virasat|shared property/.test(text)) return PropertyIntent.PROPERTY_INHERITANCE_CONTEXT;
+  if (/stronger (?:period|window)|stronger.*(?:period|window)|(?:acha|favourable|favorable|better) (?:period|window)/.test(text)) return PropertyIntent.PROPERTY_STRONGER_WINDOW;
   if (/when|kab|timing|stronger|acha time|better period|buy|purchase|kharid|lene/.test(text)) return PropertyIntent.PROPERTY_PURCHASE_TIMING;
   return PropertyIntent.PROPERTY_CURRENT_STRENGTH;
 }
@@ -22,6 +23,20 @@ function answer(result, language) {
 }
 class TaraPropertyCapability {
   constructor({ propertyAnswerService } = {}) { if (!propertyAnswerService || typeof propertyAnswerService.answer !== 'function') throw new TypeError('INVALID_TARA_PROPERTY_CAPABILITY'); this.property = propertyAnswerService; Object.freeze(this); }
-  async respond({ principal, birthProfileId, message, language = 'ENGLISH', diagnosticLog = null } = {}) { const intent = intentFor(message); const result = await this.property.answer({ principal, birthProfileId, intent, diagnosticLog }); return Object.freeze({ intent, answerability: result.answerability, state: result.state, message: answer(result, language), property: result, action: null }); }
+  async respond({ principal, birthProfileId, message, language = 'ENGLISH', diagnosticLog = null } = {}) {
+    const intent = intentFor(message);
+    const log = (event, fields = {}) => {
+      if (typeof diagnosticLog === 'function') diagnosticLog(Object.freeze({ event, birthProfileId, intent, ...fields }));
+    };
+    log('PROPERTY_ROUTE', { stage: 'ROUTE', state: 'ROUTED' });
+    try {
+      const result = await this.property.answer({ principal, birthProfileId, intent, diagnosticLog });
+      log('PROPERTY_TARA_RESPONSE', { stage: 'RESPONSE', state: 'SUCCEEDED', evidenceCount: result.evidence && result.evidence.transit && result.evidence.transit.activeMajor.length || 0 });
+      return Object.freeze({ intent, answerability: result.answerability, state: result.state, message: answer(result, language), property: result, action: null });
+    } catch (error) {
+      log('PROPERTY_TARA_RESPONSE', { stage: 'RESPONSE', state: 'FAILED', safeErrorCode: error && error.code || 'PROPERTY_CALCULATION_FAILED', errorClass: error && error.name || 'Error' });
+      throw error;
+    }
+  }
 }
 module.exports = { TaraPropertyCapability, intentFor };

@@ -19,6 +19,7 @@ void main() {
   late ProfileController profiles;
   late _MemoryTaraRepository repository;
   late CareerChatController controller;
+  late CareerExplanationLanguageController language;
 
   setUp(() async {
     auth = AuthController(_AuthRepository());
@@ -26,11 +27,8 @@ void main() {
     repository = _MemoryTaraRepository();
     await auth.restore();
     await profiles.load();
-    controller = CareerChatController(
-      repository,
-      profiles,
-      CareerExplanationLanguageController(_LanguageStorage()),
-    );
+    language = CareerExplanationLanguageController(_LanguageStorage());
+    controller = CareerChatController(repository, profiles, language);
   });
 
   tearDown(() {
@@ -203,6 +201,45 @@ void main() {
       );
     },
   );
+
+  testWidgets('uses neutral English chart-evidence loading copy for Ask Tara', (
+    tester,
+  ) async {
+    repository.sendGate = Completer<void>();
+    await tester.pumpWidget(
+      MaterialApp(home: CareerChatScreen(controller: controller)),
+    );
+    await tester.enterText(find.byType(TextField), 'Property timing?');
+    await tester.tap(find.byTooltip('Send'));
+    await tester.pump();
+
+    expect(find.text('Tara is checking your chart evidence…'), findsOneWidget);
+    expect(find.textContaining('Career evidence'), findsNothing);
+    repository.sendGate!.complete();
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets(
+    'uses neutral Hinglish chart-evidence loading copy for Ask Tara',
+    (tester) async {
+      await language.setLanguage(CareerExplanationLanguage.hinglish);
+      repository.sendGate = Completer<void>();
+      await tester.pumpWidget(
+        MaterialApp(home: CareerChatScreen(controller: controller)),
+      );
+      await tester.enterText(find.byType(TextField), 'Property timing?');
+      await tester.tap(find.byTooltip('Send'));
+      await tester.pump();
+
+      expect(
+        find.text('Tara aapke chart evidence ko check kar rahi hai…'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Career evidence'), findsNothing);
+      repository.sendGate!.complete();
+      await tester.pumpAndSettle();
+    },
+  );
 }
 
 class _MemoryTaraRepository implements CareerChatRepository {
@@ -212,6 +249,7 @@ class _MemoryTaraRepository implements CareerChatRepository {
   int _next = 0;
   Object? sendFailure;
   bool returnStaleHistoryAfterSend = false;
+  Completer<void>? sendGate;
 
   @override
   Future<TaraConversationSummary> createConversation({
@@ -268,6 +306,8 @@ class _MemoryTaraRepository implements CareerChatRepository {
     profileIds.add(birthProfileId);
     final failure = sendFailure;
     if (failure != null) throw failure;
+    final gate = sendGate;
+    if (gate != null) await gate.future;
     final conversation = _conversations[conversationId]!;
     if (conversation.birthProfileId != birthProfileId) {
       throw StateError('Profile mismatch');

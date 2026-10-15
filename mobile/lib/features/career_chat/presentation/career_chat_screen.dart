@@ -498,8 +498,8 @@ class _SendingBubble extends StatelessWidget {
       const SizedBox(width: 10),
       Text(
         hinglish
-            ? 'Aapki Career evidence check ho rahi hai…'
-            : 'Checking your Career evidence…',
+            ? 'Tara aapke chart evidence ko check kar rahi hai…'
+            : 'Tara is checking your chart evidence…',
         style: _Styles.body,
       ),
     ],

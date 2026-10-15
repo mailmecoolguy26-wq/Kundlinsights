@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { PropertyIntent, natalEvidence, dashaEvidence, calibration, propertyTransitStateBoundaries, classify } = require('../../src/application/property');
+const { PropertyIntent, natalEvidence, dashaEvidence, ashtakavargaEvidence, calibration, propertyTransitStateBoundaries, classify } = require('../../src/application/property');
 const { TaraPropertyCapability, TaraOrchestrator, intentFor } = require('../../src/application/tara');
 
 function houses({ fourthLord = 'Moon', secondLord = 'Mars', occupants = ['Moon'] } = {}) {
@@ -60,8 +60,19 @@ test('Property Life Event calibration remains profile-factual context and never 
   assert.equal(calibration([{ eventType: 'PROPERTY_PURCHASE' }, { eventType: 'PROPERTY_PURCHASE' }]).recurringPattern, false);
 });
 
+test('Property Ashtakavarga context accepts the raw engine rashi shape and leaves missing values neutral', () => {
+  const chart = houses();
+  const raw = { rawSarvashtakavarga: { rashis: [{ rashiIndex: 2, favorableMarkCount: 31 }] } };
+  const evidence = ashtakavargaEvidence(raw, chart);
+  assert.equal(evidence.policy, 'CONTEXT_ONLY_NO_THRESHOLDS');
+  assert.equal(evidence.sav.find((item) => item.house === 2).bindu, 31);
+  assert.equal(evidence.sav.find((item) => item.house === 4).bindu, null);
+});
+
 test('Property Tara routing keeps purchase timing grounded, handles Hinglish, and returns a safe sale limitation', async () => {
   assert.equal(intentFor('Property lene ka acha time kab hai?'), PropertyIntent.PROPERTY_PURCHASE_TIMING);
+  assert.equal(intentFor('Ghar kharidne ka stronger period kab hai?'), PropertyIntent.PROPERTY_STRONGER_WINDOW);
+  assert.equal(intentFor('Abhi property ke liye time kaisa hai?'), PropertyIntent.PROPERTY_CURRENT_STRENGTH);
   assert.equal(intentFor('Property ke liye loan involvement dikh raha hai?'), PropertyIntent.PROPERTY_LOAN_CONTEXT);
   const calls = []; const capability = new TaraPropertyCapability({ propertyAnswerService: { answer: async (input) => { calls.push(input); return { intent: input.intent, answerability: input.intent === PropertyIntent.PROPERTY_SALE_TIMING ? 'LIMITED_EVIDENCE' : 'SUPPORTED', classification: 'MODERATE', strongerWindow: { start: '2026-11-01T00:00:00.000Z', end: '2026-12-01T00:00:00.000Z' } }; } } });
   const purchase = await capability.respond({ principal: {}, birthProfileId: 'profile-a', message: 'Property lene ka acha time kab hai?', language: 'HINGLISH' });
