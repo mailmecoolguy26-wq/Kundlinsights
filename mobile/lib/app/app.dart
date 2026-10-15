@@ -29,6 +29,7 @@ import '../features/readings/career_explanation_language.dart';
 import '../features/readings/astrology_presentation_copy.dart';
 import '../features/readings/career_reading_generation_controller.dart';
 import '../features/career_events/career_event_controller.dart';
+import '../features/life_events/life_event_controller.dart';
 import '../features/payments/career_premium_product_controller.dart';
 import '../features/payments/data/career_premium_product_loader.dart';
 import '../features/payments/career_premium_purchase_controller.dart';
@@ -134,6 +135,7 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
     final careerEvents = ref.read(
       careerEventControllerProvider((authController, profiles)),
     );
+    final lifeEvents = ref.read(lifeEventControllerProvider((authController, profiles)));
     _careerChat = ref.read(
       careerChatControllerProvider((profiles, _careerExplanationLanguage)),
     );
@@ -174,6 +176,7 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
       premiumProduct,
       premiumPurchase,
       careerEvents,
+      lifeEvents: lifeEvents,
       analytics: analytics,
       careerChat: _careerChat,
       careerAnswers: _careerAnswers,

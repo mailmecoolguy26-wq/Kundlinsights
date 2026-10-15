@@ -42,20 +42,20 @@ class CareerHubScreen extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         _QuestionCard(
-          icon: Icons.calendar_month_outlined,
-          title: 'When is career activity stronger?',
-          subtitle: 'See periods containing more currently supported timing signals.',
-          onTap: () => context.push(
-            '/career/answer/${CareerQuestionType.careerActivityTiming.wireName}',
-          ),
-        ),
-        const SizedBox(height: 12),
-        _QuestionCard(
           icon: Icons.auto_graph_outlined,
           title: 'Stronger Career Window',
           subtitle: 'A period where multiple career-related signals align.',
           onTap: () => context.push(
             '/career/answer/${CareerQuestionType.jobFavourabilityTiming.wireName}',
+          ),
+        ),
+        const SizedBox(height: 12),
+        _QuestionCard(
+          icon: Icons.calendar_month_outlined,
+          title: 'Career Activity',
+          subtitle: 'Additional context from currently supported timing signals.',
+          onTap: () => context.push(
+            '/career/answer/${CareerQuestionType.careerActivityTiming.wireName}',
           ),
         ),
         const SizedBox(height: 28),
@@ -72,9 +72,9 @@ class CareerHubScreen extends StatelessWidget {
         const _ComingSoonCards(),
         const SizedBox(height: 28),
         OutlinedButton.icon(
-          onPressed: () => context.push('/career-calibration'),
+          onPressed: () => context.push('/life-events?initialCategory=CAREER_BUSINESS'),
           icon: const Icon(Icons.history_outlined),
-          label: const Text('ADD CAREER HISTORY'),
+          label: const Text('LIFE EVENTS'),
           style: OutlinedButton.styleFrom(
             foregroundColor: const Color(0xFFD6B15A),
             side: const BorderSide(color: Color(0xFF3F8179)),

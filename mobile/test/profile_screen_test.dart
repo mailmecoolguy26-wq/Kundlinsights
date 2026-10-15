@@ -99,6 +99,7 @@ void main() {
       _app(profileController, authController, null, push),
     );
     await tester.pump();
+    await tester.scrollUntilVisible(find.byType(Switch).last, 200);
     final switches = find.byType(Switch);
     await tester.tap(switches.at(0));
     await tester.pump();

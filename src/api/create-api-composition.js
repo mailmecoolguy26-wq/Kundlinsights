@@ -10,7 +10,8 @@ const { VimshottariService, LatestCareerReadingInsightSource } = require('../app
 const { TransitSnapshotService, LatestCareerReadingTransitSource } = require('../application/transit-snapshot');
 const { AshtakavargaService } = require('../application/ashtakavarga');
 const { CareerEventService, CareerEventAstrologyService, CareerPatternComparisonService, CareerFutureRecurrenceService, CareerReadingContextBuilder } = require('../application/career-events');
-const { PostgresUserRepository, PostgresBirthProfileRepository, PostgresReadingRepository, PostgresEntitlementRepository, PostgresCareerEventRepository, PostgresCareerEventObservationRepository, PostgresPurchaseRepository, PostgresSubscriptionRepository, PostgresProfileEntitlementRepository, PostgresPaymentEventRepository, PostgresProviderPaymentOrderRepository, PostgresNotificationRepository } = require('../persistence');
+const { LifeEventService } = require('../application/life-events');
+const { PostgresUserRepository, PostgresBirthProfileRepository, PostgresReadingRepository, PostgresEntitlementRepository, PostgresCareerEventRepository, PostgresCareerEventObservationRepository, PostgresLifeEventRepository, PostgresPurchaseRepository, PostgresSubscriptionRepository, PostgresProfileEntitlementRepository, PostgresPaymentEventRepository, PostgresProviderPaymentOrderRepository, PostgresNotificationRepository } = require('../persistence');
 const { PostgresPaymentUnitOfWork } = require('../payment/unit-of-work');
 const { PurchaseProviderRegistry, PurchaseVerificationService } = require('../payment/purchase-services');
 const { ProfileUnlockAssignmentService } = require('../payment/profile-unlock-assignment-service');
@@ -78,6 +79,7 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
       providerPaymentOrders: new PostgresProviderPaymentOrderRepository({ db: client }),
       careerEvents: new PostgresCareerEventRepository({ db: client }),
       careerEventObservations: new PostgresCareerEventObservationRepository({ db: client }),
+      lifeEvents: new PostgresLifeEventRepository({ db: client }),
       envelopes,
       deks,
     };
@@ -95,6 +97,7 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   };
   const birthProfileService = new SecureBirthProfileService({ authUserResolver: userResolver, transactionExecutor: tx, repositories, cryptoCoordinator, idGenerator, clock });
   const careerEventService = new CareerEventService({ authUserResolver: userResolver, transactionExecutor: tx, repositories, birthProfileService, idGenerator, clock });
+  const lifeEventService = new LifeEventService({ authUserResolver: userResolver, transactionExecutor: tx, repositories, birthProfileService, idGenerator, clock });
   const natalSummaryService = new NatalSummaryService({ birthProfileService, astronomicalEngine });
   const divisionalChartService = new DivisionalChartService({ birthProfileService, astronomicalEngine });
   const ashtakavargaService = new AshtakavargaService({ birthProfileService, astronomicalEngine });
@@ -165,9 +168,9 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   const razorpayPaymentService = razorpay ? new RazorpayPaymentService({ authUserResolver: userResolver, birthProfileRepository: repositories().birthProfiles, providerOrders: repositories().providerPaymentOrders, razorpayClient: razorpay.apiClient || new RazorpayApiClient({ keyId: razorpay.keyId, keySecret: razorpay.keySecret }), productCatalog: createCareerPremiumRazorpayProductCatalog(razorpay.products), purchaseService, unitOfWork: paymentUnitOfWork, idGenerator, clock, keyId: razorpay.keyId, keySecret: razorpay.keySecret, webhookSecret: razorpay.webhookSecret, environment: razorpay.environment }) : null;
   const { PlaceResolutionService } = require('./place-resolution-service');
   const placeResolutionService = placeResolver ? new PlaceResolutionService({ birthPlaceResolver: placeResolver }) : null;
-  const api = createApi({ authVerifier, userResolver: { resolve: userResolver }, birthProfileService, careerEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, ashtakavargaService, secureReadingService, careerAnswerService, careerChatOrchestrator, taraConversationService, purchaseService, razorpayPaymentService, appleNotificationService, googleRtdnService, notificationSelfService, placeResolutionService, requestIdGenerator: idGenerator, corsAllowlist, isReady, logger, bodyLimit });
+  const api = createApi({ authVerifier, userResolver: { resolve: userResolver }, birthProfileService, careerEventService, lifeEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, ashtakavargaService, secureReadingService, careerAnswerService, careerChatOrchestrator, taraConversationService, purchaseService, razorpayPaymentService, appleNotificationService, googleRtdnService, notificationSelfService, placeResolutionService, requestIdGenerator: idGenerator, corsAllowlist, isReady, logger, bodyLimit });
   api.apiRuntime = { astronomicalEngine, canonicalSiderealSunSampler };
-  return Object.freeze({ api, services: Object.freeze({ birthProfileService, careerEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, secureReadingService, careerAnswerService, userResolver, transactionExecutor: tx }) });
+  return Object.freeze({ api, services: Object.freeze({ birthProfileService, careerEventService, lifeEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, secureReadingService, careerAnswerService, userResolver, transactionExecutor: tx }) });
 }
 
 module.exports = { createApiComposition };

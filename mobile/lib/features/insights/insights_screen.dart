@@ -35,20 +35,13 @@ class InsightsScreen extends StatelessWidget {
             children: [
               const _Header(),
               const SizedBox(height: 28),
-              const _SectionLabel('AVAILABLE NOW'),
+              const _SectionLabel('WHAT IS CHANGING?'),
               const SizedBox(height: 10),
               _TransitCard(
                 copy: copy,
                 onTap: () => context.pushNamed('current-transits'),
               ),
               const SizedBox(height: 12),
-              _CareerInsightCard(
-                onTap: onOpenCareer ?? () => context.push('/career'),
-              ),
-              if (onOpenCareerChat != null) ...[
-                const SizedBox(height: 12),
-                _CareerChatCard(onTap: onOpenCareerChat!),
-              ],
               const SizedBox(height: 28),
               const _SectionLabel('COMING NEXT'),
               const SizedBox(height: 10),
@@ -71,52 +64,6 @@ class InsightsScreen extends StatelessWidget {
   }
 }
 
-class _CareerChatCard extends StatelessWidget {
-  const _CareerChatCard({required this.onTap});
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    button: true,
-    label: 'Career Chat',
-    child: Material(
-      color: InsightsScreen.abyss,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0x66255C57)),
-          ),
-          child: const Row(
-            children: [
-              _IconTile(Icons.forum_outlined),
-              SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Career Chat', style: _Styles.cardTitle),
-                    SizedBox(height: 3),
-                    Text(
-                      'Ask about your Career timing',
-                      style: _Styles.cardBody,
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right, color: Color(0xFF35B9AC)),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
 class _Header extends StatelessWidget {
   const _Header();
   @override
@@ -125,10 +72,10 @@ class _Header extends StatelessWidget {
     children: [
       Text('INSIGHTS', style: _Styles.eyebrow),
       SizedBox(height: 6),
-      Text('Explore Your Insights', style: _Styles.title),
+      Text('What is changing?', style: _Styles.title),
       SizedBox(height: 8),
       Text(
-        'Discover what your chart reveals across timing, career, relationships, and wealth.',
+        'See calculated current transits and the changes they bring into focus.',
         style: _Styles.body,
       ),
     ],
@@ -193,53 +140,6 @@ class _TransitCard extends StatelessWidget {
                   Icon(Icons.chevron_right, color: InsightsScreen.gold),
                 ],
               ),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
-class _CareerInsightCard extends StatelessWidget {
-  const _CareerInsightCard({required this.onTap});
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    button: true,
-    label: 'Career, open Career and Business',
-    child: Material(
-      color: InsightsScreen.abyss,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0x66255C57)),
-          ),
-          child: const Row(
-            children: [
-              _IconTile(Icons.work_outline),
-              SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Career', style: _Styles.cardTitle),
-                    SizedBox(height: 3),
-                    Text(
-                      'Career context, activity timing, and history',
-                      style: _Styles.cardBody,
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(width: 8),
-              _Pill('OPEN CAREER'),
             ],
           ),
         ),

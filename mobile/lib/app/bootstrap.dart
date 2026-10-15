@@ -45,6 +45,9 @@ import '../features/readings/career_reading_generation_controller.dart';
 import '../features/career_events/data/career_event_api_repository.dart';
 import '../features/career_events/domain/career_event_repository.dart';
 import '../features/career_events/career_event_controller.dart';
+import '../features/life_events/data/life_event_api_repository.dart';
+import '../features/life_events/domain/life_event_repository.dart';
+import '../features/life_events/life_event_controller.dart';
 import '../features/payments/data/apple_store_purchase_service.dart';
 import '../features/payments/data/debug_local_storekit_entitlement_session.dart';
 import '../features/payments/data/google_play_purchase_service.dart';
@@ -82,6 +85,7 @@ Future<void> bootstrap() async {
   final ReadingRepository readingRepository;
   final CareerReadingGenerationRepository generationRepository;
   final CareerEventRepository careerEventRepository;
+  final LifeEventRepository lifeEventRepository;
   final PaymentApiClient paymentApi;
   final CareerChatRepository careerChatRepository;
   final CareerAnswerRepository careerAnswerRepository;
@@ -130,6 +134,7 @@ Future<void> bootstrap() async {
     readingRepository = const UnavailableReadingRepository();
     generationRepository = _UnavailableGenerationRepository();
     careerEventRepository = const UnavailableCareerEventRepository();
+    lifeEventRepository = const UnavailableLifeEventRepository();
     paymentApi = const UnavailablePaymentApiClient();
     careerChatRepository = const UnavailableCareerChatRepository();
     careerAnswerRepository = const UnavailableCareerAnswerRepository();
@@ -152,6 +157,7 @@ Future<void> bootstrap() async {
     readingRepository = ReadingApiRepository(apiClient);
     generationRepository = CareerReadingGenerationApiRepository(apiClient);
     careerEventRepository = CareerEventApiRepository(apiClient);
+    lifeEventRepository = LifeEventApiRepository(apiClient);
     paymentApi = AuthenticatedPaymentApiClient(apiClient);
     careerChatRepository = CareerChatApiRepository(apiClient);
     final answerApiRepository = CareerAnswerApiRepository(apiClient);
@@ -219,6 +225,7 @@ Future<void> bootstrap() async {
           generationRepository,
         ),
         careerEventRepositoryProvider.overrideWithValue(careerEventRepository),
+        lifeEventRepositoryProvider.overrideWithValue(lifeEventRepository),
         appleStorePurchaseServiceProvider.overrideWithValue(
           storePurchaseService,
         ),

@@ -25,7 +25,7 @@ void main() {
       expect(find.text('CAREER & BUSINESS'), findsOneWidget);
       expect(find.text('What do you want clarity on?'), findsOneWidget);
       expect(find.text('My current career phase'), findsOneWidget);
-      expect(find.text('When is career activity stronger?'), findsOneWidget);
+      expect(find.text('Career Activity'), findsOneWidget);
       expect(find.text('Stronger Career Window'), findsOneWidget);
       await tester.drag(find.byType(ListView), const Offset(0, -360));
       await tester.pump();

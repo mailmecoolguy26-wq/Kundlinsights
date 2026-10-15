@@ -208,7 +208,7 @@ void main() {
     await tester.pumpAndSettle();
     for (final item in const [
       ('Kundli', 'My Kundli'),
-      ('Insights', 'Career'),
+      ('Insights', 'Current Transits'),
       ('Readings', 'My Readings'),
       ('Profile', 'Profile & Settings'),
     ]) {
@@ -412,11 +412,13 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Birth Profiles'), findsOneWidget);
+      expect(find.text('Life Events'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Sign out'), 200);
       expect(find.text('Sign out'), findsOneWidget);
       expect(find.text('Language'), findsNothing);
       expect(find.text('Privacy'), findsNothing);
       expect(find.text('Terms'), findsNothing);
-      expect(find.byIcon(Icons.chevron_right), findsNWidgets(2));
+      expect(find.byIcon(Icons.chevron_right), findsNWidgets(3));
     },
   );
 
@@ -432,7 +434,10 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('home-ask-tara-fab')));
     await tester.pumpAndSettle();
     expect(find.text('Ask Tara'), findsOneWidget);
-    expect(find.text('What does my chart indicate about relationships?'), findsOneWidget);
+    expect(
+      find.text('What does my chart indicate about relationships?'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('Home profile selector preserves profile navigation', (

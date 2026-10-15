@@ -27,6 +27,9 @@ import '../../features/payments/razorpay_career_premium_controller.dart';
 import '../../features/payments/presentation/career_premium_paywall.dart';
 import '../../features/career_events/career_event_controller.dart';
 import '../../features/career_events/presentation/career_calibration_screen.dart';
+import '../../features/life_events/domain/life_event.dart';
+import '../../features/life_events/life_event_controller.dart';
+import '../../features/life_events/presentation/life_events_screen.dart';
 import '../../features/vimshottari/presentation/vimshottari_timeline_screen.dart';
 import '../../features/vimshottari/presentation/dasha_period_insight_screen.dart';
 import '../../features/vimshottari/presentation/dasha_hierarchy_screen.dart';
@@ -68,6 +71,7 @@ GoRouter createAppRouter(
   CareerPremiumProductController premiumProduct,
   CareerPremiumPurchaseController premiumPurchase,
   CareerEventController careerEvents, {
+  required LifeEventController lifeEvents,
   Analytics? analytics,
   required CareerChatController careerChat,
   required CareerAnswerController careerAnswers,
@@ -117,6 +121,7 @@ GoRouter createAppRouter(
     return null;
   },
   routes: [
+    GoRoute(path: '/life-events', builder: (context, state) => LifeEventsScreen(controller: lifeEvents, initialCategory: state.uri.queryParameters['initialCategory'] == 'CAREER_BUSINESS' ? LifeEventCategory.careerBusiness : null)),
     GoRoute(
       path: '/career',
       name: 'career-hub',

@@ -86,6 +86,12 @@ class ProfileScreen extends StatelessWidget {
                   subtitle: 'Manage saved birth profiles',
                   onTap: () => context.push('/profiles'),
                 ),
+                const SizedBox(height: 12),
+                _SettingsRow(
+                  title: 'Life Events',
+                  subtitle: 'Manage milestones for this birth profile',
+                  onTap: () => context.push('/life-events'),
+                ),
                 if (careerExplanationLanguage != null) ...[
                   const SizedBox(height: 12),
                   _CareerReadingLanguageSelector(

@@ -283,8 +283,8 @@ class _WhatMattersNowHero extends StatelessWidget {
           const SizedBox(height: 18),
           if (!state.isLoading)
             TextButton(
-              key: const ValueKey('home-what-matters-career-cta'),
-              onPressed: () => context.push('/career'),
+              key: const ValueKey('home-what-matters-ask-tara-cta'),
+              onPressed: () => context.push('/career-chat'),
               style: TextButton.styleFrom(
                 foregroundColor: _HomeColors.abyss,
                 backgroundColor: const Color(0xFF35B9AC),
@@ -294,7 +294,7 @@ class _WhatMattersNowHero extends StatelessWidget {
                 ),
               ),
               child: Text(
-                'EXPLORE CAREER & BUSINESS  →',
+                'ASK TARA  →',
                 style: _labelStyle(color: _HomeColors.abyss),
               ),
             ),
@@ -326,8 +326,8 @@ _CareerHeroContent _whatMattersNowState(
   if (careerEvents.state != CareerEventLoadState.loaded ||
       readings.listState != ReadingListState.loaded) {
     return const _CareerHeroContent(
-      headline: 'Your next insight is ready to explore',
-      body: 'Preparing the insights available for this birth profile.',
+      headline: 'Your chart has new insights to explore',
+      body: 'Preparing this profile’s available insights.',
       isLoading: true,
     );
   }
@@ -337,12 +337,12 @@ _CareerHeroContent _whatMattersNowState(
   if (hasCareerReading) {
     return const _CareerHeroContent(
       headline: 'Your Career Reading is ready',
-      body: 'Explore it to understand your current Career context.',
+      body: 'Ask Tara about the current Career context in this reading.',
     );
   }
   return const _CareerHeroContent(
-    headline: 'Your next insight is ready to explore',
-    body: 'Choose an area of life below to see what your chart indicates right now.',
+    headline: 'Your chart has new insights to explore',
+    body: 'Ask Tara, or choose an area of life below.',
   );
 }
 
@@ -364,15 +364,15 @@ class _LifeAreaCards extends StatelessWidget {
         key: const ValueKey('home-life-area-career'),
         icon: Icons.work_outline,
         title: 'Career & Business',
-        subtitle: 'Understand your current phase, timing and guidance.',
+        subtitle: 'Career · Business',
         onTap: () => context.push('/career'),
       ),
       const SizedBox(height: 10),
       const _LifeAreaCard(
         key: ValueKey('home-life-area-relationships'),
         icon: Icons.favorite_border,
-        title: 'Relationships',
-        subtitle: 'Relationship insights are coming next.',
+        title: 'Relationships & Family',
+        subtitle: 'Marriage · Child Birth',
         comingSoon: true,
       ),
       const SizedBox(height: 10),
@@ -380,7 +380,7 @@ class _LifeAreaCards extends StatelessWidget {
         key: ValueKey('home-life-area-wealth'),
         icon: Icons.account_balance_wallet_outlined,
         title: 'Wealth & Property',
-        subtitle: 'Wealth and property insights are coming next.',
+        subtitle: 'Property · Vehicle',
         comingSoon: true,
       ),
       const SizedBox(height: 10),
@@ -555,7 +555,7 @@ class _CareerPremiumCard extends StatelessWidget {
               key: const ValueKey('home-career-premium-cta'),
               onPressed: () => context.push('/career'),
               child: Text(
-                active ? 'VIEW' : 'UNLOCK',
+                active ? 'ACTIVE' : 'VIEW / UNLOCK',
                 style: _labelStyle(color: _HomeColors.gold, fontSize: 9),
               ),
             ),
