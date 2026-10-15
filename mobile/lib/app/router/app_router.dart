@@ -105,31 +105,36 @@ GoRouter createAppRouter(
         location == '/login' ||
         location == '/signup' ||
         location == '/verify-otp';
-    if (!splashLaunchGate.isOpen) {
-      return location == '/splash' ? null : '/splash';
+    final destination = !splashLaunchGate.isOpen
+        ? (location == '/splash' ? null : '/splash')
+        : auth == AuthStatus.initializing || auth == AuthStatus.loading
+        ? (location == '/splash' || authRoute ? null : '/splash')
+        : auth != AuthStatus.authenticated
+        ? (authRoute ? null : '/login')
+        : profiles.state == ProfileLoadState.loading
+        ? (location == '/profiles-loading' ? null : '/profiles-loading')
+        : profiles.state == ProfileLoadState.error
+        ? (location == '/profiles-error' ? null : '/profiles-error')
+        : profiles.isEmpty
+        ? (location == '/onboarding' ? null : '/onboarding')
+        : location == '/splash' ||
+              location == '/profiles-loading' ||
+              authRoute ||
+              location == '/onboarding'
+        ? '/home'
+        : null;
+    if (kDebugMode) {
+      debugPrint(
+        'AUTH_ROUTER_DECISION '
+        'authEvent=router '
+        'sessionPresent=${auth == AuthStatus.authenticated} '
+        'userPresent=${authController.state.subject != null} '
+        'accessTokenPresent=unknown '
+        'refreshTokenPresent=unknown '
+        'routerDestination=${destination ?? location}',
+      );
     }
-    if (auth == AuthStatus.initializing || auth == AuthStatus.loading) {
-      return location == '/splash' || authRoute ? null : '/splash';
-    }
-    if (auth != AuthStatus.authenticated) {
-      return authRoute ? null : '/login';
-    }
-    if (profiles.state == ProfileLoadState.loading) {
-      return location == '/profiles-loading' ? null : '/profiles-loading';
-    }
-    if (profiles.state == ProfileLoadState.error) {
-      return location == '/profiles-error' ? null : '/profiles-error';
-    }
-    if (profiles.isEmpty) {
-      return location == '/onboarding' ? null : '/onboarding';
-    }
-    if (location == '/splash' ||
-        location == '/profiles-loading' ||
-        authRoute ||
-        location == '/onboarding') {
-      return '/home';
-    }
-    return null;
+    return destination;
   },
   routes: [
     GoRoute(

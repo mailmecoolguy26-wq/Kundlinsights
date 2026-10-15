@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../domain/auth_repository.dart';
@@ -58,6 +59,7 @@ class SupabaseAuthRepository implements AuthRepository, PhoneOtpAuthRepository {
   final _states = StreamController<AuthSnapshot>.broadcast();
   late final StreamSubscription<SupabaseAuthEvent> _subscription;
   bool _recoveringStoredSession = false;
+  bool _hasPublishedAuthenticatedSession = false;
 
   @override
   Stream<AuthSnapshot> get states => _states.stream;
@@ -68,13 +70,32 @@ class SupabaseAuthRepository implements AuthRepository, PhoneOtpAuthRepository {
     _recoveringStoredSession =
         bootstrap.snapshot.status == AuthStatus.authenticated &&
         bootstrap.requiresRecovery;
-    return _recoveringStoredSession
+    final result = _recoveringStoredSession
         ? const AuthSnapshot(AuthStatus.initializing)
         : bootstrap.snapshot;
+    if (result.status == AuthStatus.authenticated) {
+      _hasPublishedAuthenticatedSession = true;
+    }
+    _debug('AUTH_SESSION_RECEIVED', snapshot: result);
+    return result;
   }
 
   void _handleEvent(SupabaseAuthEvent event) {
+    _debug('AUTH_STATE_CHANGED', snapshot: event.snapshot, event: event.type);
     if (!_recoveringStoredSession) {
+      // Supabase's initial event is a bootstrap snapshot, not a destructive
+      // lifecycle event. Never let a late, stale empty snapshot replace a
+      // session that was just established by OTP verification.
+      if (event.type == SupabaseAuthEventType.initialSession &&
+          event.snapshot.status == AuthStatus.unauthenticated &&
+          _hasPublishedAuthenticatedSession) {
+        return;
+      }
+      if (event.snapshot.status == AuthStatus.authenticated) {
+        _hasPublishedAuthenticatedSession = true;
+      } else if (event.type == SupabaseAuthEventType.signedOut) {
+        _hasPublishedAuthenticatedSession = false;
+      }
       _states.add(event.snapshot);
       return;
     }
@@ -83,11 +104,13 @@ class SupabaseAuthRepository implements AuthRepository, PhoneOtpAuthRepository {
       case SupabaseAuthEventType.signedIn:
         if (event.snapshot.status == AuthStatus.authenticated) {
           _recoveringStoredSession = false;
+          _hasPublishedAuthenticatedSession = true;
           _states.add(event.snapshot);
         }
         return;
       case SupabaseAuthEventType.signedOut:
         _recoveringStoredSession = false;
+        _hasPublishedAuthenticatedSession = false;
         _states.add(const AuthSnapshot(AuthStatus.unauthenticated));
         return;
       case SupabaseAuthEventType.initialSession:
@@ -96,7 +119,12 @@ class SupabaseAuthRepository implements AuthRepository, PhoneOtpAuthRepository {
     }
   }
 
-  void _handleStreamError(Object _, StackTrace stackTrace) {
+  void _handleStreamError(Object error, StackTrace stackTrace) {
+    _debug(
+      'AUTH_STATE_CHANGED',
+      snapshot: const AuthSnapshot(AuthStatus.initializing),
+      error: error,
+    );
     if (!_recoveringStoredSession) return;
     _recoveringStoredSession = false;
     _states.add(const AuthSnapshot(AuthStatus.unauthenticated));
@@ -112,8 +140,9 @@ class SupabaseAuthRepository implements AuthRepository, PhoneOtpAuthRepository {
       _source.signUp(email: email, password: password);
 
   @override
-  Future<void> requestPhoneOtp({required String phoneNumber}) =>
-      _source.requestPhoneOtp(phoneNumber: phoneNumber);
+  Future<void> requestPhoneOtp({required String phoneNumber}) async {
+    await _source.requestPhoneOtp(phoneNumber: phoneNumber);
+  }
 
   @override
   Future<void> verifyPhoneOtp({
@@ -129,6 +158,25 @@ class SupabaseAuthRepository implements AuthRepository, PhoneOtpAuthRepository {
 
   @override
   Future<String?> refreshAccessToken() => _source.refreshAccessToken();
+
+  void _debug(
+    String label, {
+    required AuthSnapshot snapshot,
+    SupabaseAuthEventType? event,
+    Object? error,
+  }) {
+    if (!kDebugMode) return;
+    debugPrint(
+      '$label '
+      'authEvent=${event?.name ?? 'repository'} '
+      'sessionPresent=${snapshot.status == AuthStatus.authenticated} '
+      'userPresent=${snapshot.subject != null} '
+      'accessTokenPresent=unknown '
+      'refreshTokenPresent=unknown '
+      'errorClass=${error?.runtimeType} '
+      'errorCode=null',
+    );
+  }
 
   void dispose() {
     _subscription.cancel();
@@ -151,9 +199,17 @@ class _SupabaseAuthSource implements SupabaseAuthSource {
   }
 
   @override
-  Stream<SupabaseAuthEvent> get events => _client.auth.onAuthStateChange.map(
-    (state) => SupabaseAuthEvent(_eventType(state.event), _snapshot()),
-  );
+  Stream<SupabaseAuthEvent> get events =>
+      _client.auth.onAuthStateChange.map((state) {
+        final event = _eventType(state.event);
+        final snapshot = _snapshot();
+        _debug(
+          'AUTH_STATE_CHANGED',
+          event: event,
+          session: _client.auth.currentSession,
+        );
+        return SupabaseAuthEvent(event, snapshot);
+      });
 
   AuthSnapshot _snapshot() {
     final session = _client.auth.currentSession;
@@ -182,24 +238,77 @@ class _SupabaseAuthSource implements SupabaseAuthSource {
   }
 
   @override
-  Future<void> requestPhoneOtp({required String phoneNumber}) =>
-      _client.auth.signInWithOtp(phone: phoneNumber);
+  Future<void> requestPhoneOtp({required String phoneNumber}) async {
+    _debug('AUTH_OTP_REQUEST_START');
+    try {
+      await _client.auth.signInWithOtp(phone: phoneNumber);
+      _debug('AUTH_OTP_REQUEST_SUCCESS');
+    } catch (error) {
+      _debug('AUTH_OTP_REQUEST_FAILURE', error: error);
+      rethrow;
+    }
+  }
 
   @override
   Future<void> verifyPhoneOtp({
     required String phoneNumber,
     required String otp,
-  }) =>
-      _client.auth.verifyOTP(phone: phoneNumber, token: otp, type: OtpType.sms);
+  }) async {
+    _debug('AUTH_OTP_VERIFY_START');
+    try {
+      final result = await _client.auth.verifyOTP(
+        phone: phoneNumber,
+        token: otp,
+        type: OtpType.sms,
+      );
+      _debug('AUTH_OTP_VERIFY_SUCCESS', session: result.session);
+      _debug('AUTH_SESSION_PERSISTED', session: _client.auth.currentSession);
+    } catch (error) {
+      _debug('AUTH_OTP_VERIFY_FAILURE', error: error);
+      rethrow;
+    }
+  }
 
   @override
-  Future<void> signOut() => _client.auth.signOut();
+  Future<void> signOut() async {
+    _debug('AUTH_LOCAL_SIGNOUT');
+    await _client.auth.signOut();
+  }
 
   @override
   Future<String?> accessToken() async =>
       _client.auth.currentSession?.accessToken;
 
   @override
-  Future<String?> refreshAccessToken() async =>
-      (await _client.auth.refreshSession()).session?.accessToken;
+  Future<String?> refreshAccessToken() async {
+    _debug('AUTH_REFRESH_START');
+    try {
+      final session = (await _client.auth.refreshSession()).session;
+      _debug('AUTH_REFRESH_SUCCESS', session: session);
+      return session?.accessToken;
+    } catch (error) {
+      _debug('AUTH_REFRESH_FAILURE', error: error);
+      return null;
+    }
+  }
+
+  void _debug(
+    String label, {
+    SupabaseAuthEventType? event,
+    Session? session,
+    Object? error,
+  }) {
+    if (!kDebugMode) return;
+    final value = session ?? _client.auth.currentSession;
+    debugPrint(
+      '$label '
+      'authEvent=${event?.name ?? 'source'} '
+      'sessionPresent=${value != null} '
+      'userPresent=${value?.user != null} '
+      'accessTokenPresent=${value?.accessToken.isNotEmpty == true} '
+      'refreshTokenPresent=${value?.refreshToken?.isNotEmpty == true} '
+      'errorClass=${error?.runtimeType} '
+      'errorCode=null',
+    );
+  }
 }

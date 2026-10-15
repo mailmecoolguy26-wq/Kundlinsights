@@ -15,5 +15,9 @@ class AuthApiTokenSource implements AccessTokenSource {
   Future<String?> refreshAccessToken() => _repository.refreshAccessToken();
 
   @override
-  Future<void> invalidate() => _repository.signOut();
+  Future<void> invalidate() async {
+    // A backend authorization response is not authority to clear Supabase's
+    // local session. Explicit logout and Supabase's own signed-out lifecycle
+    // remain the only destructive session transitions.
+  }
 }

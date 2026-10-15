@@ -91,9 +91,11 @@ class ApiClient {
           );
         }
       }
-      if (error.response?.statusCode == 401) {
-        await tokens.invalidate();
-      }
+      // A backend 401 is not proof that the local Supabase session is invalid:
+      // it may be a transient verification race immediately after OTP login,
+      // an unavailable backend, or a server-side authorization issue.  The
+      // session owner is Supabase's auth lifecycle; only an explicit user
+      // logout or a Supabase signed-out event may destroy local credentials.
       throw _map(error);
     }
   }

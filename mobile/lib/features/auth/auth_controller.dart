@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../../core/analytics/analytics.dart';
+import '../../core/errors/api_failure.dart';
 import 'domain/auth_repository.dart';
 
 enum PhoneOtpState { phoneEntry, requesting, sent, verifying }
@@ -17,6 +18,7 @@ class AuthController extends ChangeNotifier {
     _beforeLogout = beforeLogout;
     _sub = repo.states.listen((next) {
       _state = next;
+      _debug('AUTH_STATE_CHANGED', snapshot: next);
       notifyListeners();
     });
   }
@@ -38,6 +40,12 @@ class AuthController extends ChangeNotifier {
 
   Future<void> restore() async {
     _state = await repo.restore();
+    _debug(
+      _state.status == AuthStatus.authenticated
+          ? 'AUTH_SESSION_RECEIVED'
+          : 'AUTH_STATE_CHANGED',
+      snapshot: _state,
+    );
     notifyListeners();
   }
 
@@ -62,6 +70,7 @@ class AuthController extends ChangeNotifier {
     if (isRequestingPhoneOtp || isVerifyingPhoneOtp) return;
     _phoneOtpState = PhoneOtpState.requesting;
     _state = const AuthSnapshot(AuthStatus.loading);
+    _debug('AUTH_OTP_REQUEST_START', snapshot: _state);
     notifyListeners();
 
     try {
@@ -69,6 +78,7 @@ class AuthController extends ChangeNotifier {
       await phoneOtpRepository.requestPhoneOtp(phoneNumber: phoneNumber);
       _phoneOtpState = PhoneOtpState.sent;
       _state = const AuthSnapshot(AuthStatus.unauthenticated);
+      _debug('AUTH_OTP_REQUEST_SUCCESS', snapshot: _state);
     } catch (error, stackTrace) {
       if (kDebugMode) {
         debugPrint('PHONE_OTP_REQUEST_ERROR: $error');
@@ -80,6 +90,7 @@ class AuthController extends ChangeNotifier {
 
       _phoneOtpState = PhoneOtpState.phoneEntry;
       _state = AuthSnapshot(AuthStatus.error, message: _safeMessage(error));
+      _debug('AUTH_OTP_REQUEST_FAILURE', snapshot: _state, error: error);
     }
 
     notifyListeners();
@@ -92,6 +103,7 @@ class AuthController extends ChangeNotifier {
     if (isRequestingPhoneOtp || isVerifyingPhoneOtp) return;
     _phoneOtpState = PhoneOtpState.verifying;
     _state = const AuthSnapshot(AuthStatus.loading);
+    _debug('AUTH_OTP_VERIFY_START', snapshot: _state);
     notifyListeners();
 
     try {
@@ -102,6 +114,7 @@ class AuthController extends ChangeNotifier {
       );
       _state = await repo.restore();
       _phoneOtpState = PhoneOtpState.phoneEntry;
+      _debug('AUTH_OTP_VERIFY_SUCCESS', snapshot: _state);
     } catch (error, stackTrace) {
       if (kDebugMode) {
         debugPrint('PHONE_OTP_VERIFY_ERROR: $error');
@@ -113,6 +126,7 @@ class AuthController extends ChangeNotifier {
 
       _phoneOtpState = PhoneOtpState.sent;
       _state = AuthSnapshot(AuthStatus.error, message: _safeMessage(error));
+      _debug('AUTH_OTP_VERIFY_FAILURE', snapshot: _state, error: error);
     }
 
     notifyListeners();
@@ -134,6 +148,7 @@ class AuthController extends ChangeNotifier {
       try {
         await _beforeLogout?.call();
       } catch (_) {}
+      _debug('AUTH_LOCAL_SIGNOUT', snapshot: _state);
       await repo.signOut();
       _state = await repo.restore();
     } catch (error) {
@@ -190,6 +205,20 @@ class AuthController extends ChangeNotifier {
       return 'Authentication is unavailable right now. Please try again.';
     }
     return 'Something went wrong. Please try again.';
+  }
+
+  void _debug(String event, {required AuthSnapshot snapshot, Object? error}) {
+    if (!kDebugMode) return;
+    debugPrint(
+      '$event '
+      'authEvent=controller '
+      'sessionPresent=${snapshot.status == AuthStatus.authenticated} '
+      'userPresent=${snapshot.subject != null} '
+      'accessTokenPresent=unknown '
+      'refreshTokenPresent=unknown '
+      'errorClass=${error?.runtimeType} '
+      'errorCode=${error is ApiFailure ? error.code : null}',
+    );
   }
 
   @override
