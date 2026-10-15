@@ -126,8 +126,34 @@ function createApi({ authVerifier, userResolver, birthProfileService, careerEven
   if (lifeEventService) {
     for (const method of ['create', 'list', 'update', 'remove']) if (typeof lifeEventService[method] !== 'function') throw new TypeError('INVALID_LIFE_EVENT_SERVICE');
     const filters = (request) => ({ categories: request.query && request.query.category ? String(request.query.category).split(',') : null, eventTypes: request.query && request.query.eventType ? String(request.query.eventType).split(',') : null });
-    app.post('/v1/birth-profiles/:id/life-events', async (request, reply) => { const lifeEvent = await lifeEventService.create({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), body: request.body || {} }); reply.code(201); return { lifeEvent, requestId: request.id }; });
-    app.get('/v1/birth-profiles/:id/life-events', async (request) => ({ lifeEvents: await lifeEventService.list({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), ...filters(request) }), requestId: request.id }));
+    const lifeEventDiagnostic = (request, birthProfileId) => (entry) => request.log.info({ ...entry, birthProfileId });
+    app.post('/v1/birth-profiles/:id/life-events', async (request, reply) => {
+      const birthProfileId = id(request.params.id, 'BIRTH_PROFILE_ID');
+      const diagnosticLog = lifeEventDiagnostic(request, birthProfileId);
+      diagnosticLog({ event: 'LIFE_EVENT_BACKEND_ROUTE', stage: 'ROUTE', state: 'REACHED', routeReached: true });
+      try {
+        const lifeEvent = await lifeEventService.create({ principal: request.principal, birthProfileId, body: request.body || {}, diagnosticLog });
+        diagnosticLog({ event: 'LIFE_EVENT_RESPONSE', stage: 'RESPONSE', state: 'CREATED' });
+        reply.code(201);
+        return { lifeEvent, requestId: request.id };
+      } catch (error) {
+        diagnosticLog({ event: 'LIFE_EVENT_RESPONSE', stage: 'RESPONSE', state: 'FAILED', safeErrorCode: error && typeof error.code === 'string' ? error.code : 'UNKNOWN_ERROR' });
+        throw error;
+      }
+    });
+    app.get('/v1/birth-profiles/:id/life-events', async (request) => {
+      const birthProfileId = id(request.params.id, 'BIRTH_PROFILE_ID');
+      const diagnosticLog = lifeEventDiagnostic(request, birthProfileId);
+      diagnosticLog({ event: 'LIFE_EVENT_BACKEND_ROUTE', stage: 'ROUTE', state: 'REACHED', routeReached: true });
+      try {
+        const lifeEvents = await lifeEventService.list({ principal: request.principal, birthProfileId, ...filters(request), diagnosticLog });
+        diagnosticLog({ event: 'LIFE_EVENT_RESPONSE', stage: 'RESPONSE', state: 'LISTED' });
+        return { lifeEvents, requestId: request.id };
+      } catch (error) {
+        diagnosticLog({ event: 'LIFE_EVENT_RESPONSE', stage: 'RESPONSE', state: 'FAILED', safeErrorCode: error && typeof error.code === 'string' ? error.code : 'UNKNOWN_ERROR' });
+        throw error;
+      }
+    });
     app.patch('/v1/birth-profiles/:id/life-events/:eventId', async (request) => ({ lifeEvent: await lifeEventService.update({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), eventId: id(request.params.eventId, 'LIFE_EVENT_ID'), body: request.body || {} }), requestId: request.id }));
     app.delete('/v1/birth-profiles/:id/life-events/:eventId', async (request) => ({ lifeEvent: await lifeEventService.remove({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), eventId: id(request.params.eventId, 'LIFE_EVENT_ID') }), requestId: request.id }));
   }

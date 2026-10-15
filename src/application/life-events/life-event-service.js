@@ -8,6 +8,11 @@ const EVENT_TYPES = Object.freeze(['JOB_JOINED', 'JOB_CHANGED', 'PROMOTION', 'RO
 const CATEGORY_TYPES = Object.freeze({ CAREER_BUSINESS: new Set(EVENT_TYPES.slice(0, 9)), PROPERTY: new Set(['PROPERTY_PURCHASE', 'PROPERTY_SALE']), VEHICLE: new Set(['VEHICLE_PURCHASE', 'VEHICLE_SALE']), RELATIONSHIPS_FAMILY: new Set(['MARRIAGE', 'ENGAGEMENT', 'CHILD_BIRTH']) });
 const DATE_PRECISIONS = Object.freeze(['DAY', 'MONTH', 'YEAR']);
 function fail(code) { throw repositoryError(code); }
+function safeErrorCode(error) { return error && typeof error.code === 'string' && /^[A-Z0-9_]+$/.test(error.code) ? error.code : 'UNKNOWN_ERROR'; }
+function diagnostic(log, stage, state, birthProfileId, error) {
+  if (typeof log !== 'function') return;
+  log(Object.freeze({ event: `LIFE_EVENT_${stage}`, stage, state, birthProfileId, ...(error ? { safeErrorCode: safeErrorCode(error) } : {}) }));
+}
 function date(value, clock) {
   if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some((key) => !['precision', 'year', 'month', 'day'].includes(key))) fail('INVALID_LIFE_EVENT_DATE');
   const { precision, year } = value; const month = value.month == null ? null : value.month; const day = value.day == null ? null : value.day;
@@ -34,11 +39,37 @@ function dto(row) { return immutableCopy({ lifeEventId: row.id, birthProfileId: 
 class LifeEventService {
   constructor({ authUserResolver, transactionExecutor, repositories, birthProfileService, idGenerator, clock } = {}) { if (!authUserResolver || !transactionExecutor || !repositories || !birthProfileService || !idGenerator || !clock) fail('INVALID_LIFE_EVENT_SERVICE'); Object.assign(this, { auth: authUserResolver, tx: transactionExecutor, repos: repositories, profiles: birthProfileService, ids: idGenerator, clock }); }
   async user(principal) { const verified = verifiedPrincipal(principal); if (verified.isAnonymous) fail('ANONYMOUS_AUTH_NOT_ALLOWED'); const user = await this.auth(verified); if (!user || user.status !== 'active') fail('APP_USER_DISABLED'); return [verified, user]; }
-  async owned(principal, birthProfileId) { try { await this.profiles.get({ principal, birthProfileId }); } catch { fail('NOT_FOUND_OR_FORBIDDEN'); } }
+  async owned(principal, birthProfileId, diagnosticLog = null) {
+    diagnostic(diagnosticLog, 'PROFILE_LOOKUP', 'STARTED', birthProfileId);
+    try {
+      await this.profiles.get({ principal, birthProfileId });
+      diagnostic(diagnosticLog, 'PROFILE_LOOKUP', 'SUCCEEDED', birthProfileId);
+      diagnostic(diagnosticLog, 'OWNERSHIP', 'SUCCEEDED', birthProfileId);
+    } catch (error) {
+      diagnostic(diagnosticLog, 'PROFILE_LOOKUP', 'FAILED', birthProfileId, error);
+      diagnostic(diagnosticLog, 'OWNERSHIP', 'FAILED', birthProfileId, error);
+      fail('NOT_FOUND_OR_FORBIDDEN');
+    }
+  }
   async runtime(principal, operation) { return this.tx.execute({ principal, role: 'app_runtime', operation: (context) => operation(this.repos(context)) }); }
-  async list({ principal, birthProfileId, categories = null, eventTypes = null }) { const [verified, user] = await this.user(principal); await this.owned(verified, birthProfileId); if (categories && (!Array.isArray(categories) || categories.some((x) => !CATEGORIES.includes(x)))) fail('INVALID_LIFE_EVENT_CATEGORY'); if (eventTypes && (!Array.isArray(eventTypes) || eventTypes.some((x) => !EVENT_TYPES.includes(x)))) fail('INVALID_LIFE_EVENT_TYPE'); try { return await this.runtime(verified, async (repos) => (await repos.lifeEvents.listForProfile({ userId: user.id, birthProfileId, categories, eventTypes })).map(dto)); } catch { fail('NOT_FOUND_OR_FORBIDDEN'); } }
+  async list({ principal, birthProfileId, categories = null, eventTypes = null, diagnosticLog = null }) { const [verified, user] = await this.user(principal); await this.owned(verified, birthProfileId, diagnosticLog); if (categories && (!Array.isArray(categories) || categories.some((x) => !CATEGORIES.includes(x)))) fail('INVALID_LIFE_EVENT_CATEGORY'); if (eventTypes && (!Array.isArray(eventTypes) || eventTypes.some((x) => !EVENT_TYPES.includes(x)))) fail('INVALID_LIFE_EVENT_TYPE'); try { return await this.runtime(verified, async (repos) => (await repos.lifeEvents.listForProfile({ userId: user.id, birthProfileId, categories, eventTypes })).map(dto)); } catch (error) { diagnostic(diagnosticLog, 'RESPONSE', 'FAILED', birthProfileId, error); fail('NOT_FOUND_OR_FORBIDDEN'); } }
   async getRelevantLifeEvents({ principal, birthProfileId, categories = null, eventTypes = null }) { return this.list({ principal, birthProfileId, categories, eventTypes }); }
-  async create({ principal, birthProfileId, body }) { const [verified, user] = await this.user(principal); await this.owned(verified, birthProfileId); const value = input(body, this.clock); const at = this.clock(); try { return await this.runtime(verified, async (repos) => dto(await repos.lifeEvents.create({ id: this.ids(), userId: user.id, birthProfileId, category: value.category, eventType: value.eventType, eventDatePrecision: value.eventDate.precision, eventYear: value.eventDate.year, eventMonth: value.eventDate.month, eventDay: value.eventDate.day, title: value.title || null, note: value.note || null, createdAt: at, updatedAt: at }))); } catch (error) { if (error && /^INVALID_LIFE_EVENT|LIFE_EVENT_DATE_IN_FUTURE/.test(error.code)) throw error; fail('NOT_FOUND_OR_FORBIDDEN'); } }
+  async create({ principal, birthProfileId, body, diagnosticLog = null }) {
+    const [verified, user] = await this.user(principal);
+    await this.owned(verified, birthProfileId, diagnosticLog);
+    const value = input(body, this.clock);
+    const at = this.clock();
+    diagnostic(diagnosticLog, 'INSERT', 'STARTED', birthProfileId);
+    try {
+      const created = await this.runtime(verified, async (repos) => dto(await repos.lifeEvents.create({ id: this.ids(), userId: user.id, birthProfileId, category: value.category, eventType: value.eventType, eventDatePrecision: value.eventDate.precision, eventYear: value.eventDate.year, eventMonth: value.eventDate.month, eventDay: value.eventDate.day, title: value.title || null, note: value.note || null, createdAt: at, updatedAt: at })));
+      diagnostic(diagnosticLog, 'INSERT', 'SUCCEEDED', birthProfileId);
+      return created;
+    } catch (error) {
+      diagnostic(diagnosticLog, 'INSERT', 'FAILED', birthProfileId, error);
+      if (error && /^INVALID_LIFE_EVENT|LIFE_EVENT_DATE_IN_FUTURE/.test(error.code)) throw error;
+      fail('NOT_FOUND_OR_FORBIDDEN');
+    }
+  }
   async update({ principal, birthProfileId, eventId, body }) { const [verified, user] = await this.user(principal); await this.owned(verified, birthProfileId); const changes = input(body, this.clock, true); const at = this.clock(); try { return await this.runtime(verified, async (repos) => { const prior = await repos.lifeEvents.getForProfile({ userId: user.id, birthProfileId, id: eventId }); const category = changes.category || prior.category; const eventType = changes.eventType || prior.eventType; if (!CATEGORY_TYPES[category].has(eventType)) fail('INVALID_LIFE_EVENT_CATEGORY_TYPE'); const value = changes.eventDate || { precision: prior.eventDatePrecision, year: prior.eventYear, month: prior.eventMonth, day: prior.eventDay }; return dto(await repos.lifeEvents.updateForProfile({ id: eventId, userId: user.id, birthProfileId, category, eventType, eventDatePrecision: value.precision, eventYear: value.year, eventMonth: value.month, eventDay: value.day, title: changes.title === undefined ? prior.title : changes.title, note: changes.note === undefined ? prior.note : changes.note, updatedAt: at })); }); } catch (error) { if (error && /^INVALID_LIFE_EVENT|LIFE_EVENT_DATE_IN_FUTURE/.test(error.code)) throw error; fail('NOT_FOUND_OR_FORBIDDEN'); } }
   async remove({ principal, birthProfileId, eventId }) { const [verified, user] = await this.user(principal); await this.owned(verified, birthProfileId); try { return await this.runtime(verified, async (repos) => dto(await repos.lifeEvents.softDeleteForProfile({ userId: user.id, birthProfileId, id: eventId, deletedAt: this.clock(), updatedAt: this.clock() }))); } catch { fail('NOT_FOUND_OR_FORBIDDEN'); } }
 }
