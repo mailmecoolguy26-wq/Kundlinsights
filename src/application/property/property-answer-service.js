@@ -92,7 +92,10 @@ function primaryDashaBounds(dasha) {
 }
 function dashaEvidence(houses, dasha) {
   if (!dasha) return freeze({ classification: 'LIMITED', active: false, periods: null, factors: freeze([]) });
-  const facts = [dasha.md, dasha.ad, dasha.pd].map((planet) => ({ level: planet === dasha.md ? 'MD' : planet === dasha.ad ? 'AD' : 'PD', ...connectedPlanet(houses, planet) }));
+  // MD, AD, and PD may be ruled by the same planet. Preserve the Dasha level
+  // by position rather than planet equality so a Me/Me/Me sequence remains
+  // three independently auditable timing facts.
+  const facts = [['MD', dasha.md], ['AD', dasha.ad], ['PD', dasha.pd]].map(([level, planet]) => ({ level, ...connectedPlanet(houses, planet) }));
   const md = facts[0], ad = facts[1], pd = facts[2];
   const strong = Boolean(md && ad && (md.corePropertyConnection || md.acquisitionConnection) && (ad.corePropertyConnection || ad.acquisitionConnection) && (md.corePropertyConnection || ad.corePropertyConnection));
   const moderate = Boolean(md && ad && (md.corePropertyConnection || ad.corePropertyConnection));
@@ -154,37 +157,162 @@ function classifyPropertyWindow({ start, end }) {
   // classification only; no interval is extended or made eligible by it.
   return endMs - startMs < DAY ? 'BRIEF_ACTIVATION' : 'BOUNDED_WINDOW';
 }
-function strongerWindow({ engine, scanner, birth, natalBodies, houses, dashaTree, natal, d1, d4, start }) {
-  // Scan before the requested point as well.  This lets an already-active
-  // interval retain its real refined ingress/aspect/association boundary
-  // rather than presenting `now` as an invented customer-facing start date.
-  const scanStart = new Date(Date.parse(start) - 400 * DAY).toISOString();
-  const end = new Date(Date.parse(start) + 365 * DAY).toISOString();
-  const scan = scanner({ startInstant: scanStart, endInstant: end, natalBodies, natalHouses: houses, astronomicalEngine: engine, observer: { latitude: birth.latitude, longitude: birth.longitude }, bodies: [...MAJOR, ...SUPPORT], eventTypes: ['rashiIngress', 'transitDrishtiStart', 'transitDrishtiEnd', 'sameRashiAssociationStart', 'sameRashiAssociationEnd'], options: { coarseScanStepMilliseconds: PROPERTY_WINDOW_COARSE_SCAN_STEP_MS } });
-  const boundaries = propertyTransitStateBoundaries(scan, scanStart, end);
+function propertyWindowClassificationRank(classification) { return ({ STRONG_CANDIDATE: 3, MODERATE_CANDIDATE: 2, MIXED_CANDIDATE: 1 })[classification] || 0; }
+function dashaClassificationRank(classification) { return ({ STRONG: 2, MODERATE: 1 })[classification] || 0; }
+function pdRelevanceRank(relevance) { return ({ PROPERTY_ACTIVE: 3, PROPERTY_SUPPORTING: 2, CONTEXTUAL: 1, NEUTRAL: 0 })[relevance] || 0; }
+function transitConfirmationRank(state) { return ({ MAJOR_CONFIRMATION: 3, SUPPORTIVE_CONFIRMATION: 2, MIXED: 1, NONE: 0 })[state] || 0; }
+function propertyConnectionSummary(factor) {
+  if (!factor) return null;
+  return freeze({
+    planet: factor.planet,
+    corePropertyConnection: factor.corePropertyConnection,
+    acquisitionConnection: factor.acquisitionConnection,
+    placementHouse: factor.placementHouse,
+    rulesHouses: factor.rulesHouses,
+  });
+}
+function pdRelevance(dasha) {
+  const factor = dasha && dasha.factors.find((item) => item.level === 'PD');
+  if (!factor) return freeze({ state: 'NEUTRAL', factor: null });
+  const state = factor.corePropertyConnection && factor.acquisitionConnection
+    ? 'PROPERTY_ACTIVE'
+    : factor.corePropertyConnection || factor.acquisitionConnection
+    ? 'PROPERTY_SUPPORTING'
+    : factor.contextConnection
+    ? 'CONTEXTUAL'
+    : 'NEUTRAL';
+  return freeze({ state, factor: propertyConnectionSummary(factor) });
+}
+function transitConfirmationForPd({ engine, scanner, birth, natalBodies, houses, start, end }) {
+  const scan = scanner({ startInstant: start, endInstant: end, natalBodies, natalHouses: houses, astronomicalEngine: engine, observer: { latitude: birth.latitude, longitude: birth.longitude }, bodies: [...MAJOR, ...SUPPORT], eventTypes: ['rashiIngress', 'transitDrishtiStart', 'transitDrishtiEnd', 'sameRashiAssociationStart', 'sameRashiAssociationEnd'], options: { coarseScanStepMilliseconds: PROPERTY_WINDOW_COARSE_SCAN_STEP_MS } });
+  const boundaries = propertyTransitStateBoundaries(scan, start, end);
+  const states = [];
   for (let index = 0; index < boundaries.length - 1; index += 1) {
-    const range = { start: boundaries[index], end: boundaries[index + 1] };
-    if (Date.parse(range.end) <= Date.parse(start)) continue;
-    const activeDasha = dashaEvidence(d1, dashaAt(dashaTree, range.start));
-    if (!activeDasha.active) continue;
-    const transitBodies = engine.calculate(transitRequest(range.start, birth));
-    const snapshot = calculateGocharSnapshot({ snapshotInstant: range.start, natalBodies, natalHouses: houses, transitBodies: transitBodies.bodies });
-    const transit = transitEvidence(snapshot, houses); if (!transit.active) continue;
-    const classification = classify({ natal, d4, dasha: activeDasha, transit });
-    if (classification === 'WEAK') continue;
-    const dashaStart = activeDasha.periods.start;
-    const dashaEnd = activeDasha.periods.end;
-    if (!dashaStart || !dashaEnd) continue;
-    const windowStart = Date.parse(dashaStart) > Date.parse(range.start) ? dashaStart : range.start;
-    // scanStart is a lookup boundary, never a customer-facing boundary.
-    if (windowStart === scanStart) continue;
-    const windowEnd = Date.parse(dashaEnd) < Date.parse(range.end) ? dashaEnd : range.end;
-    if (Date.parse(windowEnd) <= Date.parse(start)) continue;
-    const timingClassification = classifyPropertyWindow({ start: windowStart, end: windowEnd });
-    if (timingClassification === 'NO_RELIABLE_WINDOW') continue;
-    return freeze({ start: windowStart, end: windowEnd, classification, timingClassification, temporalStatus: Date.parse(windowStart) > Date.parse(start) ? 'UPCOMING' : 'CURRENT', basis: 'REFINED_MD_AD_TRANSIT_STATE_INTERSECTION' });
+    const stateStart = boundaries[index]; const stateEnd = boundaries[index + 1];
+    if (Date.parse(stateEnd) <= Date.parse(stateStart)) continue;
+    const transitBodies = engine.calculate(transitRequest(stateStart, birth));
+    const snapshot = calculateGocharSnapshot({ snapshotInstant: stateStart, natalBodies, natalHouses: houses, transitBodies: transitBodies.bodies });
+    const evidence = transitEvidence(snapshot, houses);
+    const relevant = [...evidence.activeMajor, ...evidence.activeSupport];
+    states.push(freeze({ start: stateStart, end: stateEnd, evidence, caution: relevant.some((item) => item.contexts.length > 0) }));
   }
-  return null;
+  const major = states.filter((state) => state.evidence.activeMajor.length > 0);
+  const supporting = states.filter((state) => state.evidence.activeSupport.length > 0);
+  const hasCaution = [...major, ...supporting].some((state) => state.caution);
+  const state = major.length && hasCaution ? 'MIXED' : major.length ? 'MAJOR_CONFIRMATION' : supporting.length ? 'SUPPORTIVE_CONFIRMATION' : 'NONE';
+  const peakPool = major.length ? major : supporting;
+  const peak = peakPool.slice().sort((left, right) => right.evidence.activeMajor.length - left.evidence.activeMajor.length
+    || right.evidence.activeSupport.length - left.evidence.activeSupport.length
+    || Date.parse(left.start) - Date.parse(right.start))[0] || null;
+  return freeze({
+    state,
+    majorPlanets: freeze([...new Set(major.flatMap((item) => item.evidence.activeMajor.map((body) => body.planet)))]),
+    supportPlanets: freeze([...new Set(supporting.flatMap((item) => item.evidence.activeSupport.map((body) => body.planet)))]),
+    hasCaution,
+    peakActivation: peak && freeze({ start: peak.start, end: peak.end }),
+  });
+}
+function candidateState({ natal, d4, dasha, pd, transit }) {
+  if (!['STRONG', 'MODERATE'].includes(natal.classification) || !['CONFIRMS', 'NEUTRAL'].includes(d4.confirmation) || !dasha.active) return 'NOT_SUPPORTED';
+  if (pd.state === 'NEUTRAL') return 'NOT_SUPPORTED';
+  if (dasha.classification === 'STRONG' && pd.state === 'PROPERTY_ACTIVE' && transit.state === 'MAJOR_CONFIRMATION' && d4.confirmation === 'CONFIRMS') return 'STRONG_CANDIDATE';
+  if (pd.state !== 'CONTEXTUAL' && ['MAJOR_CONFIRMATION', 'SUPPORTIVE_CONFIRMATION'].includes(transit.state)) return 'MODERATE_CANDIDATE';
+  return 'MIXED_CANDIDATE';
+}
+function candidateDiagnostic(candidate, { natal, d4 }) {
+  const factorFor = (level) => candidate.dasha.factors.find((factor) => factor.level === level);
+  return freeze({
+    d1Classification: natal.classification,
+    d4Confirmation: d4.confirmation,
+    md: candidate.dasha.periods.md,
+    mdPropertyConnection: propertyConnectionSummary(factorFor('MD')),
+    ad: candidate.dasha.periods.ad,
+    adPropertyConnection: propertyConnectionSummary(factorFor('AD')),
+    mdAdStart: candidate.dasha.periods.start,
+    mdAdEnd: candidate.dasha.periods.end,
+    pd: candidate.dasha.periods.pd,
+    pdStart: candidate.start,
+    pdEnd: candidate.end,
+    pdRelevance: candidate.pdRelevance.state,
+    majorPropertyTransits: candidate.transitConfirmation.majorPlanets,
+    transitConfirmationState: candidate.transitConfirmation.state,
+    transitActivationStart: candidate.transitConfirmation.peakActivation && candidate.transitConfirmation.peakActivation.start || null,
+    transitActivationEnd: candidate.transitConfirmation.peakActivation && candidate.transitConfirmation.peakActivation.end || null,
+    candidateState: candidate.candidateState,
+  });
+}
+// This ranks already-qualified PD candidates. It does not add a new Property
+// predicate: the ordering only uses the approved D1/D4, MD/AD, PD, and transit
+// evidence that made each candidate eligible in the first place.
+function selectPropertyWindow(candidates) {
+  if (!candidates.length) return null;
+  const selected = candidates.slice().sort((left, right) => {
+    const classification = propertyWindowClassificationRank(right.candidateState) - propertyWindowClassificationRank(left.candidateState);
+    if (classification) return classification;
+    const dasha = dashaClassificationRank(right.dasha.classification) - dashaClassificationRank(left.dasha.classification);
+    if (dasha) return dasha;
+    const pd = pdRelevanceRank(right.pdRelevance.state) - pdRelevanceRank(left.pdRelevance.state);
+    if (pd) return pd;
+    const transit = transitConfirmationRank(right.transitConfirmation.state) - transitConfirmationRank(left.transitConfirmation.state);
+    if (transit) return transit;
+    const d4 = (right.d4Confirmation === 'CONFIRMS' ? 1 : 0) - (left.d4Confirmation === 'CONFIRMS' ? 1 : 0);
+    if (d4) return d4;
+    const caution = Number(left.transitConfirmation.hasCaution) - Number(right.transitConfirmation.hasCaution);
+    if (caution) return caution;
+    const duration = (Date.parse(right.end) - Date.parse(right.start)) - (Date.parse(left.end) - Date.parse(left.start));
+    if (duration) return duration;
+    return Date.parse(left.start) - Date.parse(right.start);
+  })[0];
+  return freeze({ selected, secondary: freeze(candidates.filter((candidate) => candidate !== selected).sort((left, right) => propertyWindowClassificationRank(right.candidateState) - propertyWindowClassificationRank(left.candidateState)).slice(0, 2)) });
+}
+function pdIntervals(dashaTree, start, end) {
+  const out = [];
+  for (const md of dashaTree.periods || []) for (const ad of md.children || []) for (const pd of ad.children || []) {
+    const pdStart = pd.startInstant.utc; const pdEnd = pd.endInstant.utc;
+    if (Date.parse(pdEnd) <= Date.parse(start) || Date.parse(pdStart) >= Date.parse(end)) continue;
+    out.push(freeze({ start: pdStart, end: pdEnd }));
+  }
+  return freeze(out.sort((left, right) => Date.parse(left.start) - Date.parse(right.start)));
+}
+function publicCandidate(candidate) {
+  return freeze({ start: candidate.start, end: candidate.end, classification: candidate.candidateState, timingClassification: 'BOUNDED_WINDOW', temporalStatus: candidate.temporalStatus, basis: 'MD_AD_PD_TRANSIT_CONFIRMATION', peakActivation: candidate.transitConfirmation.peakActivation, transitConfirmation: candidate.transitConfirmation.state, pd: candidate.dasha.periods.pd });
+}
+function strongerWindow({ engine, scanner, birth, natalBodies, houses, dashaTree, natal, d1, d4, start, diagnosticLog = null }) {
+  const end = new Date(Date.parse(start) + 365 * DAY).toISOString();
+  const candidates = [];
+  for (const interval of pdIntervals(dashaTree, start, end)) {
+    const activeDasha = dashaEvidence(d1, dashaAt(dashaTree, interval.start));
+    if (!activeDasha.active) continue;
+    if (!['STRONG', 'MODERATE'].includes(natal.classification) || !['CONFIRMS', 'NEUTRAL'].includes(d4.confirmation)) continue;
+    const relevance = pdRelevance(activeDasha);
+    const confirmation = transitConfirmationForPd({ engine, scanner, birth, natalBodies, houses, start: interval.start, end: interval.end });
+    const state = candidateState({ natal, d4, dasha: activeDasha, pd: relevance, transit: confirmation });
+    const candidate = freeze({
+      start: interval.start,
+      end: interval.end,
+      dasha: activeDasha,
+      d4Confirmation: d4.confirmation,
+      pdRelevance: relevance,
+      transitConfirmation: confirmation,
+      candidateState: state,
+      temporalStatus: Date.parse(interval.start) > Date.parse(start) ? 'UPCOMING' : 'CURRENT',
+    });
+    if (typeof diagnosticLog === 'function') {
+      diagnosticLog(freeze({ event: 'PROPERTY_PD_TRANSIT_CONFIRMATION', ...candidateDiagnostic(candidate, { natal, d4 }) }));
+      diagnosticLog(freeze({ event: 'PROPERTY_PD_CANDIDATE', ...candidateDiagnostic(candidate, { natal, d4 }) }));
+    }
+    if (state === 'NOT_SUPPORTED') continue;
+    candidates.push(candidate);
+  }
+  const ranked = selectPropertyWindow(candidates);
+  if (!ranked) return null;
+  if (typeof diagnosticLog === 'function') diagnosticLog(freeze({
+    event: 'PROPERTY_WINDOW_RANKING',
+    candidateCount: candidates.length,
+    selectedRank: 1,
+    ...candidateDiagnostic(ranked.selected, { natal, d4 }),
+  }));
+  return freeze({ ...publicCandidate(ranked.selected), secondaryWindows: freeze(ranked.secondary.map(publicCandidate)) });
 }
 
 class PropertyAnswerService {
@@ -226,7 +354,7 @@ class PropertyAnswerService {
       const final = classify({ natal: natalFacts, d4, dasha, transit });
       stage = 'WINDOW';
       stageStartedAt = Date.now();
-      const window = intent === PropertyIntent.PROPERTY_SALE_TIMING ? null : strongerWindow({ engine: this.engine, scanner: this.scanner, birth: profile.birthData, natalBodies: natal.bodies, houses, dashaTree, natal: natalFacts, d1: houses, d4, start: instant });
+      const window = intent === PropertyIntent.PROPERTY_SALE_TIMING ? null : strongerWindow({ engine: this.engine, scanner: this.scanner, birth: profile.birthData, natalBodies: natal.bodies, houses, dashaTree, natal: natalFacts, d1: houses, d4, start: instant, diagnosticLog: log });
       timed('PROPERTY_WINDOW_EVIDENCE', stageStartedAt);
       const financing = transit.all.some((item) => item.propertyActive && item.contexts.some((house) => [6, 12].includes(house))) || dasha.factors.some((item) => item.corePropertyConnection && item.contextConnection);
       const shared = transit.all.some((item) => item.propertyActive && item.contexts.includes(8)) || dasha.factors.some((item) => item.corePropertyConnection && item.rulesHouses.includes(8));
@@ -239,4 +367,4 @@ class PropertyAnswerService {
   }
 }
 
-module.exports = { PropertyAnswerService, PropertyIntent, natalEvidence, d4Evidence, dashaEvidence, primaryDashaBounds, transitEvidence, ashtakavargaEvidence, calibration, propertyTransitStateBoundaries, classifyPropertyWindow, classify, strongerWindow, PROPERTY_WINDOW_COARSE_SCAN_STEP_MS };
+module.exports = { PropertyAnswerService, PropertyIntent, natalEvidence, d4Evidence, dashaEvidence, primaryDashaBounds, transitEvidence, ashtakavargaEvidence, calibration, propertyTransitStateBoundaries, classifyPropertyWindow, pdRelevance, candidateState, transitConfirmationForPd, classify, selectPropertyWindow, strongerWindow, PROPERTY_WINDOW_COARSE_SCAN_STEP_MS };

@@ -17,14 +17,26 @@ function answer(result, language) {
   if (result.intent === PropertyIntent.PROPERTY_SALE_TIMING) return language === 'HINGLISH' ? 'Main current Property activation aur related context explain kar sakti hoon, lekin dedicated Property-sale timing abhi reliably supported nahi hai.' : 'I can explain current Property activation and its context, but dedicated Property-sale timing is not yet reliably supported.';
   const opening = language === 'HINGLISH' ? `Property matters ke liye current support ${result.classification.toLowerCase()} hai.` : `Current support for Property matters is ${result.classification.toLowerCase()}.`;
   const window = result.strongerWindow;
+  const isMixedCandidate = window && window.classification === 'MIXED_CANDIDATE';
+  const peak = window && window.peakActivation;
+  const distinctPeak = peak && (peak.start !== window.start || peak.end !== window.end);
+  const peakCopy = distinctPeak
+    ? language === 'HINGLISH'
+      ? ` Is period ke andar ${format(peak.start)} ke around activation aur sharp hoti hai.`
+      : ` Within it, activation becomes sharper around ${format(peak.start)}.`
+    : '';
   const timing = window && result.windowStatus === 'BOUNDED_WINDOW' && window.temporalStatus === 'CURRENT'
     ? language === 'HINGLISH'
-      ? `Ek calculated Property activation abhi active hai aur ${format(window.end)} tak chal rahi hai.`
-      : `A calculated Property activation is active now and continues until ${format(window.end)}.`
+      ? `Ek calculated Property activation abhi active hai aur ${format(window.end)} tak chal rahi hai.${peakCopy}`
+      : `A calculated Property activation is active now and continues until ${format(window.end)}.${peakCopy}`
     : window && result.windowStatus === 'BOUNDED_WINDOW'
     ? language === 'HINGLISH'
-      ? `Aage ek stronger calculated Property period ${format(window.start)} se ${format(window.end)} ke beech dikh raha hai.`
-      : `An upcoming stronger calculated Property period appears from ${format(window.start)} to ${format(window.end)}.`
+      ? isMixedCandidate
+        ? `Aage ${format(window.start)} se ${format(window.end)} ke beech ek calculated Property period mixed support ke saath dikh raha hai.${peakCopy}`
+        : `Aage ek stronger calculated Property period ${format(window.start)} se ${format(window.end)} ke beech dikh raha hai.${peakCopy}`
+      : isMixedCandidate
+      ? `A calculated Property period with mixed support appears from ${format(window.start)} to ${format(window.end)}.${peakCopy}`
+      : `An upcoming stronger calculated Property period appears from ${format(window.start)} to ${format(window.end)}.${peakCopy}`
     : window && result.windowStatus === 'BRIEF_ACTIVATION'
     ? language === 'HINGLISH'
       ? `Aage ${format(window.start)} ke around ek brief calculated Property activation dikh rahi hai.`
