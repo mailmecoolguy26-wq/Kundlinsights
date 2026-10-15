@@ -106,8 +106,11 @@ class _LifeEventsScreenState extends State<LifeEventsScreen> {
   Future<void> _openForm([LifeEvent? event]) {
     return Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) =>
-            _LifeEventForm(controller: widget.controller, event: event),
+        builder: (_) => _LifeEventForm(
+          controller: widget.controller,
+          event: event,
+          initialCategory: event == null ? _filter : null,
+        ),
       ),
     );
   }
@@ -203,10 +206,15 @@ class _EventCard extends StatelessWidget {
 }
 
 class _LifeEventForm extends StatefulWidget {
-  const _LifeEventForm({required this.controller, this.event});
+  const _LifeEventForm({
+    required this.controller,
+    this.event,
+    this.initialCategory,
+  });
 
   final LifeEventController controller;
   final LifeEvent? event;
+  final LifeEventCategory? initialCategory;
 
   @override
   State<_LifeEventForm> createState() => _LifeEventFormState();
@@ -225,7 +233,10 @@ class _LifeEventFormState extends State<_LifeEventForm> {
   void initState() {
     super.initState();
     final event = widget.event;
-    category = event?.category ?? LifeEventCategory.careerBusiness;
+    category =
+        event?.category ??
+        widget.initialCategory ??
+        LifeEventCategory.careerBusiness;
     type = event?.type ?? lifeEventTypes[category]!.first;
     precision = event?.date.precision ?? LifeEventPrecision.year;
     year = event?.date.year ?? DateTime.now().year;

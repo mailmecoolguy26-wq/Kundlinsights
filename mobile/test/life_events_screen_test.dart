@@ -77,6 +77,55 @@ void main() {
     expect(repository.deletedProfiles, isEmpty);
   });
 
+  testWidgets('contextually preselects Area when adding a Life Event', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(home: LifeEventsScreen(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+
+    for (final expectation in <(String, LifeEventCategory)>[
+      ('Career', LifeEventCategory.careerBusiness),
+      ('Property', LifeEventCategory.property),
+      ('Vehicle', LifeEventCategory.vehicle),
+      ('Family', LifeEventCategory.relationshipsFamily),
+    ]) {
+      await tester.tap(find.text(expectation.$1));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('add-life-event')));
+      await tester.pumpAndSettle();
+      expect(_areaField(tester).initialValue, expectation.$2);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+    }
+
+    await tester.tap(find.text('All'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('add-life-event')));
+    await tester.pumpAndSettle();
+    expect(_areaField(tester).initialValue, LifeEventCategory.careerBusiness);
+  });
+
+  testWidgets('editing a Vehicle event uses its persisted Area and type', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(home: LifeEventsScreen(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(PopupMenuButton<String>).at(1));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Edit'));
+    await tester.pumpAndSettle();
+
+    expect(_areaField(tester).initialValue, LifeEventCategory.vehicle);
+    final typeField = tester.widget<DropdownButtonFormField<LifeEventType>>(
+      find.byType(DropdownButtonFormField<LifeEventType>),
+    );
+    expect(typeField.initialValue, LifeEventType.vehiclePurchase);
+  });
+
   testWidgets('a new Career route overrides a previous Family selection', (
     tester,
   ) async {
@@ -207,6 +256,11 @@ void main() {
 
 ChoiceChip _chip(WidgetTester tester, String label) =>
     tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, label));
+
+DropdownButtonFormField<LifeEventCategory> _areaField(WidgetTester tester) =>
+    tester.widget<DropdownButtonFormField<LifeEventCategory>>(
+      find.byType(DropdownButtonFormField<LifeEventCategory>),
+    );
 
 class _LifeEvents implements LifeEventRepository {
   final Map<String, List<LifeEvent>> _events = {
