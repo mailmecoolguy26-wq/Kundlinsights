@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { PropertyIntent, natalEvidence, dashaEvidence, ashtakavargaEvidence, calibration, propertyTransitStateBoundaries, classify } = require('../../src/application/property');
+const { PropertyIntent, natalEvidence, dashaEvidence, ashtakavargaEvidence, calibration, propertyTransitStateBoundaries, classify, strongerWindow, PROPERTY_WINDOW_COARSE_SCAN_STEP_MS } = require('../../src/application/property');
 const { TaraPropertyCapability, TaraOrchestrator, intentFor } = require('../../src/application/tara');
 
 function houses({ fourthLord = 'Moon', secondLord = 'Mars', occupants = ['Moon'] } = {}) {
@@ -35,6 +35,29 @@ test('Property window state boundaries are refined event boundaries, never a syn
   const refined = propertyTransitStateBoundaries({ events: [{ body: 'Jupiter', eventType: 'transitDrishtiStart', instant: '2026-11-17T14:30:00.000Z' }, { body: 'Saturn', eventType: 'rashiIngress', instant: '2026-12-03T02:15:00.000Z' }] }, start, end);
   assert.deepEqual(refined, [start, '2026-11-17T14:30:00.000Z', '2026-12-03T02:15:00.000Z', end]);
   assert.equal(refined.includes('2026-11-01T00:00:00.000Z'), false);
+});
+
+test('Property window scanning uses the shared scanner daily coarse cadence and preserves refined boundaries', () => {
+  const calls = [];
+  const result = strongerWindow({
+    engine: {},
+    scanner: (input) => {
+      calls.push(input);
+      return { events: [] };
+    },
+    birth: { latitude: 17.385, longitude: 78.4867 },
+    natalBodies: {},
+    houses: {},
+    dashaTree: { periods: [] },
+    natal: {},
+    d1: {},
+    d4: {},
+    start: '2026-01-01T00:00:00.000Z',
+  });
+  assert.equal(result, null);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].options.coarseScanStepMilliseconds, PROPERTY_WINDOW_COARSE_SCAN_STEP_MS);
+  assert.equal(calls[0].options.coarseScanStepMilliseconds, 86_400_000);
 });
 
 test('Property final classification requires dynamic Dasha and major-transit agreement, while raw support layers cannot upgrade it', () => {

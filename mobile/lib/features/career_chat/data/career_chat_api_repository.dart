@@ -7,6 +7,7 @@ import '../domain/career_chat_repository.dart';
 class CareerChatApiRepository implements CareerChatRepository {
   const CareerChatApiRepository(this._client);
   final ApiClient _client;
+  static const _taraMessageReceiveTimeout = Duration(seconds: 60);
 
   void _debugAction(String prefix, Map<String, Object?> fields) {
     if (!kDebugMode) return;
@@ -96,6 +97,7 @@ class CareerChatApiRepository implements CareerChatRepository {
             ? 'HINGLISH'
             : 'ENGLISH',
       },
+      receiveTimeout: _taraMessageReceiveTimeout,
     );
     // The endpoint returns the just-persisted pair, including allowlisted
     // server-authored actions. Reload to keep chronology canonical, but retain

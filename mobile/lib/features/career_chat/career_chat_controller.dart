@@ -151,6 +151,11 @@ class CareerChatController extends ChangeNotifier {
       return true;
     } on ApiFailure catch (error) {
       if (_profiles.activeProfile?.id != profile.id) return false;
+      if (await _reconcilePersistedResponse(profile.id, message)) {
+        _failure = null;
+        _debugSend('TARA_API_SEND_SUCCESS', profileId: profile.id);
+        return true;
+      }
       _failure = error;
       optimisticMessage.failed = true;
       _debugSend('TARA_API_SEND_FAILURE', profileId: profile.id, error: error);
@@ -158,6 +163,11 @@ class CareerChatController extends ChangeNotifier {
       return false;
     } catch (error) {
       if (_profiles.activeProfile?.id != profile.id) return false;
+      if (await _reconcilePersistedResponse(profile.id, message)) {
+        _failure = null;
+        _debugSend('TARA_API_SEND_SUCCESS', profileId: profile.id);
+        return true;
+      }
       _failure = null;
       optimisticMessage.failed = true;
       _debugSend('TARA_API_SEND_FAILURE', profileId: profile.id, error: error);
@@ -171,10 +181,49 @@ class CareerChatController extends ChangeNotifier {
     }
   }
 
-  Future<void> retry(CareerChatMessage message) {
-    if (!message.failed) return Future.value();
+  Future<void> retry(CareerChatMessage message) async {
+    if (!message.failed) return;
+    final profileId = message.birthProfileId;
+    if (profileId != null &&
+        await _reconcilePersistedResponse(profileId, message.text)) {
+      return;
+    }
     _messages.remove(message);
-    return send(message.text).then((_) {});
+    await send(message.text);
+  }
+
+  /// A timeout can occur after the server has committed the user/assistant
+  /// pair. Canonical history is the authority before we offer a resend, which
+  /// avoids duplicate prompts and duplicate expensive grounded calculations.
+  Future<bool> _reconcilePersistedResponse(
+    String profileId,
+    String submittedText,
+  ) async {
+    final conversationId = _conversationId;
+    if (conversationId == null) return false;
+    try {
+      final detail = await _repository.getConversation(
+        birthProfileId: profileId,
+        conversationId: conversationId,
+      );
+      if (_profiles.activeProfile?.id != profileId) return false;
+      final userIndex = detail.messages.lastIndexWhere(
+        (item) =>
+            item.role == CareerChatRole.user && item.content == submittedText,
+      );
+      final responsePersisted =
+          userIndex >= 0 &&
+          detail.messages
+              .skip(userIndex + 1)
+              .any((item) => item.role == CareerChatRole.assistant);
+      if (!responsePersisted) return false;
+      _apply(detail);
+      _debugSend('TARA_STATE_AFTER_RELOAD', profileId: profileId);
+      return true;
+    } catch (_) {
+      // Preserve the original transport failure and its recoverable Retry UI.
+      return false;
+    }
   }
 
   Future<void> loadHistory() async {

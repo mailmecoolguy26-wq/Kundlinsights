@@ -101,6 +101,22 @@ void main() {
     expect(repository.profileIds.last, 'profile-b');
   });
 
+  test(
+    'reconciles a persisted answer after the message request times out',
+    () async {
+      repository
+        ..sendFailure = const ApiFailure(ApiFailureKind.timeout)
+        ..persistResponseBeforeFailure = true;
+
+      final accepted = await controller.send('Property timing after timeout');
+
+      expect(accepted, isTrue);
+      expect(controller.messages, hasLength(2));
+      expect(controller.messages.last.role, CareerChatRole.assistant);
+      expect(controller.messages.any((message) => message.failed), isFalse);
+    },
+  );
+
   test('keeps an optimistic user message when sending fails', () async {
     repository.sendFailure = const ApiFailure(ApiFailureKind.network);
 
@@ -248,6 +264,7 @@ class _MemoryTaraRepository implements CareerChatRepository {
   final List<String> profileIds = [];
   int _next = 0;
   Object? sendFailure;
+  bool persistResponseBeforeFailure = false;
   bool returnStaleHistoryAfterSend = false;
   Completer<void>? sendGate;
 
@@ -305,9 +322,44 @@ class _MemoryTaraRepository implements CareerChatRepository {
   }) async {
     profileIds.add(birthProfileId);
     final failure = sendFailure;
-    if (failure != null) throw failure;
+    if (failure != null) {
+      if (persistResponseBeforeFailure) {
+        _persistResponse(
+          birthProfileId: birthProfileId,
+          conversationId: conversationId,
+          message: message,
+        );
+      }
+      throw failure;
+    }
     final gate = sendGate;
     if (gate != null) await gate.future;
+    final conversation = _conversations[conversationId]!;
+    if (conversation.birthProfileId != birthProfileId) {
+      throw StateError('Profile mismatch');
+    }
+    _persistResponse(
+      birthProfileId: birthProfileId,
+      conversationId: conversationId,
+      message: message,
+    );
+    if (returnStaleHistoryAfterSend) {
+      return TaraConversationDetail(
+        conversation: conversation,
+        messages: const [],
+      );
+    }
+    return getConversation(
+      birthProfileId: birthProfileId,
+      conversationId: conversationId,
+    );
+  }
+
+  void _persistResponse({
+    required String birthProfileId,
+    required String conversationId,
+    required String message,
+  }) {
     final conversation = _conversations[conversationId]!;
     if (conversation.birthProfileId != birthProfileId) {
       throw StateError('Profile mismatch');
@@ -343,16 +395,6 @@ class _MemoryTaraRepository implements CareerChatRepository {
       createdAt: conversation.createdAt,
       updatedAt: now,
       lastMessagePreview: rows.last.content,
-    );
-    if (returnStaleHistoryAfterSend) {
-      return TaraConversationDetail(
-        conversation: conversation,
-        messages: const [],
-      );
-    }
-    return getConversation(
-      birthProfileId: birthProfileId,
-      conversationId: conversationId,
     );
   }
 

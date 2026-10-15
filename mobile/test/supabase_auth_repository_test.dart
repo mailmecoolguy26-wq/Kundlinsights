@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kundlinsights_mobile/features/auth/auth_controller.dart';
+import 'package:kundlinsights_mobile/features/auth/data/auth_api_token_source.dart';
 import 'package:kundlinsights_mobile/features/auth/data/supabase_auth_repository.dart';
 import 'package:kundlinsights_mobile/features/auth/domain/auth_repository.dart';
 
@@ -128,6 +129,41 @@ void main() {
 
     expect(source.requestedPhones, ['+919876543210']);
     expect(source.verifiedOtps, [('+919876543210', '123456')]);
+    await source.dispose();
+    repository.dispose();
+  });
+
+  test(
+    'a late empty initial event cannot overwrite a verified OTP session',
+    () async {
+      final source = _Source(authenticated: false);
+      final repository = SupabaseAuthRepository.withSource(source);
+      final controller = AuthController(repository);
+
+      await controller.restore();
+      await controller.verifyPhoneOtp(
+        phoneNumber: '+919876543210',
+        otp: '123456',
+      );
+      source.emit(SupabaseAuthEventType.signedIn, authenticated: true);
+      source.emit(SupabaseAuthEventType.initialSession, authenticated: false);
+      await _flushEvents();
+
+      expect(controller.state.status, AuthStatus.authenticated);
+      controller.dispose();
+      await source.dispose();
+      repository.dispose();
+    },
+  );
+
+  test('API token invalidation cannot sign out a Supabase session', () async {
+    final source = _Source(authenticated: true);
+    final repository = SupabaseAuthRepository.withSource(source);
+    final tokenSource = AuthApiTokenSource(repository);
+
+    await tokenSource.invalidate();
+
+    expect(source.authenticated, isTrue);
     await source.dispose();
     repository.dispose();
   });

@@ -141,24 +141,43 @@ void main() {
     },
   );
 
-  test('signs out after a failed refresh and second 401', () async {
-    final tokens = _Tokens();
+  test(
+    'preserves the local session after a failed refresh and second 401',
+    () async {
+      final tokens = _Tokens();
+      final client = ApiClient(
+        config: config,
+        tokens: tokens,
+        dio: Dio()
+          ..httpClientAdapter = _QueueAdapter([
+            _json(401, '{}'),
+            _json(401, '{}'),
+          ]),
+      );
+
+      await expectLater(
+        client.get<Map<String, dynamic>>('/v1/me'),
+        throwsA(isA<ApiFailure>()),
+      );
+      expect(tokens.refreshes, 1);
+      expect(tokens.invalidated, 0);
+    },
+  );
+
+  test('does not destroy a valid local session when refresh is temporarily unavailable', () async {
+    final tokens = _Tokens(refreshedToken: null);
     final client = ApiClient(
       config: config,
       tokens: tokens,
-      dio: Dio()
-        ..httpClientAdapter = _QueueAdapter([
-          _json(401, '{}'),
-          _json(401, '{}'),
-        ]),
+      dio: Dio()..httpClientAdapter = _QueueAdapter([_json(401, '{}')]),
     );
 
     await expectLater(
-      client.get<Map<String, dynamic>>('/v1/me'),
+      client.get<Map<String, dynamic>>('/v1/profiles'),
       throwsA(isA<ApiFailure>()),
     );
     expect(tokens.refreshes, 1);
-    expect(tokens.invalidated, 1);
+    expect(tokens.invalidated, 0);
   });
 
   for (final status in [500, 503]) {
@@ -345,8 +364,11 @@ class _ThrowingAdapter implements HttpClientAdapter {
 }
 
 class _Tokens implements AccessTokenSource {
+  _Tokens({this.refreshedToken = 'refreshed-access-token'});
+
   int refreshes = 0;
   int invalidated = 0;
+  final String? refreshedToken;
 
   @override
   Future<String?> accessToken() async => 'access-token';
@@ -357,6 +379,6 @@ class _Tokens implements AccessTokenSource {
   @override
   Future<String?> refreshAccessToken() async {
     refreshes++;
-    return 'refreshed-access-token';
+    return refreshedToken;
   }
 }

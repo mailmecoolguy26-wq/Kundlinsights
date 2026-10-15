@@ -64,6 +64,11 @@ void main() {
         'POST',
         'GET',
       ]);
+      expect(
+        adapter.requests.first.receiveTimeout,
+        const Duration(seconds: 60),
+      );
+      expect(adapter.requests.last.receiveTimeout, isNull);
     },
   );
 }

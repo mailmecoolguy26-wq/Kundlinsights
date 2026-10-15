@@ -24,6 +24,11 @@ const SUPPORT = Object.freeze(['Mars', 'Venus']);
 const PROPERTY_HOUSES = Object.freeze([2, 4, 11]);
 const CONTEXT_HOUSES = Object.freeze([6, 8, 12]);
 const DAY = 86_400_000;
+// The shared Layer 10 scanner refines every transition after coarse discovery.
+// A daily coarse cadence is its documented maximum and retains the same
+// customer-facing refined ingress/aspect/association boundaries without the
+// 18k+ hourly astronomy samples previously used by a Property window scan.
+const PROPERTY_WINDOW_COARSE_SCAN_STEP_MS = DAY;
 
 function freeze(value) { if (value && typeof value === 'object' && !Object.isFrozen(value)) { Object.freeze(value); Object.values(value).forEach(freeze); } return value; }
 function fail(code) { const error = new Error(code); error.code = code; throw error; }
@@ -135,7 +140,7 @@ function strongerWindow({ engine, scanner, birth, natalBodies, houses, dashaTree
   // rather than presenting `now` as an invented customer-facing start date.
   const scanStart = new Date(Date.parse(start) - 400 * DAY).toISOString();
   const end = new Date(Date.parse(start) + 365 * DAY).toISOString();
-  const scan = scanner({ startInstant: scanStart, endInstant: end, natalBodies, natalHouses: houses, astronomicalEngine: engine, observer: { latitude: birth.latitude, longitude: birth.longitude }, bodies: [...MAJOR, ...SUPPORT], eventTypes: ['rashiIngress', 'transitDrishtiStart', 'transitDrishtiEnd', 'sameRashiAssociationStart', 'sameRashiAssociationEnd'] });
+  const scan = scanner({ startInstant: scanStart, endInstant: end, natalBodies, natalHouses: houses, astronomicalEngine: engine, observer: { latitude: birth.latitude, longitude: birth.longitude }, bodies: [...MAJOR, ...SUPPORT], eventTypes: ['rashiIngress', 'transitDrishtiStart', 'transitDrishtiEnd', 'sameRashiAssociationStart', 'sameRashiAssociationEnd'], options: { coarseScanStepMilliseconds: PROPERTY_WINDOW_COARSE_SCAN_STEP_MS } });
   const boundaries = propertyTransitStateBoundaries(scan, scanStart, end);
   for (let index = 0; index < boundaries.length - 1; index += 1) {
     const range = { start: boundaries[index], end: boundaries[index + 1] };
@@ -167,33 +172,43 @@ class PropertyAnswerService {
   async answer({ principal, birthProfileId, intent = PropertyIntent.PROPERTY_CURRENT_STRENGTH, at = null, diagnosticLog = null } = {}) {
     if (!Object.values(PropertyIntent).includes(intent)) fail('UNSUPPORTED_PROPERTY_INTENT');
     const log = (event, fields = {}) => { if (typeof diagnosticLog === 'function') diagnosticLog(freeze({ event, birthProfileId, intent, ...fields })); };
+    const startedAt = Date.now();
+    const timed = (event, stageStartedAt) => log(event, { durationMs: Date.now() - stageStartedAt });
     log('PROPERTY_CALCULATION_START', { state: 'STARTED' });
     const profile = await this.profiles.get({ principal, birthProfileId }); if (!profile || profile.status !== 'active') fail('NOT_FOUND_OR_FORBIDDEN');
     const instant = at || new Date(this.clock()).toISOString();
     let stage = 'PROFILE';
     try {
       stage = 'NATAL';
+      let stageStartedAt = Date.now();
       const natal = this.engine.calculate(request(profile.birthData)); const houses = calculateRashiHouses({ ascendantCanonicalSiderealLongitude: natal.bodies.Ascendant.siderealLongitudeDegrees, bodies: natal.bodies });
-      const natalFacts = natalEvidence(houses); log('PROPERTY_NATAL_EVIDENCE', { state: natalFacts.classification, evidenceCount: natalFacts.connections.length });
+      const natalFacts = natalEvidence(houses); timed('PROPERTY_NATAL_EVIDENCE', stageStartedAt);
       stage = 'D4';
-      const d4 = d4Evidence(natal, houses); log('PROPERTY_D4_EVIDENCE', { state: d4.confirmation, evidenceCount: d4.fourthHouse.occupants.length });
+      stageStartedAt = Date.now();
+      const d4 = d4Evidence(natal, houses); timed('PROPERTY_D4_EVIDENCE', stageStartedAt);
       stage = 'DASHA';
+      stageStartedAt = Date.now();
       const dashaTree = calculateVimshottariDasha({ birthInstant: natal.instant.utc, moonCanonicalSiderealLongitude: natal.bodies.Moon.siderealLongitudeDegrees, natalSunCanonicalSiderealLongitude: natal.bodies.Sun.siderealLongitudeDegrees, canonicalSiderealSunSampler: this.sampler, rulesetId: SOLAR_RETURN_VIMSHOTTARI_RULESET.id });
-      const dasha = dashaEvidence(houses, dashaAt(dashaTree, instant)); log('PROPERTY_DASHA_EVIDENCE', { state: dasha.classification, evidenceCount: dasha.factors.length });
+      const dasha = dashaEvidence(houses, dashaAt(dashaTree, instant)); timed('PROPERTY_DASHA_EVIDENCE', stageStartedAt);
       stage = 'TRANSIT';
-      const transitBodies = this.engine.calculate(transitRequest(instant, profile.birthData)); const snapshot = calculateGocharSnapshot({ snapshotInstant: instant, natalBodies: natal.bodies, natalHouses: houses, transitBodies: transitBodies.bodies }); const transit = transitEvidence(snapshot, houses); log('PROPERTY_TRANSIT_EVIDENCE', { state: transit.active ? 'ACTIVE' : 'LIMITED', evidenceCount: transit.activeMajor.length });
+      stageStartedAt = Date.now();
+      const transitBodies = this.engine.calculate(transitRequest(instant, profile.birthData)); const snapshot = calculateGocharSnapshot({ snapshotInstant: instant, natalBodies: natal.bodies, natalHouses: houses, transitBodies: transitBodies.bodies }); const transit = transitEvidence(snapshot, houses); timed('PROPERTY_TRANSIT_EVIDENCE', stageStartedAt);
       stage = 'ASHTAKAVARGA';
-      const rawAshtaka = calculateAshtakavargaForLayer2(classifyLayer1Bodies(natal)); const ashtakavarga = ashtakavargaEvidence(rawAshtaka, houses); log('PROPERTY_ASHTAKAVARGA_EVIDENCE', { state: 'CONTEXT_ONLY', evidenceCount: ashtakavarga.sav.length });
+      stageStartedAt = Date.now();
+      const rawAshtaka = calculateAshtakavargaForLayer2(classifyLayer1Bodies(natal)); const ashtakavarga = ashtakavargaEvidence(rawAshtaka, houses); timed('PROPERTY_ASHTAKAVARGA_EVIDENCE', stageStartedAt);
       stage = 'CALIBRATION';
-      const events = await this.lifeEvents.getRelevantLifeEvents({ principal, birthProfileId, categories: ['PROPERTY'] }); const history = calibration(events); log('PROPERTY_CALIBRATION', { state: history.state, evidenceCount: history.eventCount });
+      stageStartedAt = Date.now();
+      const events = await this.lifeEvents.getRelevantLifeEvents({ principal, birthProfileId, categories: ['PROPERTY'] }); const history = calibration(events); timed('PROPERTY_CALIBRATION', stageStartedAt);
       stage = 'RESULT';
       const final = classify({ natal: natalFacts, d4, dasha, transit });
       stage = 'WINDOW';
+      stageStartedAt = Date.now();
       const window = intent === PropertyIntent.PROPERTY_SALE_TIMING ? null : strongerWindow({ engine: this.engine, scanner: this.scanner, birth: profile.birthData, natalBodies: natal.bodies, houses, dashaTree, natal: natalFacts, d1: houses, d4, start: instant });
+      timed('PROPERTY_WINDOW_EVIDENCE', stageStartedAt);
       const financing = transit.all.some((item) => item.propertyActive && item.contexts.some((house) => [6, 12].includes(house))) || dasha.factors.some((item) => item.corePropertyConnection && item.contextConnection);
       const shared = transit.all.some((item) => item.propertyActive && item.contexts.includes(8)) || dasha.factors.some((item) => item.corePropertyConnection && item.rulesHouses.includes(8));
       const result = freeze({ intent, answerability: intent === PropertyIntent.PROPERTY_SALE_TIMING ? 'LIMITED_EVIDENCE' : 'SUPPORTED', classification: final, state: limitation(intent) || final, strongerWindow: window, evidence: freeze({ natal: natalFacts, d4: freeze({ ...d4, d4Houses: undefined }), dasha, transit, ashtakavarga, lifeEvents: history }), contexts: freeze({ financing: financing ? (intent === PropertyIntent.PROPERTY_LOAN_CONTEXT ? 'STRONGER_FINANCING_INVOLVEMENT' : 'FINANCING_CONTEXT') : 'LIMITED_EVIDENCE', sharedAsset: shared ? (intent === PropertyIntent.PROPERTY_INHERITANCE_CONTEXT ? 'SHARED_OR_INHERITED_ASSET_THEME_ACTIVE' : 'SHARED_ASSET_CONTEXT') : 'LIMITED_EVIDENCE', expenditure: transit.all.some((item) => item.propertyActive && item.contexts.includes(12)) ? 'EXPENDITURE_CONTEXT' : 'NONE' }), limitations: freeze(['NO_OUTCOME_GUARANTEE', 'NO_EXACT_PURCHASE_DATE', ...(intent === PropertyIntent.PROPERTY_SALE_TIMING ? ['SALE_METHODOLOGY_DEFERRED'] : [])]), provenance: freeze({ dashaRulesetId: SOLAR_RETURN_VIMSHOTTARI_RULESET.id, d4RulesetId: 'parashari-chaturthamsha-v1', ashtakavargaPolicy: 'RAW_CONTEXT_ONLY' }) });
-      log('PROPERTY_RESULT', { state: result.state, classification: result.classification, evidenceCount: transit.activeMajor.length }); return result;
+      log('PROPERTY_RESULT', { state: result.state, classification: result.classification, evidenceCount: transit.activeMajor.length, durationMs: Date.now() - startedAt }); return result;
     } catch (error) {
       log('PROPERTY_RESULT', { stage, state: 'FAILED', safeErrorCode: error && error.code || 'PROPERTY_CALCULATION_FAILED', errorClass: error && error.name || 'Error' });
       throw error;
@@ -201,4 +216,4 @@ class PropertyAnswerService {
   }
 }
 
-module.exports = { PropertyAnswerService, PropertyIntent, natalEvidence, d4Evidence, dashaEvidence, transitEvidence, ashtakavargaEvidence, calibration, propertyTransitStateBoundaries, classify };
+module.exports = { PropertyAnswerService, PropertyIntent, natalEvidence, d4Evidence, dashaEvidence, transitEvidence, ashtakavargaEvidence, calibration, propertyTransitStateBoundaries, classify, strongerWindow, PROPERTY_WINDOW_COARSE_SCAN_STEP_MS };
