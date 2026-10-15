@@ -228,6 +228,7 @@ class _LifeEventFormState extends State<_LifeEventForm> {
   late int year;
   late int month;
   late int day;
+  bool _saving = false;
   final _note = TextEditingController();
 
   @override
@@ -334,17 +335,36 @@ class _LifeEventFormState extends State<_LifeEventForm> {
           ],
           const SizedBox(height: 12),
           TextField(
+            key: const ValueKey('life-event-note'),
             controller: _note,
             decoration: const InputDecoration(labelText: 'Optional note'),
           ),
           const SizedBox(height: 20),
-          FilledButton(onPressed: _save, child: const Text('Save')),
+          FilledButton(
+            key: const ValueKey('life-event-save'),
+            onPressed: _saving ? null : _save,
+            child: _saving
+                ? const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      SizedBox(width: 10),
+                      Text('Saving...'),
+                    ],
+                  )
+                : const Text('Save'),
+          ),
         ],
       ),
     );
   }
 
   Future<void> _save() async {
+    if (_saving) return;
     final input = LifeEventInput(
       category: category,
       type: type,
@@ -366,12 +386,14 @@ class _LifeEventFormState extends State<_LifeEventForm> {
       return;
     }
     _log('LIFE_EVENT_FORM_VALID', input);
+    setState(() => _saving = true);
     final saved = await widget.controller.save(input, editing: widget.event);
     if (!mounted) return;
     if (saved) {
       Navigator.of(context).pop();
       return;
     }
+    setState(() => _saving = false);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Life Event could not be saved. Please try again.'),

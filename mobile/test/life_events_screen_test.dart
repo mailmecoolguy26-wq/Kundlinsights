@@ -134,6 +134,104 @@ void main() {
     },
   );
 
+  testWidgets('Save shows progress and prevents duplicate create requests', (
+    tester,
+  ) async {
+    repository.createGate = Completer<void>();
+    await tester.pumpWidget(
+      MaterialApp(home: LifeEventsScreen(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('add-life-event')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('life-event-save')));
+    await tester.tap(find.byKey(const ValueKey('life-event-save')));
+    await tester.pump();
+
+    expect(find.text('Saving...'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(const ValueKey('life-event-save')))
+          .onPressed,
+      isNull,
+    );
+    expect(repository.createCalls, 1);
+
+    repository.createGate!.complete();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('life-event-save')), findsNothing);
+    expect(repository.createCalls, 1);
+    expect(controller.events.any((event) => event.id == 'created-1'), isTrue);
+  });
+
+  testWidgets('failed save restores the form and keeps entered values', (
+    tester,
+  ) async {
+    repository.createGate = Completer<void>();
+    repository.createFailure = StateError('safe test failure');
+    await tester.pumpWidget(
+      MaterialApp(home: LifeEventsScreen(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('add-life-event')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('life-event-note')),
+      'Keep this note',
+    );
+    await tester.tap(find.byKey(const ValueKey('life-event-save')));
+    await tester.pump();
+    expect(find.text('Saving...'), findsOneWidget);
+
+    repository.createGate!.complete();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Add Life Event'), findsOneWidget);
+    expect(
+      find.text('Life Event could not be saved. Please try again.'),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const ValueKey('life-event-note')))
+          .controller!
+          .text,
+      'Keep this note',
+    );
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(const ValueKey('life-event-save')))
+          .onPressed,
+      isNotNull,
+    );
+  });
+
+  testWidgets('Edit save also prevents duplicate update requests', (
+    tester,
+  ) async {
+    repository.updateGate = Completer<void>();
+    await tester.pumpWidget(
+      MaterialApp(home: LifeEventsScreen(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(PopupMenuButton<String>).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Edit'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('life-event-save')));
+    await tester.tap(find.byKey(const ValueKey('life-event-save')));
+    await tester.pump();
+
+    expect(find.text('Saving...'), findsOneWidget);
+    expect(repository.updateCalls, 1);
+    repository.updateGate!.complete();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('life-event-save')), findsNothing);
+    expect(repository.updateCalls, 1);
+  });
+
   testWidgets('editing a Vehicle event uses its persisted Area and type', (
     tester,
   ) async {
@@ -373,6 +471,11 @@ class _LifeEvents implements LifeEventRepository {
   final List<LifeEventInput> createdInputs = [];
   final List<String> updatedProfiles = [];
   final List<String> deletedProfiles = [];
+  Completer<void>? createGate;
+  Object? createFailure;
+  int createCalls = 0;
+  Completer<void>? updateGate;
+  int updateCalls = 0;
   int _id = 0;
 
   @override
@@ -386,6 +489,9 @@ class _LifeEvents implements LifeEventRepository {
 
   @override
   Future<LifeEvent> create(String profileId, LifeEventInput input) async {
+    createCalls++;
+    await createGate?.future;
+    if (createFailure != null) throw createFailure!;
     createdProfiles.add(profileId);
     createdInputs.add(input);
     final value = _event(
@@ -406,6 +512,8 @@ class _LifeEvents implements LifeEventRepository {
     String id,
     LifeEventInput input,
   ) async {
+    updateCalls++;
+    await updateGate?.future;
     updatedProfiles.add(profileId);
     final value = _event(
       id,
