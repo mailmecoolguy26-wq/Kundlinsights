@@ -5,7 +5,10 @@ const { deriveVargaFromSiderealLongitude } = require('../../varga');
 const { repositoryError } = require('../../persistence/contracts');
 const { toDivisionalChartDto } = require('./divisional-chart-dto');
 
-const CHART_TYPES = Object.freeze({ d9: 'D9', d10: 'D10' });
+// Deliberately allow only the application charts with an approved consumer.
+// D4 is used internally by Property Rules v1; this does not open arbitrary
+// Varga projection through the application service.
+const CHART_TYPES = Object.freeze({ d4: 'D4', d9: 'D9', d10: 'D10' });
 
 function fail(code) { throw repositoryError(code); }
 

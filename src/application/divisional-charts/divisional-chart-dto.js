@@ -38,7 +38,7 @@ function houseSignAssignments(houses) {
 }
 
 function toDivisionalChartDto({ birthProfileId, chartType, coordinates, houses }) {
-  if (!birthProfileId || !['D9', 'D10'].includes(chartType) || !coordinates || !houses) {
+  if (!birthProfileId || !['D4', 'D9', 'D10'].includes(chartType) || !coordinates || !houses) {
     throw new TypeError('Divisional chart DTO requires an approved chart and completed projection.');
   }
   const houseByBody = new Map(

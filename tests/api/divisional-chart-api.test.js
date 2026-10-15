@@ -151,6 +151,14 @@ test('D9 and D10 expose owned, safe, chart-ready Varga projections without side 
   await api.close();
 });
 
+test('D4 is available to the approved internal divisional-chart service but is not exposed as a public chart route', async () => {
+  const service = new DivisionalChartService({ birthProfileService: profiles(), astronomicalEngine: engine() });
+  const d4 = await service.get({ principal: a, birthProfileId: 'profile-a', chartType: 'd4' });
+  assertChart(d4, 'D4');
+  const response = await app({ readings: 0 }).inject({ url: '/v1/birth-profiles/profile-a/divisional-charts/d4', headers: { authorization: 'Bearer a' } });
+  assert.equal(response.statusCode, 404);
+});
+
 test('divisional chart routes require authentication and preserve non-enumerating ownership', async () => {
   const api = app({ readings: 0 });
   assert.equal(

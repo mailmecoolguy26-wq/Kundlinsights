@@ -30,10 +30,11 @@ function diagnostic(log, event, { state = null, action = null, messageId = null,
 }
 
 class TaraOrchestrator {
-  constructor({ careerCapability, transitCapability } = {}) {
+  constructor({ careerCapability, transitCapability, propertyCapability = null } = {}) {
     if (!careerCapability || typeof careerCapability.respond !== 'function') throw new TypeError('INVALID_TARA_CAREER_CAPABILITY');
     this.career = careerCapability;
     this.transit = transitCapability && typeof transitCapability.respond === 'function' ? transitCapability : null;
+    this.property = propertyCapability && typeof propertyCapability.respond === 'function' ? propertyCapability : null;
   }
 
   async respond({ principal, birthProfileId, message, conversationContext = [], language = 'ENGLISH', diagnosticLog = null } = {}) {
@@ -46,6 +47,11 @@ class TaraOrchestrator {
       if (!this.transit) return Object.freeze({ domain, answerability: 'UNSUPPORTED', capability: null, message: unsupportedMessage(responseLanguage) });
       const transit = await this.transit.respond({ principal, birthProfileId, message: normalizedMessage, conversationContext, language: responseLanguage, diagnosticLog });
       return Object.freeze({ domain, answerability: transit.answerability, capability: 'TRANSIT_GROUNDED', message: transit.message, transit, action: null });
+    }
+    if (domain === 'WEALTH_PROPERTY') {
+      if (!this.property) return Object.freeze({ domain, answerability: 'UNSUPPORTED', capability: null, message: unsupportedMessage(responseLanguage) });
+      const property = await this.property.respond({ principal, birthProfileId, message: normalizedMessage, conversationContext, language: responseLanguage, diagnosticLog });
+      return Object.freeze({ domain, answerability: property.answerability, capability: 'PROPERTY_GROUNDED', message: property.message, property, action: null });
     }
     if (domain !== 'CAREER') return Object.freeze({ domain, answerability: 'UNSUPPORTED', capability: null, message: unsupportedMessage(responseLanguage) });
     const career = await this.career.respond({ principal, birthProfileId, message: normalizedMessage, conversationContext, language: responseLanguage, diagnosticLog });

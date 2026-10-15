@@ -11,6 +11,7 @@ const { TransitSnapshotService, LatestCareerReadingTransitSource } = require('..
 const { AshtakavargaService } = require('../application/ashtakavarga');
 const { CareerEventService, CareerEventAstrologyService, CareerPatternComparisonService, CareerFutureRecurrenceService, CareerReadingContextBuilder } = require('../application/career-events');
 const { LifeEventService } = require('../application/life-events');
+const { PropertyAnswerService } = require('../application/property');
 const { PostgresUserRepository, PostgresBirthProfileRepository, PostgresReadingRepository, PostgresEntitlementRepository, PostgresCareerEventRepository, PostgresCareerEventObservationRepository, PostgresLifeEventRepository, PostgresPurchaseRepository, PostgresSubscriptionRepository, PostgresProfileEntitlementRepository, PostgresPaymentEventRepository, PostgresProviderPaymentOrderRepository, PostgresNotificationRepository } = require('../persistence');
 const { PostgresPaymentUnitOfWork } = require('../payment/unit-of-work');
 const { PurchaseProviderRegistry, PurchaseVerificationService } = require('../payment/purchase-services');
@@ -126,11 +127,12 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   const jobFavourabilityEvaluator = new JobFavourabilityBetaEvaluator({ birthProfileService, astronomicalEngine, canonicalSiderealSunSampler, clock });
   const careerAnswerService = new CareerAnswerService({ secureReadingService, birthProfileService, jobFavourabilityResearchEnabled: Boolean(careerAnswerPolicy && careerAnswerPolicy.jobFavourabilityResearchEnabled === true), jobFavourabilityEvaluator });
   const { CareerChatOrchestrator } = require('../application/career-chat');
-  const { TaraOrchestrator, TaraCareerCapability, TaraTransitCapability } = require('../application/tara');
+  const { TaraOrchestrator, TaraCareerCapability, TaraTransitCapability, TaraPropertyCapability } = require('../application/tara');
   const transitSnapshotService = new TransitSnapshotService({ birthProfileService, astronomicalEngine, careerInsightSource: new LatestCareerReadingTransitSource({ secureReadingService }) });
   const careerChatRenderer = careerChat && careerChat.enabled === true ? new OpenAICareerChatRenderer({ apiKey: careerChat.apiKey, model: careerChat.model, timeoutMilliseconds: careerChat.timeoutMilliseconds }) : null;
   const careerChatOrchestrator = new CareerChatOrchestrator({ secureReadingService, languageModel: careerChatRenderer });
-  const taraOrchestrator = new TaraOrchestrator({ careerCapability: new TaraCareerCapability({ careerAnswerService }), transitCapability: new TaraTransitCapability({ transitSnapshotService, clock }) });
+  const propertyAnswerService = new PropertyAnswerService({ birthProfileService, lifeEventService, astronomicalEngine, canonicalSiderealSunSampler, clock });
+  const taraOrchestrator = new TaraOrchestrator({ careerCapability: new TaraCareerCapability({ careerAnswerService }), transitCapability: new TaraTransitCapability({ transitSnapshotService, clock }), propertyCapability: new TaraPropertyCapability({ propertyAnswerService }) });
   const { TaraConversationService } = require('../application/tara-conversations/tara-conversation-service');
   const taraConversationService = new TaraConversationService({ authUserResolver: userResolver, birthProfileService, transactionExecutor: tx, taraOrchestrator, careerEntitlementResolver: secureReadingService, idGenerator, clock });
   const vimshottariService = new VimshottariService({ birthProfileService, astronomicalEngine, canonicalSiderealSunSampler, careerInsightSource: new LatestCareerReadingInsightSource({ secureReadingService }), clock });
@@ -168,9 +170,9 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   const razorpayPaymentService = razorpay ? new RazorpayPaymentService({ authUserResolver: userResolver, birthProfileRepository: repositories().birthProfiles, providerOrders: repositories().providerPaymentOrders, razorpayClient: razorpay.apiClient || new RazorpayApiClient({ keyId: razorpay.keyId, keySecret: razorpay.keySecret }), productCatalog: createCareerPremiumRazorpayProductCatalog(razorpay.products), purchaseService, unitOfWork: paymentUnitOfWork, idGenerator, clock, keyId: razorpay.keyId, keySecret: razorpay.keySecret, webhookSecret: razorpay.webhookSecret, environment: razorpay.environment }) : null;
   const { PlaceResolutionService } = require('./place-resolution-service');
   const placeResolutionService = placeResolver ? new PlaceResolutionService({ birthPlaceResolver: placeResolver }) : null;
-  const api = createApi({ authVerifier, userResolver: { resolve: userResolver }, birthProfileService, careerEventService, lifeEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, ashtakavargaService, secureReadingService, careerAnswerService, careerChatOrchestrator, taraConversationService, purchaseService, razorpayPaymentService, appleNotificationService, googleRtdnService, notificationSelfService, placeResolutionService, requestIdGenerator: idGenerator, corsAllowlist, isReady, logger, bodyLimit });
+  const api = createApi({ authVerifier, userResolver: { resolve: userResolver }, birthProfileService, careerEventService, lifeEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, ashtakavargaService, secureReadingService, careerAnswerService, propertyAnswerService, careerChatOrchestrator, taraConversationService, purchaseService, razorpayPaymentService, appleNotificationService, googleRtdnService, notificationSelfService, placeResolutionService, requestIdGenerator: idGenerator, corsAllowlist, isReady, logger, bodyLimit });
   api.apiRuntime = { astronomicalEngine, canonicalSiderealSunSampler };
-  return Object.freeze({ api, services: Object.freeze({ birthProfileService, careerEventService, lifeEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, secureReadingService, careerAnswerService, userResolver, transactionExecutor: tx }) });
+  return Object.freeze({ api, services: Object.freeze({ birthProfileService, careerEventService, lifeEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, secureReadingService, careerAnswerService, propertyAnswerService, userResolver, transactionExecutor: tx }) });
 }
 
 module.exports = { createApiComposition };
