@@ -3,7 +3,7 @@
 const { fail, requiredString, canonicalTime, immutableCopy } = require('../contracts');
 const { freeze } = require('../../synthesis/evidence-node');
 const { mapPostgresError } = require('./postgres-errors');
-const { profileFingerprint, userFromRow, birthProfileFromRow, encryptedBirthProfileFromRow, paymentFromRow, providerPaymentOrderFromRow, purchaseFromRow, subscriptionFromRow, paymentEventFromRow, profileEntitlementFromRow, entitlementFromRow, careerEventFromRow, careerEventObservationFromRow, readingFromRow, encryptedReadingFromRow, encodedBirthPayload, encodedReadingPayload } = require('./postgres-mappers');
+const { dbTime, nullableTime, profileFingerprint, userFromRow, birthProfileFromRow, encryptedBirthProfileFromRow, paymentFromRow, providerPaymentOrderFromRow, purchaseFromRow, subscriptionFromRow, paymentEventFromRow, profileEntitlementFromRow, entitlementFromRow, careerEventFromRow, careerEventObservationFromRow, readingFromRow, encryptedReadingFromRow, encodedBirthPayload, encodedReadingPayload } = require('./postgres-mappers');
 const { purchaseRecord, subscriptionRecord, profileEntitlement, paymentEvent } = require('../../payment');
 const { PostgresNotificationRepository } = require('./notification-repository');
 
@@ -25,6 +25,27 @@ function codecBoundary(codec, method) { if (!codec || typeof codec[method] !== '
 function now() { return new Date().toISOString(); }
 async function queryOne(db, sql, values, notFound) { const result = await db.query(sql, values); if (result.rows.length === 0) fail(notFound); return result.rows[0]; }
 async function execute(fn, fallback) { try { return await fn(); } catch (error) { if (error && error.code && /^[A-Z_]+$/.test(error.code)) throw error; throw mapPostgresError(error, fallback); } }
+function lifeEventDbFailureCategory(error) {
+  if (!error || typeof error !== 'object') return 'LIFE_EVENT_DB_UNKNOWN_FAILED';
+  if (error.code === '42501') return 'LIFE_EVENT_DB_RLS_FAILED';
+  if (['23502', '23503', '23505', '23514'].includes(error.code)) return 'LIFE_EVENT_DB_CONSTRAINT_FAILED';
+  if (typeof error.code === 'string' && error.code.startsWith('22')) return 'LIFE_EVENT_DB_MAPPING_FAILED';
+  return 'LIFE_EVENT_DB_UNKNOWN_FAILED';
+}
+function lifeEventDbDiagnostic(log, error, stage = 'INSERT') {
+  if (typeof log !== 'function') return;
+  const limited = (value) => typeof value === 'string' && /^[A-Za-z0-9_.-]{1,128}$/.test(value) ? value : null;
+  try {
+    log(Object.freeze({
+      event: 'LIFE_EVENT_DB_INSERT',
+      stage,
+      postgresErrorCode: typeof (error && error.code) === 'string' && /^[0-9A-Z]{5}$/.test(error.code) ? error.code : null,
+      constraint: limited(error && error.constraint),
+      errorClass: limited(error && error.name) || 'Error',
+      safeMessageCategory: stage === 'MAPPING' ? 'LIFE_EVENT_DB_MAPPING_FAILED' : lifeEventDbFailureCategory(error),
+    }));
+  } catch {}
+}
 function requiredNullableId(value, code) { return value === null || value === undefined ? null : requiredString(value, code); }
 function verifiedRecord(record) {
   if (!record || typeof record !== 'object' || typeof record.readingId !== 'string' || !record.readingId || typeof record.engineProfileId !== 'string' || !record.engineProfileId || !record.integrity || !record.integrity.calculation || !record.integrity.output) fail('INVALID_READING_RECORD');
@@ -100,7 +121,20 @@ function lifeEventFromRow(row) { return freeze({ id: row.id, userId: row.user_id
 class PostgresLifeEventRepository {
   constructor({ db } = {}) { this.db = dbBoundary(db); }
   withClient(db) { return new PostgresLifeEventRepository({ db }); }
-  async create(input = {}) { return execute(async () => lifeEventFromRow((await this.db.query(`insert into app.life_events (${LIFE_EVENT_COLUMNS}) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,null,null,$12,$13,null) returning ${LIFE_EVENT_COLUMNS}`, [requiredString(input.id,'INVALID_LIFE_EVENT_ID'),requiredString(input.userId,'INVALID_USER_ID'),requiredString(input.birthProfileId,'INVALID_BIRTH_PROFILE_ID'),requiredString(input.category,'INVALID_LIFE_EVENT_CATEGORY'),requiredString(input.eventType,'INVALID_LIFE_EVENT_TYPE'),requiredString(input.eventDatePrecision,'INVALID_LIFE_EVENT_DATE'),input.eventYear,input.eventMonth,input.eventDay,input.title,input.note,canonicalTime(input.createdAt),canonicalTime(input.updatedAt)])).rows[0]), 'CREATE_LIFE_EVENT_FAILED'); }
+  async create(input = {}) {
+    const values = [requiredString(input.id,'INVALID_LIFE_EVENT_ID'),requiredString(input.userId,'INVALID_USER_ID'),requiredString(input.birthProfileId,'INVALID_BIRTH_PROFILE_ID'),requiredString(input.category,'INVALID_LIFE_EVENT_CATEGORY'),requiredString(input.eventType,'INVALID_LIFE_EVENT_TYPE'),requiredString(input.eventDatePrecision,'INVALID_LIFE_EVENT_DATE'),input.eventYear,input.eventMonth,input.eventDay,input.title,input.note,canonicalTime(input.createdAt),canonicalTime(input.updatedAt)];
+    return execute(async () => {
+      let result;
+      try {
+        result = await this.db.query(`insert into app.life_events (${LIFE_EVENT_COLUMNS}) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,null,null,$12,$13,null) returning ${LIFE_EVENT_COLUMNS}`, values);
+      } catch (error) {
+        lifeEventDbDiagnostic(input.diagnosticLog, error);
+        throw error;
+      }
+      try { return lifeEventFromRow(result.rows[0]); }
+      catch (error) { lifeEventDbDiagnostic(input.diagnosticLog, error, 'MAPPING'); throw error; }
+    }, 'CREATE_LIFE_EVENT_FAILED');
+  }
   async listForProfile({ userId, birthProfileId, categories = null, eventTypes = null } = {}) { return execute(async () => { const clauses = ['user_id=$1','birth_profile_id=$2','deleted_at is null']; const values = [requiredString(userId,'INVALID_USER_ID'),requiredString(birthProfileId,'INVALID_BIRTH_PROFILE_ID')]; if (categories && categories.length) { values.push(categories); clauses.push(`category = any($${values.length}::text[])`); } if (eventTypes && eventTypes.length) { values.push(eventTypes); clauses.push(`event_type = any($${values.length}::text[])`); } return freeze((await this.db.query(`select ${LIFE_EVENT_COLUMNS} from app.life_events where ${clauses.join(' and ')} order by event_year asc,event_month asc nulls first,event_day asc nulls first,created_at asc,id asc`, values)).rows.map(lifeEventFromRow)); }, 'LIST_LIFE_EVENTS_FAILED'); }
   async getForProfile({ userId,birthProfileId,id } = {}) { return execute(async () => lifeEventFromRow(await queryOne(this.db, `select ${LIFE_EVENT_COLUMNS} from app.life_events where id=$1 and user_id=$2 and birth_profile_id=$3 and deleted_at is null`, [requiredString(id,'INVALID_LIFE_EVENT_ID'),requiredString(userId,'INVALID_USER_ID'),requiredString(birthProfileId,'INVALID_BIRTH_PROFILE_ID')], 'LIFE_EVENT_NOT_FOUND')), 'GET_LIFE_EVENT_FAILED'); }
   async updateForProfile(input = {}) { return execute(async () => lifeEventFromRow(await queryOne(this.db, `update app.life_events set category=$4,event_type=$5,event_date_precision=$6,event_year=$7,event_month=$8,event_day=$9,title=$10,note=$11,updated_at=$12 where id=$1 and user_id=$2 and birth_profile_id=$3 and deleted_at is null returning ${LIFE_EVENT_COLUMNS}`, [requiredString(input.id,'INVALID_LIFE_EVENT_ID'),requiredString(input.userId,'INVALID_USER_ID'),requiredString(input.birthProfileId,'INVALID_BIRTH_PROFILE_ID'),requiredString(input.category,'INVALID_LIFE_EVENT_CATEGORY'),requiredString(input.eventType,'INVALID_LIFE_EVENT_TYPE'),requiredString(input.eventDatePrecision,'INVALID_LIFE_EVENT_DATE'),input.eventYear,input.eventMonth,input.eventDay,input.title,input.note,canonicalTime(input.updatedAt)], 'LIFE_EVENT_NOT_FOUND')), 'UPDATE_LIFE_EVENT_FAILED'); }

@@ -61,7 +61,7 @@ class LifeEventService {
     const at = this.clock();
     diagnostic(diagnosticLog, 'INSERT', 'STARTED', birthProfileId);
     try {
-      const created = await this.runtime(verified, async (repos) => dto(await repos.lifeEvents.create({ id: this.ids(), userId: user.id, birthProfileId, category: value.category, eventType: value.eventType, eventDatePrecision: value.eventDate.precision, eventYear: value.eventDate.year, eventMonth: value.eventDate.month, eventDay: value.eventDate.day, title: value.title || null, note: value.note || null, createdAt: at, updatedAt: at })));
+      const created = await this.runtime(verified, async (repos) => dto(await repos.lifeEvents.create({ id: this.ids(), userId: user.id, birthProfileId, category: value.category, eventType: value.eventType, eventDatePrecision: value.eventDate.precision, eventYear: value.eventDate.year, eventMonth: value.eventDate.month, eventDay: value.eventDate.day, title: value.title || null, note: value.note || null, createdAt: at, updatedAt: at, diagnosticLog })));
       diagnostic(diagnosticLog, 'INSERT', 'SUCCEEDED', birthProfileId);
       return created;
     } catch (error) {
