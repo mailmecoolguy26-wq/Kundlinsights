@@ -77,8 +77,18 @@ function d4Evidence(natal, houses) {
 }
 function dashaAt(dasha, instant) {
   const stamp = Date.parse(instant);
-  for (const md of dasha.periods) if (stamp >= Number(md.startInstant.epochMilliseconds) && stamp < Number(md.endInstant.epochMilliseconds)) for (const ad of md.children) if (stamp >= Number(ad.startInstant.epochMilliseconds) && stamp < Number(ad.endInstant.epochMilliseconds)) for (const pd of ad.children) if (stamp >= Number(pd.startInstant.epochMilliseconds) && stamp < Number(pd.endInstant.epochMilliseconds)) return { start: pd.startInstant.utc, end: pd.endInstant.utc, md: planetId(md.lord.id), ad: planetId(ad.lord.id), pd: planetId(pd.lord.id) };
+  for (const md of dasha.periods) if (stamp >= Number(md.startInstant.epochMilliseconds) && stamp < Number(md.endInstant.epochMilliseconds)) for (const ad of md.children) if (stamp >= Number(ad.startInstant.epochMilliseconds) && stamp < Number(ad.endInstant.epochMilliseconds)) for (const pd of ad.children) if (stamp >= Number(pd.startInstant.epochMilliseconds) && stamp < Number(pd.endInstant.epochMilliseconds)) return { mdStart: md.startInstant.utc, mdEnd: md.endInstant.utc, adStart: ad.startInstant.utc, adEnd: ad.endInstant.utc, pdStart: pd.startInstant.utc, pdEnd: pd.endInstant.utc, md: planetId(md.lord.id), ad: planetId(ad.lord.id), pd: planetId(pd.lord.id) };
   return null;
+}
+function primaryDashaBounds(dasha) {
+  const mdStart = dasha.mdStart || dasha.start;
+  const mdEnd = dasha.mdEnd || dasha.end;
+  const adStart = dasha.adStart || dasha.start;
+  const adEnd = dasha.adEnd || dasha.end;
+  const start = Math.max(Date.parse(mdStart), Date.parse(adStart));
+  const end = Math.min(Date.parse(mdEnd), Date.parse(adEnd));
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
+  return freeze({ start: new Date(start).toISOString(), end: new Date(end).toISOString() });
 }
 function dashaEvidence(houses, dasha) {
   if (!dasha) return freeze({ classification: 'LIMITED', active: false, periods: null, factors: freeze([]) });
@@ -86,7 +96,8 @@ function dashaEvidence(houses, dasha) {
   const md = facts[0], ad = facts[1], pd = facts[2];
   const strong = Boolean(md && ad && (md.corePropertyConnection || md.acquisitionConnection) && (ad.corePropertyConnection || ad.acquisitionConnection) && (md.corePropertyConnection || ad.corePropertyConnection));
   const moderate = Boolean(md && ad && (md.corePropertyConnection || ad.corePropertyConnection));
-  return freeze({ classification: strong ? 'STRONG' : moderate ? 'MODERATE' : (pd && (pd.corePropertyConnection || pd.acquisitionConnection)) ? 'LIMITED' : 'LIMITED', active: strong || moderate, periods: freeze({ md: dasha.md, ad: dasha.ad, pd: dasha.pd, start: dasha.start, end: dasha.end }), factors: freeze(facts) });
+  const primaryBounds = primaryDashaBounds(dasha);
+  return freeze({ classification: strong ? 'STRONG' : moderate ? 'MODERATE' : (pd && (pd.corePropertyConnection || pd.acquisitionConnection)) ? 'LIMITED' : 'LIMITED', active: strong || moderate, periods: freeze({ md: dasha.md, ad: dasha.ad, pd: dasha.pd, start: primaryBounds && primaryBounds.start || null, end: primaryBounds && primaryBounds.end || null, mdStart: dasha.mdStart || dasha.start || null, mdEnd: dasha.mdEnd || dasha.end || null, adStart: dasha.adStart || dasha.start || null, adEnd: dasha.adEnd || dasha.end || null, pdStart: dasha.pdStart || null, pdEnd: dasha.pdEnd || null }), factors: freeze(facts) });
 }
 function transitEvidence(snapshot, houses) {
   const h4Lord = planetId(houseMap(houses).get(4).rashiHouseLord); const out = [];
@@ -134,6 +145,15 @@ function propertyTransitStateBoundaries(scan, scanStart, end) {
     .filter((event) => [...MAJOR, ...SUPPORT].includes(event.body))
     .map((event) => event.instant)])].sort());
 }
+function classifyPropertyWindow({ start, end }) {
+  const startMs = Date.parse(start); const endMs = Date.parse(end);
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs < startMs) return 'NO_RELIABLE_WINDOW';
+  if (endMs === startMs) return 'NO_RELIABLE_WINDOW';
+  // A sub-day intersection is preserved as factual timing context but is not
+  // promoted to a customer-facing stronger window. This is a presentation
+  // classification only; no interval is extended or made eligible by it.
+  return endMs - startMs < DAY ? 'BRIEF_ACTIVATION' : 'BOUNDED_WINDOW';
+}
 function strongerWindow({ engine, scanner, birth, natalBodies, houses, dashaTree, natal, d1, d4, start }) {
   // Scan before the requested point as well.  This lets an already-active
   // interval retain its real refined ingress/aspect/association boundary
@@ -154,12 +174,15 @@ function strongerWindow({ engine, scanner, birth, natalBodies, houses, dashaTree
     if (classification === 'WEAK') continue;
     const dashaStart = activeDasha.periods.start;
     const dashaEnd = activeDasha.periods.end;
+    if (!dashaStart || !dashaEnd) continue;
     const windowStart = Date.parse(dashaStart) > Date.parse(range.start) ? dashaStart : range.start;
     // scanStart is a lookup boundary, never a customer-facing boundary.
     if (windowStart === scanStart) continue;
     const windowEnd = Date.parse(dashaEnd) < Date.parse(range.end) ? dashaEnd : range.end;
     if (Date.parse(windowEnd) <= Date.parse(start)) continue;
-    return freeze({ start: windowStart, end: windowEnd, classification, basis: 'REFINED_DASHA_TRANSIT_STATE_INTERSECTION' });
+    const timingClassification = classifyPropertyWindow({ start: windowStart, end: windowEnd });
+    if (timingClassification === 'NO_RELIABLE_WINDOW') continue;
+    return freeze({ start: windowStart, end: windowEnd, classification, timingClassification, temporalStatus: Date.parse(windowStart) > Date.parse(start) ? 'UPCOMING' : 'CURRENT', basis: 'REFINED_MD_AD_TRANSIT_STATE_INTERSECTION' });
   }
   return null;
 }
@@ -207,7 +230,7 @@ class PropertyAnswerService {
       timed('PROPERTY_WINDOW_EVIDENCE', stageStartedAt);
       const financing = transit.all.some((item) => item.propertyActive && item.contexts.some((house) => [6, 12].includes(house))) || dasha.factors.some((item) => item.corePropertyConnection && item.contextConnection);
       const shared = transit.all.some((item) => item.propertyActive && item.contexts.includes(8)) || dasha.factors.some((item) => item.corePropertyConnection && item.rulesHouses.includes(8));
-      const result = freeze({ intent, answerability: intent === PropertyIntent.PROPERTY_SALE_TIMING ? 'LIMITED_EVIDENCE' : 'SUPPORTED', classification: final, state: limitation(intent) || final, strongerWindow: window, evidence: freeze({ natal: natalFacts, d4: freeze({ ...d4, d4Houses: undefined }), dasha, transit, ashtakavarga, lifeEvents: history }), contexts: freeze({ financing: financing ? (intent === PropertyIntent.PROPERTY_LOAN_CONTEXT ? 'STRONGER_FINANCING_INVOLVEMENT' : 'FINANCING_CONTEXT') : 'LIMITED_EVIDENCE', sharedAsset: shared ? (intent === PropertyIntent.PROPERTY_INHERITANCE_CONTEXT ? 'SHARED_OR_INHERITED_ASSET_THEME_ACTIVE' : 'SHARED_ASSET_CONTEXT') : 'LIMITED_EVIDENCE', expenditure: transit.all.some((item) => item.propertyActive && item.contexts.includes(12)) ? 'EXPENDITURE_CONTEXT' : 'NONE' }), limitations: freeze(['NO_OUTCOME_GUARANTEE', 'NO_EXACT_PURCHASE_DATE', ...(intent === PropertyIntent.PROPERTY_SALE_TIMING ? ['SALE_METHODOLOGY_DEFERRED'] : [])]), provenance: freeze({ dashaRulesetId: SOLAR_RETURN_VIMSHOTTARI_RULESET.id, d4RulesetId: 'parashari-chaturthamsha-v1', ashtakavargaPolicy: 'RAW_CONTEXT_ONLY' }) });
+      const result = freeze({ intent, answerability: intent === PropertyIntent.PROPERTY_SALE_TIMING ? 'LIMITED_EVIDENCE' : 'SUPPORTED', classification: final, state: limitation(intent) || final, strongerWindow: window, windowStatus: window && window.timingClassification || 'NO_RELIABLE_WINDOW', evidence: freeze({ natal: natalFacts, d4: freeze({ ...d4, d4Houses: undefined }), dasha, transit, ashtakavarga, lifeEvents: history }), contexts: freeze({ financing: financing ? (intent === PropertyIntent.PROPERTY_LOAN_CONTEXT ? 'STRONGER_FINANCING_INVOLVEMENT' : 'FINANCING_CONTEXT') : 'LIMITED_EVIDENCE', sharedAsset: shared ? (intent === PropertyIntent.PROPERTY_INHERITANCE_CONTEXT ? 'SHARED_OR_INHERITED_ASSET_THEME_ACTIVE' : 'SHARED_ASSET_CONTEXT') : 'LIMITED_EVIDENCE', expenditure: transit.all.some((item) => item.propertyActive && item.contexts.includes(12)) ? 'EXPENDITURE_CONTEXT' : 'NONE' }), limitations: freeze(['NO_OUTCOME_GUARANTEE', 'NO_EXACT_PURCHASE_DATE', ...(intent === PropertyIntent.PROPERTY_SALE_TIMING ? ['SALE_METHODOLOGY_DEFERRED'] : [])]), provenance: freeze({ dashaRulesetId: SOLAR_RETURN_VIMSHOTTARI_RULESET.id, d4RulesetId: 'parashari-chaturthamsha-v1', ashtakavargaPolicy: 'RAW_CONTEXT_ONLY' }) });
       log('PROPERTY_RESULT', { state: result.state, classification: result.classification, evidenceCount: transit.activeMajor.length, durationMs: Date.now() - startedAt }); return result;
     } catch (error) {
       log('PROPERTY_RESULT', { stage, state: 'FAILED', safeErrorCode: error && error.code || 'PROPERTY_CALCULATION_FAILED', errorClass: error && error.name || 'Error' });
@@ -216,4 +239,4 @@ class PropertyAnswerService {
   }
 }
 
-module.exports = { PropertyAnswerService, PropertyIntent, natalEvidence, d4Evidence, dashaEvidence, transitEvidence, ashtakavargaEvidence, calibration, propertyTransitStateBoundaries, classify, strongerWindow, PROPERTY_WINDOW_COARSE_SCAN_STEP_MS };
+module.exports = { PropertyAnswerService, PropertyIntent, natalEvidence, d4Evidence, dashaEvidence, primaryDashaBounds, transitEvidence, ashtakavargaEvidence, calibration, propertyTransitStateBoundaries, classifyPropertyWindow, classify, strongerWindow, PROPERTY_WINDOW_COARSE_SCAN_STEP_MS };

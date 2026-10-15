@@ -14,10 +14,24 @@ function intentFor(message) {
 }
 function format(value) { return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(value)); }
 function answer(result, language) {
-  const range = result.strongerWindow ? `${format(result.strongerWindow.start)} to ${format(result.strongerWindow.end)}` : null;
   if (result.intent === PropertyIntent.PROPERTY_SALE_TIMING) return language === 'HINGLISH' ? 'Main current Property activation aur related context explain kar sakti hoon, lekin dedicated Property-sale timing abhi reliably supported nahi hai.' : 'I can explain current Property activation and its context, but dedicated Property-sale timing is not yet reliably supported.';
   const opening = language === 'HINGLISH' ? `Property matters ke liye current support ${result.classification.toLowerCase()} hai.` : `Current support for Property matters is ${result.classification.toLowerCase()}.`;
-  const timing = range ? language === 'HINGLISH' ? `Current Dasha–transit overlap ${range} tak hai.` : `The current Dasha–transit overlap runs through ${range}.` : language === 'HINGLISH' ? 'Abhi koi stronger bounded Property window reliably identify nahi hui hai.' : 'No stronger bounded Property window is reliably identified right now.';
+  const window = result.strongerWindow;
+  const timing = window && result.windowStatus === 'BOUNDED_WINDOW' && window.temporalStatus === 'CURRENT'
+    ? language === 'HINGLISH'
+      ? `Ek calculated Property activation abhi active hai aur ${format(window.end)} tak chal rahi hai.`
+      : `A calculated Property activation is active now and continues until ${format(window.end)}.`
+    : window && result.windowStatus === 'BOUNDED_WINDOW'
+    ? language === 'HINGLISH'
+      ? `Aage ek stronger calculated Property period ${format(window.start)} se ${format(window.end)} ke beech dikh raha hai.`
+      : `An upcoming stronger calculated Property period appears from ${format(window.start)} to ${format(window.end)}.`
+    : window && result.windowStatus === 'BRIEF_ACTIVATION'
+    ? language === 'HINGLISH'
+      ? `Aage ${format(window.start)} ke around ek brief calculated Property activation dikh rahi hai.`
+      : `A brief calculated Property activation appears around ${format(window.start)}.`
+    : language === 'HINGLISH'
+    ? 'Abhi support available hai, lekin mujhe abhi koi sufficiently strong bounded Property window nahi mil raha.'
+    : 'Current support is available, but no sufficiently strong bounded Property window is reliably identified right now.';
   const why = language === 'HINGLISH' ? 'Yeh D1 Property promise, D4 confirmation, active Dasha aur calculated transits ke combined evidence par based hai. Yeh purchase, loan ya outcome ki guarantee nahi deta.' : 'This is based on the combined evidence from the D1 Property promise, D4 confirmation, active Dasha, and calculated transits. It does not guarantee a purchase, loan, or outcome.';
   return `${opening}\n\n${timing}\n\nWhy: ${why}`;
 }
@@ -39,4 +53,4 @@ class TaraPropertyCapability {
     }
   }
 }
-module.exports = { TaraPropertyCapability, intentFor };
+module.exports = { TaraPropertyCapability, intentFor, answer };

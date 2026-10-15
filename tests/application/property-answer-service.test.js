@@ -2,8 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { PropertyIntent, natalEvidence, dashaEvidence, ashtakavargaEvidence, calibration, propertyTransitStateBoundaries, classify, strongerWindow, PROPERTY_WINDOW_COARSE_SCAN_STEP_MS } = require('../../src/application/property');
-const { TaraPropertyCapability, TaraOrchestrator, intentFor } = require('../../src/application/tara');
+const { PropertyIntent, natalEvidence, dashaEvidence, primaryDashaBounds, ashtakavargaEvidence, calibration, propertyTransitStateBoundaries, classifyPropertyWindow, classify, strongerWindow, PROPERTY_WINDOW_COARSE_SCAN_STEP_MS } = require('../../src/application/property');
+const { TaraPropertyCapability, TaraOrchestrator, intentFor, answer } = require('../../src/application/tara');
 
 function houses({ fourthLord = 'Moon', secondLord = 'Mars', occupants = ['Moon'] } = {}) {
   return {
@@ -75,6 +75,41 @@ test('Property Dasha keeps MD/AD primary and lets PD refine only', () => {
   assert.equal(dashaEvidence(chart, { ...common, md: 'sun', ad: 'sun', pd: 'moon' }).active, false);
 });
 
+test('Property timing uses MD/AD bounds rather than allowing PD to collapse the main window', () => {
+  const bounds = primaryDashaBounds({
+    mdStart: '2027-06-01T00:00:00.000Z',
+    mdEnd: '2027-07-01T00:00:00.000Z',
+    adStart: '2027-06-01T00:00:00.000Z',
+    adEnd: '2027-07-01T00:00:00.000Z',
+    pdStart: '2027-06-02T06:00:00.000Z',
+    pdEnd: '2027-06-02T18:00:00.000Z',
+  });
+  assert.deepEqual(bounds, {
+    start: '2027-06-01T00:00:00.000Z',
+    end: '2027-07-01T00:00:00.000Z',
+  });
+});
+
+test('Property window classifications suppress invalid intervals and keep sub-day activations brief', () => {
+  assert.equal(classifyPropertyWindow({ start: '2027-06-02T00:00:00.000Z', end: '2027-06-02T00:00:00.000Z' }), 'NO_RELIABLE_WINDOW');
+  assert.equal(classifyPropertyWindow({ start: '2027-06-03T00:00:00.000Z', end: '2027-06-02T00:00:00.000Z' }), 'NO_RELIABLE_WINDOW');
+  assert.equal(classifyPropertyWindow({ start: '2027-06-02T06:00:00.000Z', end: '2027-06-02T18:00:00.000Z' }), 'BRIEF_ACTIVATION');
+  assert.equal(classifyPropertyWindow({ start: '2027-06-02T00:00:00.000Z', end: '2027-06-05T00:00:00.000Z' }), 'BOUNDED_WINDOW');
+});
+
+test('Property Tara copy separates the current picture from future timing', () => {
+  const base = { intent: PropertyIntent.PROPERTY_PURCHASE_TIMING, classification: 'MIXED' };
+  const bounded = answer({ ...base, windowStatus: 'BOUNDED_WINDOW', strongerWindow: { start: '2027-06-02T00:00:00.000Z', end: '2027-06-10T00:00:00.000Z' } }, 'HINGLISH');
+  assert.match(bounded, /^Property matters ke liye current support mixed hai\./);
+  assert.match(bounded, /Aage ek stronger calculated Property period 02 Jun 2027 se 10 Jun 2027/);
+  assert.doesNotMatch(bounded, /Current Dasha/);
+  const brief = answer({ ...base, windowStatus: 'BRIEF_ACTIVATION', strongerWindow: { start: '2027-06-02T06:00:00.000Z', end: '2027-06-02T18:00:00.000Z' } }, 'HINGLISH');
+  assert.match(brief, /brief calculated Property activation/);
+  assert.doesNotMatch(brief, /to 02 Jun 2027/);
+  const none = answer({ ...base, windowStatus: 'NO_RELIABLE_WINDOW', strongerWindow: null }, 'HINGLISH');
+  assert.match(none, /sufficiently strong bounded Property window/);
+});
+
 test('Property Life Event calibration remains profile-factual context and never supplies a window by itself', () => {
   assert.equal(calibration([]).state, 'NONE');
   assert.equal(calibration([{ eventType: 'PROPERTY_PURCHASE', lifeEventId: 'one', eventDate: { precision: 'YEAR', year: 2020 } }]).state, 'LIMITED');
@@ -97,10 +132,10 @@ test('Property Tara routing keeps purchase timing grounded, handles Hinglish, an
   assert.equal(intentFor('Ghar kharidne ka stronger period kab hai?'), PropertyIntent.PROPERTY_STRONGER_WINDOW);
   assert.equal(intentFor('Abhi property ke liye time kaisa hai?'), PropertyIntent.PROPERTY_CURRENT_STRENGTH);
   assert.equal(intentFor('Property ke liye loan involvement dikh raha hai?'), PropertyIntent.PROPERTY_LOAN_CONTEXT);
-  const calls = []; const capability = new TaraPropertyCapability({ propertyAnswerService: { answer: async (input) => { calls.push(input); return { intent: input.intent, answerability: input.intent === PropertyIntent.PROPERTY_SALE_TIMING ? 'LIMITED_EVIDENCE' : 'SUPPORTED', classification: 'MODERATE', strongerWindow: { start: '2026-11-01T00:00:00.000Z', end: '2026-12-01T00:00:00.000Z' } }; } } });
+  const calls = []; const capability = new TaraPropertyCapability({ propertyAnswerService: { answer: async (input) => { calls.push(input); return { intent: input.intent, answerability: input.intent === PropertyIntent.PROPERTY_SALE_TIMING ? 'LIMITED_EVIDENCE' : 'SUPPORTED', classification: 'MODERATE', windowStatus: 'BOUNDED_WINDOW', strongerWindow: { start: '2026-11-01T00:00:00.000Z', end: '2026-12-01T00:00:00.000Z' } }; } } });
   const purchase = await capability.respond({ principal: {}, birthProfileId: 'profile-a', message: 'Property lene ka acha time kab hai?', language: 'HINGLISH' });
   const sale = await capability.respond({ principal: {}, birthProfileId: 'profile-a', message: 'Should I sell my property?' });
-  assert.equal(purchase.intent, PropertyIntent.PROPERTY_PURCHASE_TIMING); assert.match(purchase.message, /Dasha/);
+  assert.equal(purchase.intent, PropertyIntent.PROPERTY_PURCHASE_TIMING); assert.match(purchase.message, /stronger calculated Property period/);
   assert.equal(sale.intent, PropertyIntent.PROPERTY_SALE_TIMING); assert.match(sale.message, /not yet reliably supported/i);
   assert.equal(calls[0].birthProfileId, 'profile-a');
 });
