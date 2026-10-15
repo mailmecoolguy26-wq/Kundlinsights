@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kundlinsights_mobile/app/router/app_router.dart';
 import 'package:kundlinsights_mobile/features/auth/auth_controller.dart';
 import 'package:kundlinsights_mobile/features/auth/domain/auth_repository.dart';
 import 'package:kundlinsights_mobile/features/life_events/domain/life_event.dart';
@@ -76,6 +77,83 @@ void main() {
     expect(repository.deletedProfiles, isEmpty);
   });
 
+  testWidgets('a new Career route overrides a previous Family selection', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LifeEventsScreen(
+          controller: controller,
+          initialCategory: LifeEventCategory.relationshipsFamily,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(_chip(tester, 'Family').selected, isTrue);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LifeEventsScreen(
+          controller: controller,
+          initialCategory: LifeEventCategory.careerBusiness,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(_chip(tester, 'Career').selected, isTrue);
+    expect(_chip(tester, 'Family').selected, isFalse);
+  });
+
+  testWidgets(
+    'Profile entry starts at All and profile changes retain route filter',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(home: LifeEventsScreen(controller: controller)),
+      );
+      await tester.pumpAndSettle();
+      expect(_chip(tester, 'All').selected, isTrue);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LifeEventsScreen(
+            controller: controller,
+            initialCategory: LifeEventCategory.careerBusiness,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final profileB = profiles.profiles.singleWhere(
+        (profile) => profile.id == 'profile-b',
+      );
+      profiles.select(profileB);
+      await tester.pumpAndSettle();
+
+      expect(_chip(tester, 'Career').selected, isTrue);
+      expect(find.text('Job changed'), findsNothing);
+      expect(find.text('No Life Events added yet.'), findsOneWidget);
+    },
+  );
+
+  test('route parameter supports all reusable domain filters', () {
+    expect(
+      lifeEventCategoryFromRouteParameter('CAREER_BUSINESS'),
+      LifeEventCategory.careerBusiness,
+    );
+    expect(
+      lifeEventCategoryFromRouteParameter('PROPERTY'),
+      LifeEventCategory.property,
+    );
+    expect(
+      lifeEventCategoryFromRouteParameter('VEHICLE'),
+      LifeEventCategory.vehicle,
+    );
+    expect(
+      lifeEventCategoryFromRouteParameter('RELATIONSHIPS_FAMILY'),
+      LifeEventCategory.relationshipsFamily,
+    );
+    expect(lifeEventCategoryFromRouteParameter(null), isNull);
+  });
+
   testWidgets('shows the empty state for a profile with no events', (
     tester,
   ) async {
@@ -107,7 +185,9 @@ void main() {
       );
       expect(await controller.save(input), isTrue);
       expect(repository.createdProfiles, ['profile-a']);
-    final created = controller.events.singleWhere((event) => event.id == 'created-1');
+      final created = controller.events.singleWhere(
+        (event) => event.id == 'created-1',
+      );
 
       expect(await controller.save(input, editing: created), isTrue);
       expect(repository.updatedProfiles, ['profile-a']);
@@ -124,6 +204,9 @@ void main() {
     },
   );
 }
+
+ChoiceChip _chip(WidgetTester tester, String label) =>
+    tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, label));
 
 class _LifeEvents implements LifeEventRepository {
   final Map<String, List<LifeEvent>> _events = {

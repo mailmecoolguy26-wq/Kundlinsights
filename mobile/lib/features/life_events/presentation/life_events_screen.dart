@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../domain/life_event.dart';
 import '../life_event_controller.dart';
 
@@ -23,6 +24,14 @@ class _LifeEventsScreenState extends State<LifeEventsScreen> {
   void initState() {
     super.initState();
     _filter = widget.initialCategory;
+  }
+
+  @override
+  void didUpdateWidget(covariant LifeEventsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialCategory != widget.initialCategory) {
+      _filter = widget.initialCategory;
+    }
   }
 
   @override

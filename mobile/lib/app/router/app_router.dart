@@ -58,6 +58,17 @@ import '../../shared/widgets/states.dart';
 ValueKey<String> careerReadingDetailPageKey(String readingId) =>
     ValueKey<String>('reading-detail:$readingId');
 
+@visibleForTesting
+LifeEventCategory? lifeEventCategoryFromRouteParameter(String? wire) =>
+    _lifeEventCategoryFromWire(wire);
+
+LifeEventCategory? _lifeEventCategoryFromWire(String? wire) {
+  for (final category in LifeEventCategory.values) {
+    if (category.wire == wire) return category;
+  }
+  return null;
+}
+
 GoRouter createAppRouter(
   AuthController authController,
   ProfileController profiles,
@@ -121,7 +132,18 @@ GoRouter createAppRouter(
     return null;
   },
   routes: [
-    GoRoute(path: '/life-events', builder: (context, state) => LifeEventsScreen(controller: lifeEvents, initialCategory: state.uri.queryParameters['initialCategory'] == 'CAREER_BUSINESS' ? LifeEventCategory.careerBusiness : null)),
+    GoRoute(
+      path: '/life-events',
+      builder: (context, state) => LifeEventsScreen(
+        key: ValueKey(
+          'life-events:${state.uri.queryParameters['initialCategory'] ?? 'ALL'}',
+        ),
+        controller: lifeEvents,
+        initialCategory: lifeEventCategoryFromRouteParameter(
+          state.uri.queryParameters['initialCategory'],
+        ),
+      ),
+    ),
     GoRoute(
       path: '/career',
       name: 'career-hub',
