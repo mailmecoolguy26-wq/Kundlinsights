@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { PropertyIntent, natalEvidence, dashaEvidence, primaryDashaBounds, ashtakavargaEvidence, calibration, propertyTransitStateBoundaries, classifyPropertyWindow, candidateState, classify, selectPropertyWindow, strongerWindow, PROPERTY_WINDOW_COARSE_SCAN_STEP_MS } = require('../../src/application/property');
+const { PropertyIntent, natalEvidence, dashaEvidence, primaryDashaBounds, ashtakavargaEvidence, calibration, propertyTransitStateBoundaries, classifyPropertyWindow, candidateState, selectVisiblePeak, classify, selectPropertyWindow, strongerWindow, PROPERTY_WINDOW_COARSE_SCAN_STEP_MS } = require('../../src/application/property');
 const { TaraPropertyCapability, TaraOrchestrator, intentFor, answer } = require('../../src/application/tara');
 
 function houses({ fourthLord = 'Moon', secondLord = 'Mars', occupants = ['Moon'] } = {}) {
@@ -139,6 +139,30 @@ test('Property window selection retains a stronger bounded MD/AD-transit interva
   assert.deepEqual(result.secondary, [brief]);
 });
 
+test('Property timing prioritizes an active candidate, then the next future candidate, over stronger historical or later candidates', () => {
+  const candidate = ({ start, end, candidateState }) => ({
+    start, end, candidateState,
+    dasha: { classification: 'STRONG', periods: { md: 'moon', ad: 'mars' } },
+    d4Confirmation: 'CONFIRMS', pdRelevance: { state: 'PROPERTY_ACTIVE' },
+    transitConfirmation: { state: 'MAJOR_CONFIRMATION', hasCaution: false },
+  });
+  const now = '2026-10-15T00:00:00.000Z';
+  const historical = candidate({ start: '2026-08-01T00:00:00.000Z', end: '2026-08-31T00:00:00.000Z', candidateState: 'STRONG_CANDIDATE' });
+  const active = candidate({ start: '2026-10-01T00:00:00.000Z', end: '2026-11-20T00:00:00.000Z', candidateState: 'MIXED_CANDIDATE' });
+  const later = candidate({ start: '2026-12-01T00:00:00.000Z', end: '2026-12-31T00:00:00.000Z', candidateState: 'STRONG_CANDIDATE' });
+  assert.equal(selectPropertyWindow([historical, later, active], { now }).selected, active);
+  assert.equal(selectPropertyWindow([historical, later], { now }).selected, later);
+});
+
+test('Property peak guidance suppresses elapsed transit segments and retains a future peak only from the selected candidate', () => {
+  const state = (start, end, planet) => ({ start, end, evidence: { activeMajor: [{ planet }], activeSupport: [] } });
+  const now = '2026-10-15T00:00:00.000Z';
+  const past = state('2026-08-02T00:00:00.000Z', '2026-08-10T00:00:00.000Z', 'Jupiter');
+  const future = state('2026-10-25T00:00:00.000Z', '2026-11-01T00:00:00.000Z', 'Saturn');
+  assert.equal(selectVisiblePeak([past], { now }), null);
+  assert.equal(selectVisiblePeak([past, future], { now }), future);
+});
+
 test('Property Tara copy separates the current picture from future timing', () => {
   const base = { intent: PropertyIntent.PROPERTY_PURCHASE_TIMING, classification: 'MIXED' };
   const bounded = answer({ ...base, windowStatus: 'BOUNDED_WINDOW', strongerWindow: { start: '2027-06-02T00:00:00.000Z', end: '2027-06-10T00:00:00.000Z' } }, 'HINGLISH');
@@ -150,6 +174,11 @@ test('Property Tara copy separates the current picture from future timing', () =
   assert.doesNotMatch(brief, /to 02 Jun 2027/);
   const none = answer({ ...base, windowStatus: 'NO_RELIABLE_WINDOW', strongerWindow: null }, 'HINGLISH');
   assert.match(none, /sufficiently strong bounded Property window/);
+  const activeWithoutPeak = answer({ ...base, windowStatus: 'BOUNDED_WINDOW', strongerWindow: { start: '2026-08-01T00:00:00.000Z', end: '2026-11-20T00:00:00.000Z', temporalStatus: 'CURRENT', peakActivation: null } }, 'HINGLISH');
+  assert.match(activeWithoutPeak, /abhi active hai aur 20 Nov 2026 tak/i);
+  assert.doesNotMatch(activeWithoutPeak, /activation aur sharp/i);
+  const activeWithFuturePeak = answer({ ...base, windowStatus: 'BOUNDED_WINDOW', strongerWindow: { start: '2026-08-01T00:00:00.000Z', end: '2026-11-20T00:00:00.000Z', temporalStatus: 'CURRENT', peakActivation: { start: '2026-10-25T00:00:00.000Z', end: '2026-11-01T00:00:00.000Z' } } }, 'HINGLISH');
+  assert.match(activeWithFuturePeak, /25 Oct 2026 ke around activation aur sharp/i);
 });
 
 test('Property Life Event calibration remains profile-factual context and never supplies a window by itself', () => {

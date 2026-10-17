@@ -146,6 +146,7 @@ function limitation(intent) { return intent === PropertyIntent.PROPERTY_SALE_TIM
 function propertyTransitStateBoundaries(scan, scanStart, end) {
   return freeze([...new Set([scanStart, end, ...(scan.events || [])
     .filter((event) => [...MAJOR, ...SUPPORT].includes(event.body))
+    .filter((event) => Date.parse(event.instant) >= Date.parse(scanStart) && Date.parse(event.instant) <= Date.parse(end))
     .map((event) => event.instant)])].sort());
 }
 function classifyPropertyWindow({ start, end }) {
@@ -183,9 +184,21 @@ function pdRelevance(dasha) {
     : 'NEUTRAL';
   return freeze({ state, factor: propertyConnectionSummary(factor) });
 }
-function transitConfirmationForPd({ engine, scanner, birth, natalBodies, houses, start, end }) {
+function selectVisiblePeak(states, { now = null } = {}) {
+  const major = states.filter((state) => state.evidence.activeMajor.length > 0);
+  const supporting = states.filter((state) => state.evidence.activeSupport.length > 0);
+  const pool = major.length ? major : supporting;
+  return pool.filter((item) => !now || Date.parse(item.end) >= Date.parse(now)).slice().sort((left, right) => right.evidence.activeMajor.length - left.evidence.activeMajor.length
+    || right.evidence.activeSupport.length - left.evidence.activeSupport.length
+    || Date.parse(left.start) - Date.parse(right.start))[0] || null;
+}
+function transitConfirmationForPd({ engine, scanner, birth, natalBodies, houses, start, end, now }) {
   const scan = scanner({ startInstant: start, endInstant: end, natalBodies, natalHouses: houses, astronomicalEngine: engine, observer: { latitude: birth.latitude, longitude: birth.longitude }, bodies: [...MAJOR, ...SUPPORT], eventTypes: ['rashiIngress', 'transitDrishtiStart', 'transitDrishtiEnd', 'sameRashiAssociationStart', 'sameRashiAssociationEnd'], options: { coarseScanStepMilliseconds: PROPERTY_WINDOW_COARSE_SCAN_STEP_MS } });
   const boundaries = propertyTransitStateBoundaries(scan, start, end);
+  const sourceEventsAt = (instant) => freeze((scan.events || [])
+    .filter((event) => event.instant === instant)
+    .filter((event) => [...MAJOR, ...SUPPORT].includes(event.body))
+    .map((event) => freeze({ planet: event.body, eventType: event.eventType })));
   const states = [];
   for (let index = 0; index < boundaries.length - 1; index += 1) {
     const stateStart = boundaries[index]; const stateEnd = boundaries[index + 1];
@@ -194,22 +207,22 @@ function transitConfirmationForPd({ engine, scanner, birth, natalBodies, houses,
     const snapshot = calculateGocharSnapshot({ snapshotInstant: stateStart, natalBodies, natalHouses: houses, transitBodies: transitBodies.bodies });
     const evidence = transitEvidence(snapshot, houses);
     const relevant = [...evidence.activeMajor, ...evidence.activeSupport];
-    states.push(freeze({ start: stateStart, end: stateEnd, evidence, caution: relevant.some((item) => item.contexts.length > 0) }));
+    states.push(freeze({ start: stateStart, end: stateEnd, evidence, caution: relevant.some((item) => item.contexts.length > 0), sourceEvents: sourceEventsAt(stateStart) }));
   }
   const major = states.filter((state) => state.evidence.activeMajor.length > 0);
   const supporting = states.filter((state) => state.evidence.activeSupport.length > 0);
   const hasCaution = [...major, ...supporting].some((state) => state.caution);
   const state = major.length && hasCaution ? 'MIXED' : major.length ? 'MAJOR_CONFIRMATION' : supporting.length ? 'SUPPORTIVE_CONFIRMATION' : 'NONE';
-  const peakPool = major.length ? major : supporting;
-  const peak = peakPool.slice().sort((left, right) => right.evidence.activeMajor.length - left.evidence.activeMajor.length
-    || right.evidence.activeSupport.length - left.evidence.activeSupport.length
-    || Date.parse(left.start) - Date.parse(right.start))[0] || null;
+  // A timing answer must not turn a completed transit segment into future
+  // guidance. For an active PD candidate, choose only a peak that is still
+  // ongoing or ahead of the calculation instant; otherwise suppress it.
+  const peak = selectVisiblePeak(states, { now });
   return freeze({
     state,
     majorPlanets: freeze([...new Set(major.flatMap((item) => item.evidence.activeMajor.map((body) => body.planet)))]),
     supportPlanets: freeze([...new Set(supporting.flatMap((item) => item.evidence.activeSupport.map((body) => body.planet)))]),
     hasCaution,
-    peakActivation: peak && freeze({ start: peak.start, end: peak.end }),
+    peakActivation: peak && freeze({ start: peak.start, end: peak.end, source: peak.sourceEvents.length ? peak.sourceEvents : freeze([{ planet: null, eventType: 'PD_INTERVAL_START' }]) }),
   });
 }
 function candidateState({ natal, d4, dasha, pd, transit }) {
@@ -238,15 +251,31 @@ function candidateDiagnostic(candidate, { natal, d4 }) {
     transitConfirmationState: candidate.transitConfirmation.state,
     transitActivationStart: candidate.transitConfirmation.peakActivation && candidate.transitConfirmation.peakActivation.start || null,
     transitActivationEnd: candidate.transitConfirmation.peakActivation && candidate.transitConfirmation.peakActivation.end || null,
+    peakSource: candidate.transitConfirmation.peakActivation && candidate.transitConfirmation.peakActivation.source || freeze([]),
     candidateState: candidate.candidateState,
   });
 }
 // This ranks already-qualified PD candidates. It does not add a new Property
 // predicate: the ordering only uses the approved D1/D4, MD/AD, PD, and transit
 // evidence that made each candidate eligible in the first place.
-function selectPropertyWindow(candidates) {
+function temporalPriority(candidate, now) {
+  const stamp = Date.parse(now);
+  if (Date.parse(candidate.start) <= stamp && stamp <= Date.parse(candidate.end)) return 0;
+  if (Date.parse(candidate.start) > stamp) return 1;
+  return 2;
+}
+function selectPropertyWindow(candidates, { now = new Date().toISOString() } = {}) {
   if (!candidates.length) return null;
-  const selected = candidates.slice().sort((left, right) => {
+  const ranked = candidates.slice().sort((left, right) => {
+    const leftTemporal = temporalPriority(left, now); const rightTemporal = temporalPriority(right, now);
+    const temporal = leftTemporal - rightTemporal;
+    if (temporal) return temporal;
+    // For a forward-looking question, prefer the next usable candidate over a
+    // later one; evidence ranks candidates that share the same temporal slot.
+    if (leftTemporal === 1) {
+      const next = Date.parse(left.start) - Date.parse(right.start);
+      if (next) return next;
+    }
     const classification = propertyWindowClassificationRank(right.candidateState) - propertyWindowClassificationRank(left.candidateState);
     if (classification) return classification;
     const dasha = dashaClassificationRank(right.dasha.classification) - dashaClassificationRank(left.dasha.classification);
@@ -262,8 +291,8 @@ function selectPropertyWindow(candidates) {
     const duration = (Date.parse(right.end) - Date.parse(right.start)) - (Date.parse(left.end) - Date.parse(left.start));
     if (duration) return duration;
     return Date.parse(left.start) - Date.parse(right.start);
-  })[0];
-  return freeze({ selected, secondary: freeze(candidates.filter((candidate) => candidate !== selected).sort((left, right) => propertyWindowClassificationRank(right.candidateState) - propertyWindowClassificationRank(left.candidateState)).slice(0, 2)) });
+  });
+  return freeze({ selected: ranked[0], ranked: freeze(ranked), secondary: freeze(ranked.slice(1, 3)) });
 }
 function pdIntervals(dashaTree, start, end) {
   const out = [];
@@ -285,7 +314,7 @@ function strongerWindow({ engine, scanner, birth, natalBodies, houses, dashaTree
     if (!activeDasha.active) continue;
     if (!['STRONG', 'MODERATE'].includes(natal.classification) || !['CONFIRMS', 'NEUTRAL'].includes(d4.confirmation)) continue;
     const relevance = pdRelevance(activeDasha);
-    const confirmation = transitConfirmationForPd({ engine, scanner, birth, natalBodies, houses, start: interval.start, end: interval.end });
+    const confirmation = transitConfirmationForPd({ engine, scanner, birth, natalBodies, houses, start: interval.start, end: interval.end, now: start });
     const state = candidateState({ natal, d4, dasha: activeDasha, pd: relevance, transit: confirmation });
     const candidate = freeze({
       start: interval.start,
@@ -304,14 +333,28 @@ function strongerWindow({ engine, scanner, birth, natalBodies, houses, dashaTree
     if (state === 'NOT_SUPPORTED') continue;
     candidates.push(candidate);
   }
-  const ranked = selectPropertyWindow(candidates);
+  const ranked = selectPropertyWindow(candidates, { now: start });
   if (!ranked) return null;
-  if (typeof diagnosticLog === 'function') diagnosticLog(freeze({
-    event: 'PROPERTY_WINDOW_RANKING',
-    candidateCount: candidates.length,
-    selectedRank: 1,
-    ...candidateDiagnostic(ranked.selected, { natal, d4 }),
-  }));
+  if (typeof diagnosticLog === 'function') {
+    for (const [index, candidate] of ranked.ranked.entries()) diagnosticLog(freeze({
+      event: 'PROPERTY_WINDOW_RANKING',
+      rank: index + 1,
+      activeNow: temporalPriority(candidate, start) === 0,
+      future: temporalPriority(candidate, start) === 1,
+      ...candidateDiagnostic(candidate, { natal, d4 }),
+    }));
+    diagnosticLog(freeze({ event: 'PROPERTY_WINDOW_SELECTED', ...candidateDiagnostic(ranked.selected, { natal, d4 }) }));
+    diagnosticLog(freeze({
+      event: 'PROPERTY_PEAK_SELECTED',
+      candidatePd: ranked.selected.dasha.periods.pd,
+      candidateStart: ranked.selected.start,
+      candidateEnd: ranked.selected.end,
+      candidateState: ranked.selected.candidateState,
+      peakStart: ranked.selected.transitConfirmation.peakActivation && ranked.selected.transitConfirmation.peakActivation.start || null,
+      peakEnd: ranked.selected.transitConfirmation.peakActivation && ranked.selected.transitConfirmation.peakActivation.end || null,
+      peakSource: ranked.selected.transitConfirmation.peakActivation && ranked.selected.transitConfirmation.peakActivation.source || freeze([]),
+    }));
+  }
   return freeze({ ...publicCandidate(ranked.selected), secondaryWindows: freeze(ranked.secondary.map(publicCandidate)) });
 }
 
@@ -367,4 +410,4 @@ class PropertyAnswerService {
   }
 }
 
-module.exports = { PropertyAnswerService, PropertyIntent, natalEvidence, d4Evidence, dashaEvidence, primaryDashaBounds, transitEvidence, ashtakavargaEvidence, calibration, propertyTransitStateBoundaries, classifyPropertyWindow, pdRelevance, candidateState, transitConfirmationForPd, classify, selectPropertyWindow, strongerWindow, PROPERTY_WINDOW_COARSE_SCAN_STEP_MS };
+module.exports = { PropertyAnswerService, PropertyIntent, natalEvidence, d4Evidence, dashaEvidence, primaryDashaBounds, transitEvidence, ashtakavargaEvidence, calibration, propertyTransitStateBoundaries, classifyPropertyWindow, pdRelevance, candidateState, selectVisiblePeak, transitConfirmationForPd, classify, selectPropertyWindow, strongerWindow, PROPERTY_WINDOW_COARSE_SCAN_STEP_MS };
