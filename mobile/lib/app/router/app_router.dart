@@ -49,6 +49,8 @@ import '../../features/career_answers/presentation/career_hub_screen.dart';
 import '../../features/career_answers/presentation/career_answer_screen.dart';
 import '../../features/vehicle/vehicle_answer_controller.dart';
 import '../../features/vehicle/presentation/vehicle_hub_screen.dart';
+import '../../features/property/property_answer_controller.dart';
+import '../../features/property/presentation/property_hub_screen.dart';
 import '../../core/analytics/analytics.dart';
 import '../../core/push/push_notification_service.dart';
 import '../../core/push/push_permission_prompt.dart';
@@ -89,6 +91,7 @@ GoRouter createAppRouter(
   required CareerChatController careerChat,
   required CareerAnswerController careerAnswers,
   VehicleAnswerController? vehicleAnswers,
+  PropertyAnswerController? propertyAnswers,
   RazorpayCareerPremiumController? razorpayPremium,
   required CareerExplanationLanguageController careerExplanationLanguage,
   required SplashLaunchGate splashLaunchGate,
@@ -162,6 +165,13 @@ GoRouter createAppRouter(
               language: careerExplanationLanguage,
               analytics: analytics ?? Analytics(const NoopAnalyticsProvider()),
             ),
+    ),
+    GoRoute(
+      path: '/property',
+      name: 'property-hub',
+      builder: (context, state) => propertyAnswers == null
+          ? const _PropertyUnavailable()
+          : PropertyHubScreen(controller: propertyAnswers),
     ),
     GoRoute(
       path: '/career',
@@ -589,6 +599,13 @@ class _VehicleUnavailable extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       const Scaffold(body: Center(child: Text('Vehicle timing unavailable')));
+}
+
+class _PropertyUnavailable extends StatelessWidget {
+  const _PropertyUnavailable();
+  @override
+  Widget build(BuildContext context) =>
+      const Scaffold(body: Center(child: Text('Property timing unavailable')));
 }
 
 class _CareerAnswerUnavailable extends StatelessWidget {

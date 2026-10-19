@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/analytics/analytics.dart';
+import '../../../shared/formatters/customer_date.dart';
 import '../../readings/career_explanation_language.dart';
 import '../domain/vehicle_answer.dart';
 import '../vehicle_answer_controller.dart';
@@ -379,7 +379,7 @@ class _Badge extends StatelessWidget {
   );
 }
 
-String _date(DateTime date) => DateFormat('d MMM y').format(date.toLocal());
+String _date(DateTime date) => formatCustomerLocalDate(date);
 String _strengthLabel(String value, bool hinglish) => switch (value) {
   'STRONG_CANDIDATE' => 'Strong support',
   'MODERATE_CANDIDATE' => 'Moderate support',

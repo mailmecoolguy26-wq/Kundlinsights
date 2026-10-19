@@ -65,6 +65,9 @@ import '../features/career_answers/career_answer_controller.dart';
 import '../features/vehicle/data/vehicle_answer_api_repository.dart';
 import '../features/vehicle/domain/vehicle_answer_repository.dart';
 import '../features/vehicle/vehicle_answer_controller.dart';
+import '../features/property/data/property_answer_api_repository.dart';
+import '../features/property/domain/property_answer_repository.dart';
+import '../features/property/property_answer_controller.dart';
 import 'app.dart';
 
 Future<void> bootstrap() async {
@@ -93,6 +96,7 @@ Future<void> bootstrap() async {
   final CareerChatRepository careerChatRepository;
   final CareerAnswerRepository careerAnswerRepository;
   final VehicleAnswerRepository vehicleAnswerRepository;
+  final PropertyAnswerRepository propertyAnswerRepository;
   FirebasePushNotificationService? pushNotifications;
   final storePurchaseService = AppleStorePurchaseService(
     client: InAppPurchaseStorePurchaseClient(InAppPurchase.instance),
@@ -143,6 +147,7 @@ Future<void> bootstrap() async {
     careerChatRepository = const UnavailableCareerChatRepository();
     careerAnswerRepository = const UnavailableCareerAnswerRepository();
     vehicleAnswerRepository = const UnavailableVehicleAnswerRepository();
+    propertyAnswerRepository = const UnavailablePropertyAnswerRepository();
   } else {
     await Supabase.initialize(
       url: config.supabaseUrl,
@@ -167,6 +172,7 @@ Future<void> bootstrap() async {
     careerChatRepository = CareerChatApiRepository(apiClient);
     final answerApiRepository = CareerAnswerApiRepository(apiClient);
     vehicleAnswerRepository = VehicleAnswerApiRepository(apiClient);
+    propertyAnswerRepository = PropertyAnswerApiRepository(apiClient);
     careerAnswerRepository = DevelopmentFlags.careerPremiumUiPreviewEnabled
         ? DebugJobFavourabilityPreviewRepository(answerApiRepository)
         : answerApiRepository;
@@ -251,6 +257,9 @@ Future<void> bootstrap() async {
         ),
         vehicleAnswerRepositoryProvider.overrideWithValue(
           vehicleAnswerRepository,
+        ),
+        propertyAnswerRepositoryProvider.overrideWithValue(
+          propertyAnswerRepository,
         ),
       ],
       child: KundlInsightsApp(
