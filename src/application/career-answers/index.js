@@ -121,6 +121,10 @@ function jobFavourabilityPremiumTeaser() {
     limitationCode: 'CAREER_PREMIUM_REQUIRED',
   });
 }
+function profilePremiumRequired(questionType) {
+  if (questionType === CareerQuestionType.JOB_FAVOURABILITY_TIMING) return jobFavourabilityPremiumTeaser();
+  return immutable({ questionType, answerability: Answerability.PREMIUM_REQUIRED, status: 'PREMIUM_REQUIRED', limitationCode: 'PROFILE_PREMIUM_REQUIRED' });
+}
 
 function jobFavourabilityProfilePrerequisite() {
   return immutable({
@@ -335,12 +339,13 @@ class CareerAnswerService {
       const summaries = await this.readings.listSecureReadings({ principal, birthProfileId: profileId, authoritativeBirthProfile: authoritativeProfile });
       return { access, authoritativeProfile, summaries };
     });
-    const premium = Boolean(access && access.career && access.career.eligible === true);
+    const premium = Boolean(access && (access.profilePremium || access.career) && (access.profilePremium || access.career).eligible === true);
     const career = (Array.isArray(summaries) ? summaries : [])
       .filter((item) => item && item.domain === 'CAREER' && item.birthProfileId === profileId)
       .sort((left, right) => String(right.createdAt).localeCompare(String(left.createdAt)) || String(right.readingId).localeCompare(String(left.readingId)));
     const selected = request.readingId ? career.find((item) => item.readingId === request.readingId) : career[0];
     if (request.readingId && !selected) throw failure('NOT_FOUND_OR_FORBIDDEN');
+    if (!premium) return profilePremiumRequired(request.questionType);
     if (!selected && request.questionType === CareerQuestionType.JOB_FAVOURABILITY_TIMING) return jobFavourabilityContract({ reading: null, premium, researchEnabled: this.jobFavourabilityResearchEnabled, evaluator: this.jobFavourabilityEvaluator, principal, birthProfileId: profileId, birthProfile: authoritativeProfile, timing });
     if (!selected) return shapeForAccess(
       present({ questionType: request.questionType, reading: null }),
@@ -356,4 +361,4 @@ class CareerAnswerService {
   }
 }
 
-module.exports = { CareerAnswerService, CareerQuestionType, Answerability, CAREER_ANSWER_RULESET_VERSION, POSSIBLE_SIGNAL, validateQuestionRequest, collectEvidence, present, shapeForAccess, jobFavourabilityContract };
+module.exports = { CareerAnswerService, CareerQuestionType, Answerability, CAREER_ANSWER_RULESET_VERSION, POSSIBLE_SIGNAL, validateQuestionRequest, collectEvidence, present, shapeForAccess, jobFavourabilityContract, profilePremiumRequired };

@@ -23,7 +23,7 @@ function range(window) { const start = displayDate(window && window.start); cons
 function diagnostic(log, { state = null, action = null, birthProfileId = null } = {}) { if (typeof log === 'function') log({ event: 'TARA_BACKEND_CAPABILITY', state, actionType: action && action.type || null, actionLabel: action && action.label || null, messageId: null, birthProfileId }); }
 function unsupportedCareerMessage(language) { return language === 'HINGLISH' ? 'Main abhi aapki Career phase aur stronger Career timing windows mein help kar sakti hoon, lekin is specific Career question ka reliable answer dene ke liye ready nahi hoon.' : 'I can currently help with your Career phase and stronger Career timing windows, but I’m not ready to answer that specific Career question reliably yet.'; }
 function renderCareerAnswer(answer, language) {
-  if (answer.answerability === Answerability.PREMIUM_REQUIRED) return language === 'HINGLISH' ? 'Is profile ke liye stronger Career window identify hua hai, lekin exact timing Career Premium ka part hai.' : 'I can see a stronger Career window for this profile, but the exact timing is part of Career Premium.';
+  if (answer.answerability === Answerability.PREMIUM_REQUIRED) return language === 'HINGLISH' ? 'Is profile ke personalized insights TaraVerse Premium ka part hain.' : 'Personalized insights for this profile are part of TaraVerse Premium.';
   if (answer.questionType === CareerQuestionType.JOB_FAVOURABILITY_TIMING && answer.answerability === Answerability.SUPPORTED) {
     const window = range(answer.broadWindow);
     if (!window) return 'TaraVerse has grounded Career timing context, but cannot safely describe a bounded window right now.';
@@ -47,7 +47,7 @@ class TaraCareerCapability {
     const state = answer.answerability === Answerability.PREMIUM_REQUIRED ? TaraCareerResponseState.PREMIUM_REQUIRED
       : answer.answerability === Answerability.PROJECTION_DISABLED ? TaraCareerResponseState.FEATURE_DISABLED
         : TaraCareerResponseState.ENTITLED_RESULT;
-    const result = Object.freeze({ intent, state, answerability: answer.answerability, message: renderCareerAnswer(answer, language), answer, action: state === TaraCareerResponseState.PREMIUM_REQUIRED ? Object.freeze({ type: 'OPEN_CAREER_PREMIUM', label: 'Unlock Career Premium' }) : null });
+    const result = Object.freeze({ intent, state, answerability: answer.answerability, message: renderCareerAnswer(answer, language), answer, action: state === TaraCareerResponseState.PREMIUM_REQUIRED ? Object.freeze({ type: 'OPEN_PROFILE_PREMIUM', label: 'Unlock TaraVerse Premium' }) : null });
     diagnostic(diagnosticLog, { state: result.state, action: result.action, birthProfileId });
     return result;
   }

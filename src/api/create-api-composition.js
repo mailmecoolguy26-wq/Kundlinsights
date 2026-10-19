@@ -132,8 +132,8 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   const transitSnapshotService = new TransitSnapshotService({ birthProfileService, astronomicalEngine, careerInsightSource: new LatestCareerReadingTransitSource({ secureReadingService }) });
   const careerChatRenderer = careerChat && careerChat.enabled === true ? new OpenAICareerChatRenderer({ apiKey: careerChat.apiKey, model: careerChat.model, timeoutMilliseconds: careerChat.timeoutMilliseconds }) : null;
   const careerChatOrchestrator = new CareerChatOrchestrator({ secureReadingService, languageModel: careerChatRenderer });
-  const propertyAnswerService = new PropertyAnswerService({ birthProfileService, lifeEventService, astronomicalEngine, canonicalSiderealSunSampler, clock });
-  const vehicleAnswerService = new VehicleAnswerService({ birthProfileService, lifeEventService, astronomicalEngine, canonicalSiderealSunSampler, clock });
+  const propertyAnswerService = new PropertyAnswerService({ birthProfileService, lifeEventService, astronomicalEngine, canonicalSiderealSunSampler, entitlementService: secureReadingService, clock });
+  const vehicleAnswerService = new VehicleAnswerService({ birthProfileService, lifeEventService, astronomicalEngine, canonicalSiderealSunSampler, entitlementService: secureReadingService, clock });
   const taraOrchestrator = new TaraOrchestrator({ careerCapability: new TaraCareerCapability({ careerAnswerService }), transitCapability: new TaraTransitCapability({ transitSnapshotService, clock }), propertyCapability: new TaraPropertyCapability({ propertyAnswerService }), vehicleCapability: new TaraVehicleCapability({ vehicleAnswerService }) });
   const { TaraConversationService } = require('../application/tara-conversations/tara-conversation-service');
   const taraConversationService = new TaraConversationService({ authUserResolver: userResolver, birthProfileService, transactionExecutor: tx, taraOrchestrator, careerEntitlementResolver: secureReadingService, idGenerator, clock });

@@ -57,6 +57,7 @@ class TaraPropertyCapability {
     log('PROPERTY_ROUTE', { stage: 'ROUTE', state: 'ROUTED' });
     try {
       const result = await this.property.answer({ principal, birthProfileId, intent, diagnosticLog });
+      if (result.answerability === 'PREMIUM_REQUIRED') return Object.freeze({ intent, answerability: result.answerability, state: result.state, message: language === 'HINGLISH' ? 'Is profile ke personalized insights TaraVerse Premium ka part hain.' : 'Personalized insights for this profile are part of TaraVerse Premium.', property: null, action: result.action });
       log('PROPERTY_TARA_RESPONSE', { stage: 'RESPONSE', state: 'SUCCEEDED', evidenceCount: result.evidence && result.evidence.transit && result.evidence.transit.activeMajor.length || 0 });
       return Object.freeze({ intent, answerability: result.answerability, state: result.state, message: answer(result, language), property: result, action: null });
     } catch (error) {

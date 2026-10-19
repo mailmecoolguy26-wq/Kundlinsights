@@ -367,15 +367,21 @@ function strongerWindow({ engine, scanner, birth, natalBodies, houses, dashaTree
 }
 
 class PropertyAnswerService {
-  constructor({ birthProfileService, lifeEventService, astronomicalEngine, canonicalSiderealSunSampler, clock = () => new Date().toISOString(), transitScanner = scanTransitEvents } = {}) {
+  constructor({ birthProfileService, lifeEventService, astronomicalEngine, canonicalSiderealSunSampler, entitlementService = null, clock = () => new Date().toISOString(), transitScanner = scanTransitEvents } = {}) {
     if (!birthProfileService || typeof birthProfileService.get !== 'function' || !lifeEventService || typeof lifeEventService.getRelevantLifeEvents !== 'function' || !astronomicalEngine || typeof astronomicalEngine.calculate !== 'function' || !canonicalSiderealSunSampler) throw new TypeError('INVALID_PROPERTY_ANSWER_DEPENDENCIES');
-    Object.assign(this, { profiles: birthProfileService, lifeEvents: lifeEventService, engine: astronomicalEngine, sampler: canonicalSiderealSunSampler, clock, scanner: transitScanner }); Object.freeze(this);
+    if (entitlementService && typeof entitlementService.getReadingEntitlementStatus !== 'function') throw new TypeError('INVALID_PROFILE_PREMIUM_ENTITLEMENT_SERVICE');
+    Object.assign(this, { profiles: birthProfileService, lifeEvents: lifeEventService, engine: astronomicalEngine, sampler: canonicalSiderealSunSampler, entitlements: entitlementService, clock, scanner: transitScanner }); Object.freeze(this);
   }
   async answer({ principal, birthProfileId, intent = PropertyIntent.PROPERTY_CURRENT_STRENGTH, at = null, diagnosticLog = null } = {}) {
     if (!Object.values(PropertyIntent).includes(intent)) fail('UNSUPPORTED_PROPERTY_INTENT');
     const log = (event, fields = {}) => { if (typeof diagnosticLog === 'function') diagnosticLog(freeze({ event, birthProfileId, intent, ...fields })); };
     const startedAt = Date.now();
     const timed = (event, stageStartedAt) => log(event, { durationMs: Date.now() - stageStartedAt });
+    if (this.entitlements) {
+      const access = await this.entitlements.getReadingEntitlementStatus({ principal, birthProfileId });
+      const premium = access && (access.profilePremium || access.career);
+      if (!premium || premium.eligible !== true) return freeze({ intent, answerability: 'PREMIUM_REQUIRED', state: 'PREMIUM_REQUIRED', action: freeze({ type: 'OPEN_PROFILE_PREMIUM', label: 'Unlock TaraVerse Premium' }), strongerWindow: null, windowStatus: 'NO_RELIABLE_WINDOW', evidence: null, contexts: null, limitations: freeze(['PROFILE_PREMIUM_REQUIRED']), provenance: null });
+    }
     log('PROPERTY_CALCULATION_START', { state: 'STARTED' });
     const profile = await this.profiles.get({ principal, birthProfileId }); if (!profile || profile.status !== 'active') fail('NOT_FOUND_OR_FORBIDDEN');
     const instant = at || new Date(this.clock()).toISOString();

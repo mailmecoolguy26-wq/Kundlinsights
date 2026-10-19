@@ -4,6 +4,7 @@ const { verifiedPrincipal } = require('../../security/auth');
 const { repositoryError, immutableCopy, requiredString } = require('../../persistence/contracts');
 const { ReadingPayloadCodec } = require('../../security/crypto');
 const { CareerAccessResolver } = require('./career-access-resolver');
+const { ProfilePremiumAccessResolver } = require('./profile-premium-access-resolver');
 const { buildCareerTechnicalContext } = require('../insights/career-technical-context');
 
 function fail(code) { throw repositoryError(code); }
@@ -246,7 +247,7 @@ function scopedKeyProvider(key) { return Object.freeze({ current: async () => ({
 function rawRecord(raw, record) { return { readingId: raw.readingId, userId: raw.userId, birthProfileId: raw.birthProfileId, status: raw.status, archivedAt: raw.archivedAt, idempotencyKey: raw.idempotencyKey, record }; }
 
 class SecureReadingService {
-  constructor({ authUserResolver, transactionExecutor, repositories, secureBirthProfileLoader, readingCryptoCoordinator, readingGenerator, readingRecordFactory, replayReading, requiresEntitlement, careerAccessResolver = new CareerAccessResolver(), idGenerator, clock } = {}) {
+  constructor({ authUserResolver, transactionExecutor, repositories, secureBirthProfileLoader, readingCryptoCoordinator, readingGenerator, readingRecordFactory, replayReading, requiresEntitlement, careerAccessResolver = new CareerAccessResolver(), profilePremiumAccessResolver = null, idGenerator, clock } = {}) {
     this.authUserResolver = requiredFunction(authUserResolver, 'INVALID_AUTH_USER_RESOLVER');
     this.transactions = transactionExecutor && typeof transactionExecutor.execute === 'function' ? transactionExecutor : fail('INVALID_APPLICATION_TRANSACTION_EXECUTOR');
     this.repositories = requiredFunction(repositories, 'INVALID_APPLICATION_REPOSITORIES');
@@ -259,6 +260,7 @@ class SecureReadingService {
     this.replayReading = requiredFunction(replayReading, 'INVALID_REPLAY_READING');
     this.requiresEntitlement = requiredFunction(requiresEntitlement, 'INVALID_ENTITLEMENT_POLICY');
     this.careerAccessResolver = careerAccessResolver && typeof careerAccessResolver.resolve === 'function' && typeof careerAccessResolver.resolveForProfile === 'function' ? careerAccessResolver : fail('INVALID_CAREER_ACCESS_RESOLVER');
+    this.profilePremiumAccessResolver = profilePremiumAccessResolver && typeof profilePremiumAccessResolver.resolveForProfile === 'function' ? profilePremiumAccessResolver : new ProfilePremiumAccessResolver({ careerAccessResolver: this.careerAccessResolver });
     this.idGenerator = requiredFunction(idGenerator, 'INVALID_READING_ID');
     this.clock = requiredFunction(clock, 'INVALID_APPLICATION_CLOCK');
   }
@@ -350,8 +352,9 @@ class SecureReadingService {
     const domain = 'CAREER';
     if (!this.requiresEntitlement({ domain })) return immutableCopy({ career: { eligible: true } });
     try {
-      const access = await this.execute(verified, 'app_runtime', async (context) => this.careerAccessResolver.resolveForProfile({ repositories: this.repo(context), userId: user.id, birthProfileId, at: this.clock() }));
-      return immutableCopy({ career: { state: access.eligible ? 'ACTIVE' : 'INACTIVE', eligible: access.eligible, mode: access.mode, consuming: access.consuming, entitlementKey: access.entitlementKey, source: access.entitlementSource, planKey: access.planKey, validUntil: access.validUntil, subscriptionStatus: access.subscriptionStatus, purchaseMode: access.purchaseMode } });
+      const access = await this.execute(verified, 'app_runtime', async (context) => this.profilePremiumAccessResolver.resolveForProfile({ repositories: this.repo(context), userId: user.id, birthProfileId, at: this.clock() }));
+      const profilePremium = { state: access.eligible ? 'ACTIVE' : 'INACTIVE', eligible: access.eligible, mode: access.mode, consuming: access.consuming, entitlementKey: access.entitlementKey, source: access.entitlementSource, planKey: access.planKey, validUntil: access.validUntil, subscriptionStatus: access.subscriptionStatus, purchaseMode: access.purchaseMode };
+      return immutableCopy({ profilePremium, career: profilePremium });
     } catch (error) { safeError(error, 'ENTITLEMENT_STATUS_FAILED'); }
   }
   async getSecureReading({ principal: principalInput, readingId } = {}) {

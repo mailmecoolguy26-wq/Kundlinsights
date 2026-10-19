@@ -327,13 +327,19 @@ function strongerWindow({ engine, scanner, birth, natalBodies, d1Houses, d16, da
 }
 
 class VehicleAnswerService {
-  constructor({ birthProfileService, lifeEventService, astronomicalEngine, canonicalSiderealSunSampler, clock = () => new Date().toISOString(), transitScanner = scanTransitEvents } = {}) {
+  constructor({ birthProfileService, lifeEventService, astronomicalEngine, canonicalSiderealSunSampler, entitlementService = null, clock = () => new Date().toISOString(), transitScanner = scanTransitEvents } = {}) {
     if (!birthProfileService || typeof birthProfileService.get !== 'function' || !lifeEventService || typeof lifeEventService.getRelevantLifeEvents !== 'function' || !astronomicalEngine || typeof astronomicalEngine.calculate !== 'function' || !canonicalSiderealSunSampler) throw new TypeError('INVALID_VEHICLE_ANSWER_DEPENDENCIES');
-    Object.assign(this, { profiles: birthProfileService, lifeEvents: lifeEventService, engine: astronomicalEngine, sampler: canonicalSiderealSunSampler, clock, scanner: transitScanner }); Object.freeze(this);
+    if (entitlementService && typeof entitlementService.getReadingEntitlementStatus !== 'function') throw new TypeError('INVALID_PROFILE_PREMIUM_ENTITLEMENT_SERVICE');
+    Object.assign(this, { profiles: birthProfileService, lifeEvents: lifeEventService, engine: astronomicalEngine, sampler: canonicalSiderealSunSampler, entitlements: entitlementService, clock, scanner: transitScanner }); Object.freeze(this);
   }
   async answer({ principal, birthProfileId, intent = VehicleIntent.VEHICLE_CURRENT_STRENGTH, at = null, diagnosticLog = null } = {}) {
     if (!Object.values(VehicleIntent).includes(intent)) fail('UNSUPPORTED_VEHICLE_INTENT');
     const log = (event, fields = {}) => { if (typeof diagnosticLog === 'function') diagnosticLog(freeze({ event, birthProfileId, intent, ...fields })); };
+    if (this.entitlements) {
+      const access = await this.entitlements.getReadingEntitlementStatus({ principal, birthProfileId });
+      const premium = access && (access.profilePremium || access.career);
+      if (!premium || premium.eligible !== true) return freeze({ intent, answerability: 'PREMIUM_REQUIRED', state: 'PREMIUM_REQUIRED', classification: 'NOT_SUPPORTED', action: freeze({ type: 'OPEN_PROFILE_PREMIUM', label: 'Unlock TaraVerse Premium' }), strongerWindow: null, windowShape: 'NO_RELIABLE_WINDOW', evidence: null, limitations: freeze(['PROFILE_PREMIUM_REQUIRED']), provenance: null });
+    }
     const profile = await this.profiles.get({ principal, birthProfileId }); if (!profile || profile.status !== 'active') fail('NOT_FOUND_OR_FORBIDDEN');
     const instant = at || new Date(this.clock()).toISOString(); let stage = 'NATAL';
     try {

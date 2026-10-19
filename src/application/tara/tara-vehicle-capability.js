@@ -48,6 +48,7 @@ class TaraVehicleCapability {
     const responseLanguage = resolvedTaraLanguageStyle({ message, requestedLanguage: language });
     try {
       const result = await this.vehicle.answer({ principal, birthProfileId, intent, diagnosticLog });
+      if (result.answerability === 'PREMIUM_REQUIRED') return freeze({ intent, answerability: result.answerability, state: result.state, message: responseLanguage === TaraLanguageStyle.HINGLISH ? 'Is profile ke personalized insights TaraVerse Premium ka part hain.' : 'Personalized insights for this profile are part of TaraVerse Premium.', vehicle: null, action: result.action });
       return freeze({ intent, answerability: result.answerability, state: result.classification, message: answer(result, responseLanguage), vehicle: result, action: null });
     } catch (error) {
       if (typeof diagnosticLog === 'function') diagnosticLog(freeze({ event: 'VEHICLE_TARA_RESPONSE', birthProfileId, intent, state: 'FAILED', safeErrorCode: error && error.code || 'VEHICLE_CALCULATION_FAILED', errorClass: error && error.name || 'Error' }));
