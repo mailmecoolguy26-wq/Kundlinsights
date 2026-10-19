@@ -236,7 +236,7 @@ void main() {
   );
 
   testWidgets(
-    'renders the date-free Career Premium teaser instead of a Career Reading prerequisite',
+    'renders the date-free TaraVerse Premium teaser instead of a Career Reading prerequisite',
     (tester) async {
       final harness = await _Harness.create(_Answers(answer: _jobTeaser()));
       addTearDown(harness.dispose);
@@ -248,7 +248,7 @@ void main() {
         find.text('A stronger career window is coming up'),
         findsOneWidget,
       );
-      expect(find.text('Unlock Career Premium'), findsWidgets);
+      expect(find.text('Unlock TaraVerse Premium'), findsWidgets);
       expect(find.text('Create your Career Reading first'), findsNothing);
       expect(find.textContaining('2027'), findsNothing);
       expect(find.textContaining('Jan'), findsNothing);

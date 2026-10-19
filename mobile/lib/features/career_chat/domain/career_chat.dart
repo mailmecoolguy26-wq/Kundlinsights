@@ -76,8 +76,17 @@ class TaraConversationAction {
   final String type;
   final String label;
   static TaraConversationAction? fromJson(Object? value) {
-    if (value is! Map || value['type'] != 'OPEN_CAREER_PREMIUM' || value['label'] is! String) return null;
-    return TaraConversationAction(type: 'OPEN_CAREER_PREMIUM', label: value['label'] as String);
+    if (value is! Map || value['label'] is! String) {
+      return null;
+    }
+    final type = value['type'];
+    if (type != 'OPEN_PROFILE_PREMIUM' && type != 'OPEN_CAREER_PREMIUM') {
+      return null;
+    }
+    return TaraConversationAction(
+      type: type as String,
+      label: value['label'] as String,
+    );
   }
 }
 

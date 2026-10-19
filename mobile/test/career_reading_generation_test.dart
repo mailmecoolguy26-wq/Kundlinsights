@@ -85,6 +85,25 @@ void main() {
     expect(none.eligible, isFalse);
     expect(none.mode, 'NONE');
   });
+
+  test('prefers profilePremium over the legacy career entitlement alias', () {
+    final profilePremium = CareerEligibility.fromJson({
+      'entitlements': {
+        'profilePremium': {'eligible': true, 'mode': 'PROFILE_PREMIUM'},
+        'career': {'eligible': false, 'mode': 'NONE'},
+      },
+    });
+    expect(profilePremium.eligible, isTrue);
+    expect(profilePremium.mode, 'PROFILE_PREMIUM');
+
+    final legacyOnly = CareerEligibility.fromJson({
+      'entitlements': {
+        'career': {'eligible': true, 'mode': 'PROFILE_UNLOCK'},
+      },
+    });
+    expect(legacyOnly.eligible, isTrue);
+    expect(legacyOnly.mode, 'PROFILE_UNLOCK');
+  });
 }
 
 ResponseBody _json(int status, Map<String, dynamic> body) =>

@@ -56,28 +56,29 @@ void main() {
     expect(find.text('KundliInsights', findRichText: true), findsNothing);
   });
 
-  testWidgets('Home exposes Property separately and opens Property Hub', (
-    tester,
-  ) async {
-    await tester.pumpWidget(_app(controller, profiles));
-    await controller.restore();
-    await tester.pumpAndSettle();
+  testWidgets(
+    'Home does not open Property while profile entitlement is unresolved',
+    (tester) async {
+      await tester.pumpWidget(_app(controller, profiles));
+      await controller.restore();
+      await tester.pumpAndSettle();
 
-    final propertyCard = find.byKey(const ValueKey('home-life-area-wealth'));
-    await tester.ensureVisible(propertyCard);
-    await tester.pumpAndSettle();
-    expect(
-      find.text('Property timing and ownership-related insights.'),
-      findsOneWidget,
-    );
-    expect(find.text('Property · Vehicle'), findsNothing);
-    expect(find.text('COMING NEXT'), findsNWidgets(2));
+      final propertyCard = find.byKey(const ValueKey('home-life-area-wealth'));
+      await tester.ensureVisible(propertyCard);
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Property timing and ownership-related insights.'),
+        findsOneWidget,
+      );
+      expect(find.text('Property · Vehicle'), findsNothing);
+      expect(find.text('COMING NEXT'), findsNWidgets(2));
 
-    await tester.tap(propertyCard);
-    await tester.pumpAndSettle();
-    expect(find.text('PROPERTY'), findsOneWidget);
-    expect(find.text('ASK TARA'), findsNothing);
-  });
+      await tester.tap(propertyCard);
+      await tester.pumpAndSettle();
+      expect(find.text('Retry'), findsOneWidget);
+      expect(find.text('ASK TARA'), findsNothing);
+    },
+  );
 
   testWidgets('cold launch keeps ready profiles on splash before Home', (
     tester,

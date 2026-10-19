@@ -122,10 +122,10 @@ void main() {
           ),
         ),
       );
-      expect(find.text('Career Premium for Aarav'), findsOneWidget);
+      expect(find.text('TaraVerse Premium for Aarav'), findsOneWidget);
       expect(
         find.text(
-          'This subscription unlocks Career Premium for this birth profile.',
+          'Unlock all personalized insights for this profile.\nCareer, Property, Vehicle and other supported personalized insights.',
         ),
         findsOneWidget,
       );
@@ -373,8 +373,8 @@ void main() {
           ),
         );
 
-        expect(find.text('Career Premium Active'), findsOneWidget);
-        expect(find.textContaining('Unlock Career Premium'), findsNothing);
+        expect(find.text('TaraVerse Premium Active'), findsOneWidget);
+        expect(find.textContaining('Unlock TaraVerse Premium'), findsNothing);
         await tester.tap(find.text('View Career Reading'));
         expect(continueCount, greaterThan(0));
       }
@@ -401,7 +401,7 @@ void main() {
         ),
       );
 
-      expect(find.text('Career Premium'), findsOneWidget);
+      expect(find.text('TaraVerse Premium'), findsOneWidget);
       expect(find.text('Continue'), findsOneWidget);
     }
     controller.dispose();
@@ -481,7 +481,7 @@ void main() {
     await tester.pumpWidget(_app(_paywall(h, () => subscribe++)));
     await tester.pump();
     expect(find.text('Checking your App Store purchases…'), findsOneWidget);
-    expect(find.text('Unlock Career Premium — \$7.99'), findsNothing);
+    expect(find.text('Unlock TaraVerse Premium — \$7.99'), findsNothing);
     expect(
       tester
           .widget<TextButton>(
@@ -512,8 +512,8 @@ void main() {
     await tester.pump();
     h.store.restore.complete();
     await tester.pump(const Duration(milliseconds: 1));
-    expect(find.text('Restoring Career Premium…'), findsOneWidget);
-    expect(find.textContaining('Unlock Career Premium'), findsNothing);
+    expect(find.text('Restoring TaraVerse Premium…'), findsOneWidget);
+    expect(find.textContaining('Unlock TaraVerse Premium'), findsNothing);
     expect(
       tester
           .widget<TextButton>(
@@ -546,9 +546,9 @@ void main() {
         ),
       ),
     );
-    expect(find.text('Career Premium Active'), findsOneWidget);
+    expect(find.text('TaraVerse Premium Active'), findsOneWidget);
     expect(find.text('View Career Reading'), findsOneWidget);
-    expect(find.textContaining('Unlock Career Premium'), findsNothing);
+    expect(find.textContaining('Unlock TaraVerse Premium'), findsNothing);
     controller.dispose();
   });
 
@@ -563,10 +563,10 @@ void main() {
     await restore;
     await tester.pump();
     expect(
-      find.text('No previous Career Premium purchase was found.'),
+      find.text('No previous TaraVerse Premium purchase was found.'),
       findsOneWidget,
     );
-    expect(find.text('Career Premium'), findsOneWidget);
+    expect(find.text('TaraVerse Premium'), findsOneWidget);
     h.dispose();
   });
 
@@ -721,7 +721,7 @@ void main() {
       );
 
       expect(tester.takeException(), isNull);
-      expect(find.text('Career Premium'), findsOneWidget);
+      expect(find.text('TaraVerse Premium'), findsOneWidget);
       expect(find.text('Continue'), findsOneWidget);
       product.dispose();
     },
@@ -809,7 +809,7 @@ void main() {
 
     expect(find.text('CHECK PAYMENT STATUS'), findsOneWidget);
     expect(find.text('Try Again'), findsNothing);
-    expect(find.text('Unlock Career Premium — ₹588.82'), findsNothing);
+    expect(find.text('Unlock TaraVerse Premium — ₹588.82'), findsNothing);
     razorpay.dispose();
     product.dispose();
   });
@@ -929,7 +929,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Career Premium is now unlocked'), findsOneWidget);
+    expect(find.text('TaraVerse Premium is now unlocked'), findsOneWidget);
     expect(find.text('View My Career Forecast'), findsOneWidget);
     expect(api.createCalls, 1);
     razorpay.dispose();

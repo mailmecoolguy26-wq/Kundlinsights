@@ -122,7 +122,7 @@ class _JobFavourabilityBody extends StatelessWidget {
                   width: double.infinity,
                   child: FilledButton(
                     onPressed: () => context.push(
-                      '/career-premium?returnQuestion=${answer.questionType.wireName}',
+                      '/premium?returnQuestion=${answer.questionType.wireName}',
                     ),
                     style: FilledButton.styleFrom(
                       backgroundColor: const Color(0xFFD6B15A),
@@ -301,13 +301,13 @@ class _JobWindowCopy {
   String get unlockTitle => _isHindi
       ? 'देखने के लिए करियर प्रीमियम अनलॉक करें'
       : _isHinglish
-      ? 'Dekhne ke liye Career Premium unlock karein'
-      : 'Unlock Career Premium to see';
+      ? 'Dekhne ke liye TaraVerse Premium unlock karein'
+      : 'Unlock TaraVerse Premium to see';
   String get unlockCta => _isHindi
       ? 'करियर प्रीमियम अनलॉक करें'
       : _isHinglish
-      ? 'Career Premium unlock karein'
-      : 'Unlock Career Premium';
+      ? 'TaraVerse Premium unlock karein'
+      : 'Unlock TaraVerse Premium';
   String get unavailable => _isHindi
       ? 'इस समय कोई मज़बूत करियर विंडो उपलब्ध नहीं है।'
       : _isHinglish

@@ -152,7 +152,7 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
         _premiumRouteRequested = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
-          context.push('/career-premium').whenComplete(() {
+          context.push('/premium').whenComplete(() {
             if (!mounted) return;
             _premiumRouteRequested = false;
             _dismissedPremiumProfileId = profileId;

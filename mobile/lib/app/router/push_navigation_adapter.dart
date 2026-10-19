@@ -22,7 +22,7 @@ class PushNavigationAdapter {
   static const profilesLocation = '/profiles';
   static const careerHistoryLocation = '/career-calibration';
   static const readingsLocation = '/readings';
-  static const careerPaywallLocation = '/career-premium';
+  static const careerPaywallLocation = '/premium';
 
   final PushRouteNavigator router;
   final List<BirthProfile> Function() profiles;

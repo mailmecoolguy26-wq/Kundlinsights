@@ -57,6 +57,7 @@ class VehicleAnswer {
   final String windowShape;
   final VehicleSupportWindow? strongerWindow;
   final Map<String, dynamic> evidence;
+  bool get premiumRequired => answerability == 'PREMIUM_REQUIRED';
 
   factory VehicleAnswer.fromJson(Map<String, dynamic> json) {
     final intent = VehicleIntent.values.firstWhere(

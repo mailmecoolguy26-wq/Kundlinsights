@@ -53,6 +53,7 @@ class PropertyAnswer {
   final String windowStatus;
   final PropertySupportWindow? strongerWindow;
   final Map<String, dynamic> evidence;
+  bool get premiumRequired => answerability == 'PREMIUM_REQUIRED';
 
   factory PropertyAnswer.fromJson(Map<String, dynamic> json) {
     final intent = PropertyIntent.values.firstWhere(

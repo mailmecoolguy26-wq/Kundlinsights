@@ -96,7 +96,8 @@ class CareerChatController extends ChangeNotifier {
       : CareerChatLanguage.english;
 
   bool canOpenCareerPremium(CareerChatMessage message) =>
-      message.action?.type == 'OPEN_CAREER_PREMIUM' &&
+      (message.action?.type == 'OPEN_PROFILE_PREMIUM' ||
+          message.action?.type == 'OPEN_CAREER_PREMIUM') &&
       message.birthProfileId != null &&
       message.birthProfileId == _profiles.activeProfile?.id;
 
