@@ -18,67 +18,73 @@ import 'package:kundlinsights_mobile/features/readings/domain/reading_repository
 import 'package:kundlinsights_mobile/features/readings/reading_controller.dart';
 
 void main() {
-  testWidgets('Insights keeps its transit purpose without a generic Career launcher', (
-    tester,
-  ) async {
-    final scope = await _InsightsScope.start(
-      eligibility: const {'profile-a': CareerEligibility(eligible: false)},
-    );
-    addTearDown(scope.dispose);
-    await _pumpInsights(tester, scope);
+  testWidgets(
+    'Insights keeps its transit purpose without a generic Career launcher',
+    (tester) async {
+      final scope = await _InsightsScope.start(
+        eligibility: const {'profile-a': CareerEligibility(eligible: false)},
+      );
+      addTearDown(scope.dispose);
+      await _pumpInsights(tester, scope);
 
-    expect(find.text('OPEN CAREER'), findsNothing);
-    expect(find.text('COMING SOON'), findsNWidgets(2));
-    expect(find.text('Current Transits'), findsOneWidget);
-  });
+      expect(find.text('OPEN CAREER'), findsNothing);
+      expect(find.text('COMING SOON'), findsOneWidget);
+      expect(find.text('Vehicle & Mobility'), findsOneWidget);
+      expect(find.text('Current Transits'), findsOneWidget);
+    },
+  );
 
-  testWidgets('Insights does not change its data role for an eligible Career profile', (
-    tester,
-  ) async {
-    final scope = await _InsightsScope.start(
-      eligibility: const {'profile-a': CareerEligibility(eligible: true)},
-    );
-    addTearDown(scope.dispose);
-    await _pumpInsights(tester, scope);
+  testWidgets(
+    'Insights does not change its data role for an eligible Career profile',
+    (tester) async {
+      final scope = await _InsightsScope.start(
+        eligibility: const {'profile-a': CareerEligibility(eligible: true)},
+      );
+      addTearDown(scope.dispose);
+      await _pumpInsights(tester, scope);
 
-    expect(find.text('OPEN CAREER'), findsNothing);
-    expect(find.text('COMING SOON'), findsNWidgets(2));
-    expect(find.text('Current Transits'), findsOneWidget);
-  });
+      expect(find.text('OPEN CAREER'), findsNothing);
+      expect(find.text('COMING SOON'), findsOneWidget);
+      expect(find.text('Vehicle & Mobility'), findsOneWidget);
+      expect(find.text('Current Transits'), findsOneWidget);
+    },
+  );
 
-  testWidgets('Insights remains transit-focused while Career entitlement is loading', (
-    tester,
-  ) async {
-    final scope = await _InsightsScope.start(
-      eligibility: const {'profile-a': CareerEligibility(eligible: false)},
-      holdEligibility: true,
-    );
-    addTearDown(scope.dispose);
-    await _pumpInsights(tester, scope);
+  testWidgets(
+    'Insights remains transit-focused while Career entitlement is loading',
+    (tester) async {
+      final scope = await _InsightsScope.start(
+        eligibility: const {'profile-a': CareerEligibility(eligible: false)},
+        holdEligibility: true,
+      );
+      addTearDown(scope.dispose);
+      await _pumpInsights(tester, scope);
 
-    expect(scope.generation.eligibilityState, CareerEligibilityState.loading);
-    expect(find.text('OPEN CAREER'), findsNothing);
-  });
+      expect(scope.generation.eligibilityState, CareerEligibilityState.loading);
+      expect(find.text('OPEN CAREER'), findsNothing);
+    },
+  );
 
-  testWidgets('Insights does not expose a duplicate Career launcher across profiles', (
-    tester,
-  ) async {
-    final scope = await _InsightsScope.start(
-      profiles: const ['profile-a', 'profile-b'],
-      eligibility: const {
-        'profile-a': CareerEligibility(eligible: true),
-        'profile-b': CareerEligibility(eligible: false),
-      },
-    );
-    addTearDown(scope.dispose);
-    await _pumpInsights(tester, scope);
+  testWidgets(
+    'Insights does not expose a duplicate Career launcher across profiles',
+    (tester) async {
+      final scope = await _InsightsScope.start(
+        profiles: const ['profile-a', 'profile-b'],
+        eligibility: const {
+          'profile-a': CareerEligibility(eligible: true),
+          'profile-b': CareerEligibility(eligible: false),
+        },
+      );
+      addTearDown(scope.dispose);
+      await _pumpInsights(tester, scope);
 
-    expect(find.text('OPEN CAREER'), findsNothing);
-    scope.profiles.select(scope.profiles.profiles.last);
-    await tester.pump();
-    await tester.pump();
-    expect(find.text('OPEN CAREER'), findsNothing);
-  });
+      expect(find.text('OPEN CAREER'), findsNothing);
+      scope.profiles.select(scope.profiles.profiles.last);
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('OPEN CAREER'), findsNothing);
+    },
+  );
 
   testWidgets('Current Transits preserves existing route', (tester) async {
     final scope = await _InsightsScope.start(
@@ -136,9 +142,8 @@ Widget _app(
       ),
       GoRoute(
         path: '/career',
-        builder: (_, _) => const Scaffold(
-          body: Text('Career and Business destination'),
-        ),
+        builder: (_, _) =>
+            const Scaffold(body: Text('Career and Business destination')),
       ),
     ],
   );

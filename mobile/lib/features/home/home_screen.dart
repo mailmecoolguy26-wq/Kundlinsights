@@ -368,6 +368,14 @@ class _LifeAreaCards extends StatelessWidget {
         onTap: () => context.push('/career'),
       ),
       const SizedBox(height: 10),
+      _LifeAreaCard(
+        key: const ValueKey('home-life-area-vehicle'),
+        icon: Icons.directions_car_outlined,
+        title: 'Vehicle & Mobility',
+        subtitle: 'See when vehicle-related factors are more supportive.',
+        onTap: () => context.push('/vehicle'),
+      ),
+      const SizedBox(height: 10),
       const _LifeAreaCard(
         key: ValueKey('home-life-area-relationships'),
         icon: Icons.favorite_border,

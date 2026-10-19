@@ -62,6 +62,9 @@ import '../features/career_answers/data/career_answer_api_repository.dart';
 import '../features/career_answers/data/debug_job_favourability_preview_repository.dart';
 import '../features/career_answers/domain/career_answer_repository.dart';
 import '../features/career_answers/career_answer_controller.dart';
+import '../features/vehicle/data/vehicle_answer_api_repository.dart';
+import '../features/vehicle/domain/vehicle_answer_repository.dart';
+import '../features/vehicle/vehicle_answer_controller.dart';
 import 'app.dart';
 
 Future<void> bootstrap() async {
@@ -89,6 +92,7 @@ Future<void> bootstrap() async {
   final PaymentApiClient paymentApi;
   final CareerChatRepository careerChatRepository;
   final CareerAnswerRepository careerAnswerRepository;
+  final VehicleAnswerRepository vehicleAnswerRepository;
   FirebasePushNotificationService? pushNotifications;
   final storePurchaseService = AppleStorePurchaseService(
     client: InAppPurchaseStorePurchaseClient(InAppPurchase.instance),
@@ -138,6 +142,7 @@ Future<void> bootstrap() async {
     paymentApi = const UnavailablePaymentApiClient();
     careerChatRepository = const UnavailableCareerChatRepository();
     careerAnswerRepository = const UnavailableCareerAnswerRepository();
+    vehicleAnswerRepository = const UnavailableVehicleAnswerRepository();
   } else {
     await Supabase.initialize(
       url: config.supabaseUrl,
@@ -161,6 +166,7 @@ Future<void> bootstrap() async {
     paymentApi = AuthenticatedPaymentApiClient(apiClient);
     careerChatRepository = CareerChatApiRepository(apiClient);
     final answerApiRepository = CareerAnswerApiRepository(apiClient);
+    vehicleAnswerRepository = VehicleAnswerApiRepository(apiClient);
     careerAnswerRepository = DevelopmentFlags.careerPremiumUiPreviewEnabled
         ? DebugJobFavourabilityPreviewRepository(answerApiRepository)
         : answerApiRepository;
@@ -243,14 +249,21 @@ Future<void> bootstrap() async {
         careerAnswerRepositoryProvider.overrideWithValue(
           careerAnswerRepository,
         ),
+        vehicleAnswerRepositoryProvider.overrideWithValue(
+          vehicleAnswerRepository,
+        ),
       ],
       child: KundlInsightsApp(
         authController: controller,
         pushNotifications: pushNotifications,
-        razorpayPaymentApi: config?.isRazorpayCareerPremiumEligible == true && defaultTargetPlatform == TargetPlatform.android
+        razorpayPaymentApi:
+            config?.isRazorpayCareerPremiumEligible == true &&
+                defaultTargetPlatform == TargetPlatform.android
             ? paymentApi
             : null,
-        razorpayCheckout: config?.isRazorpayCareerPremiumEligible == true && defaultTargetPlatform == TargetPlatform.android
+        razorpayCheckout:
+            config?.isRazorpayCareerPremiumEligible == true &&
+                defaultTargetPlatform == TargetPlatform.android
             ? RazorpayPurchaseService()
             : null,
       ),

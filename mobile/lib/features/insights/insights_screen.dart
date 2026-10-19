@@ -10,10 +10,12 @@ class InsightsScreen extends StatelessWidget {
     required this.generation,
     this.onOpenCareer,
     this.onOpenCareerChat,
+    this.onOpenVehicle,
   });
   final CareerReadingGenerationController generation;
   final VoidCallback? onOpenCareer;
   final VoidCallback? onOpenCareerChat;
+  final VoidCallback? onOpenVehicle;
 
   static const midnight = Color(0xFF061A1A);
   static const abyss = Color(0xFF082625);
@@ -40,6 +42,14 @@ class InsightsScreen extends StatelessWidget {
               _TransitCard(
                 copy: copy,
                 onTap: () => context.pushNamed('current-transits'),
+              ),
+              const SizedBox(height: 12),
+              _AvailableInsightCard(
+                icon: Icons.directions_car_outlined,
+                title: 'Vehicle & Mobility',
+                subtitle:
+                    'See when vehicle-related factors are more supportive.',
+                onTap: onOpenVehicle,
               ),
               const SizedBox(height: 12),
               const SizedBox(height: 28),
@@ -189,6 +199,52 @@ class _InsightCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: const [_Pill('COMING SOON')],
             ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _AvailableInsightCard extends StatelessWidget {
+  const _AvailableInsightCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.onTap,
+  });
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback? onTap;
+  @override
+  Widget build(BuildContext context) => Material(
+    color: InsightsScreen.violet,
+    borderRadius: BorderRadius.circular(16),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0x663F8179)),
+        ),
+        child: Row(
+          children: [
+            _IconTile(icon),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: _Styles.cardTitle),
+                  const SizedBox(height: 3),
+                  Text(subtitle, style: _Styles.cardBody),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: InsightsScreen.gold),
           ],
         ),
       ),

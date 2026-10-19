@@ -18,7 +18,16 @@ enum AnalyticsEvent {
   pushPermissionDenied('push_permission_denied'),
   pushReceived('push_received'),
   pushOpened('push_opened'),
-  pushDestinationOpened('push_destination_opened');
+  pushDestinationOpened('push_destination_opened'),
+  vehicleHubViewed('vehicle_hub_viewed'),
+  vehicleTimingRequested('vehicle_timing_requested'),
+  vehicleTimingLoaded('vehicle_timing_loaded'),
+  vehicleTimingFailed('vehicle_timing_failed'),
+  vehicleWindowViewed('vehicle_window_viewed'),
+  vehicleDetailedAstrologyOpened('vehicle_detailed_astrology_opened'),
+  vehicleLifeEventAddStarted('vehicle_life_event_add_started'),
+  vehicleLifeEventAdded('vehicle_life_event_added'),
+  askTaraVehicleQuestion('ask_tara_vehicle_question');
 
   const AnalyticsEvent(this.name);
   final String name;

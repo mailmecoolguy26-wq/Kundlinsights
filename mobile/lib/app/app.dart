@@ -39,6 +39,7 @@ import '../features/payments/data/razorpay_purchase_service.dart';
 import '../features/splash/splash_launch_gate.dart';
 import '../features/career_chat/career_chat_controller.dart';
 import '../features/career_answers/career_answer_controller.dart';
+import '../features/vehicle/vehicle_answer_controller.dart';
 
 class KundlInsightsApp extends ConsumerStatefulWidget {
   const KundlInsightsApp({
@@ -70,6 +71,7 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
   late final CareerExplanationLanguageController _careerExplanationLanguage;
   late final CareerChatController _careerChat;
   late final CareerAnswerController _careerAnswers;
+  late final VehicleAnswerController _vehicleAnswers;
   late final ProfileController _profiles;
   late final CareerReadingGenerationController _generation;
   late final PushNavigationAdapter _pushNavigation;
@@ -135,11 +137,14 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
     final careerEvents = ref.read(
       careerEventControllerProvider((authController, profiles)),
     );
-    final lifeEvents = ref.read(lifeEventControllerProvider((authController, profiles)));
+    final lifeEvents = ref.read(
+      lifeEventControllerProvider((authController, profiles)),
+    );
     _careerChat = ref.read(
       careerChatControllerProvider((profiles, _careerExplanationLanguage)),
     );
     _careerAnswers = ref.read(careerAnswerControllerProvider(profiles));
+    _vehicleAnswers = ref.read(vehicleAnswerControllerProvider(profiles));
     final premiumProduct = ref.read(careerPremiumProductControllerProvider);
     final premiumPurchase = ref.read(
       careerPremiumPurchaseControllerProvider((
@@ -180,6 +185,7 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
       analytics: analytics,
       careerChat: _careerChat,
       careerAnswers: _careerAnswers,
+      vehicleAnswers: _vehicleAnswers,
       razorpayPremium: _razorpayPremium,
       careerExplanationLanguage: _careerExplanationLanguage,
       splashLaunchGate: _splashLaunchGate,

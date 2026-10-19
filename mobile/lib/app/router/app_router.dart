@@ -47,6 +47,8 @@ import '../../features/career_answers/career_answer_controller.dart';
 import '../../features/career_answers/domain/career_answer.dart';
 import '../../features/career_answers/presentation/career_hub_screen.dart';
 import '../../features/career_answers/presentation/career_answer_screen.dart';
+import '../../features/vehicle/vehicle_answer_controller.dart';
+import '../../features/vehicle/presentation/vehicle_hub_screen.dart';
 import '../../core/analytics/analytics.dart';
 import '../../core/push/push_notification_service.dart';
 import '../../core/push/push_permission_prompt.dart';
@@ -86,6 +88,7 @@ GoRouter createAppRouter(
   Analytics? analytics,
   required CareerChatController careerChat,
   required CareerAnswerController careerAnswers,
+  VehicleAnswerController? vehicleAnswers,
   RazorpayCareerPremiumController? razorpayPremium,
   required CareerExplanationLanguageController careerExplanationLanguage,
   required SplashLaunchGate splashLaunchGate,
@@ -148,6 +151,17 @@ GoRouter createAppRouter(
           state.uri.queryParameters['initialCategory'],
         ),
       ),
+    ),
+    GoRoute(
+      path: '/vehicle',
+      name: 'vehicle-hub',
+      builder: (context, state) => vehicleAnswers == null
+          ? const _VehicleUnavailable()
+          : VehicleHubScreen(
+              controller: vehicleAnswers,
+              language: careerExplanationLanguage,
+              analytics: analytics ?? Analytics(const NoopAnalyticsProvider()),
+            ),
     ),
     GoRoute(
       path: '/career',
@@ -494,6 +508,7 @@ GoRouter createAppRouter(
                 generation: generation,
                 onOpenCareer: () => context.push('/career'),
                 onOpenCareerChat: () => context.push('/career-chat'),
+                onOpenVehicle: () => context.push('/vehicle'),
               ),
             ),
           ],
@@ -567,6 +582,13 @@ class _LoadingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       const AppPageScaffold(body: LoadingState());
+}
+
+class _VehicleUnavailable extends StatelessWidget {
+  const _VehicleUnavailable();
+  @override
+  Widget build(BuildContext context) =>
+      const Scaffold(body: Center(child: Text('Vehicle timing unavailable')));
 }
 
 class _CareerAnswerUnavailable extends StatelessWidget {

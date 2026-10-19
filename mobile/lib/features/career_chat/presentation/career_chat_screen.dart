@@ -106,8 +106,8 @@ class _CareerChatScreenState extends State<CareerChatScreen> {
                     if (widget.controller.messages.isEmpty) ...[
                       Text(
                         hinglish
-                            ? 'Apne selected profile ke liye Career, relationships, chart aur life timing ke baare mein pooch sakte hain.'
-                            : 'Ask about Career, relationships, your chart, or life timing for this profile.',
+                            ? 'Apne selected profile ke liye Career, Vehicle, relationships, chart aur life timing ke baare mein pooch sakte hain.'
+                            : 'Ask about Career, Vehicle, relationships, your chart, or life timing for this profile.',
                         style: _Styles.body,
                       ),
                       const SizedBox(height: 14),
@@ -117,12 +117,14 @@ class _CareerChatScreenState extends State<CareerChatScreen> {
                                 'Meri Career timing kab strong ho sakti hai?',
                                 'Meri chart relationships ke baare mein kya dikhati hai?',
                                 'Property ke liye supportive period hai?',
+                                'Vehicle lene ka achha time kab hai?',
                                 'Abhi mujhe kis baat par dhyan dena chahiye?',
                               ]
                             : const [
                                 'When is my career likely to improve?',
                                 'What does my chart indicate about relationships?',
                                 'Is there a supportive period for property?',
+                                'When is a good time to buy a vehicle?',
                                 'What should I pay attention to right now?',
                               ],
                         onTap: (prompt) => unawaited(_send(prompt)),
