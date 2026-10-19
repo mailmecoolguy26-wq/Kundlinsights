@@ -51,7 +51,7 @@ function propertyConversationService() {
   });
 }
 
-test('POST Tara message exposes the allowlisted Career Premium action', async () => {
+test('POST Tara message exposes the allowlisted profile premium action', async () => {
   const service = {
     create: async () => ({}),
     list: async () => [],
@@ -61,8 +61,8 @@ test('POST Tara message exposes the allowlisted Career Premium action', async ()
       assistantMessage: {
         messageId: 'assistant-1',
         role: 'assistant',
-        content: 'I can see a stronger Career window for this profile, but the exact timing is part of Career Premium.',
-        action: { type: 'OPEN_CAREER_PREMIUM', label: 'Unlock Career Premium' },
+        content: 'Personalized insights for this profile are part of TaraVerse Premium.',
+        action: { type: 'OPEN_PROFILE_PREMIUM', label: 'Unlock TaraVerse Premium' },
       },
       tara: { career: { state: 'PREMIUM_REQUIRED' } },
     }),
@@ -85,8 +85,8 @@ test('POST Tara message exposes the allowlisted Career Premium action', async ()
 
   assert.equal(response.statusCode, 201);
   assert.deepEqual(response.json().assistantMessage.action, {
-    type: 'OPEN_CAREER_PREMIUM',
-    label: 'Unlock Career Premium',
+    type: 'OPEN_PROFILE_PREMIUM',
+    label: 'Unlock TaraVerse Premium',
   });
   await api.close();
 });

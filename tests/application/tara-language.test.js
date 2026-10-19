@@ -114,8 +114,8 @@ test('keeps premium protection and action metadata while rendering Hinglish copy
   const response = await career.respond({ principal: {}, birthProfileId: 'profile-a', message: 'career improve', language: TaraLanguageStyle.HINGLISH });
   assert.equal(response.intent, TaraCareerIntent.JOB_FAVOURABILITY_TIMING);
   assert.equal(response.state, TaraCareerResponseState.PREMIUM_REQUIRED);
-  assert.deepEqual(response.action, { type: 'OPEN_CAREER_PREMIUM', label: 'Unlock Career Premium' });
-  assert.match(response.message, /Career Premium ka part hai/i);
+  assert.deepEqual(response.action, { type: 'OPEN_PROFILE_PREMIUM', label: 'Unlock TaraVerse Premium' });
+  assert.match(response.message, /TaraVerse Premium ka part hai/i);
   assert.doesNotMatch(response.message, /2026|Nov|Jan/);
 });
 

@@ -74,26 +74,22 @@ test('uses only the selected signal historical context and never invents dates o
   });
 });
 
-test('free access preserves the current phase and limited possible timing without premium-only detail', async () => {
+test('unsubscribed access returns a profile-premium requirement without Career evidence', async () => {
   const answers = new CareerAnswerService({ secureReadingService: service({ eligible: false }) });
   const phase = await answers.answer({ principal: {}, birthProfileId: 'profile-a', body: { questionType: CareerQuestionType.CURRENT_CAREER_PHASE } });
   const timing = await answers.answer({ principal: {}, birthProfileId: 'profile-a', body: { questionType: CareerQuestionType.CAREER_ACTIVITY_TIMING } });
-  assert.equal(phase.answerability, 'SUPPORTED');
-  assert.equal(timing.answerability, 'SUPPORTED');
-  assert.equal(timing.answer.window.classification, 'POSSIBLE_CAREER_ACTIVITY_SIGNAL');
-  assert.deepEqual(timing.evidence.map((item) => item.family), ['D1_CAREER_FOUNDATION', 'DASHA', 'TRANSIT']);
-  assert.deepEqual(timing.agreement.supportSignals, []);
-  assert.equal(timing.historicalContext, null);
-  assert.match(timing.answer.limitation, /Detailed supporting context is available with Career Premium/);
+  assert.equal(phase.answerability, 'PREMIUM_REQUIRED');
+  assert.equal(timing.answerability, 'PREMIUM_REQUIRED');
+  assert.equal(phase.evidence, undefined);
+  assert.equal(timing.evidence, undefined);
 });
 
-test('a missing owned Career Reading returns a structured insufficient-evidence response for free access', async () => {
+test('an unsubscribed profile remains locked even when it has no Career Reading', async () => {
   const answer = await new CareerAnswerService({ secureReadingService: service({ eligible: false, readings: [] }) }).answer({
     principal: {}, birthProfileId: 'profile-a', body: { questionType: CareerQuestionType.CURRENT_CAREER_PHASE },
   });
-  assert.equal(answer.answerability, 'INSUFFICIENT_EVIDENCE');
-  assert.equal(answer.answer.headline, 'A Career Reading is needed first');
-  assert.equal(answer.answer.window, null);
+  assert.equal(answer.answerability, 'PREMIUM_REQUIRED');
+  assert.equal(answer.evidence, undefined);
 });
 
 test('premium access retains deeper evidence, support signals, and historical context', async () => {

@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { PropertyIntent, natalEvidence, dashaEvidence, primaryDashaBounds, ashtakavargaEvidence, calibration, propertyTransitStateBoundaries, classifyPropertyWindow, candidateState, selectVisiblePeak, classify, selectPropertyWindow, strongerWindow, PROPERTY_WINDOW_COARSE_SCAN_STEP_MS } = require('../../src/application/property');
+const { PropertyAnswerService, PropertyIntent, natalEvidence, dashaEvidence, primaryDashaBounds, ashtakavargaEvidence, calibration, propertyTransitStateBoundaries, classifyPropertyWindow, candidateState, selectVisiblePeak, classify, selectPropertyWindow, strongerWindow, PROPERTY_WINDOW_COARSE_SCAN_STEP_MS } = require('../../src/application/property');
 const { TaraPropertyCapability, TaraOrchestrator, intentFor, answer } = require('../../src/application/tara');
 
 function houses({ fourthLord = 'Moon', secondLord = 'Mars', occupants = ['Moon'] } = {}) {
@@ -219,6 +219,23 @@ test('Property Tara routing keeps purchase timing grounded, handles Hinglish, an
   assert.equal(purchase.intent, PropertyIntent.PROPERTY_PURCHASE_TIMING); assert.match(purchase.message, /stronger calculated Property period/);
   assert.equal(sale.intent, PropertyIntent.PROPERTY_SALE_TIMING); assert.match(sale.message, /not yet reliably supported/i);
   assert.equal(calls[0].birthProfileId, 'profile-a');
+});
+
+test('Property Tara returns a profile-premium action without exposing calculation data when locked', async () => {
+  const capability = new TaraPropertyCapability({ propertyAnswerService: { answer: async () => ({ answerability: 'PREMIUM_REQUIRED', state: 'PREMIUM_REQUIRED', action: { type: 'OPEN_PROFILE_PREMIUM', label: 'Unlock TaraVerse Premium' } }) } });
+  const result = await capability.respond({ principal: {}, birthProfileId: 'profile-b', message: 'When should I buy property?' });
+  assert.equal(result.answerability, 'PREMIUM_REQUIRED');
+  assert.equal(result.property, null);
+  assert.deepEqual(result.action, { type: 'OPEN_PROFILE_PREMIUM', label: 'Unlock TaraVerse Premium' });
+});
+
+test('Property service checks profile premium before profile or astrology calculation', async () => {
+  let profileRead = false;
+  const service = new PropertyAnswerService({ birthProfileService: { get: async () => { profileRead = true; throw new Error('MUST_NOT_CALCULATE'); } }, lifeEventService: { getRelevantLifeEvents: async () => [] }, astronomicalEngine: { calculate: () => { throw new Error('MUST_NOT_CALCULATE'); } }, canonicalSiderealSunSampler: () => 0, entitlementService: { getReadingEntitlementStatus: async () => ({ profilePremium: { eligible: false } }) } });
+  const result = await service.answer({ principal: {}, birthProfileId: 'profile-b' });
+  assert.equal(profileRead, false);
+  assert.equal(result.answerability, 'PREMIUM_REQUIRED');
+  assert.equal(result.evidence, null);
 });
 
 test('Property orchestration is profile-scoped and never routes a Property question through Career', async () => {

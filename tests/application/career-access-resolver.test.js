@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { CareerAccessResolver } = require('../../src/application/readings');
+const { CareerAccessResolver, ProfilePremiumAccessResolver } = require('../../src/application/readings');
 const { InMemoryEntitlementRepository, InMemorySubscriptionRepository, InMemoryBirthProfileRepository, InMemoryProfileEntitlementRepository } = require('../../src/persistence');
 const { CAREER_PROFILE_UNLOCK_SKU } = require('../../src/payment');
 
@@ -59,4 +59,21 @@ test('legacy profile unlock remains profile-scoped', async () => {
   const resolver = new CareerAccessResolver();
   assert.equal((await resolver.resolveForProfile({ repositories: repo, userId: 'user-a', birthProfileId: 'profile-a', at })).mode, 'LEGACY_PROFILE_UNLOCK');
   assert.equal((await resolver.resolveForProfile({ repositories: repo, userId: 'user-a', birthProfileId: 'profile-b', at })).eligible, false);
+});
+
+test('profile premium delegates existing six/twelve-month and lifecycle validity rules without becoming account-wide', async () => {
+  for (const [productId, status, graceUntil, eligible] of [
+    ['career_premium_6_month', 'ACTIVE', null, true],
+    ['career_premium_12_month', 'CANCELED', null, true],
+    ['career_premium_6_month', 'GRACE_PERIOD', '2026-11-01T00:00:00.000Z', true],
+    ['career_premium_6_month', 'EXPIRED', null, false],
+    ['career_premium_6_month', 'REFUNDED', null, false],
+    ['career_premium_6_month', 'REVOKED', null, false],
+  ]) {
+    const resolver = new ProfilePremiumAccessResolver();
+    const value = await resolver.resolveForProfile({ repositories: repositories([subscription({ productId, status, graceUntil })]), userId: 'user-a', birthProfileId: 'profile-a', at });
+    assert.equal(value.eligible, eligible, `${productId}/${status}`);
+    const other = await resolver.resolveForProfile({ repositories: repositories([subscription({ productId, status, graceUntil })]), userId: 'user-a', birthProfileId: 'profile-b', at });
+    assert.equal(other.eligible, false, `${productId}/${status} stays profile scoped`);
+  }
 });

@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  d1Evidence, natalPromise, vehicleFactor, mdAdEvidence, pdRefinement,
+  VehicleAnswerService, d1Evidence, natalPromise, vehicleFactor, mdAdEvidence, pdRefinement,
   transitEvidence, ashtakavargaEvidence, calibration, classifyCandidate,
   classifyWindowShape, coalesceVehicleCandidates, selectVehicleWindow, selectPeak, transitBoundaries,
 } = require('../../src/application/vehicle');
@@ -188,4 +188,21 @@ test('Vehicle Tara routing is isolated from Career and uses the Vehicle capabili
   assert.deepEqual(calls, ['profile-vehicle']);
   const capability = new TaraVehicleCapability({ vehicleAnswerService: { answer: async (input) => ({ intent: input.intent, answerability: 'SUPPORTED', classification: 'MODERATE_CANDIDATE', strongerWindow: null, windowShape: 'NO_RELIABLE_WINDOW' }) } });
   assert.match((await capability.respond({ message: 'Vehicle kab lena chahiye?', birthProfileId: 'profile-vehicle' })).message, /Vehicle support window/);
+});
+
+test('Vehicle Tara returns a profile-premium action without exposing calculation data when locked', async () => {
+  const capability = new TaraVehicleCapability({ vehicleAnswerService: { answer: async () => ({ answerability: 'PREMIUM_REQUIRED', state: 'PREMIUM_REQUIRED', action: { type: 'OPEN_PROFILE_PREMIUM', label: 'Unlock TaraVerse Premium' } }) } });
+  const result = await capability.respond({ principal: {}, birthProfileId: 'profile-b', message: 'When should I buy a car?' });
+  assert.equal(result.answerability, 'PREMIUM_REQUIRED');
+  assert.equal(result.vehicle, null);
+  assert.deepEqual(result.action, { type: 'OPEN_PROFILE_PREMIUM', label: 'Unlock TaraVerse Premium' });
+});
+
+test('Vehicle service checks profile premium before profile or astrology calculation', async () => {
+  let profileRead = false;
+  const service = new VehicleAnswerService({ birthProfileService: { get: async () => { profileRead = true; throw new Error('MUST_NOT_CALCULATE'); } }, lifeEventService: { getRelevantLifeEvents: async () => [] }, astronomicalEngine: { calculate: () => { throw new Error('MUST_NOT_CALCULATE'); } }, canonicalSiderealSunSampler: () => 0, entitlementService: { getReadingEntitlementStatus: async () => ({ profilePremium: { eligible: false } }) } });
+  const result = await service.answer({ principal: {}, birthProfileId: 'profile-b' });
+  assert.equal(profileRead, false);
+  assert.equal(result.answerability, 'PREMIUM_REQUIRED');
+  assert.equal(result.evidence, null);
 });

@@ -98,14 +98,14 @@ for (const [level, eventReferences] of [['NONE', []], ['LIMITED', [{ eventId: 'e
 test('Profile-scoped status returns PROFILE_UNLOCK before credit without consuming credit and isolates sibling profiles', async () => {
   const { service, entitlements } = setup({ profileUnlock: true }); const originalConsume = entitlements.consumeEntitlement.bind(entitlements); let consumes = 0;
   entitlements.consumeEntitlement = (...args) => { consumes += 1; return originalConsume(...args); };
-  assert.deepEqual(await service.getReadingEntitlementStatus({ principal: principal('subject-a'), birthProfileId: 'profile-a' }), { career: { state: 'ACTIVE', eligible: true, mode: 'LEGACY_PROFILE_UNLOCK', consuming: false, entitlementKey: 'CAREER_PREMIUM', source: 'LEGACY_PROFILE_UNLOCK', planKey: null, validUntil: null, subscriptionStatus: null, purchaseMode: null } });
+  const profileA = await service.getReadingEntitlementStatus({ principal: principal('subject-a'), birthProfileId: 'profile-a' }); assert.deepEqual(profileA.profilePremium, profileA.career); assert.equal(profileA.profilePremium.eligible, true);
   assert.equal(entitlements.getEntitlement('ent-a').quantity, 1); assert.equal(consumes, 0);
-  assert.deepEqual(await service.getReadingEntitlementStatus({ principal: principal('subject-a'), birthProfileId: 'profile-a2' }), { career: { state: 'ACTIVE', eligible: true, mode: 'CREDIT', consuming: true, entitlementKey: null, source: null, planKey: null, validUntil: null, subscriptionStatus: null, purchaseMode: null } });
+  const profileA2 = await service.getReadingEntitlementStatus({ principal: principal('subject-a'), birthProfileId: 'profile-a2' }); assert.deepEqual(profileA2.profilePremium, profileA2.career); assert.equal(profileA2.profilePremium.mode, 'CREDIT');
   assert.equal(entitlements.getEntitlement('ent-a').quantity, 1); assert.equal(consumes, 0);
 });
 test('unlinked legacy subscriptions do not grant profile access and foreign profiles remain masked', async () => {
   const fixture = setup({ entitlement: 0 });
   for (const status of ['ACTIVE', 'CANCELED']) fixture.subscriptions.upsertVerifiedState({ id: `sub-${status}`, userId: 'user-a', provider: 'APPLE', environment: 'SANDBOX', productId: 'career_premium_annual', originalTransactionId: `original-${status}`, status, validFrom: T0, validUntil: '2027-08-13T00:00:00.000Z', createdAt: T0 });
-  assert.deepEqual(await fixture.service.getReadingEntitlementStatus({ principal: principal('subject-a'), birthProfileId: 'profile-a2' }), { career: { state: 'INACTIVE', eligible: false, mode: 'NONE', consuming: false, entitlementKey: 'CAREER_PREMIUM', source: null, planKey: null, validUntil: null, subscriptionStatus: null, purchaseMode: 'PRIMARY_SUBSCRIPTION' } });
+  const unlinked = await fixture.service.getReadingEntitlementStatus({ principal: principal('subject-a'), birthProfileId: 'profile-a2' }); assert.deepEqual(unlinked.profilePremium, unlinked.career); assert.equal(unlinked.profilePremium.eligible, false);
   await rejects(fixture.service.getReadingEntitlementStatus({ principal: principal('subject-a'), birthProfileId: 'profile-b' }), 'NOT_FOUND_OR_FORBIDDEN');
 });

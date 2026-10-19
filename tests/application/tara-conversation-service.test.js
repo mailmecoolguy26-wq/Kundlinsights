@@ -75,13 +75,13 @@ test('persists and reloads chronological Ask Tara history for the owned profile'
   assert.equal(history[0].lastMessagePreview, 'Grounded: What should I explore next?');
 });
 
-test('persists an allowlisted Career Premium action only for the same profile thread', async () => {
-  const { service } = fixture({ taraOrchestrator: { respond: async () => ({ message: 'Exact timing is part of Career Premium.', action: { type: 'OPEN_CAREER_PREMIUM', label: 'Unlock Career Premium' } }) } });
+test('persists an allowlisted profile premium action only for the same profile thread', async () => {
+  const { service } = fixture({ taraOrchestrator: { respond: async () => ({ message: 'Premium required.', action: { type: 'OPEN_PROFILE_PREMIUM', label: 'Unlock TaraVerse Premium' } }) } });
   const created = await service.create({ principal, birthProfileId: 'profile-a' });
   const result = await service.message({ principal, birthProfileId: 'profile-a', conversationId: created.conversationId, body: { message: 'When should I switch jobs?' } });
-  assert.deepEqual(result.assistantMessage.action, { type: 'OPEN_CAREER_PREMIUM', label: 'Unlock Career Premium' });
+  assert.deepEqual(result.assistantMessage.action, { type: 'OPEN_PROFILE_PREMIUM', label: 'Unlock TaraVerse Premium' });
   const loaded = await service.get({ principal, birthProfileId: 'profile-a', conversationId: created.conversationId });
-  assert.deepEqual(loaded.messages.at(-1).action, { type: 'OPEN_CAREER_PREMIUM', label: 'Unlock Career Premium' });
+  assert.deepEqual(loaded.messages.at(-1).action, { type: 'OPEN_PROFILE_PREMIUM', label: 'Unlock TaraVerse Premium' });
   await assert.rejects(() => service.get({ principal: otherPrincipal, birthProfileId: 'profile-b', conversationId: created.conversationId }), (error) => error.code === 'NOT_FOUND_OR_FORBIDDEN');
 });
 
@@ -106,17 +106,17 @@ test('returns the premium action from POST through the grounded Tara chain', asy
   });
   assert.equal(result.tara.career.state, 'PREMIUM_REQUIRED');
   assert.deepEqual(result.assistantMessage.action, {
-    type: 'OPEN_CAREER_PREMIUM',
-    label: 'Unlock Career Premium',
+    type: 'OPEN_PROFILE_PREMIUM',
+    label: 'Unlock TaraVerse Premium',
   });
 });
 
 test('serializes persisted JSONB action metadata from GET without exposing raw metadata', async () => {
-  const { service } = fixture({ metadataAsJsonString: true, taraOrchestrator: { respond: async () => ({ message: 'Exact timing is part of Career Premium.', action: { type: 'OPEN_CAREER_PREMIUM', label: 'Unlock Career Premium' } }) } });
+  const { service } = fixture({ metadataAsJsonString: true, taraOrchestrator: { respond: async () => ({ message: 'Premium required.', action: { type: 'OPEN_PROFILE_PREMIUM', label: 'Unlock TaraVerse Premium' } }) } });
   const created = await service.create({ principal, birthProfileId: 'profile-a' });
   await service.message({ principal, birthProfileId: 'profile-a', conversationId: created.conversationId, body: { message: 'When should I switch jobs?' } });
   const loaded = await service.get({ principal, birthProfileId: 'profile-a', conversationId: created.conversationId });
-  assert.deepEqual(loaded.messages.at(-1).action, { type: 'OPEN_CAREER_PREMIUM', label: 'Unlock Career Premium' });
+  assert.deepEqual(loaded.messages.at(-1).action, { type: 'OPEN_PROFILE_PREMIUM', label: 'Unlock TaraVerse Premium' });
   assert.equal(Object.hasOwn(loaded.messages.at(-1), 'metadata'), false);
 });
 
@@ -133,7 +133,7 @@ test('omits malformed or non-allowlisted persisted actions', async () => {
 
 test('hides persisted Career Premium actions when the exact profile becomes entitled', async () => {
   const premium = { getReadingEntitlementStatus: async () => ({ career: { eligible: true } }) };
-  const { service } = fixture({ careerEntitlementResolver: premium, taraOrchestrator: { respond: async () => ({ message: 'Exact timing is part of Career Premium.', action: { type: 'OPEN_CAREER_PREMIUM', label: 'Unlock Career Premium' } }) } });
+  const { service } = fixture({ careerEntitlementResolver: premium, taraOrchestrator: { respond: async () => ({ message: 'Premium required.', action: { type: 'OPEN_PROFILE_PREMIUM', label: 'Unlock TaraVerse Premium' } }) } });
   const created = await service.create({ principal, birthProfileId: 'profile-a' });
   await service.message({ principal, birthProfileId: 'profile-a', conversationId: created.conversationId, body: { message: 'When should I switch jobs?' } });
   const loaded = await service.get({ principal, birthProfileId: 'profile-a', conversationId: created.conversationId });
@@ -143,11 +143,11 @@ test('hides persisted Career Premium actions when the exact profile becomes enti
 test('does not suppress a profile action because a different profile is entitled', async () => {
   const checkedProfiles = [];
   const premium = { getReadingEntitlementStatus: async ({ birthProfileId }) => { checkedProfiles.push(birthProfileId); return { career: { eligible: birthProfileId === 'profile-b' } }; } };
-  const { service } = fixture({ careerEntitlementResolver: premium, taraOrchestrator: { respond: async () => ({ message: 'Exact timing is part of Career Premium.', action: { type: 'OPEN_CAREER_PREMIUM', label: 'Unlock Career Premium' } }) } });
+  const { service } = fixture({ careerEntitlementResolver: premium, taraOrchestrator: { respond: async () => ({ message: 'Premium required.', action: { type: 'OPEN_PROFILE_PREMIUM', label: 'Unlock TaraVerse Premium' } }) } });
   const created = await service.create({ principal, birthProfileId: 'profile-a' });
   await service.message({ principal, birthProfileId: 'profile-a', conversationId: created.conversationId, body: { message: 'When should I switch jobs?' } });
   const loaded = await service.get({ principal, birthProfileId: 'profile-a', conversationId: created.conversationId });
-  assert.deepEqual(loaded.messages.at(-1).action, { type: 'OPEN_CAREER_PREMIUM', label: 'Unlock Career Premium' });
+  assert.deepEqual(loaded.messages.at(-1).action, { type: 'OPEN_PROFILE_PREMIUM', label: 'Unlock TaraVerse Premium' });
   assert.equal(checkedProfiles.every((id) => id === 'profile-a'), true);
 });
 
