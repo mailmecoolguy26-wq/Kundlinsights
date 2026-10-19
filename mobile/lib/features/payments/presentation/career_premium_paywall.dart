@@ -174,8 +174,8 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
                 Text(
                   widget.activeProfileLabel == null ||
                           widget.activeProfileLabel!.trim().isEmpty
-                      ? 'Career Premium'
-                      : 'Career Premium for ${widget.activeProfileLabel}',
+                      ? 'TaraVerse Premium'
+                      : 'TaraVerse Premium for ${widget.activeProfileLabel}',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     color: const Color(0xFFF7F4EC),
                     fontWeight: FontWeight.w700,
@@ -230,8 +230,7 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
                         : widget.razorpayController!.gstAmountMinorFor(
                             widget.razorpayProfileId!,
                           ),
-                    razorpayGstRateBasisPoints:
-                        widget.razorpayProfileId == null
+                    razorpayGstRateBasisPoints: widget.razorpayProfileId == null
                         ? null
                         : widget.razorpayController!.gstRateBasisPointsFor(
                             widget.razorpayProfileId!,
@@ -253,11 +252,13 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Career Premium Active',
+              'TaraVerse Premium Active',
               style: TextStyle(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: AppSpacing.xs),
-            const Text('Your Career Premium access is available.'),
+            const Text(
+              'Your personalized insights are available for this profile.',
+            ),
             const SizedBox(height: AppSpacing.sm),
             FilledButton(
               onPressed: widget.onContinuePressed,
@@ -282,7 +283,7 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Career Premium',
+                  'TaraVerse Premium',
                   style: TextStyle(
                     color: Color(0xFFF7F4EC),
                     fontSize: 28,
@@ -297,7 +298,7 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
                 if (widget.activeProfileLabel != null) ...[
                   const SizedBox(height: AppSpacing.sm),
                   Text(
-                    'Career Premium for ${widget.activeProfileLabel}',
+                    'TaraVerse Premium for ${widget.activeProfileLabel}',
                     style: const TextStyle(
                       color: Color(0xFF63D7CF),
                       fontWeight: FontWeight.w600,
@@ -305,7 +306,7 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'This subscription unlocks Career Premium for this birth profile.',
+                    'Unlock all personalized insights for this profile.\nCareer, Property, Vehicle and other supported personalized insights.',
                     style: TextStyle(color: Color(0xFFA8B7B4)),
                   ),
                 ],
@@ -340,30 +341,40 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
                   razorpayCanRetry:
                       widget.razorpayProfileId != null &&
                       widget.razorpayController != null &&
-                        widget.razorpayController!.canRetryFor(
-                          widget.razorpayProfileId!,
-                        ),
-                  razorpayLogicalSku: widget.razorpayProfileId == null || widget.razorpayController == null
+                      widget.razorpayController!.canRetryFor(
+                        widget.razorpayProfileId!,
+                      ),
+                  razorpayLogicalSku:
+                      widget.razorpayProfileId == null ||
+                          widget.razorpayController == null
                       ? null
                       : widget.razorpayController!.logicalSkuFor(
                           widget.razorpayProfileId!,
                         ),
-                  razorpayAmountMinor: widget.razorpayProfileId == null || widget.razorpayController == null
+                  razorpayAmountMinor:
+                      widget.razorpayProfileId == null ||
+                          widget.razorpayController == null
                       ? null
                       : widget.razorpayController!.amountMinorFor(
                           widget.razorpayProfileId!,
                         ),
-                  razorpayBaseAmountMinor: widget.razorpayProfileId == null || widget.razorpayController == null
+                  razorpayBaseAmountMinor:
+                      widget.razorpayProfileId == null ||
+                          widget.razorpayController == null
                       ? null
                       : widget.razorpayController!.baseAmountMinorFor(
                           widget.razorpayProfileId!,
                         ),
-                  razorpayGstAmountMinor: widget.razorpayProfileId == null || widget.razorpayController == null
+                  razorpayGstAmountMinor:
+                      widget.razorpayProfileId == null ||
+                          widget.razorpayController == null
                       ? null
                       : widget.razorpayController!.gstAmountMinorFor(
                           widget.razorpayProfileId!,
                         ),
-                  razorpayGstRateBasisPoints: widget.razorpayProfileId == null || widget.razorpayController == null
+                  razorpayGstRateBasisPoints:
+                      widget.razorpayProfileId == null ||
+                          widget.razorpayController == null
                       ? null
                       : widget.razorpayController!.gstRateBasisPointsFor(
                           widget.razorpayProfileId!,
@@ -544,7 +555,7 @@ class _ProductAction extends StatelessWidget {
         restoreState == CareerPremiumRestoreState.verifying) {
       final text = restoreState == CareerPremiumRestoreState.restoring
           ? 'Checking your App Store purchases…'
-          : 'Restoring Career Premium…';
+          : 'Restoring TaraVerse Premium…';
       return Semantics(
         liveRegion: true,
         label: text,
@@ -555,7 +566,7 @@ class _ProductAction extends StatelessWidget {
       );
     }
     if (restoreState == CareerPremiumRestoreState.notFound) {
-      return const Text('No previous Career Premium purchase was found.');
+      return const Text('No previous TaraVerse Premium purchase was found.');
     }
     if (restoreState == CareerPremiumRestoreState.reconciliationRequired) {
       return const Text(
@@ -643,7 +654,7 @@ class _ProductAction extends StatelessWidget {
     if (purchaseState == CareerPremiumPurchaseState.success &&
         purchaseController?.hasLocalDebugEntitlement == true) {
       return const Text(
-        'Career Premium is active for this local debug session.',
+        'TaraVerse Premium is active for this local debug session.',
       );
     }
     if (razorpay != null) {
@@ -709,7 +720,7 @@ class _ProductAction extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             const FilledButton(
               onPressed: null,
-              child: Text('Career Premium unavailable'),
+              child: Text('TaraVerse Premium unavailable'),
             ),
           ],
         );
@@ -1056,7 +1067,7 @@ class _RazorpaySuccess extends StatelessWidget {
       const Icon(Icons.verified_rounded, color: Color(0xFFD6B15A), size: 38),
       const SizedBox(height: 10),
       const Text(
-        'Career Premium is now unlocked',
+        'TaraVerse Premium is now unlocked',
         style: TextStyle(
           color: Color(0xFFF7F4EC),
           fontSize: 24,
@@ -1178,8 +1189,7 @@ class _RazorpayAmountBreakdown extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (baseAmountLabel != null)
-            Text('Base price: $baseAmountLabel'),
+          if (baseAmountLabel != null) Text('Base price: $baseAmountLabel'),
           if (gstAmountLabel != null)
             Text('GST${rate == null ? '' : ' @$rate%'}: $gstAmountLabel'),
           Text(

@@ -81,6 +81,9 @@ class _VehicleHubScreenState extends State<VehicleHubScreen> {
             hinglish: hinglish,
             onRetry: widget.controller.load,
           ),
+          VehicleAnswerLoadState.loaded
+              when widget.controller.answer!.premiumRequired =>
+            _PremiumLocked(onUnlock: () => context.push('/premium')),
           VehicleAnswerLoadState.loaded => _Result(
             answer: widget.controller.answer!,
             hinglish: hinglish,
@@ -99,6 +102,36 @@ class _VehicleHubScreenState extends State<VehicleHubScreen> {
         },
       );
     },
+  );
+}
+
+class _PremiumLocked extends StatelessWidget {
+  const _PremiumLocked({required this.onUnlock});
+  final VoidCallback onUnlock;
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(28),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.lock_outline, color: _C.turquoise, size: 34),
+          const SizedBox(height: 14),
+          const Text('TaraVerse Premium', style: _T.title),
+          const SizedBox(height: 8),
+          const Text(
+            'Unlock all personalized insights for this profile.',
+            style: _T.body,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 18),
+          FilledButton(
+            onPressed: onUnlock,
+            child: const Text('Unlock TaraVerse Premium'),
+          ),
+        ],
+      ),
+    ),
   );
 }
 

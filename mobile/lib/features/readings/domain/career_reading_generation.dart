@@ -11,7 +11,13 @@ class CareerEligibility {
   final bool consuming;
   factory CareerEligibility.fromJson(Map<String, dynamic> json) {
     final entitlements = json['entitlements'];
-    final career = entitlements is Map<String, dynamic>
+    final profilePremium = entitlements is Map<String, dynamic>
+        ? entitlements['profilePremium']
+        : null;
+    // Temporary compatibility for clients served by a pre-Phase-1 backend.
+    final career = profilePremium is Map<String, dynamic>
+        ? profilePremium
+        : entitlements is Map<String, dynamic>
         ? entitlements['career']
         : null;
     final eligible = career is Map<String, dynamic> ? career['eligible'] : null;

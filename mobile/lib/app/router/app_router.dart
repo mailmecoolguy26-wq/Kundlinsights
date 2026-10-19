@@ -176,7 +176,33 @@ GoRouter createAppRouter(
     GoRoute(
       path: '/career',
       name: 'career-hub',
-      builder: (context, state) => const CareerHubScreen(),
+      builder: (context, state) => ListenableBuilder(
+        listenable: generation,
+        builder: (context, _) {
+          switch (generation.eligibilityState) {
+            case CareerEligibilityState.initial:
+            case CareerEligibilityState.loading:
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
+            case CareerEligibilityState.error:
+              return Scaffold(
+                body: Center(
+                  child: TextButton(
+                    onPressed: generation.refreshEligibility,
+                    child: const Text('Retry'),
+                  ),
+                ),
+              );
+            case CareerEligibilityState.ineligible:
+              return _PremiumRequiredScreen(
+                onUnlock: () => context.push('/premium'),
+              );
+            case CareerEligibilityState.eligible:
+              return const CareerHubScreen();
+          }
+        },
+      ),
       routes: [
         GoRoute(
           path: 'answer/:questionType',
@@ -351,6 +377,11 @@ GoRouter createAppRouter(
     ),
     GoRoute(
       path: '/career-premium',
+      redirect: (context, state) =>
+          state.uri.replace(path: '/premium').toString(),
+    ),
+    GoRoute(
+      path: '/premium',
       builder: (context, state) {
         final returnQuestion = CareerQuestionType.fromWire(
           state.uri.queryParameters['returnQuestion'],
@@ -415,7 +446,7 @@ GoRouter createAppRouter(
                 body: Center(
                   child: FilledButton(
                     onPressed: () => context.go('/readings'),
-                    child: const Text('Career Premium Active'),
+                    child: const Text('TaraVerse Premium Active'),
                   ),
                 ),
               );
@@ -762,6 +793,53 @@ class _ShellNavigationIcon extends StatelessWidget {
           ? _ShellNavigationColors.selected
           : _ShellNavigationColors.inactive,
       size: 22,
+    ),
+  );
+}
+
+class _PremiumRequiredScreen extends StatelessWidget {
+  const _PremiumRequiredScreen({required this.onUnlock});
+
+  final VoidCallback onUnlock;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: _ShellNavigationColors.midnight,
+    appBar: AppBar(
+      backgroundColor: _ShellNavigationColors.midnight,
+      foregroundColor: const Color(0xFFF7F4EC),
+      elevation: 0,
+    ),
+    body: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.lock_outline, color: Color(0xFF35B9AC), size: 34),
+            const SizedBox(height: 14),
+            const Text(
+              'TaraVerse Premium',
+              style: TextStyle(
+                color: Color(0xFFF7F4EC),
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Unlock all personalized insights for this profile.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Color(0xFFA8B7B4)),
+            ),
+            const SizedBox(height: 18),
+            FilledButton(
+              onPressed: onUnlock,
+              child: const Text('Unlock TaraVerse Premium'),
+            ),
+          ],
+        ),
+      ),
     ),
   );
 }

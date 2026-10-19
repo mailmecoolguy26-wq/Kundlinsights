@@ -73,7 +73,7 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: 30),
               const _SectionTitle('What do you want clarity on?'),
               const SizedBox(height: 12),
-              const _LifeAreaCards(),
+              _LifeAreaCards(controller: careerGenerationController),
               const SizedBox(height: 30),
               _CareerPremiumCard(controller: careerGenerationController),
             ],
@@ -355,52 +355,58 @@ class _SectionTitle extends StatelessWidget {
 }
 
 class _LifeAreaCards extends StatelessWidget {
-  const _LifeAreaCards();
+  const _LifeAreaCards({required this.controller});
+  final CareerReadingGenerationController controller;
 
   @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      _LifeAreaCard(
-        key: const ValueKey('home-life-area-career'),
-        icon: Icons.work_outline,
-        title: 'Career & Business',
-        subtitle: 'Career · Business',
-        onTap: () => context.push('/career'),
-      ),
-      const SizedBox(height: 10),
-      _LifeAreaCard(
-        key: const ValueKey('home-life-area-vehicle'),
-        icon: Icons.directions_car_outlined,
-        title: 'Vehicle & Mobility',
-        subtitle: 'See when vehicle-related factors are more supportive.',
-        onTap: () => context.push('/vehicle'),
-      ),
-      const SizedBox(height: 10),
-      _LifeAreaCard(
-        key: ValueKey('home-life-area-wealth'),
-        icon: Icons.account_balance_wallet_outlined,
-        title: 'Wealth & Property',
-        subtitle: 'Property timing and ownership-related insights.',
-        onTap: () => context.push('/property'),
-      ),
-      const SizedBox(height: 10),
-      const _LifeAreaCard(
-        key: ValueKey('home-life-area-relationships'),
-        icon: Icons.favorite_border,
-        title: 'Relationships & Family',
-        subtitle: 'Marriage · Child Birth',
-        comingSoon: true,
-      ),
-      const SizedBox(height: 10),
-      const _LifeAreaCard(
-        key: ValueKey('home-life-area-tarot'),
-        icon: Icons.auto_awesome_outlined,
-        title: 'Tarot',
-        subtitle: 'A new way to explore guidance, coming soon.',
-        comingSoon: true,
-      ),
-    ],
-  );
+  Widget build(BuildContext context) {
+    final active =
+        controller.eligibilityState == CareerEligibilityState.eligible;
+    String destination(String route) => active ? route : '/premium';
+    return Column(
+      children: [
+        _LifeAreaCard(
+          key: const ValueKey('home-life-area-career'),
+          icon: Icons.work_outline,
+          title: 'Career & Business',
+          subtitle: 'Career · Business',
+          onTap: () => context.push(destination('/career')),
+        ),
+        const SizedBox(height: 10),
+        _LifeAreaCard(
+          key: const ValueKey('home-life-area-vehicle'),
+          icon: Icons.directions_car_outlined,
+          title: 'Vehicle & Mobility',
+          subtitle: 'See when vehicle-related factors are more supportive.',
+          onTap: () => context.push(destination('/vehicle')),
+        ),
+        const SizedBox(height: 10),
+        _LifeAreaCard(
+          key: ValueKey('home-life-area-wealth'),
+          icon: Icons.account_balance_wallet_outlined,
+          title: 'Wealth & Property',
+          subtitle: 'Property timing and ownership-related insights.',
+          onTap: () => context.push(destination('/property')),
+        ),
+        const SizedBox(height: 10),
+        const _LifeAreaCard(
+          key: ValueKey('home-life-area-relationships'),
+          icon: Icons.favorite_border,
+          title: 'Relationships & Family',
+          subtitle: 'Marriage · Child Birth',
+          comingSoon: true,
+        ),
+        const SizedBox(height: 10),
+        const _LifeAreaCard(
+          key: ValueKey('home-life-area-tarot'),
+          icon: Icons.auto_awesome_outlined,
+          title: 'Tarot',
+          subtitle: 'A new way to explore guidance, coming soon.',
+          comingSoon: true,
+        ),
+      ],
+    );
+  }
 }
 
 class _LifeAreaCard extends StatelessWidget {
@@ -506,12 +512,12 @@ class _CareerPremiumCard extends StatelessWidget {
         controller.eligibilityState == CareerEligibilityState.loading;
     final active =
         controller.eligibilityState == CareerEligibilityState.eligible;
-    final title = active ? 'Career Premium is active' : 'Career Premium';
+    final title = active ? 'TaraVerse Premium is active' : 'TaraVerse Premium';
     final body = loading
         ? 'Checking access for this birth profile…'
         : active
-        ? 'Your selected birth profile can explore deeper Career insights.'
-        : 'Explore deeper Career insights, timing and stronger windows.';
+        ? 'Your selected birth profile can explore personalized insights.'
+        : 'Unlock all personalized insights for this profile.';
     return _DarkCard(
       child: Row(
         children: [
@@ -561,7 +567,7 @@ class _CareerPremiumCard extends StatelessWidget {
           if (!loading)
             TextButton(
               key: const ValueKey('home-career-premium-cta'),
-              onPressed: () => context.push('/career'),
+              onPressed: () => context.push(active ? '/career' : '/premium'),
               child: Text(
                 active ? 'ACTIVE' : 'VIEW / UNLOCK',
                 style: _labelStyle(color: _HomeColors.gold, fontSize: 9),

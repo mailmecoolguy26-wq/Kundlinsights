@@ -142,9 +142,7 @@ class _CareerChatScreenState extends State<CareerChatScreen> {
                     ],
                     if (widget.controller.requiresPremium) ...[
                       const SizedBox(height: 14),
-                      _AccessRequired(
-                        onUnlock: () => context.push('/career-premium'),
-                      ),
+                      _AccessRequired(onUnlock: () => context.push('/premium')),
                     ],
                     if (widget.controller.isSending)
                       Padding(
@@ -186,7 +184,7 @@ class _CareerChatScreenState extends State<CareerChatScreen> {
     }
     if (!shouldRenderPremiumAction) return null;
     return () async {
-      await context.push('/career-premium');
+      await context.push('/premium');
       if (context.mounted) await widget.controller.refreshCurrentConversation();
     };
   }
@@ -283,14 +281,14 @@ class _AccessRequired extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Career Premium is required for this Career question.',
+          'TaraVerse Premium is required for this personalized question.',
           style: _Styles.body,
         ),
         const SizedBox(height: 8),
         TextButton(
           onPressed: onUnlock,
           style: TextButton.styleFrom(foregroundColor: _Colors.gold),
-          child: const Text('UNLOCK CAREER PREMIUM'),
+          child: const Text('UNLOCK TARAVERSE PREMIUM'),
         ),
       ],
     ),
