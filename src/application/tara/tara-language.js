@@ -1,11 +1,17 @@
 'use strict';
 
-const TaraLanguageStyle = Object.freeze({ ENGLISH: 'ENGLISH', HINGLISH: 'HINGLISH' });
+const TaraLanguageStyle = Object.freeze({ ENGLISH: 'ENGLISH', HINGLISH: 'HINGLISH', AMBIGUOUS: 'AMBIGUOUS' });
 
 const HINGLISH_MARKERS = new Set([
   'mera', 'meri', 'mere', 'mujhe', 'aapka', 'aapke', 'aapki', 'kab', 'kaisa', 'kaise', 'kya',
-  'acha', 'accha', 'hoga', 'hai', 'hain', 'karne', 'karna', 'karega', 'abhi', 'kaunsa', 'zyada',
+  'acha', 'accha', 'achha', 'sahi', 'hoga', 'hai', 'hain', 'karne', 'karna', 'karega', 'lene', 'karun',
+  'aayega', 'chahiye', 'abhi', 'kaunsa', 'zyada',
   'paisa', 'dhan', 'shaadi', 'shadi', 'naukri', 'nokri', 'gochaar', 'ghar', 'bacche', 'liye', 'saath', 'aur',
+]);
+const ENGLISH_MARKERS = new Set([
+  'when', 'what', 'where', 'why', 'how', 'should', 'could', 'would', 'will',
+  'is', 'are', 'do', 'does', 'my', 'your', 'the', 'and', 'for', 'about',
+  'please', 'explain', 'tell', 'show', 'current', 'next', 'improve',
 ]);
 
 function normalizedWords(value) {
@@ -14,7 +20,14 @@ function normalizedWords(value) {
 
 function detectTaraLanguageStyle(message) {
   const words = normalizedWords(message).split(' ').filter(Boolean);
-  return words.some((word) => HINGLISH_MARKERS.has(word)) ? TaraLanguageStyle.HINGLISH : TaraLanguageStyle.ENGLISH;
+  if (!words.length || words.length <= 2) return TaraLanguageStyle.AMBIGUOUS;
+  if (words.some((word) => HINGLISH_MARKERS.has(word))) return TaraLanguageStyle.HINGLISH;
+  // Once a message is sentence-like and has no Latin-Hindi signal, preserve
+  // its English wording rather than overriding it with the selected app style.
+  // The English marker set documents common evidence, while normal sentences
+  // without Hinglish evidence are also English by this product policy.
+  if (words.some((word) => ENGLISH_MARKERS.has(word)) || words.length > 2) return TaraLanguageStyle.ENGLISH;
+  return TaraLanguageStyle.AMBIGUOUS;
 }
 
 function normalizeHinglishForIntent(message) {
@@ -47,9 +60,9 @@ function normalizeHinglishForIntent(message) {
 
 function resolvedTaraLanguageStyle({ message, requestedLanguage = null } = {}) {
   const detected = detectTaraLanguageStyle(message);
-  return detected === TaraLanguageStyle.HINGLISH || requestedLanguage === TaraLanguageStyle.HINGLISH
-    ? TaraLanguageStyle.HINGLISH
-    : TaraLanguageStyle.ENGLISH;
+  if (detected === TaraLanguageStyle.HINGLISH) return TaraLanguageStyle.HINGLISH;
+  if (detected === TaraLanguageStyle.ENGLISH) return TaraLanguageStyle.ENGLISH;
+  return requestedLanguage === TaraLanguageStyle.HINGLISH ? TaraLanguageStyle.HINGLISH : TaraLanguageStyle.ENGLISH;
 }
 
 module.exports = { TaraLanguageStyle, detectTaraLanguageStyle, normalizeHinglishForIntent, resolvedTaraLanguageStyle };

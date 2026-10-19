@@ -33,7 +33,7 @@ function answer(result, language) {
     : hinglish ? 'Abhi koi sufficiently supported bounded Vehicle window reliably identify nahi ho raha.' : 'No sufficiently supported bounded Vehicle window is reliably identified right now.';
   const maintenance = hasContext(result, 6); const expenses = hasContext(result, 12);
   const action = hinglish
-    ? `What to do: Options compare karein aur practical cost, financing${maintenance ? ', maintenance' : ''}${expenses ? ' aur possible expenses' : ''} ko dhyan mein rakhkar planning karein.`
+    ? `What to do: Options compare karein aur cost, financing${maintenance ? ', maintenance' : ''}${expenses ? ' aur possible expenses' : ''} ko dhyan mein rakhkar planning karein.`
     : `What to do: Compare options and plan practical costs, financing${maintenance ? ', maintenance' : ''}${expenses ? ', and possible expenses' : ''} carefully.`;
   const why = hinglish
     ? 'Why: Yeh result D1 Vehicle structure, D16 confirmation, active Dasha aur calculated Jupiter/Saturn transit evidence par based hai. Yeh Vehicle purchase, loan approval, delivery ya ownership ki guarantee nahi deta.'

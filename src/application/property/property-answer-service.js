@@ -137,8 +137,16 @@ function classify({ natal, d4, dasha, transit }) {
   if (natal.classification !== 'LIMITED' && (dasha.active || transit.active)) return 'MIXED';
   return 'WEAK';
 }
-function calibration(events) {
-  const usable = events.filter((event) => ['PROPERTY_PURCHASE', 'PROPERTY_SALE'].includes(event.eventType));
+function eventInstant(event) {
+  const date = event && event.eventDate || {};
+  if (!Number.isInteger(date.year)) return null;
+  return Date.UTC(date.year, Math.max(0, (date.month || 1) - 1), date.day || 1);
+}
+function calibration(events, at) {
+  const cutoff = Date.parse(at);
+  const usable = events
+    .filter((event) => ['PROPERTY_PURCHASE', 'PROPERTY_SALE'].includes(event.eventType))
+    .filter((event) => Number.isFinite(cutoff) && eventInstant(event) !== null && eventInstant(event) < cutoff);
   const state = usable.length === 0 ? 'NONE' : usable.length === 1 ? 'LIMITED' : usable.length === 2 ? 'MODERATE' : 'STRONG';
   return freeze({ state, eventCount: usable.length, recurringPattern: false, events: freeze(usable.map((event) => freeze({ lifeEventId: event.lifeEventId, eventType: event.eventType, eventDate: event.eventDate }))) });
 }
@@ -392,7 +400,7 @@ class PropertyAnswerService {
       const rawAshtaka = calculateAshtakavargaForLayer2(classifyLayer1Bodies(natal)); const ashtakavarga = ashtakavargaEvidence(rawAshtaka, houses); timed('PROPERTY_ASHTAKAVARGA_EVIDENCE', stageStartedAt);
       stage = 'CALIBRATION';
       stageStartedAt = Date.now();
-      const events = await this.lifeEvents.getRelevantLifeEvents({ principal, birthProfileId, categories: ['PROPERTY'] }); const history = calibration(events); timed('PROPERTY_CALIBRATION', stageStartedAt);
+      const events = await this.lifeEvents.getRelevantLifeEvents({ principal, birthProfileId, categories: ['PROPERTY'] }); const history = calibration(events, instant); timed('PROPERTY_CALIBRATION', stageStartedAt);
       stage = 'RESULT';
       const final = classify({ natal: natalFacts, d4, dasha, transit });
       stage = 'WINDOW';
