@@ -2,11 +2,12 @@
 
 const { TaraLanguageStyle, detectTaraLanguageStyle, normalizeHinglishForIntent, resolvedTaraLanguageStyle } = require('./tara-language');
 
-const DOMAINS = Object.freeze(['CAREER', 'TRANSIT', 'RELATIONSHIPS', 'WEALTH_PROPERTY', 'CHART', 'TAROT', 'GENERAL']);
+const DOMAINS = Object.freeze(['CAREER', 'TRANSIT', 'VEHICLE', 'RELATIONSHIPS', 'WEALTH_PROPERTY', 'CHART', 'TAROT', 'GENERAL']);
 
 const DOMAIN_KEYWORDS = Object.freeze({
   TRANSIT: /\b(gochar|transit|transits|planetary movement|planet changing house|jupiter|saturn|rahu|ketu|mars|mercury)\b/i,
   CAREER: /\b(career|job|offer|joining|promotion|salary|switch|work|business)\b/i,
+  VEHICLE: /\b(vehicle|car|bike|scooter|gaadi|gadi|four wheeler|two wheeler)\b/i,
   RELATIONSHIPS: /\b(relationship|marriage|marry|wedding|spouse|partner|love)\b/i,
   WEALTH_PROPERTY: /\b(wealth|property|home|house|real estate|investment|money)\b/i,
   CHART: /\b(chart|kundli|horoscope|lagna|ascendant|moon sign|birth chart)\b/i,
@@ -16,7 +17,7 @@ const DOMAIN_KEYWORDS = Object.freeze({
 function invalid(code) { const error = new Error(code); error.code = code; throw error; }
 function classifyTaraDomain(message) {
   if (typeof message !== 'string' || !(message = message.trim()) || message.length > 2000) invalid('INVALID_TARA_MESSAGE');
-  for (const domain of ['TRANSIT', 'CAREER', 'RELATIONSHIPS', 'WEALTH_PROPERTY', 'CHART', 'TAROT']) if (DOMAIN_KEYWORDS[domain].test(message)) return domain;
+  for (const domain of ['TRANSIT', 'CAREER', 'VEHICLE', 'RELATIONSHIPS', 'WEALTH_PROPERTY', 'CHART', 'TAROT']) if (DOMAIN_KEYWORDS[domain].test(message)) return domain;
   return 'GENERAL';
 }
 function unsupportedMessage(language) {
@@ -30,11 +31,12 @@ function diagnostic(log, event, { state = null, action = null, messageId = null,
 }
 
 class TaraOrchestrator {
-  constructor({ careerCapability, transitCapability, propertyCapability = null } = {}) {
+  constructor({ careerCapability, transitCapability, propertyCapability = null, vehicleCapability = null } = {}) {
     if (!careerCapability || typeof careerCapability.respond !== 'function') throw new TypeError('INVALID_TARA_CAREER_CAPABILITY');
     this.career = careerCapability;
     this.transit = transitCapability && typeof transitCapability.respond === 'function' ? transitCapability : null;
     this.property = propertyCapability && typeof propertyCapability.respond === 'function' ? propertyCapability : null;
+    this.vehicle = vehicleCapability && typeof vehicleCapability.respond === 'function' ? vehicleCapability : null;
   }
 
   async respond({ principal, birthProfileId, message, conversationContext = [], language = 'ENGLISH', diagnosticLog = null } = {}) {
@@ -52,6 +54,11 @@ class TaraOrchestrator {
       if (!this.property) return Object.freeze({ domain, answerability: 'UNSUPPORTED', capability: null, message: unsupportedMessage(responseLanguage) });
       const property = await this.property.respond({ principal, birthProfileId, message: normalizedMessage, conversationContext, language: responseLanguage, diagnosticLog });
       return Object.freeze({ domain, answerability: property.answerability, capability: 'PROPERTY_GROUNDED', message: property.message, property, action: null });
+    }
+    if (domain === 'VEHICLE') {
+      if (!this.vehicle) return Object.freeze({ domain, answerability: 'UNSUPPORTED', capability: null, message: unsupportedMessage(responseLanguage) });
+      const vehicle = await this.vehicle.respond({ principal, birthProfileId, message: normalizedMessage, conversationContext, language: responseLanguage, diagnosticLog });
+      return Object.freeze({ domain, answerability: vehicle.answerability, capability: 'VEHICLE_GROUNDED', message: vehicle.message, vehicle, action: null });
     }
     if (domain !== 'CAREER') return Object.freeze({ domain, answerability: 'UNSUPPORTED', capability: null, message: unsupportedMessage(responseLanguage) });
     const career = await this.career.respond({ principal, birthProfileId, message: normalizedMessage, conversationContext, language: responseLanguage, diagnosticLog });

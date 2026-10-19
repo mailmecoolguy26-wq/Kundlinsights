@@ -68,7 +68,7 @@ function careerAnswerTiming(request, reply) {
   return Object.freeze({ record, failed: () => report('HANDLER_ERROR_RESPONSE') });
 }
 
-function createApi({ authVerifier, userResolver, birthProfileService, careerEventService = null, lifeEventService = null, careerEventAstrologyService = null, natalSummaryService = null, divisionalChartService = null, vimshottariService = null, transitSnapshotService = null, ashtakavargaService = null, secureReadingService, careerAnswerService = null, propertyAnswerService = null, careerChatOrchestrator = null, taraConversationService = null, purchaseService = null, razorpayPaymentService = null, appleNotificationService = null, googleRtdnService = null, notificationSelfService = null, placeResolutionService = null, entitlementService, requestIdGenerator = crypto.randomUUID, corsAllowlist = [], isReady = () => true, logger = false, bodyLimit = 16 * 1024 } = {}) {
+function createApi({ authVerifier, userResolver, birthProfileService, careerEventService = null, lifeEventService = null, careerEventAstrologyService = null, natalSummaryService = null, divisionalChartService = null, vimshottariService = null, transitSnapshotService = null, ashtakavargaService = null, secureReadingService, careerAnswerService = null, propertyAnswerService = null, vehicleAnswerService = null, careerChatOrchestrator = null, taraConversationService = null, purchaseService = null, razorpayPaymentService = null, appleNotificationService = null, googleRtdnService = null, notificationSelfService = null, placeResolutionService = null, entitlementService, requestIdGenerator = crypto.randomUUID, corsAllowlist = [], isReady = () => true, logger = false, bodyLimit = 16 * 1024 } = {}) {
   required(authVerifier, 'AUTH_VERIFIER'); if (typeof authVerifier.verifyRequest !== 'function') throw new TypeError('INVALID_AUTH_VERIFIER'); required(userResolver, 'USER_RESOLVER'); required(birthProfileService, 'BIRTH_PROFILE_SERVICE'); required(secureReadingService, 'SECURE_READING_SERVICE');
   if (!Array.isArray(corsAllowlist) || !corsAllowlist.every((origin) => typeof origin === 'string' && origin.startsWith('https://') && !origin.includes('*')) || typeof isReady !== 'function' || !Number.isInteger(bodyLimit) || bodyLimit < 1024 || bodyLimit > 16 * 1024) throw new TypeError('INVALID_API_RUNTIME_OPTIONS');
   const app = Fastify({ logger, bodyLimit, requestIdHeader: 'x-request-id', genReqId: () => requestIdGenerator() });
@@ -178,7 +178,7 @@ function createApi({ authVerifier, userResolver, birthProfileService, careerEven
       const birthProfileId = id(request.params.id, 'BIRTH_PROFILE_ID');
       const diagnosticLog = (entry) => request.log.info(entry);
       const result = await taraConversationService.message({ principal: request.principal, birthProfileId, conversationId: id(request.params.conversationId, 'TARA_CONVERSATION_ID'), body: request.body || {}, diagnosticLog });
-      request.log.info({ event: 'TARA_BACKEND_RESPONSE', state: result.tara && ((result.tara.career && result.tara.career.state) || (result.tara.property && result.tara.property.state)) || null, actionType: result.assistantMessage.action && result.assistantMessage.action.type || null, actionLabel: result.assistantMessage.action && result.assistantMessage.action.label || null, messageId: result.assistantMessage.messageId, birthProfileId });
+      request.log.info({ event: 'TARA_BACKEND_RESPONSE', state: result.tara && ((result.tara.career && result.tara.career.state) || (result.tara.property && result.tara.property.state) || (result.tara.vehicle && result.tara.vehicle.state)) || null, actionType: result.assistantMessage.action && result.assistantMessage.action.type || null, actionLabel: result.assistantMessage.action && result.assistantMessage.action.label || null, messageId: result.assistantMessage.messageId, birthProfileId });
       reply.code(201);
       return { ...result, requestId: request.id };
     });
@@ -207,6 +207,13 @@ function createApi({ authVerifier, userResolver, birthProfileService, careerEven
     if (typeof propertyAnswerService.answer !== 'function') throw new TypeError('INVALID_PROPERTY_ANSWER_SERVICE');
     app.post('/v1/birth-profiles/:id/property-answers', async (request) => ({
       propertyAnswer: await propertyAnswerService.answer({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), intent: request.body && request.body.intent, diagnosticLog: (entry) => request.log.info(entry) }),
+      requestId: request.id,
+    }));
+  }
+  if (vehicleAnswerService) {
+    if (typeof vehicleAnswerService.answer !== 'function') throw new TypeError('INVALID_VEHICLE_ANSWER_SERVICE');
+    app.post('/v1/birth-profiles/:id/vehicle-answers', async (request) => ({
+      vehicleAnswer: await vehicleAnswerService.answer({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), intent: request.body && request.body.intent, diagnosticLog: (entry) => request.log.info(entry) }),
       requestId: request.id,
     }));
   }
