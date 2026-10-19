@@ -181,12 +181,22 @@ test('Property Tara copy separates the current picture from future timing', () =
   assert.match(activeWithFuturePeak, /25 Oct 2026 ke around activation aur sharp/i);
 });
 
-test('Property Life Event calibration remains profile-factual context and never supplies a window by itself', () => {
-  assert.equal(calibration([]).state, 'NONE');
-  assert.equal(calibration([{ eventType: 'PROPERTY_PURCHASE', lifeEventId: 'one', eventDate: { precision: 'YEAR', year: 2020 } }]).state, 'LIMITED');
-  assert.equal(calibration([{ eventType: 'PROPERTY_PURCHASE' }, { eventType: 'PROPERTY_SALE' }]).state, 'MODERATE');
-  assert.equal(calibration([{ eventType: 'PROPERTY_PURCHASE' }, { eventType: 'PROPERTY_SALE' }, { eventType: 'PROPERTY_PURCHASE' }]).state, 'STRONG');
-  assert.equal(calibration([{ eventType: 'PROPERTY_PURCHASE' }, { eventType: 'PROPERTY_PURCHASE' }]).recurringPattern, false);
+test('Property Life Event calibration is strictly prior context and never supplies a window by itself', () => {
+  const at = '2026-10-18T00:00:00.000Z';
+  const priorPurchase = { eventType: 'PROPERTY_PURCHASE', lifeEventId: 'purchase', eventDate: { precision: 'YEAR', year: 2020 } };
+  const priorSale = { eventType: 'PROPERTY_SALE', lifeEventId: 'sale', eventDate: { precision: 'MONTH', year: 2024, month: 5 } };
+  const sameDay = { eventType: 'PROPERTY_PURCHASE', lifeEventId: 'same', eventDate: { precision: 'DAY', year: 2026, month: 10, day: 18 } };
+  const future = { eventType: 'PROPERTY_SALE', lifeEventId: 'future', eventDate: { precision: 'YEAR', year: 2027 } };
+  assert.equal(calibration([], at).state, 'NONE');
+  const history = calibration([priorPurchase, priorSale, sameDay, future], at);
+  assert.equal(history.state, 'MODERATE');
+  assert.deepEqual(history.events.map((event) => event.lifeEventId), ['purchase', 'sale']);
+  assert.equal(history.recurringPattern, false);
+  const natal = { classification: 'STRONG' }; const d4 = { confirmation: 'CONFIRMS' };
+  const dasha = { active: true, classification: 'STRONG' }; const pd = { state: 'PROPERTY_ACTIVE' };
+  const transit = { state: 'MAJOR_CONFIRMATION' };
+  assert.equal(candidateState({ natal, d4, dasha, pd, transit }), 'STRONG_CANDIDATE');
+  assert.equal(candidateState({ natal, d4, dasha, pd, transit }), 'STRONG_CANDIDATE');
 });
 
 test('Property Ashtakavarga context accepts the raw engine rashi shape and leaves missing values neutral', () => {

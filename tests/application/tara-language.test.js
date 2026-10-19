@@ -6,10 +6,12 @@ const {
   TaraLanguageStyle,
   detectTaraLanguageStyle,
   normalizeHinglishForIntent,
+  resolvedTaraLanguageStyle,
   TaraOrchestrator,
   TaraCareerCapability,
   TaraCareerIntent,
   TaraCareerResponseState,
+  classifyTaraDomain,
   classifyTaraTransitIntent,
   TaraTransitIntent,
 } = require('../../src/application/tara');
@@ -24,6 +26,59 @@ test('detects Hinglish and normalizes compact high-value phrases without changin
   assert.match(normalizeHinglishForIntent('Shaadi ke liye gochar kaisa hai?'), /marriage/);
   assert.match(normalizeHinglishForIntent('Shadi ke liye gochar kaisa hai?'), /marriage/);
   for (const word of ['effect', 'affect', 'impact']) assert.match(normalizeHinglishForIntent(`Jupiter ka ${word} kya hai?`), new RegExp(word));
+});
+
+test('uses message language first and selected style only for ambiguous Tara messages', () => {
+  assert.equal(
+    resolvedTaraLanguageStyle({
+      message: 'When will my career improve?',
+      requestedLanguage: TaraLanguageStyle.HINGLISH,
+    }),
+    TaraLanguageStyle.ENGLISH,
+  );
+  assert.equal(
+    resolvedTaraLanguageStyle({
+      message: 'Mera career kab improve hoga?',
+      requestedLanguage: TaraLanguageStyle.ENGLISH,
+    }),
+    TaraLanguageStyle.HINGLISH,
+  );
+  assert.equal(detectTaraLanguageStyle('Career?'), TaraLanguageStyle.AMBIGUOUS);
+  assert.equal(
+    resolvedTaraLanguageStyle({ message: 'Career?', requestedLanguage: TaraLanguageStyle.HINGLISH }),
+    TaraLanguageStyle.HINGLISH,
+  );
+  assert.equal(
+    resolvedTaraLanguageStyle({ message: 'Career?', requestedLanguage: TaraLanguageStyle.ENGLISH }),
+    TaraLanguageStyle.ENGLISH,
+  );
+});
+
+test('keeps clear English Tara questions in English regardless of selected Hinglish', () => {
+  const exactProductionQuestion = 'what is the right time for purchasing the property ?';
+  assert.equal(detectTaraLanguageStyle(exactProductionQuestion), TaraLanguageStyle.ENGLISH);
+  assert.equal(
+    resolvedTaraLanguageStyle({ message: exactProductionQuestion, requestedLanguage: TaraLanguageStyle.HINGLISH }),
+    TaraLanguageStyle.ENGLISH,
+  );
+  assert.equal(
+    resolvedTaraLanguageStyle({ message: 'Is this a good time to buy a car?', requestedLanguage: TaraLanguageStyle.HINGLISH }),
+    TaraLanguageStyle.ENGLISH,
+  );
+  assert.equal(
+    resolvedTaraLanguageStyle({ message: 'Car lene ka sahi time kab aayega?', requestedLanguage: TaraLanguageStyle.ENGLISH }),
+    TaraLanguageStyle.HINGLISH,
+  );
+  assert.equal(
+    resolvedTaraLanguageStyle({ message: 'property', requestedLanguage: TaraLanguageStyle.HINGLISH }),
+    TaraLanguageStyle.HINGLISH,
+  );
+  assert.equal(
+    resolvedTaraLanguageStyle({ message: 'property', requestedLanguage: TaraLanguageStyle.ENGLISH }),
+    TaraLanguageStyle.ENGLISH,
+  );
+  assert.equal(classifyTaraDomain(exactProductionQuestion), 'WEALTH_PROPERTY');
+  assert.equal(classifyTaraDomain('Is this a good time to buy a car?'), 'VEHICLE');
 });
 
 test('routes Hinglish Career and Transit questions through the existing grounded capabilities', async () => {
