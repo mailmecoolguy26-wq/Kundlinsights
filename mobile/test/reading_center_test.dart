@@ -377,13 +377,13 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Stored text.'), findsOneWidget);
+      expect(find.text('Career Timing Forecast'), findsWidgets);
 
       authSource.switchSubject('user-b');
       await tester.pump();
       expect(controller.detail, isNull);
       expect(controller.detailState, ReadingDetailState.initial);
-      expect(find.text('Stored text.'), findsNothing);
+      expect(find.text('Career Timing Forecast'), findsNothing);
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
       controller.dispose();
@@ -413,7 +413,7 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(find.text('Stored text.'), findsWidgets);
+    expect(find.text('Career Timing Forecast'), findsWidgets);
     expect(seen, ['reading-a']);
     await tester.pump();
     expect(seen, ['reading-a']);
@@ -469,9 +469,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Career Timing Forecast'), findsWidgets);
     expect(find.text('CAREER READING'), findsOneWidget);
-    expect(find.text('CURRENT CAREER PHASE'), findsOneWidget);
+    expect(find.text('CURRENT CAREER PHASE'), findsNothing);
     expect(find.text('Career structure'), findsNothing);
-    expect(find.text('Stored text.'), findsOneWidget);
+    expect(find.text('Stored text.'), findsNothing);
     final detailScaffold = tester.widget<Scaffold>(find.byType(Scaffold).last);
     expect(detailScaffold.backgroundColor, const Color(0xFF061A1A));
     expect(find.text('NEXT STRONG CAREER WINDOW'), findsNothing);
@@ -1015,7 +1015,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('POSSIBLE CAREER ACTIVITY SIGNAL'), findsOneWidget);
+      expect(find.text('POSSIBLE CAREER ACTIVITY SIGNAL'), findsNothing);
       expect(
         find.text(
           'Past Career Events can help personalize this reading further.',
@@ -1156,6 +1156,22 @@ void main() {
       final repository = _ReadingRepository()
         ..nextDetail = ReadingDetail.fromJson({
           ..._detailJson(),
+          'content': {
+            'domain': 'CAREER',
+            'locale': 'en-IN',
+            'sections': [
+              {
+                'section': 'CAREER_STRUCTURE',
+                'headline': 'Career structure',
+                'items': [
+                  {
+                    'headline': 'Internal phase',
+                    'sentence': 'A supplied transit snapshot is structurally connected with this Career context.',
+                  },
+                ],
+              },
+            ],
+          },
           'careerTimingPeriods': [_careerTimingPeriod()],
         });
       final controller = ReadingController(repository, auth, profiles);
@@ -1166,16 +1182,17 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('CURRENT CAREER WINDOW'), findsOneWidget);
-      expect(find.text('POSSIBLE CAREER ACTIVITY SIGNAL'), findsOneWidget);
+      expect(find.text('POSSIBLE CAREER ACTIVITY SIGNAL'), findsNothing);
       expect(find.text('20 Nov 2026 – 10 Jan 2027'), findsOneWidget);
       expect(
         find.text(
           'TaraVerse ke current timing model ke according, is period mein Career se jude important Dasha aur Gochar factors ek saath active hain.',
         ),
-        findsOneWidget,
+        findsNothing,
       );
       expect(find.text('WHAT THIS CAN MEAN'), findsOneWidget);
       expect(find.text('WHAT TO DO'), findsOneWidget);
+      expect(find.text('VIEW DETAILED ASTROLOGY'), findsOneWidget);
       controller.dispose();
       profiles.dispose();
       auth.dispose();
@@ -1326,7 +1343,7 @@ Map<String, dynamic> _careerTimingPeriod() => {
   'whyItems': ['Guru Dev Pratyantar Dasha Career structure se connected hai.'],
   'whatThisCanMean': 'Is dauran interviews, networking, important Career conversations aur naye professional opportunities zyada active ho sakte hain.',
   'professionalDirection':
-      'Career structure aur current timing context ko saath mein dekhein.',
+      'Prepare your resume and evaluate opportunities carefully.',
   'technicalDetails': {
     'd1': {
       'h10Sign': 9,

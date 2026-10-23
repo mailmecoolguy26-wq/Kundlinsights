@@ -12,6 +12,7 @@ import 'domain/reading.dart';
 import 'reading_controller.dart';
 import 'career_reading_generation_controller.dart';
 import 'career_explanation_language.dart';
+import 'career_customer_copy.dart';
 import 'career_reading_presentation_copy.dart';
 import '../payments/career_premium_product_controller.dart';
 import '../payments/career_premium_purchase_controller.dart';
@@ -882,7 +883,6 @@ class _CareerReadingDetail extends StatelessWidget {
                   const SizedBox(height: 22),
                   _CareerForecastOverview(
                     periods: detail.careerTimingPeriods ?? const [],
-                    insights: insights,
                     content: detail.content,
                     readingInstant: detail.readingInstant,
                     copy: copy,
@@ -905,6 +905,7 @@ class _CareerReadingDetail extends StatelessWidget {
                     detail: detail,
                     calibrated: calibrated,
                     copy: copy,
+                    periods: detail.careerTimingPeriods ?? const [],
                   ),
                   if (generation != null &&
                       generation!.activeBirthProfileId ==
@@ -934,14 +935,12 @@ class _CareerReadingDetail extends StatelessWidget {
 class _CareerForecastOverview extends StatelessWidget {
   const _CareerForecastOverview({
     required this.periods,
-    required this.insights,
     required this.content,
     required this.readingInstant,
     required this.copy,
   });
 
   final List<CareerTimingPeriod> periods;
-  final List<CareerInsight> insights;
   final ReadingContent content;
   final String readingInstant;
   final CareerReadingPresentationCopy copy;
@@ -966,16 +965,18 @@ class _CareerForecastOverview extends StatelessWidget {
         .where((period) => period != primary)
         .take(2)
         .toList(growable: false);
-    final phase = _phaseSummary(insights, content);
+    final phase = customerFacingCareerPhase(content);
     final hinglish = copy.isHinglish;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _CareerReadingSectionLabel('CURRENT CAREER PHASE'),
-        const SizedBox(height: 8),
-        _ForecastCard(child: Text(phase, style: _CareerReadingText.body)),
-        const SizedBox(height: 16),
+        if (phase != null) ...[
+          const _CareerReadingSectionLabel('CURRENT CAREER PHASE'),
+          const SizedBox(height: 8),
+          _ForecastCard(child: Text(phase, style: _CareerReadingText.body)),
+          const SizedBox(height: 16),
+        ],
         _CareerReadingSectionLabel(
           primary == null
               ? (hinglish ? 'CAREER TIMING' : 'CAREER TIMING')
@@ -1029,24 +1030,28 @@ class _CareerForecastOverview extends StatelessWidget {
           ),
         ],
         if (primary != null) ...[
-          const SizedBox(height: 16),
-          const _CareerReadingSectionLabel('WHAT THIS CAN MEAN'),
-          const SizedBox(height: 8),
-          _ForecastCard(
-            child: Text(
-              primary.whatThisCanMean,
-              style: _CareerReadingText.body,
+          if (customerFacingCareerPeriodMeaning(primary) != null) ...[
+            const SizedBox(height: 16),
+            const _CareerReadingSectionLabel('WHAT THIS CAN MEAN'),
+            const SizedBox(height: 8),
+            _ForecastCard(
+              child: Text(
+                customerFacingCareerPeriodMeaning(primary)!,
+                style: _CareerReadingText.body,
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          const _CareerReadingSectionLabel('WHAT TO DO'),
-          const SizedBox(height: 8),
-          _ForecastCard(
-            child: Text(
-              primary.professionalDirection,
-              style: _CareerReadingText.body,
+          ],
+          if (customerFacingCareerGuidance(primary) != null) ...[
+            const SizedBox(height: 16),
+            const _CareerReadingSectionLabel('WHAT TO DO'),
+            const SizedBox(height: 8),
+            _ForecastCard(
+              child: Text(
+                customerFacingCareerGuidance(primary)!,
+                style: _CareerReadingText.body,
+              ),
             ),
-          ),
+          ],
         ],
       ],
     );
@@ -1064,21 +1069,6 @@ class _CareerForecastOverview extends StatelessWidget {
   bool _startsAfter(CareerTimingPeriod period, DateTime anchor) {
     final start = DateTime.tryParse(period.startDate)?.toUtc();
     return start != null && start.isAfter(anchor);
-  }
-
-  String _phaseSummary(List<CareerInsight> insights, ReadingContent content) {
-    if (insights.isNotEmpty) {
-      final primary = insights.first;
-      return copy.insightSummary(primary.family);
-    }
-    final item = content.sections
-        .expand((section) => section.items)
-        .map((item) => item.sentence)
-        .firstOrNull;
-    return item ??
-        (copy.isHinglish
-            ? 'Aapki Career reading aapke birth-chart context par based hai.'
-            : 'Your Career reading is based on your birth-chart context.');
   }
 }
 
@@ -1101,8 +1091,6 @@ class _PrimaryForecastCard extends StatelessWidget {
           _dateRange(period.startDate, period.endDate),
           style: _CareerReadingText.itemTitle,
         ),
-        const SizedBox(height: 8),
-        _CareerTimingEvidenceChip(state: period.evidenceState),
         const SizedBox(height: 9),
         Text(
           active
@@ -1110,13 +1098,9 @@ class _PrimaryForecastCard extends StatelessWidget {
               : (copy.isHinglish ? 'Upcoming' : 'Upcoming'),
           style: _CareerReadingText.source,
         ),
-        const SizedBox(height: 7),
-        Text(period.summary, style: _CareerReadingText.body),
-        if (period.whyItems.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          const Text('WHY THIS PERIOD', style: _CareerReadingText.source),
-          const SizedBox(height: 5),
-          Text(period.whyItems.first, style: _CareerReadingText.meta),
+        if (customerFacingCareerPeriodMeaning(period) case final meaning?) ...[
+          const SizedBox(height: 7),
+          Text(meaning, style: _CareerReadingText.body),
         ],
       ],
     ),
@@ -1135,8 +1119,10 @@ class _CompactForecastPeriod extends StatelessWidget {
         _dateRange(period.startDate, period.endDate),
         style: _CareerReadingText.itemTitle,
       ),
-      const SizedBox(height: 5),
-      Text(period.summary, style: _CareerReadingText.meta),
+      if (customerFacingCareerPeriodMeaning(period) case final meaning?) ...[
+        const SizedBox(height: 5),
+        Text(meaning, style: _CareerReadingText.meta),
+      ],
     ],
   );
 }
@@ -1163,11 +1149,13 @@ class _DetailedCareerAstrology extends StatelessWidget {
     required this.detail,
     required this.calibrated,
     required this.copy,
+    required this.periods,
   });
   final List<CareerInsight> insights;
   final ReadingDetail detail;
   final ReadingContent? calibrated;
   final CareerReadingPresentationCopy copy;
+  final List<CareerTimingPeriod> periods;
 
   @override
   Widget build(BuildContext context) {
@@ -1226,9 +1214,13 @@ class _DetailedCareerAstrology extends StatelessWidget {
                 copy: copy,
               ),
             ],
-            if (_CareerTimingSection.hasContent(insights)) ...[
+            if (_CareerTimingSection.hasContent(insights, periods)) ...[
               const SizedBox(height: 18),
-              _CareerTimingSection(insights: insights, copy: copy),
+              _CareerTimingSection(
+                insights: insights,
+                copy: copy,
+                periods: periods,
+              ),
             ],
             if (calibration != null && calibration.sections.isNotEmpty) ...[
               const SizedBox(height: 18),
@@ -1860,43 +1852,27 @@ String _primaryTimingLabel(String family) =>
     }[family] ??
     'CAREER INSIGHT';
 
-class _CareerTimingEvidenceChip extends StatelessWidget {
-  const _CareerTimingEvidenceChip({required this.state});
-  final String state;
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-    decoration: BoxDecoration(
-      color: _CareerReadingColors.midnight,
-      borderRadius: BorderRadius.circular(99),
-      border: Border.all(color: _CareerReadingColors.goldBorder),
-    ),
-    child: Text(
-      const {
-            'POSSIBLE_CAREER_ACTIVITY_SIGNAL':
-                'POSSIBLE CAREER ACTIVITY SIGNAL',
-            'ASTROLOGICALLY_SUPPORTIVE_PERIOD':
-                'ASTROLOGICALLY SUPPORTIVE PERIOD',
-            'MULTIPLE_TIMING_FACTORS_CONVERGE':
-                'MULTIPLE TIMING FACTORS CONVERGE',
-          }[state] ??
-          'CAREER TIMING CONTEXT',
-      style: _CareerReadingText.chip,
-    ),
-  );
-}
-
 class _CareerTimingSection extends StatelessWidget {
-  const _CareerTimingSection({required this.insights, required this.copy});
+  const _CareerTimingSection({
+    required this.insights,
+    required this.copy,
+    required this.periods,
+  });
   final List<CareerInsight> insights;
   final CareerReadingPresentationCopy copy;
+  final List<CareerTimingPeriod> periods;
 
-  static bool hasContent(List<CareerInsight> insights) => insights.any(
-    (insight) =>
-        insight.timing.dashaPeriods.isNotEmpty ||
-        insight.timing.transitContexts.isNotEmpty ||
-        insight.timing.timingWindow != null,
-  );
+  static bool hasContent(
+    List<CareerInsight> insights,
+    List<CareerTimingPeriod> periods,
+  ) =>
+      periods.isNotEmpty ||
+      insights.any(
+        (insight) =>
+            insight.timing.dashaPeriods.isNotEmpty ||
+            insight.timing.transitContexts.isNotEmpty ||
+            insight.timing.timingWindow != null,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -1971,6 +1947,20 @@ class _CareerTimingSection extends StatelessWidget {
                   ),
                   detail: _lineageDetail(window.$3),
                 ),
+              for (final period in periods) ...[
+                _TimingRow(
+                  title: 'Saved timing evidence',
+                  date: _dateRange(period.startDate, period.endDate),
+                  state: period.evidenceState,
+                  detail: period.summary,
+                ),
+                for (final reason in period.whyItems)
+                  _TimingRow(
+                    title: 'Why this period',
+                    date: _dateRange(period.startDate, period.endDate),
+                    detail: reason,
+                  ),
+              ],
             ],
           ),
         ),

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../shared/formatters/customer_date.dart';
 import '../../readings/career_explanation_language.dart';
+import '../../readings/career_customer_copy.dart';
 import '../../readings/domain/reading.dart';
 import '../../readings/reading_controller.dart';
 
@@ -371,77 +372,14 @@ DateTime _parse(String value) => DateTime.parse(value).toUtc();
 /// summary. Technical evidence remains available exclusively in the detailed
 /// reading; the Hub does not try to reinterpret or translate it.
 String? careerHubCustomerPhase(ReadingDetail detail) {
-  for (final section in detail.content.sections) {
-    for (final item in section.items) {
-      final sentence = item.sentence.trim();
-      if (sentence.isNotEmpty && _isCustomerFacingCareerCopy(sentence)) {
-        return sentence;
-      }
-    }
-  }
-  return null;
+  return customerFacingCareerPhase(detail.content);
 }
 
 /// Uses the server-provided interpretation before any timing-model summary.
 /// A technical-only period is still shown with its authoritative dates, but
 /// its mechanics are deliberately left for Detailed Astrology.
 String? careerHubCustomerMeaning(CareerTimingPeriod period) {
-  for (final candidate in [period.whatThisCanMean, period.summary]) {
-    final trimmed = candidate.trim();
-    if (trimmed.isNotEmpty && _isCustomerFacingCareerCopy(trimmed)) {
-      return trimmed;
-    }
-  }
-  return null;
-}
-
-bool _isCustomerFacingCareerCopy(String value) {
-  final normalized = value.toLowerCase();
-  const technicalTerms = [
-    '10th-house',
-    '10th house',
-    'dasha',
-    'gochar',
-    'ashtakavarga',
-    'sav/',
-    'bav',
-    'd1',
-    'd10',
-    'evidence signal',
-    'supplied relation',
-  ];
-  const diagnosticPhrases = [
-    'the supplied',
-    'supplied evidence',
-    'evidence is insufficient',
-    'evidence signal',
-    'no matching rule',
-    'rule not satisfied',
-    'does not satisfy',
-    'condition is not met',
-    'condition not met',
-    'insufficient evidence',
-    'internal diagnostic',
-    'evaluation statement',
-  ];
-  const customerMarkers = [
-    'career',
-    'professional',
-    'work',
-    'job',
-    'role',
-    'interview',
-    'conversation',
-    'movement',
-    'decision',
-    'opportunit',
-    'support',
-    'prepare',
-    'business',
-  ];
-  return !technicalTerms.any(normalized.contains) &&
-      !diagnosticPhrases.any(normalized.contains) &&
-      customerMarkers.any(normalized.contains);
+  return customerFacingCareerPeriodMeaning(period);
 }
 
 abstract final class _CareerHubColors {
