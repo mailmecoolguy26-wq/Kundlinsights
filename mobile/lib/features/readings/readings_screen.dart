@@ -1160,6 +1160,31 @@ class _DetailedCareerAstrology extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final calibration = calibrated;
+    final dashaAndTransitInsights = insights
+        .where(
+          (insight) =>
+              insight.family == 'ACTIVE_CAREER_DASHA' ||
+              insight.family == 'CURRENT_CAREER_TRANSIT',
+        )
+        .toList(growable: false);
+    final foundationInsights = insights
+        .where((insight) => insight.family == 'CAREER_FOUNDATION')
+        .toList(growable: false);
+    final calibrationInsights = insights
+        .where(
+          (insight) =>
+              insight.family == 'HISTORICAL_CALIBRATION_RECURRENCE' ||
+              insight.family == 'FUTURE_RECURRENCE_WINDOW',
+        )
+        .toList(growable: false);
+    final timingEvidenceInsights = insights
+        .where(
+          (insight) =>
+              !dashaAndTransitInsights.contains(insight) &&
+              !foundationInsights.contains(insight) &&
+              !calibrationInsights.contains(insight),
+        )
+        .toList(growable: false);
     return Material(
       color: Colors.transparent,
       child: Theme(
@@ -1174,67 +1199,146 @@ class _DetailedCareerAstrology extends StatelessWidget {
             style: _CareerReadingText.eyebrow,
           ),
           children: [
-            if (insights.isNotEmpty)
-              _CareerInsightExperience(insights: insights, copy: copy)
-            else if (detail.content.sections.isNotEmpty)
-              _CareerReadingContentSections(content: detail.content),
-            if (detail.careerEvidenceSynthesis != null) ...[
-              const SizedBox(height: 18),
-              _CareerEvidenceSynthesisSection(
-                synthesis: detail.careerEvidenceSynthesis!,
-                copy: copy,
-              ),
-            ],
-            if (detail.careerAshtakavargaStructure != null) ...[
-              const SizedBox(height: 18),
-              _CareerAshtakavargaStructureSection(
-                structure: detail.careerAshtakavargaStructure!,
-                copy: copy,
-              ),
-            ],
-            if (detail.careerD10Structure != null) ...[
-              const SizedBox(height: 18),
-              _CareerD10StructureSection(
-                structure: detail.careerD10Structure!,
-                copy: copy,
-              ),
-            ],
-            if (detail.careerD10Corroboration != null) ...[
-              const SizedBox(height: 18),
-              _CareerD10CorroborationSection(
-                corroboration: detail.careerD10Corroboration!,
-                copy: copy,
-              ),
-            ],
-            if (detail.careerAshtakavargaCorroboration != null &&
-                detail.careerEvidenceSynthesis == null) ...[
-              const SizedBox(height: 18),
-              _CareerAshtakavargaCorroborationSection(
-                corroboration: detail.careerAshtakavargaCorroboration!,
-                copy: copy,
-              ),
-            ],
-            if (_CareerTimingSection.hasContent(insights, periods)) ...[
-              const SizedBox(height: 18),
-              _CareerTimingSection(
-                insights: insights,
-                copy: copy,
-                periods: periods,
-              ),
-            ],
-            if (calibration != null && calibration.sections.isNotEmpty) ...[
-              const SizedBox(height: 18),
-              _CareerReadingContentSections(content: calibration),
-            ],
-            if (_hasCalculationNote(calibration)) ...[
-              const SizedBox(height: 18),
-              _TechnicalNote(content: calibration!),
-            ],
+            _DetailedAstrologyGroup(
+              title: 'Timing Evidence',
+              children: [
+                if (periods.isNotEmpty)
+                  _SavedCareerTimingEvidenceSection(periods: periods),
+                if (timingEvidenceInsights.isNotEmpty) ...[
+                  if (periods.isNotEmpty) const SizedBox(height: 16),
+                  _CareerInsightExperience(
+                    insights: timingEvidenceInsights,
+                    copy: copy,
+                  ),
+                ],
+              ],
+            ),
+            _DetailedAstrologyGroup(
+              title: 'Dasha & Transit',
+              children: [
+                if (dashaAndTransitInsights.isNotEmpty)
+                  _CareerInsightExperience(
+                    insights: dashaAndTransitInsights,
+                    copy: copy,
+                  ),
+                if (_CareerTimingSection.hasContent(insights)) ...[
+                  if (dashaAndTransitInsights.isNotEmpty)
+                    const SizedBox(height: 16),
+                  _CareerTimingSection(insights: insights, copy: copy),
+                ],
+              ],
+            ),
+            _DetailedAstrologyGroup(
+              title: 'D1 / Career Foundation',
+              children: [
+                if (foundationInsights.isNotEmpty)
+                  _CareerInsightExperience(
+                    insights: foundationInsights,
+                    copy: copy,
+                  )
+                else if (detail.content.sections.isNotEmpty)
+                  _CareerReadingContentSections(content: detail.content),
+                if (detail.careerEvidenceSynthesis != null) ...[
+                  if (foundationInsights.isNotEmpty ||
+                      detail.content.sections.isNotEmpty)
+                    const SizedBox(height: 16),
+                  _CareerEvidenceSynthesisSection(
+                    synthesis: detail.careerEvidenceSynthesis!,
+                    copy: copy,
+                  ),
+                ],
+              ],
+            ),
+            _DetailedAstrologyGroup(
+              title: 'Ashtakavarga',
+              children: [
+                if (detail.careerAshtakavargaStructure != null)
+                  _CareerAshtakavargaStructureSection(
+                    structure: detail.careerAshtakavargaStructure!,
+                    copy: copy,
+                  ),
+                if (detail.careerAshtakavargaCorroboration != null &&
+                    detail.careerEvidenceSynthesis == null) ...[
+                  if (detail.careerAshtakavargaStructure != null)
+                    const SizedBox(height: 16),
+                  _CareerAshtakavargaCorroborationSection(
+                    corroboration: detail.careerAshtakavargaCorroboration!,
+                    copy: copy,
+                  ),
+                ],
+              ],
+            ),
+            _DetailedAstrologyGroup(
+              title: 'D10 Career Analysis',
+              children: [
+                if (detail.careerD10Structure != null)
+                  _CareerD10StructureSection(
+                    structure: detail.careerD10Structure!,
+                    copy: copy,
+                  ),
+                if (detail.careerD10Corroboration != null) ...[
+                  if (detail.careerD10Structure != null)
+                    const SizedBox(height: 16),
+                  _CareerD10CorroborationSection(
+                    corroboration: detail.careerD10Corroboration!,
+                    copy: copy,
+                  ),
+                ],
+              ],
+            ),
+            _DetailedAstrologyGroup(
+              title: 'Calibration',
+              children: [
+                if (calibrationInsights.isNotEmpty)
+                  _CareerInsightExperience(
+                    insights: calibrationInsights,
+                    copy: copy,
+                  ),
+                if (calibration != null && calibration.sections.isNotEmpty) ...[
+                  if (calibrationInsights.isNotEmpty)
+                    const SizedBox(height: 16),
+                  _CareerReadingContentSections(content: calibration),
+                ],
+                if (_hasCalculationNote(calibration)) ...[
+                  if (calibrationInsights.isNotEmpty ||
+                      calibration!.sections.isNotEmpty)
+                    const SizedBox(height: 16),
+                  _TechnicalNote(content: calibration!),
+                ],
+              ],
+            ),
           ],
         ),
       ),
     );
   }
+}
+
+class _DetailedAstrologyGroup extends StatelessWidget {
+  const _DetailedAstrologyGroup({required this.title, required this.children});
+
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => ExpansionTile(
+    tilePadding: const EdgeInsets.symmetric(horizontal: 2),
+    childrenPadding: const EdgeInsets.fromLTRB(2, 4, 2, 14),
+    iconColor: _CareerReadingColors.gold,
+    collapsedIconColor: _CareerReadingColors.slate,
+    title: Text(title, style: _CareerReadingText.itemTitle),
+    children: children.isEmpty
+        ? const [
+            Padding(
+              padding: EdgeInsets.only(bottom: 4),
+              child: Text(
+                'No saved detail is available for this section.',
+                style: _CareerReadingText.meta,
+              ),
+            ),
+          ]
+        : children,
+  );
 }
 
 class _CareerEvidenceSynthesisSection extends StatelessWidget {
@@ -1853,26 +1957,16 @@ String _primaryTimingLabel(String family) =>
     'CAREER INSIGHT';
 
 class _CareerTimingSection extends StatelessWidget {
-  const _CareerTimingSection({
-    required this.insights,
-    required this.copy,
-    required this.periods,
-  });
+  const _CareerTimingSection({required this.insights, required this.copy});
   final List<CareerInsight> insights;
   final CareerReadingPresentationCopy copy;
-  final List<CareerTimingPeriod> periods;
 
-  static bool hasContent(
-    List<CareerInsight> insights,
-    List<CareerTimingPeriod> periods,
-  ) =>
-      periods.isNotEmpty ||
-      insights.any(
-        (insight) =>
-            insight.timing.dashaPeriods.isNotEmpty ||
-            insight.timing.transitContexts.isNotEmpty ||
-            insight.timing.timingWindow != null,
-      );
+  static bool hasContent(List<CareerInsight> insights) => insights.any(
+    (insight) =>
+        insight.timing.dashaPeriods.isNotEmpty ||
+        insight.timing.transitContexts.isNotEmpty ||
+        insight.timing.timingWindow != null,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -1947,26 +2041,54 @@ class _CareerTimingSection extends StatelessWidget {
                   ),
                   detail: _lineageDetail(window.$3),
                 ),
-              for (final period in periods) ...[
-                _TimingRow(
-                  title: 'Saved timing evidence',
-                  date: _dateRange(period.startDate, period.endDate),
-                  state: period.evidenceState,
-                  detail: period.summary,
-                ),
-                for (final reason in period.whyItems)
-                  _TimingRow(
-                    title: 'Why this period',
-                    date: _dateRange(period.startDate, period.endDate),
-                    detail: reason,
-                  ),
-              ],
             ],
           ),
         ),
       ],
     );
   }
+}
+
+class _SavedCareerTimingEvidenceSection extends StatelessWidget {
+  const _SavedCareerTimingEvidenceSection({required this.periods});
+
+  final List<CareerTimingPeriod> periods;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const _CareerReadingSectionLabel('SAVED CAREER TIMING EVIDENCE'),
+      const SizedBox(height: 12),
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(15, 13, 15, 5),
+        decoration: BoxDecoration(
+          color: _CareerReadingColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _CareerReadingColors.cardBorder),
+        ),
+        child: Column(
+          children: [
+            for (final period in periods) ...[
+              _TimingRow(
+                title: 'Saved timing evidence',
+                date: _dateRange(period.startDate, period.endDate),
+                state: period.evidenceState,
+                detail: period.summary,
+              ),
+              for (final reason in period.whyItems)
+                _TimingRow(
+                  title: 'Why this period',
+                  date: _dateRange(period.startDate, period.endDate),
+                  detail: reason,
+                ),
+            ],
+          ],
+        ),
+      ),
+    ],
+  );
 }
 
 class _TimingRow extends StatelessWidget {

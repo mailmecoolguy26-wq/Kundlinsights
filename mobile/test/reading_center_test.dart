@@ -528,6 +528,8 @@ void main() {
       );
       await tester.pumpAndSettle();
       await _expandDetailedAstrology(tester);
+      await _expandDetailedAstrologySection(tester, 'Timing Evidence');
+      await _expandDetailedAstrologySection(tester, 'Calibration');
       expect(find.text('Career Timing Alignment'), findsWidgets);
       expect(find.text('MATCHED WITH YOUR CAREER HISTORY'), findsWidgets);
       expect(find.text('FUTURE CAREER TIMING'), findsWidgets);
@@ -540,7 +542,7 @@ void main() {
       expect(find.text('Career structure'), findsNothing);
       expect(find.text('IS READING KI LIMIT'), findsOneWidget);
       final astrologyTrace = find.text('ASTROLOGY BEHIND THIS').first;
-      await tester.drag(find.byType(ListView), const Offset(0, -1400));
+      await tester.ensureVisible(astrologyTrace);
       await tester.pumpAndSettle();
       await tester.tap(astrologyTrace);
       await tester.pumpAndSettle();
@@ -654,6 +656,9 @@ void main() {
     await tester.pumpAndSettle();
 
     await _expandDetailedAstrology(tester);
+    await _expandDetailedAstrologySection(tester, 'Dasha & Transit');
+    await _expandDetailedAstrologySection(tester, 'Timing Evidence');
+    await _expandDetailedAstrologySection(tester, 'Calibration');
     expect(find.text('CAREER TIMING'), findsWidgets);
     expect(find.text('Mahadasha'), findsOneWidget);
     expect(find.text('Antardasha'), findsOneWidget);
@@ -783,6 +788,20 @@ void main() {
       expect(find.text('VIEW DETAILED ASTROLOGY'), findsOneWidget);
       expect(find.text('CAREER ASHTAKAVARGA STRUCTURE'), findsNothing);
       await _expandDetailedAstrology(tester);
+      for (final heading in const [
+        'Timing Evidence',
+        'Dasha & Transit',
+        'D1 / Career Foundation',
+        'Ashtakavarga',
+        'D10 Career Analysis',
+        'Calibration',
+      ]) {
+        expect(find.text(heading), findsOneWidget);
+      }
+      expect(find.text('CAREER ASHTAKAVARGA STRUCTURE'), findsNothing);
+      await _expandDetailedAstrologySection(tester, 'Ashtakavarga');
+      await _expandDetailedAstrologySection(tester, 'D10 Career Analysis');
+      await _expandDetailedAstrologySection(tester, 'D1 / Career Foundation');
       expect(find.text('CAREER ASHTAKAVARGA STRUCTURE'), findsOneWidget);
       expect(find.text('CAREER D10 STRUCTURE'), findsOneWidget);
       expect(find.text('D10 CAREER THEMES'), findsOneWidget);
@@ -982,6 +1001,7 @@ void main() {
     expect(find.text('CAREER HISTORY CALIBRATION'), findsNothing);
     expect(find.text('Calculation note'), findsNothing);
     await _expandDetailedAstrology(tester);
+    await _expandDetailedAstrologySection(tester, 'Calibration');
     expect(find.text('TECHNICAL NOTE'), findsOneWidget);
     expect(
       find.text('Some calculations use a provisional calculation basis.'),
@@ -1064,6 +1084,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     await _expandDetailedAstrology(tester);
+    await _expandDetailedAstrologySection(tester, 'Calibration');
     expect(find.text('No historical calibration.'), findsOneWidget);
     expect(find.text('Historical patterns'), findsNothing);
     expect(find.text('Upcoming periods'), findsNothing);
@@ -1074,13 +1095,14 @@ void main() {
     });
     await controller.loadDetail('reading-a');
     await tester.pumpAndSettle();
+    await _expandDetailedAstrologySection(tester, 'D1 / Career Foundation');
     expect(find.text('Stored text.'), findsWidgets);
-    expect(find.text('Calibration'), findsNothing);
+    expect(find.text('Calibration'), findsOneWidget);
 
     repository.nextDetail = ReadingDetail.fromJson(limited);
     await controller.loadDetail('reading-a');
     await tester.pumpAndSettle();
-    await _expandDetailedAstrology(tester);
+    await _expandDetailedAstrologySection(tester, 'Calibration');
     expect(find.text('Historical patterns'), findsNothing);
     expect(find.text('Upcoming periods'), findsNothing);
     controller.dispose();
@@ -1123,6 +1145,8 @@ void main() {
       );
       await tester.pumpAndSettle();
       await _expandDetailedAstrology(tester);
+      await _expandDetailedAstrologySection(tester, 'Calibration');
+      await _expandDetailedAstrologySection(tester, 'D1 / Career Foundation');
       final calibratedHeadlines = [
         'Calibration',
         'Historical patterns',
@@ -1133,8 +1157,8 @@ void main() {
       ];
       for (final headline in calibratedHeadlines) {
         final finder = find.text(headline);
-        expect(finder, findsOneWidget);
-        await tester.ensureVisible(finder);
+        expect(finder, findsWidgets);
+        await tester.ensureVisible(finder.first);
       }
       expect(find.text('Stored text.'), findsWidgets);
       expect(find.text('Provisional note.'), findsWidgets);
@@ -1292,6 +1316,22 @@ Future<void> _expandDetailedAstrology(WidgetTester tester) async {
     toggle,
     find.byType(ListView).first,
     const Offset(0, -220),
+  );
+  await tester.ensureVisible(toggle);
+  await tester.pumpAndSettle();
+  await tester.tap(toggle);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _expandDetailedAstrologySection(
+  WidgetTester tester,
+  String title,
+) async {
+  final toggle = find.text(title).first;
+  await tester.dragUntilVisible(
+    toggle,
+    find.byType(ListView).first,
+    const Offset(0, -180),
   );
   await tester.ensureVisible(toggle);
   await tester.pumpAndSettle();
