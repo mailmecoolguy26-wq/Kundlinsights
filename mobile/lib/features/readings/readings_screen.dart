@@ -947,7 +947,10 @@ class _CareerReadingDetail extends StatelessWidget {
                       copy: copy,
                     ),
                     const SizedBox(height: 8),
-                    _UpdateCareerHistoryAction(),
+                    _UpdateCareerHistoryAction(
+                      hasNoHistory:
+                          structuredCalibration.calibrationLevel == 'NONE',
+                    ),
                   ] else if (insights.isEmpty && hasCalibrationContext) ...[
                     const SizedBox(height: 12),
                     const _CareerReadingSectionLabel(
@@ -1982,11 +1985,13 @@ class _CareerHistorySummary extends StatelessWidget {
 }
 
 class _UpdateCareerHistoryAction extends StatelessWidget {
+  const _UpdateCareerHistoryAction({this.hasNoHistory = false});
+  final bool hasNoHistory;
   @override
   Widget build(BuildContext context) => OutlinedButton.icon(
     onPressed: () => context.push('/career-calibration'),
     icon: const Icon(Icons.tune_rounded, size: 18),
-    label: const Text('Update Career History'),
+    label: Text(hasNoHistory ? 'Add Career Events' : 'Update Career History'),
     style: OutlinedButton.styleFrom(
       foregroundColor: _CareerReadingColors.alabaster,
       side: const BorderSide(color: _CareerReadingColors.goldBorder),

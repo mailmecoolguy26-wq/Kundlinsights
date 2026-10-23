@@ -47,7 +47,8 @@ class CareerReadingPresentationCopy {
   String careerHistory(String level, int? count) {
     if (!isHinglish) {
       return switch (level) {
-        'NONE' => 'Add Career History to compare timing patterns.',
+        'NONE' =>
+          'Past Career Events can help personalize this reading further.',
         'LIMITED' =>
           '${count ?? 1} saved Career event${count == 1 ? '' : 's'}. Add more history for recurring-pattern comparison.',
         'CALIBRATED' =>
@@ -58,7 +59,8 @@ class CareerReadingPresentationCopy {
       };
     }
     return switch (level) {
-      'NONE' => 'Career History add karke aap apne past timing patterns compare kar sakte hain.',
+      'NONE' =>
+        'Past Career Events is Reading ko aur personalize karne mein help kar sakte hain.',
       'LIMITED' =>
         'Abhi ${count ?? 1} Career event saved hai. Recurring-pattern comparison ke liye thodi aur Career History add karein.',
       'CALIBRATED' =>

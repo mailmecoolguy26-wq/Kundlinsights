@@ -987,6 +987,41 @@ void main() {
     auth.dispose();
   });
 
+  testWidgets('a no-history Career reading keeps timing visible and offers a non-blocking event CTA', (
+    tester,
+  ) async {
+    final authSource = _AuthSource();
+    final auth = AuthController(authSource);
+    await auth.restore();
+    final profiles = ProfileController(_Profiles(authSource), auth);
+    await tester.pump();
+    final detail = ReadingDetail.fromJson({
+      ..._detailJson(),
+      'insights': [_insight('CAREER_FOUNDATION', 0)],
+      'careerTimingPeriods': [_careerTimingPeriod()],
+      'calibrationContext': {'calibrationLevel': 'NONE', 'eventCount': 0},
+    });
+    final repository = _ReadingRepository()..nextDetail = detail;
+    final controller = ReadingController(repository, auth, profiles);
+    await tester.pumpWidget(
+      _localized(
+        ReadingDetailScreen(controller: controller, readingId: 'reading-a'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('POSSIBLE CAREER ACTIVITY SIGNAL'), findsOneWidget);
+    expect(
+      find.text('Past Career Events can help personalize this reading further.'),
+      findsOneWidget,
+    );
+    expect(find.text('Add Career Events'), findsOneWidget);
+    expect(find.text('We could not prepare your Career Reading.'), findsNothing);
+    controller.dispose();
+    profiles.dispose();
+    auth.dispose();
+  });
+
   testWidgets('renders returned NONE and LIMITED calibrated sections only', (
     tester,
   ) async {
