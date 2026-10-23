@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -12,7 +11,6 @@ import '../../shared/widgets/states.dart';
 import 'domain/reading.dart';
 import 'reading_controller.dart';
 import 'career_reading_generation_controller.dart';
-import 'career_activity_window_dev_preview.dart';
 import 'career_explanation_language.dart';
 import 'career_reading_presentation_copy.dart';
 import '../payments/career_premium_product_controller.dart';
@@ -881,66 +879,15 @@ class _CareerReadingDetail extends StatelessWidget {
                     createdAt: createdAt,
                     hasCalibrationContext: hasCalibrationContext,
                   ),
-                  if (detail.careerTimingPeriods != null) ...[
-                    const SizedBox(height: 22),
-                    _UpcomingCareerTimingSection(
-                      periods: detail.careerTimingPeriods!,
-                      copy: copy,
-                    ),
-                  ],
-                  if (kDebugMode) ...[
-                    const SizedBox(height: 22),
-                    const CareerActivityWindowDevPreviewPanel(),
-                  ],
-                  const SizedBox(height: 28),
-                  if (insights.isNotEmpty) ...[
-                    _CareerInsightExperience(insights: insights, copy: copy),
-                  ] else if (detail.content.sections.isNotEmpty) ...[
-                    const _CareerReadingSectionLabel('CAREER INSIGHTS'),
-                    const SizedBox(height: 12),
-                    _CareerReadingContentSections(content: detail.content),
-                  ],
-                  if (detail.careerEvidenceSynthesis != null) ...[
-                    const SizedBox(height: 18),
-                    _CareerEvidenceSynthesisSection(
-                      synthesis: detail.careerEvidenceSynthesis!,
-                      copy: copy,
-                    ),
-                  ],
-                  if (detail.careerAshtakavargaStructure != null) ...[
-                    const SizedBox(height: 18),
-                    _CareerAshtakavargaStructureSection(
-                      structure: detail.careerAshtakavargaStructure!,
-                      copy: copy,
-                    ),
-                  ],
-                  if (detail.careerD10Structure != null) ...[
-                    const SizedBox(height: 18),
-                    _CareerD10StructureSection(
-                      structure: detail.careerD10Structure!,
-                      copy: copy,
-                    ),
-                  ],
-                  if (detail.careerD10Corroboration != null) ...[
-                    const SizedBox(height: 18),
-                    _CareerD10CorroborationSection(
-                      corroboration: detail.careerD10Corroboration!,
-                      copy: copy,
-                    ),
-                  ],
-                  if (detail.careerAshtakavargaCorroboration != null &&
-                      detail.careerEvidenceSynthesis == null) ...[
-                    const SizedBox(height: 18),
-                    _CareerAshtakavargaCorroborationSection(
-                      corroboration: detail.careerAshtakavargaCorroboration!,
-                      copy: copy,
-                    ),
-                  ],
-                  if (_CareerTimingSection.hasContent(insights)) ...[
-                    const SizedBox(height: 18),
-                    _CareerTimingSection(insights: insights, copy: copy),
-                  ],
-                  if (insights.isNotEmpty && structuredCalibration != null) ...[
+                  const SizedBox(height: 22),
+                  _CareerForecastOverview(
+                    periods: detail.careerTimingPeriods ?? const [],
+                    insights: insights,
+                    content: detail.content,
+                    readingInstant: detail.readingInstant,
+                    copy: copy,
+                  ),
+                  if (structuredCalibration != null) ...[
                     const SizedBox(height: 18),
                     _CareerHistorySummary(
                       summary: structuredCalibration,
@@ -951,35 +898,14 @@ class _CareerReadingDetail extends StatelessWidget {
                       hasNoHistory:
                           structuredCalibration.calibrationLevel == 'NONE',
                     ),
-                  ] else if (insights.isEmpty && hasCalibrationContext) ...[
-                    const SizedBox(height: 12),
-                    const _CareerReadingSectionLabel(
-                      'CAREER HISTORY CALIBRATION',
-                    ),
-                    const SizedBox(height: 12),
-                    _CareerReadingContentSections(content: calibrated),
-                    const SizedBox(height: 6),
-                    OutlinedButton.icon(
-                      onPressed: () => context.push('/career-calibration'),
-                      icon: const Icon(Icons.tune_rounded, size: 18),
-                      label: const Text('Update Career History'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: _CareerReadingColors.alabaster,
-                        side: const BorderSide(
-                          color: _CareerReadingColors.goldBorder,
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 13,
-                        ),
-                      ),
-                    ),
                   ],
-                  if (insights.isNotEmpty &&
-                      _hasCalculationNote(calibrated)) ...[
-                    const SizedBox(height: 18),
-                    _TechnicalNote(content: calibrated!),
-                  ],
+                  const SizedBox(height: 18),
+                  _DetailedCareerAstrology(
+                    insights: insights,
+                    detail: detail,
+                    calibrated: calibrated,
+                    copy: copy,
+                  ),
                   if (generation != null &&
                       generation!.activeBirthProfileId ==
                           detail.birthProfileId) ...[
@@ -997,6 +923,323 @@ class _CareerReadingDetail extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Customer-facing projection of an already saved, server-authoritative
+/// forecast. This only orders and labels persisted periods; it never derives
+/// a timing window or changes its dates.
+class _CareerForecastOverview extends StatelessWidget {
+  const _CareerForecastOverview({
+    required this.periods,
+    required this.insights,
+    required this.content,
+    required this.readingInstant,
+    required this.copy,
+  });
+
+  final List<CareerTimingPeriod> periods;
+  final List<CareerInsight> insights;
+  final ReadingContent content;
+  final String readingInstant;
+  final CareerReadingPresentationCopy copy;
+
+  @override
+  Widget build(BuildContext context) {
+    final anchor = DateTime.tryParse(readingInstant)?.toUtc();
+    final ordered = [...periods]
+      ..sort((a, b) => a.startDate.compareTo(b.startDate));
+    final active = anchor == null
+        ? const <CareerTimingPeriod>[]
+        : ordered.where((period) => _isActive(period, anchor)).toList();
+    final future = anchor == null
+        ? ordered
+        : ordered.where((period) => _startsAfter(period, anchor)).toList();
+    final primary = active.isNotEmpty
+        ? active.first
+        : future.isEmpty
+        ? null
+        : future.first;
+    final otherFuture = future
+        .where((period) => period != primary)
+        .take(2)
+        .toList(growable: false);
+    final phase = _phaseSummary(insights, content);
+    final hinglish = copy.isHinglish;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _CareerReadingSectionLabel('CURRENT CAREER PHASE'),
+        const SizedBox(height: 8),
+        _ForecastCard(child: Text(phase, style: _CareerReadingText.body)),
+        const SizedBox(height: 16),
+        _CareerReadingSectionLabel(
+          primary == null
+              ? (hinglish ? 'CAREER TIMING' : 'CAREER TIMING')
+              : active.isNotEmpty
+              ? (hinglish ? 'ABHI KA SUPPORT PERIOD' : 'CURRENT CAREER WINDOW')
+              : (hinglish
+                    ? 'NEXT STRONGER CAREER WINDOW'
+                    : 'NEXT STRONGER CAREER WINDOW'),
+        ),
+        const SizedBox(height: 8),
+        if (primary == null)
+          _ForecastCard(
+            child: Text(
+              hinglish
+                  ? 'Abhi ya aage ke liye koi concentrated Career timing period available nahi hai.'
+                  : 'No concentrated current or upcoming Career timing period is available in this reading.',
+              style: _CareerReadingText.body,
+            ),
+          )
+        else
+          _PrimaryForecastCard(
+            period: primary,
+            active: active.isNotEmpty,
+            copy: copy,
+          ),
+        if (otherFuture.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _CareerReadingSectionLabel(
+            hinglish
+                ? 'AUR UPCOMING SUPPORT PERIODS'
+                : 'OTHER UPCOMING SUPPORTIVE PERIODS',
+          ),
+          const SizedBox(height: 8),
+          _ForecastCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var index = 0; index < otherFuture.length; index++) ...[
+                  _CompactForecastPeriod(
+                    period: otherFuture[index],
+                    copy: copy,
+                  ),
+                  if (index < otherFuture.length - 1)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 11),
+                      child: Divider(color: _CareerReadingColors.cardBorder),
+                    ),
+                ],
+              ],
+            ),
+          ),
+        ],
+        if (primary != null) ...[
+          const SizedBox(height: 16),
+          const _CareerReadingSectionLabel('WHAT THIS CAN MEAN'),
+          const SizedBox(height: 8),
+          _ForecastCard(
+            child: Text(
+              primary.whatThisCanMean,
+              style: _CareerReadingText.body,
+            ),
+          ),
+          const SizedBox(height: 16),
+          const _CareerReadingSectionLabel('WHAT TO DO'),
+          const SizedBox(height: 8),
+          _ForecastCard(
+            child: Text(
+              primary.professionalDirection,
+              style: _CareerReadingText.body,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  bool _isActive(CareerTimingPeriod period, DateTime anchor) {
+    final start = DateTime.tryParse(period.startDate)?.toUtc();
+    final end = DateTime.tryParse(period.endDate)?.toUtc();
+    return start != null &&
+        end != null &&
+        !anchor.isBefore(start) &&
+        !anchor.isAfter(end);
+  }
+
+  bool _startsAfter(CareerTimingPeriod period, DateTime anchor) {
+    final start = DateTime.tryParse(period.startDate)?.toUtc();
+    return start != null && start.isAfter(anchor);
+  }
+
+  String _phaseSummary(List<CareerInsight> insights, ReadingContent content) {
+    if (insights.isNotEmpty) {
+      final primary = insights.first;
+      return copy.insightSummary(primary.family);
+    }
+    final item = content.sections
+        .expand((section) => section.items)
+        .map((item) => item.sentence)
+        .firstOrNull;
+    return item ??
+        (copy.isHinglish
+            ? 'Aapki Career reading aapke birth-chart context par based hai.'
+            : 'Your Career reading is based on your birth-chart context.');
+  }
+}
+
+class _PrimaryForecastCard extends StatelessWidget {
+  const _PrimaryForecastCard({
+    required this.period,
+    required this.active,
+    required this.copy,
+  });
+  final CareerTimingPeriod period;
+  final bool active;
+  final CareerReadingPresentationCopy copy;
+
+  @override
+  Widget build(BuildContext context) => _ForecastCard(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _dateRange(period.startDate, period.endDate),
+          style: _CareerReadingText.itemTitle,
+        ),
+        const SizedBox(height: 8),
+        _CareerTimingEvidenceChip(state: period.evidenceState),
+        const SizedBox(height: 9),
+        Text(
+          active
+              ? (copy.isHinglish ? 'Abhi active' : 'Active now')
+              : (copy.isHinglish ? 'Upcoming' : 'Upcoming'),
+          style: _CareerReadingText.source,
+        ),
+        const SizedBox(height: 7),
+        Text(period.summary, style: _CareerReadingText.body),
+        if (period.whyItems.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          const Text('WHY THIS PERIOD', style: _CareerReadingText.source),
+          const SizedBox(height: 5),
+          Text(period.whyItems.first, style: _CareerReadingText.meta),
+        ],
+      ],
+    ),
+  );
+}
+
+class _CompactForecastPeriod extends StatelessWidget {
+  const _CompactForecastPeriod({required this.period, required this.copy});
+  final CareerTimingPeriod period;
+  final CareerReadingPresentationCopy copy;
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        _dateRange(period.startDate, period.endDate),
+        style: _CareerReadingText.itemTitle,
+      ),
+      const SizedBox(height: 5),
+      Text(period.summary, style: _CareerReadingText.meta),
+    ],
+  );
+}
+
+class _ForecastCard extends StatelessWidget {
+  const _ForecastCard({required this.child});
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: _CareerReadingColors.surface,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: _CareerReadingColors.goldBorder),
+    ),
+    child: child,
+  );
+}
+
+class _DetailedCareerAstrology extends StatelessWidget {
+  const _DetailedCareerAstrology({
+    required this.insights,
+    required this.detail,
+    required this.calibrated,
+    required this.copy,
+  });
+  final List<CareerInsight> insights;
+  final ReadingDetail detail;
+  final ReadingContent? calibrated;
+  final CareerReadingPresentationCopy copy;
+
+  @override
+  Widget build(BuildContext context) {
+    final calibration = calibrated;
+    return Material(
+      color: Colors.transparent,
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          childrenPadding: const EdgeInsets.only(top: 12),
+          iconColor: _CareerReadingColors.gold,
+          collapsedIconColor: _CareerReadingColors.slate,
+          title: const Text(
+            'VIEW DETAILED ASTROLOGY',
+            style: _CareerReadingText.eyebrow,
+          ),
+          children: [
+            if (insights.isNotEmpty)
+              _CareerInsightExperience(insights: insights, copy: copy)
+            else if (detail.content.sections.isNotEmpty)
+              _CareerReadingContentSections(content: detail.content),
+            if (detail.careerEvidenceSynthesis != null) ...[
+              const SizedBox(height: 18),
+              _CareerEvidenceSynthesisSection(
+                synthesis: detail.careerEvidenceSynthesis!,
+                copy: copy,
+              ),
+            ],
+            if (detail.careerAshtakavargaStructure != null) ...[
+              const SizedBox(height: 18),
+              _CareerAshtakavargaStructureSection(
+                structure: detail.careerAshtakavargaStructure!,
+                copy: copy,
+              ),
+            ],
+            if (detail.careerD10Structure != null) ...[
+              const SizedBox(height: 18),
+              _CareerD10StructureSection(
+                structure: detail.careerD10Structure!,
+                copy: copy,
+              ),
+            ],
+            if (detail.careerD10Corroboration != null) ...[
+              const SizedBox(height: 18),
+              _CareerD10CorroborationSection(
+                corroboration: detail.careerD10Corroboration!,
+                copy: copy,
+              ),
+            ],
+            if (detail.careerAshtakavargaCorroboration != null &&
+                detail.careerEvidenceSynthesis == null) ...[
+              const SizedBox(height: 18),
+              _CareerAshtakavargaCorroborationSection(
+                corroboration: detail.careerAshtakavargaCorroboration!,
+                copy: copy,
+              ),
+            ],
+            if (_CareerTimingSection.hasContent(insights)) ...[
+              const SizedBox(height: 18),
+              _CareerTimingSection(insights: insights, copy: copy),
+            ],
+            if (calibration != null && calibration.sections.isNotEmpty) ...[
+              const SizedBox(height: 18),
+              _CareerReadingContentSections(content: calibration),
+            ],
+            if (_hasCalculationNote(calibration)) ...[
+              const SizedBox(height: 18),
+              _TechnicalNote(content: calibration!),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -1617,129 +1860,6 @@ String _primaryTimingLabel(String family) =>
     }[family] ??
     'CAREER INSIGHT';
 
-class _UpcomingCareerTimingSection extends StatelessWidget {
-  const _UpcomingCareerTimingSection({
-    required this.periods,
-    required this.copy,
-  });
-
-  final List<CareerTimingPeriod> periods;
-  final CareerReadingPresentationCopy copy;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const _CareerReadingSectionLabel('UPCOMING CAREER TIMING'),
-      const SizedBox(height: 12),
-      if (periods.isEmpty)
-        _CareerTimingEmptyState()
-      else
-        for (final period in periods) ...[
-          _UpcomingCareerTimingCard(period: period, copy: copy),
-          const SizedBox(height: 10),
-        ],
-    ],
-  );
-}
-
-class _CareerTimingEmptyState extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(17),
-    decoration: BoxDecoration(
-      color: _CareerReadingColors.surface,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: _CareerReadingColors.cardBorder),
-    ),
-    child: const Text(
-      'Current timing model abhi kisi concentrated Career activity signal ko identify nahi kar raha.',
-      style: _CareerReadingText.body,
-    ),
-  );
-}
-
-class _UpcomingCareerTimingCard extends StatelessWidget {
-  const _UpcomingCareerTimingCard({required this.period, required this.copy});
-
-  final CareerTimingPeriod period;
-  final CareerReadingPresentationCopy copy;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(17),
-    decoration: BoxDecoration(
-      color: _CareerReadingColors.surface,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: _CareerReadingColors.goldBorder),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          _dateRange(period.startDate, period.endDate),
-          style: _CareerReadingText.itemTitle,
-        ),
-        const SizedBox(height: 8),
-        _CareerTimingEvidenceChip(state: period.evidenceState),
-        const SizedBox(height: 12),
-        Text(period.summary, style: _CareerReadingText.body),
-        const SizedBox(height: 14),
-        const Text(
-          'WHY THIS PERIOD STANDS OUT',
-          style: _CareerReadingText.source,
-        ),
-        const SizedBox(height: 6),
-        for (final item in period.whyItems)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 5),
-            child: Text('• $item', style: _CareerReadingText.body),
-          ),
-        const SizedBox(height: 7),
-        const Text('WHAT THIS CAN MEAN', style: _CareerReadingText.source),
-        const SizedBox(height: 5),
-        Text(period.whatThisCanMean, style: _CareerReadingText.body),
-        if (period.recurrenceSummary != null) ...[
-          const SizedBox(height: 12),
-          const Text('PAST PATTERN', style: _CareerReadingText.source),
-          const SizedBox(height: 5),
-          Text(period.recurrenceSummary!, style: _CareerReadingText.body),
-        ],
-        const SizedBox(height: 13),
-        Material(
-          color: Colors.transparent,
-          child: Theme(
-            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-            child: ExpansionTile(
-              tilePadding: EdgeInsets.zero,
-              childrenPadding: const EdgeInsets.only(bottom: 4),
-              iconColor: _CareerReadingColors.gold,
-              collapsedIconColor: _CareerReadingColors.slate,
-              title: const Text(
-                'See the astrology behind this',
-                style: _CareerReadingText.source,
-              ),
-              children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    _technicalSummary(period.technicalDetails, copy),
-                    style: _CareerReadingText.meta,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(period.disclosure, style: _CareerReadingText.meta),
-      ],
-    ),
-  );
-}
-
 class _CareerTimingEvidenceChip extends StatelessWidget {
   const _CareerTimingEvidenceChip({required this.state});
   final String state;
@@ -1764,66 +1884,6 @@ class _CareerTimingEvidenceChip extends StatelessWidget {
       style: _CareerReadingText.chip,
     ),
   );
-}
-
-String _technicalSummary(
-  Map<String, dynamic> details,
-  CareerReadingPresentationCopy copy,
-) {
-  final d1 = details['d1'];
-  final dasha = details['dasha'];
-  final gochar = details['gochar'];
-  final lines = <String>[];
-  if (d1 is Map<String, dynamic>) {
-    final sign = d1['h10Sign'];
-    final lord = d1['h10Lord'];
-    if (sign is int && lord is String) {
-      lines.add('D1 10th Bhav sign: $sign; lord: ${copy.planet(lord)}.');
-    }
-  }
-  if (dasha is Map<String, dynamic>) {
-    final levels = (dasha['qualifyingLevel'] as List? ?? const [])
-        .whereType<String>();
-    final periods = (dasha['periods'] as List? ?? const []).whereType<String>();
-    final levelNames = levels.map(
-      (level) =>
-          const {
-            'MD': 'Mahadasha',
-            'AD': 'Antardasha',
-            'PD': 'Pratyantar Dasha',
-          }[level] ??
-          'Dasha',
-    );
-    final periodNames = periods.map((period) {
-      final pieces = period.split(':');
-      final level =
-          const {
-            'MD': 'Mahadasha',
-            'AD': 'Antardasha',
-            'PD': 'Pratyantar Dasha',
-          }[pieces.first] ??
-          'Dasha';
-      return pieces.length == 2 ? '${copy.planet(pieces.last)} $level' : level;
-    });
-    if (levelNames.isNotEmpty) {
-      lines.add('Qualifying Dasha levels: ${levelNames.join(', ')}.');
-    }
-    if (periodNames.isNotEmpty) {
-      lines.add('Career-linked Dasha factors: ${periodNames.join(', ')}.');
-    }
-  }
-  if (gochar is List && gochar.isNotEmpty) {
-    final facts = gochar.whereType<Map<String, dynamic>>().map((item) {
-      final planet = item['transitPlanet'];
-      final target = item['target'];
-      if (planet is! String || target is! String) return null;
-      return '${copy.planet(planet)} Gochar: $target.';
-    }).whereType<String>();
-    if (facts.isNotEmpty) lines.add(facts.join(' '));
-  }
-  return lines.isEmpty
-      ? 'Technical timing context is available.'
-      : lines.join(' ');
 }
 
 class _CareerTimingSection extends StatelessWidget {

@@ -413,7 +413,7 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(find.text('Stored text.'), findsOneWidget);
+    expect(find.text('Stored text.'), findsWidgets);
     expect(seen, ['reading-a']);
     await tester.pump();
     expect(seen, ['reading-a']);
@@ -469,8 +469,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Career Timing Forecast'), findsWidgets);
     expect(find.text('CAREER READING'), findsOneWidget);
-    expect(find.text('CAREER INSIGHTS'), findsOneWidget);
-    expect(find.text('Career structure'), findsWidgets);
+    expect(find.text('CURRENT CAREER PHASE'), findsOneWidget);
+    expect(find.text('Career structure'), findsNothing);
     expect(find.text('Stored text.'), findsOneWidget);
     final detailScaffold = tester.widget<Scaffold>(find.byType(Scaffold).last);
     expect(detailScaffold.backgroundColor, const Color(0xFF061A1A));
@@ -527,6 +527,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await _expandDetailedAstrology(tester);
       expect(find.text('Career Timing Alignment'), findsWidgets);
       expect(find.text('MATCHED WITH YOUR CAREER HISTORY'), findsWidgets);
       expect(find.text('FUTURE CAREER TIMING'), findsWidgets);
@@ -652,7 +653,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('CAREER TIMING'), findsOneWidget);
+    await _expandDetailedAstrology(tester);
+    expect(find.text('CAREER TIMING'), findsWidgets);
     expect(find.text('Mahadasha'), findsOneWidget);
     expect(find.text('Antardasha'), findsOneWidget);
     expect(find.text('Pratyantar'), findsOneWidget);
@@ -778,6 +780,9 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      expect(find.text('VIEW DETAILED ASTROLOGY'), findsOneWidget);
+      expect(find.text('CAREER ASHTAKAVARGA STRUCTURE'), findsNothing);
+      await _expandDetailedAstrology(tester);
       expect(find.text('CAREER ASHTAKAVARGA STRUCTURE'), findsOneWidget);
       expect(find.text('CAREER D10 STRUCTURE'), findsOneWidget);
       expect(find.text('D10 CAREER THEMES'), findsOneWidget);
@@ -976,51 +981,57 @@ void main() {
     expect(find.text('This context deserves attention.'), findsNothing);
     expect(find.text('CAREER HISTORY CALIBRATION'), findsNothing);
     expect(find.text('Calculation note'), findsNothing);
+    await _expandDetailedAstrology(tester);
     expect(find.text('TECHNICAL NOTE'), findsOneWidget);
     expect(
       find.text('Some calculations use a provisional calculation basis.'),
-      findsOneWidget,
+      findsWidgets,
     );
-    expect(find.text('Update Career History'), findsOneWidget);
     controller.dispose();
     profiles.dispose();
     auth.dispose();
   });
 
-  testWidgets('a no-history Career reading keeps timing visible and offers a non-blocking event CTA', (
-    tester,
-  ) async {
-    final authSource = _AuthSource();
-    final auth = AuthController(authSource);
-    await auth.restore();
-    final profiles = ProfileController(_Profiles(authSource), auth);
-    await tester.pump();
-    final detail = ReadingDetail.fromJson({
-      ..._detailJson(),
-      'insights': [_insight('CAREER_FOUNDATION', 0)],
-      'careerTimingPeriods': [_careerTimingPeriod()],
-      'calibrationContext': {'calibrationLevel': 'NONE', 'eventCount': 0},
-    });
-    final repository = _ReadingRepository()..nextDetail = detail;
-    final controller = ReadingController(repository, auth, profiles);
-    await tester.pumpWidget(
-      _localized(
-        ReadingDetailScreen(controller: controller, readingId: 'reading-a'),
-      ),
-    );
-    await tester.pumpAndSettle();
+  testWidgets(
+    'a no-history Career reading keeps timing visible and offers a non-blocking event CTA',
+    (tester) async {
+      final authSource = _AuthSource();
+      final auth = AuthController(authSource);
+      await auth.restore();
+      final profiles = ProfileController(_Profiles(authSource), auth);
+      await tester.pump();
+      final detail = ReadingDetail.fromJson({
+        ..._detailJson(),
+        'insights': [_insight('CAREER_FOUNDATION', 0)],
+        'careerTimingPeriods': [_careerTimingPeriod()],
+        'calibrationContext': {'calibrationLevel': 'NONE', 'eventCount': 0},
+      });
+      final repository = _ReadingRepository()..nextDetail = detail;
+      final controller = ReadingController(repository, auth, profiles);
+      await tester.pumpWidget(
+        _localized(
+          ReadingDetailScreen(controller: controller, readingId: 'reading-a'),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('POSSIBLE CAREER ACTIVITY SIGNAL'), findsOneWidget);
-    expect(
-      find.text('Past Career Events can help personalize this reading further.'),
-      findsOneWidget,
-    );
-    expect(find.text('Add Career Events'), findsOneWidget);
-    expect(find.text('We could not prepare your Career Reading.'), findsNothing);
-    controller.dispose();
-    profiles.dispose();
-    auth.dispose();
-  });
+      expect(find.text('POSSIBLE CAREER ACTIVITY SIGNAL'), findsOneWidget);
+      expect(
+        find.text(
+          'Past Career Events can help personalize this reading further.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Add Career Events'), findsOneWidget);
+      expect(
+        find.text('We could not prepare your Career Reading.'),
+        findsNothing,
+      );
+      controller.dispose();
+      profiles.dispose();
+      auth.dispose();
+    },
+  );
 
   testWidgets('renders returned NONE and LIMITED calibrated sections only', (
     tester,
@@ -1052,9 +1063,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await _expandDetailedAstrology(tester);
     expect(find.text('No historical calibration.'), findsOneWidget);
-    expect(find.text('CAREER HISTORY CALIBRATION'), findsOneWidget);
-    expect(find.text('Update Career History'), findsOneWidget);
     expect(find.text('Historical patterns'), findsNothing);
     expect(find.text('Upcoming periods'), findsNothing);
 
@@ -1064,14 +1074,13 @@ void main() {
     });
     await controller.loadDetail('reading-a');
     await tester.pumpAndSettle();
-    expect(find.text('Stored text.'), findsOneWidget);
+    expect(find.text('Stored text.'), findsWidgets);
     expect(find.text('Calibration'), findsNothing);
 
     repository.nextDetail = ReadingDetail.fromJson(limited);
     await controller.loadDetail('reading-a');
     await tester.pumpAndSettle();
-    expect(find.text('Limited calibration.'), findsOneWidget);
-    expect(find.text('Review options.'), findsOneWidget);
+    await _expandDetailedAstrology(tester);
     expect(find.text('Historical patterns'), findsNothing);
     expect(find.text('Upcoming periods'), findsNothing);
     controller.dispose();
@@ -1113,6 +1122,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await _expandDetailedAstrology(tester);
       final calibratedHeadlines = [
         'Calibration',
         'Historical patterns',
@@ -1126,9 +1136,9 @@ void main() {
         expect(finder, findsOneWidget);
         await tester.ensureVisible(finder);
       }
-      expect(find.text('Stored text.'), findsOneWidget);
-      expect(find.text('Provisional note.'), findsOneWidget);
-      expect(find.text('Unknown text.'), findsOneWidget);
+      expect(find.text('Stored text.'), findsWidgets);
+      expect(find.text('Provisional note.'), findsWidgets);
+      expect(find.text('Unknown text.'), findsWidgets);
       controller.dispose();
       profiles.dispose();
       auth.dispose();
@@ -1155,7 +1165,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('UPCOMING CAREER TIMING'), findsOneWidget);
+      expect(find.text('CURRENT CAREER WINDOW'), findsOneWidget);
       expect(find.text('POSSIBLE CAREER ACTIVITY SIGNAL'), findsOneWidget);
       expect(find.text('20 Nov 2026 – 10 Jan 2027'), findsOneWidget);
       expect(
@@ -1164,12 +1174,8 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(
-        find.text(
-          'Yeh kisi specific job change, offer ya promotion ki guarantee nahi hai. Career decisions mein role quality, compensation, financial readiness aur personal circumstances ko bhi consider karein.',
-        ),
-        findsOneWidget,
-      );
+      expect(find.text('WHAT THIS CAN MEAN'), findsOneWidget);
+      expect(find.text('WHAT TO DO'), findsOneWidget);
       controller.dispose();
       profiles.dispose();
       auth.dispose();
@@ -1196,10 +1202,10 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('UPCOMING CAREER TIMING'), findsOneWidget);
+    expect(find.text('CAREER TIMING'), findsOneWidget);
     expect(
       find.text(
-        'Current timing model abhi kisi concentrated Career activity signal ko identify nahi kar raha.',
+        'No concentrated current or upcoming Career timing period is available in this reading.',
       ),
       findsOneWidget,
     );
@@ -1207,6 +1213,51 @@ void main() {
     profiles.dispose();
     auth.dispose();
   });
+
+  testWidgets(
+    'keeps past periods and development fixtures out of the customer forecast',
+    (tester) async {
+      final authSource = _AuthSource();
+      final auth = AuthController(authSource);
+      await auth.restore();
+      final profiles = ProfileController(_Profiles(authSource), auth);
+      await tester.pump();
+      final repository = _ReadingRepository()
+        ..nextDetail = ReadingDetail.fromJson({
+          ..._detailJson(),
+          'readingInstant': '2026-10-15T00:00:00.000Z',
+          'careerTimingPeriods': [
+            {
+              ..._careerTimingPeriod(),
+              'startDate': '2026-01-01T00:00:00.000Z',
+              'endDate': '2026-03-01T00:00:00.000Z',
+            },
+            {
+              ..._careerTimingPeriod(),
+              'startDate': '2027-02-01T00:00:00.000Z',
+              'endDate': '2027-04-01T00:00:00.000Z',
+            },
+          ],
+        });
+      final controller = ReadingController(repository, auth, profiles);
+      await tester.pumpWidget(
+        _localized(
+          ReadingDetailScreen(controller: controller, readingId: 'reading-a'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('NEXT STRONGER CAREER WINDOW'), findsOneWidget);
+      expect(find.text('1 Feb 2027 – 1 Apr 2027'), findsOneWidget);
+      expect(find.text('1 Jan 2026 – 1 Mar 2026'), findsNothing);
+      expect(find.text('DEV SAMPLE DATA'), findsNothing);
+      expect(find.text('DEV SAMPLE CONTROLS'), findsNothing);
+
+      controller.dispose();
+      profiles.dispose();
+      auth.dispose();
+    },
+  );
 }
 
 Widget _localized(Widget child) => MaterialApp(
@@ -1215,6 +1266,21 @@ Widget _localized(Widget child) => MaterialApp(
   supportedLocales: AppLocalizations.supportedLocales,
   home: child,
 );
+
+Future<void> _expandDetailedAstrology(WidgetTester tester) async {
+  final toggle = find.text('VIEW DETAILED ASTROLOGY');
+  // `find.text` can locate an item that has been built below the viewport,
+  // so scroll the reading explicitly before tapping its expansion header.
+  await tester.dragUntilVisible(
+    toggle,
+    find.byType(ListView).first,
+    const Offset(0, -220),
+  );
+  await tester.ensureVisible(toggle);
+  await tester.pumpAndSettle();
+  await tester.tap(toggle);
+  await tester.pumpAndSettle();
+}
 
 Future<void> _settle() => Future<void>.delayed(Duration.zero);
 
