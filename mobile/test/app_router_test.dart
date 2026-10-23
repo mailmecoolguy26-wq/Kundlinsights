@@ -1,15 +1,50 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kundlinsights_mobile/app/router/app_router.dart';
+import 'package:go_router/go_router.dart';
 
 void main() {
-  test('Career Reading detail pages have stable distinct keys per reading', () {
-    final first = careerReadingDetailPageKey('reading-a');
-    final second = careerReadingDetailPageKey('reading-b');
+  testWidgets('reopening a timeline route uses separate route-instance keys', (
+    tester,
+  ) async {
+    final router = GoRouter(
+      initialLocation: '/career',
+      routes: [
+        GoRoute(
+          path: '/career',
+          builder: (context, state) => Scaffold(
+            body: TextButton(
+              onPressed: () => context.push('/career/timeline/reading-a'),
+              child: const Text('Open timeline'),
+            ),
+          ),
+          routes: [
+            GoRoute(
+              path: 'timeline/:id',
+              pageBuilder: (context, state) => MaterialPage<void>(
+                key: state.pageKey,
+                child: Scaffold(
+                  appBar: AppBar(),
+                  body: const Text('Career Timeline'),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
 
-    expect(first, careerReadingDetailPageKey('reading-a'));
-    expect(second, careerReadingDetailPageKey('reading-b'));
-    expect(first, isNot(second));
-    expect(first.value, 'reading-detail:reading-a');
-    expect(second.value, 'reading-detail:reading-b');
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.tap(find.text('Open timeline'));
+    await tester.pumpAndSettle();
+    expect(find.text('Career Timeline'), findsOneWidget);
+
+    router.pop();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open timeline'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Career Timeline'), findsOneWidget);
   });
 }

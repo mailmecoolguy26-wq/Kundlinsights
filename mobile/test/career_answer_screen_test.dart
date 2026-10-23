@@ -62,6 +62,20 @@ void main() {
     );
   });
 
+  test('omits diagnostic saved phase copy without inventing a replacement', () {
+    final detail = _careerReadingDetail(
+      phase: 'The supplied evidence does not satisfy this specific rule or context.',
+      timingMeaning:
+          'Career-related support becomes stronger during this period.',
+    );
+
+    expect(careerHubCustomerPhase(detail), isNull);
+    expect(
+      careerHubCustomerMeaning(detail.careerTimingPeriods!.single),
+      'Career-related support becomes stronger during this period.',
+    );
+  });
+
   test('keeps a saved customer-facing phase available to the Career Hub', () {
     final detail = _careerReadingDetail(
       phase: 'Your current phase is more supportive for active career conversations.',

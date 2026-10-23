@@ -82,7 +82,10 @@ class _CareerHubScreenState extends State<CareerHubScreen> {
     void openTimeline() {
       final id = summary?.readingId;
       if (id != null) {
-        context.push('/readings/detail/$id');
+        // Keep the detail page in the Career route hierarchy. Pushing the
+        // Reading Center's shell-child route from here can otherwise mount
+        // the same detail route in two navigator stacks.
+        context.push('/career/timeline/${Uri.encodeComponent(id)}');
       } else {
         context.go('/readings');
       }
@@ -407,7 +410,38 @@ bool _isCustomerFacingCareerCopy(String value) {
     'evidence signal',
     'supplied relation',
   ];
-  return !technicalTerms.any(normalized.contains);
+  const diagnosticPhrases = [
+    'the supplied',
+    'supplied evidence',
+    'evidence is insufficient',
+    'evidence signal',
+    'no matching rule',
+    'rule not satisfied',
+    'does not satisfy',
+    'condition is not met',
+    'condition not met',
+    'insufficient evidence',
+    'internal diagnostic',
+    'evaluation statement',
+  ];
+  const customerMarkers = [
+    'career',
+    'professional',
+    'work',
+    'job',
+    'role',
+    'interview',
+    'conversation',
+    'movement',
+    'decision',
+    'opportunit',
+    'support',
+    'prepare',
+    'business',
+  ];
+  return !technicalTerms.any(normalized.contains) &&
+      !diagnosticPhrases.any(normalized.contains) &&
+      customerMarkers.any(normalized.contains);
 }
 
 abstract final class _CareerHubColors {

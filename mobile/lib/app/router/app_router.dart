@@ -59,10 +59,6 @@ import '../../shared/widgets/app_page_scaffold.dart';
 import '../../shared/widgets/states.dart';
 
 @visibleForTesting
-ValueKey<String> careerReadingDetailPageKey(String readingId) =>
-    ValueKey<String>('reading-detail:$readingId');
-
-@visibleForTesting
 LifeEventCategory? lifeEventCategoryFromRouteParameter(String? wire) =>
     _lifeEventCategoryFromWire(wire);
 
@@ -207,6 +203,21 @@ GoRouter createAppRouter(
         },
       ),
       routes: [
+        GoRoute(
+          path: 'timeline/:id',
+          name: 'career-timeline',
+          builder: (context, state) => ReadingDetailScreen(
+            controller: readings,
+            generation: generation,
+            careerExplanationLanguage: careerExplanationLanguage,
+            readingId: state.pathParameters['id']!,
+            onViewed: (id) async {
+              try {
+                await pushNotifications?.activityApi?.recordReadingViewed(id);
+              } catch (_) {}
+            },
+          ),
+        ),
         GoRoute(
           path: 'answer/:questionType',
           name: 'career-answer',
@@ -579,11 +590,10 @@ GoRouter createAppRouter(
                   name: 'reading-detail',
                   pageBuilder: (context, state) {
                     final readingId = state.pathParameters['id']!;
-                    final key = careerReadingDetailPageKey(readingId);
                     return MaterialPage<void>(
-                      key: key,
+                      key: state.pageKey,
                       name: state.name,
-                      restorationId: key.value,
+                      restorationId: state.pageKey.value,
                       child: ReadingDetailScreen(
                         controller: readings,
                         generation: generation,
