@@ -47,6 +47,7 @@ class CareerReadingGenerationController extends ChangeNotifier {
       _eligibilityMode,
       _backendPurchaseMode,
       _purchaseMode;
+  DateTime? _validUntil;
   int _generation = 0;
   bool _disposed = false;
   CareerEligibilityState get eligibilityState => _eligibilityState;
@@ -57,6 +58,7 @@ class CareerReadingGenerationController extends ChangeNotifier {
   String? get purchaseMode => _purchaseMode;
   String? get activeBirthProfileId => _profileId;
   String? get activeAuthenticatedSubject => _subject;
+  DateTime? get validUntil => _validUntil;
   bool get canGenerate =>
       _eligibilityState == CareerEligibilityState.eligible &&
       _generationState != CareerGenerationState.generating;
@@ -75,6 +77,7 @@ class CareerReadingGenerationController extends ChangeNotifier {
     _eligibilityMode = null;
     _backendPurchaseMode = null;
     _purchaseMode = null;
+    _validUntil = null;
     _generationState = CareerGenerationState.idle;
     if (subject == null || profile == null) {
       _eligibilityState = CareerEligibilityState.initial;
@@ -117,6 +120,7 @@ class CareerReadingGenerationController extends ChangeNotifier {
             backendPurchaseMode: value.purchaseMode,
           ) ??
           value.purchaseMode;
+      _validUntil = value.validUntil;
       final localSession = _debugLocalStoreKitEntitlementSession;
       if (kDebugMode && localSession?.enabled == true) {
         debugPrint(
@@ -137,6 +141,7 @@ class CareerReadingGenerationController extends ChangeNotifier {
       _eligibilityMode = null;
       _backendPurchaseMode = null;
       _purchaseMode = null;
+      _validUntil = null;
       _debugEligibility(profile, _eligibilityState);
     }
     notifyListeners();

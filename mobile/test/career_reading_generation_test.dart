@@ -86,6 +86,20 @@ void main() {
     expect(none.mode, 'NONE');
   });
 
+  test('parses a server-owned Premium validity date when provided', () {
+    final eligibility = CareerEligibility.fromJson({
+      'entitlements': {
+        'profilePremium': {
+          'eligible': true,
+          'mode': 'PROFILE_PREMIUM',
+          'validUntil': '2027-04-18T00:00:00.000Z',
+        },
+      },
+    });
+
+    expect(eligibility.validUntil, DateTime.utc(2027, 4, 18));
+  });
+
   test('prefers profilePremium over the legacy career entitlement alias', () {
     final profilePremium = CareerEligibility.fromJson({
       'entitlements': {

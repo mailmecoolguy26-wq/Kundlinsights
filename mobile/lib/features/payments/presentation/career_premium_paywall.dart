@@ -244,6 +244,7 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
                         widget.generationController?.generationState,
                     isAddOnPurchase: isAddOnPurchase,
                     profileLabel: widget.activeProfileLabel,
+                    validUntil: widget.generationController?.validUntil,
                     hinglish:
                         widget.languageController?.language ==
                         CareerExplanationLanguage.hinglish,
@@ -485,6 +486,7 @@ class _ProductAction extends StatelessWidget {
     this.isAddOnPurchase = false,
     this.profileLabel,
     this.hinglish = false,
+    this.validUntil,
   });
   final CareerPremiumProductController controller;
   final VoidCallback onSubscribePressed;
@@ -509,6 +511,7 @@ class _ProductAction extends StatelessWidget {
   final bool isAddOnPurchase;
   final String? profileLabel;
   final bool hinglish;
+  final DateTime? validUntil;
 
   @override
   Widget build(BuildContext context) {
@@ -545,6 +548,7 @@ class _ProductAction extends StatelessWidget {
             gstRateBasisPoints: razorpayGstRateBasisPoints,
             profileLabel: profileLabel,
             hinglish: hinglish,
+            validUntil: validUntil,
           );
         case RazorpayCareerPremiumState.definitiveFailure:
           return _RazorpayFailure(
@@ -1147,6 +1151,7 @@ class _RazorpaySuccess extends StatelessWidget {
     required this.gstRateBasisPoints,
     required this.profileLabel,
     required this.hinglish,
+    this.validUntil,
   });
   final VoidCallback onContinue;
   final VoidCallback onHome;
@@ -1157,43 +1162,92 @@ class _RazorpaySuccess extends StatelessWidget {
   final int? gstRateBasisPoints;
   final String? profileLabel;
   final bool hinglish;
+  final DateTime? validUntil;
   @override
-  Widget build(BuildContext c) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext c) => _PremiumStatusSurface(
     children: [
-      const Text(
-        'PAYMENT SUCCESSFUL',
-        style: TextStyle(color: Color(0xFFD6B15A), fontWeight: FontWeight.w800),
+      const Center(
+        child: Icon(Icons.verified_rounded, color: Color(0xFFD6B15A), size: 42),
       ),
-      const SizedBox(height: 10),
-      const Icon(Icons.verified_rounded, color: Color(0xFFD6B15A), size: 38),
-      const SizedBox(height: 10),
+      const SizedBox(height: 14),
       Text(
-        hinglish
-            ? 'TaraVerse Premium ${profileLabel ?? 'is profile'} ke liye active hai.'
-            : 'TaraVerse Premium is now active${profileLabel == null ? '' : ' for $profileLabel'}.',
-        style: TextStyle(
+        hinglish ? 'Premium ab active hai' : 'Premium is now active',
+        textAlign: TextAlign.center,
+        style: const TextStyle(
           color: Color(0xFFF7F4EC),
           fontSize: 24,
           fontWeight: FontWeight.w600,
         ),
       ),
+      const SizedBox(height: 8),
       Text(
         hinglish
-            ? 'Career, Property, Vehicle aur personalized Ask Tara is profile ke liye unlock ho gaye hain.'
-            : 'Career, Property, Vehicle and personalized Ask Tara are now unlocked for this profile.',
+            ? 'TaraVerse Premium ${profileLabel ?? 'is profile'} ke liye activate ho gaya hai.'
+            : 'TaraVerse Premium has been activated${profileLabel == null ? '.' : ' for $profileLabel.'}',
+        textAlign: TextAlign.center,
         style: const TextStyle(color: Color(0xFFA8B7B4)),
       ),
-      const SizedBox(height: AppSpacing.sm),
-      Text('TaraVerse Premium\n$planLabel\nStatus: Payment confirmed'),
-      _RazorpayAmountBreakdown(
-        baseAmountLabel: baseAmountLabel,
-        gstAmountLabel: gstAmountLabel,
-        gstRateBasisPoints: gstRateBasisPoints,
-        totalAmountLabel: amountLabel,
+      const SizedBox(height: 22),
+      _PremiumPlanSummary(
+        planLabel: planLabel,
+        profileLabel: profileLabel,
+        hinglish: hinglish,
       ),
-      FilledButton(onPressed: onContinue, child: const Text('Continue')),
-      TextButton(onPressed: onHome, child: const Text('Back to Home')),
+      if (validUntil != null) ...[
+        const SizedBox(height: 12),
+        Text(
+          hinglish
+              ? '${MaterialLocalizations.of(c).formatMediumDate(validUntil!.toLocal())} tak active'
+              : 'Valid until ${MaterialLocalizations.of(c).formatMediumDate(validUntil!.toLocal())}',
+          style: const TextStyle(color: Color(0xFFA8B7B4)),
+        ),
+      ],
+      const SizedBox(height: 22),
+      Text(
+        hinglish ? 'Ab unlock hai' : 'Now unlocked',
+        style: const TextStyle(
+          color: Color(0xFFF7F4EC),
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      const SizedBox(height: 10),
+      const _UnlockedModules(),
+      const SizedBox(height: 10),
+      Text(
+        hinglish
+            ? 'Yeh insights is birth profile ke liye unlock hain.'
+            : 'These insights are unlocked for this birth profile.',
+        style: const TextStyle(color: Color(0xFFA8B7B4)),
+      ),
+      const SizedBox(height: 22),
+      SizedBox(
+        width: double.infinity,
+        child: FilledButton(
+          onPressed: onContinue,
+          child: Text(
+            hinglish ? 'Mere Insights Dekhein' : 'Explore My Insights',
+          ),
+        ),
+      ),
+      TextButton(
+        onPressed: onHome,
+        child: Text(hinglish ? 'Home par jayein' : 'Go to Home'),
+      ),
+    ],
+  );
+}
+
+class _UnlockedModules extends StatelessWidget {
+  const _UnlockedModules();
+
+  @override
+  Widget build(BuildContext context) => const Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text('✓ Career insights'),
+      Text('✓ Property insights'),
+      Text('✓ Vehicle insights'),
+      Text('✓ Personalized Ask Tara'),
     ],
   );
 }

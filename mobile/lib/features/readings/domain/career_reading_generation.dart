@@ -3,11 +3,13 @@ class CareerEligibility {
     required this.eligible,
     this.mode,
     this.purchaseMode,
+    this.validUntil,
     this.consuming = false,
   });
   final bool eligible;
   final String? mode;
   final String? purchaseMode;
+  final DateTime? validUntil;
   final bool consuming;
   factory CareerEligibility.fromJson(Map<String, dynamic> json) {
     final entitlements = json['entitlements'];
@@ -42,10 +44,17 @@ class CareerEligibility {
     if (consuming != null && consuming is! bool) {
       throw const FormatException('Malformed entitlement status.');
     }
+    final rawValidUntil = career is Map<String, dynamic>
+        ? career['validUntil']
+        : null;
+    final validUntil = rawValidUntil is String
+        ? DateTime.tryParse(rawValidUntil)
+        : null;
     return CareerEligibility(
       eligible: eligible,
       mode: mode as String?,
       purchaseMode: purchaseMode as String?,
+      validUntil: validUntil,
       consuming: consuming as bool? ?? false,
     );
   }

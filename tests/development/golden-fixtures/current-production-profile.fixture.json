@@ -1,0 +1,63 @@
+{
+  "fixtureId": "current-production-profile",
+  "name": "Current production profile — private input supplied locally",
+  "scenario": "production-profile",
+  "input": {
+    "birthProfileReference": "ENTER_LOCALLY_DO_NOT_COMMIT_BIRTH_DATA",
+    "calculationInstant": null
+  },
+  "tolerances": {
+    "longitudeArcseconds": 0,
+    "longitudeDegrees": null,
+    "timestampSeconds": 0,
+    "timestampMinutes": null
+  },
+  "sources": [
+    {
+      "provenance": {
+        "sourceName": "Drik Panchang",
+        "sourceVersion": null,
+        "ephemeris": null,
+        "ayanamsa": "Lahiri/Chitra Paksha",
+        "zodiac": "Sidereal",
+        "nodeType": "True Rahu/Ketu",
+        "yearConvention": null,
+        "location": "Hyderabad, India",
+        "verifiedAt": "2026-10-18",
+        "notes": "Dasha display timestamps converted from Asia/Kolkata to UTC; year convention not supplied. D4/D9/D10/D16 sign placements were manually transcribed from supplied screenshots; no Varga houses were inferred."
+      },
+      "values": {
+        "astronomy": { "longitudes": { "Sun": 220.0711111111111, "Moon": 319.51694444444445, "Mars": 42.17666666666667, "Mercury": 238.7563888888889, "Jupiter": 109.835, "Venus": 226.21583333333334, "Saturn": 268.14694444444444, "Rahu": 277.2813888888889, "Ketu": 97.2813888888889, "Ascendant": 331.43333333333334 }, "nodeConventionLongitudes": { "TRUE": { "Rahu": 277.2813888888889, "Ketu": 97.2813888888889 }, "MEAN": { "Rahu": 275.9741666666667, "Ketu": 95.97416666666667 } }, "moonNakshatra": "Shatabhisha", "moonPada": 4 },
+        "dasha": { "currentMD": { "lord": "mercury", "start": "2026-07-22T11:30:00.000Z", "end": "2043-07-22T20:06:00.000Z" }, "currentAD": { "lord": "mercury", "start": "2026-07-22T11:30:00.000Z", "end": "2028-12-18T03:19:00.000Z" }, "currentPD": { "lord": "mercury", "start": "2026-07-22T11:30:00.000Z", "end": "2026-11-24T02:20:00.000Z" }, "referencePeriods": [ { "level": "PD", "mdLord": "mercury", "adLord": "mercury", "lord": "ketu", "start": "2026-11-24T02:20:00.000Z", "end": "2027-01-14T09:52:00.000Z" }, { "level": "PD", "mdLord": "mercury", "adLord": "mercury", "lord": "venus", "start": "2027-01-14T09:52:00.000Z", "end": "2027-06-10T00:30:00.000Z" } ] },
+        "vargas": { "D4": { "ascendant": 12, "planets": { "Sun": { "rashi": 11 }, "Moon": { "rashi": 5 }, "Mars": { "rashi": 5 }, "Mercury": { "rashi": 5 }, "Jupiter": { "rashi": 10 }, "Venus": { "rashi": 2 }, "Saturn": { "rashi": 6 }, "Rahu": { "rashi": 10 }, "Ketu": { "rashi": 4 } } }, "D9": { "ascendant": 4, "planets": { "Sun": { "rashi": 7 }, "Moon": { "rashi": 12 }, "Mars": { "rashi": 1 }, "Mercury": { "rashi": 12 }, "Jupiter": { "rashi": 9 }, "Venus": { "rashi": 8 }, "Saturn": { "rashi": 9 }, "Rahu": { "rashi": 12 }, "Ketu": { "rashi": 6 } } }, "D10": { "ascendant": 8, "planets": { "Sun": { "rashi": 7 }, "Moon": { "rashi": 5 }, "Mars": { "rashi": 2 }, "Mercury": { "rashi": 1 }, "Jupiter": { "rashi": 6 }, "Venus": { "rashi": 9 }, "Saturn": { "rashi": 6 }, "Rahu": { "rashi": 8 }, "Ketu": { "rashi": 2 } } }, "D16": { "ascendant": 9, "planets": { "Sun": { "rashi": 10 }, "Moon": { "rashi": 3 }, "Mars": { "rashi": 11 }, "Mercury": { "rashi": 8 }, "Jupiter": { "rashi": 11 }, "Venus": { "rashi": 1 }, "Saturn": { "rashi": 12 }, "Rahu": { "rashi": 4 }, "Ketu": { "rashi": 4 } } } },
+        "transits": { "ingresses": { "Jupiter": null, "Saturn": null, "Rahu": null, "Ketu": null } },
+        "ashtakavarga": { "savBySign": { "1": 31, "2": 28, "3": 29, "4": 28, "5": 30, "6": 31, "7": 23, "8": 21, "9": 31, "10": 27, "11": 25, "12": 33 }, "bavByBodyAndSign": {} }
+      }
+    },
+    {
+      "comparisonGranularity": { "dasha": "DATE" },
+      "provenance": {
+        "sourceName": "Source B",
+        "sourceVersion": null,
+        "ephemeris": null,
+        "ayanamsa": "Lahiri",
+        "zodiac": "Sidereal",
+        "nodeType": "True Node",
+        "nodeTypeObserved": "MEAN",
+        "nodeTypeUiSetting": "TRUE",
+        "provenanceConflict": true,
+        "yearConvention": null,
+        "location": null,
+        "verifiedAt": "2026-10-18",
+        "notes": "Drik / modern astronomical calculation. North Indian chart style. The UI setting states True Node, but supplied Rahu/Ketu output is mean-node (05°58′), so observed output governs comparison. Dasha is date-only in supplied capture; no timestamps inferred. D4/D9/D10/D16 sign placements were manually transcribed from supplied screenshots; no Varga houses were inferred."
+      },
+      "values": {
+        "astronomy": { "longitudes": { "Sun": null, "Moon": null, "Mars": null, "Mercury": null, "Jupiter": null, "Venus": null, "Saturn": null, "Rahu": 275.96666666666664, "Ketu": 95.96666666666667, "Ascendant": null }, "nodeConventionLongitudes": { "MEAN": { "Rahu": 275.96666666666664, "Ketu": 95.96666666666667 } }, "moonNakshatra": null, "moonPada": null },
+        "dasha": { "currentMD": { "lord": "mercury", "start": "2026-07-21", "end": "2043-07-21" }, "currentAD": { "lord": "mercury", "start": "2026-07-21", "end": "2028-12-16" }, "currentPD": { "lord": "mercury", "start": "2026-07-21", "end": "2026-11-22" }, "referencePeriods": [ { "level": "PD", "mdLord": "mercury", "adLord": "mercury", "lord": "ketu", "start": "2026-11-22", "end": "2027-01-13" }, { "level": "PD", "mdLord": "mercury", "adLord": "mercury", "lord": "venus", "start": "2027-01-13", "end": "2027-06-08" }, { "level": "PD", "mdLord": "mercury", "adLord": "mercury", "lord": "sun", "start": "2027-06-08", "end": "2027-07-22" }, { "level": "PD", "mdLord": "mercury", "adLord": "mercury", "lord": "moon", "start": "2027-07-22", "end": "2027-10-04" }, { "level": "PD", "mdLord": "mercury", "adLord": "mercury", "lord": "mars", "start": "2027-10-04", "end": "2027-11-24" }, { "level": "PD", "mdLord": "mercury", "adLord": "mercury", "lord": "rahu", "start": "2027-11-24", "end": "2028-04-04" }, { "level": "PD", "mdLord": "mercury", "adLord": "mercury", "lord": "jupiter", "start": "2028-04-04", "end": "2028-07-30" }, { "level": "PD", "mdLord": "mercury", "adLord": "mercury", "lord": "saturn", "start": "2028-07-30", "end": "2028-12-16" } ] },
+        "vargas": { "D4": { "ascendant": 12, "planets": { "Sun": { "rashi": 11 }, "Moon": { "rashi": 5 }, "Mars": { "rashi": 5 }, "Mercury": { "rashi": 5 }, "Jupiter": { "rashi": 10 }, "Venus": { "rashi": 2 }, "Saturn": { "rashi": 6 }, "Rahu": { "rashi": 10 }, "Ketu": { "rashi": 4 } } }, "D9": { "ascendant": 4, "planets": { "Sun": { "rashi": 7 }, "Moon": { "rashi": 12 }, "Mars": { "rashi": 1 }, "Mercury": { "rashi": 12 }, "Jupiter": { "rashi": 9 }, "Venus": { "rashi": 8 }, "Saturn": { "rashi": 9 }, "Rahu": { "rashi": 12 }, "Ketu": { "rashi": 6 } } }, "D10": { "ascendant": 8, "planets": { "Sun": { "rashi": 7 }, "Moon": { "rashi": 5 }, "Mars": { "rashi": 2 }, "Mercury": { "rashi": 1 }, "Jupiter": { "rashi": 6 }, "Venus": { "rashi": 9 }, "Saturn": { "rashi": 6 }, "Rahu": { "rashi": 8 }, "Ketu": { "rashi": 2 } } }, "D16": { "ascendant": 9, "planets": { "Sun": { "rashi": 10 }, "Moon": { "rashi": 3 }, "Mars": { "rashi": 11 }, "Mercury": { "rashi": 8 }, "Jupiter": { "rashi": 11 }, "Venus": { "rashi": 1 }, "Saturn": { "rashi": 12 }, "Rahu": { "rashi": 4 }, "Ketu": { "rashi": 4 } } } },
+        "transits": { "ingresses": { "Jupiter": null, "Saturn": null, "Rahu": null, "Ketu": null } },
+        "ashtakavarga": { "savBySign": { "1": 31, "2": 28, "3": 28, "4": 28, "5": 32, "6": 30, "7": 24, "8": 21, "9": 31, "10": 26, "11": 25, "12": 33 }, "bavByBodyAndSign": {} }
+      }
+    }
+  ]
+}

@@ -12,6 +12,7 @@ import 'package:kundlinsights_mobile/features/payments/data/payment_api_client.d
 import 'package:kundlinsights_mobile/features/payments/data/razorpay_purchase_service.dart';
 import 'package:kundlinsights_mobile/features/payments/razorpay_career_premium_controller.dart';
 import 'package:kundlinsights_mobile/features/readings/career_reading_generation_controller.dart';
+import 'package:kundlinsights_mobile/features/readings/career_explanation_language.dart';
 import 'package:kundlinsights_mobile/features/payments/presentation/career_premium_paywall.dart';
 import 'package:kundlinsights_mobile/core/analytics/analytics.dart';
 
@@ -625,7 +626,59 @@ void main() {
     },
   );
 
-  testWidgets('Razorpay result renders the server-returned GST breakdown', (
+  testWidgets(
+    'verified payment renders a scoped six-month Premium success state',
+    (tester) async {
+      final product = _controller();
+      final entitlements = _RazorpayEntitlements()
+        ..value = CareerEligibilityState.eligible;
+      final razorpay = RazorpayCareerPremiumController(
+        api: _RazorpayApi(false),
+        checkout: _RazorpayCheckout(),
+        entitlements: entitlements,
+      );
+      await razorpay.start(
+        birthProfileId: 'profile-a',
+        logicalSku: 'career_premium_razorpay_6_month',
+      );
+
+      await tester.pumpWidget(
+        _app(
+          CareerPremiumPaywall(
+            productController: product,
+            razorpayController: razorpay,
+            razorpayProfileId: 'profile-a',
+            dedicatedRazorpaySurface: true,
+            hasAccess: false,
+            entitlementMode: 'NONE',
+            activeProfileLabel: 'Aarav',
+            onSubscribePressed: () {},
+            onContinuePressed: () {},
+          ),
+        ),
+      );
+
+      expect(find.text('Premium is now active'), findsOneWidget);
+      expect(
+        find.text('TaraVerse Premium has been activated for Aarav.'),
+        findsOneWidget,
+      );
+      expect(find.text('6-Month Plan'), findsOneWidget);
+      expect(find.text('For Aarav'), findsOneWidget);
+      expect(find.text('Now unlocked'), findsOneWidget);
+      expect(find.text('✓ Career insights'), findsOneWidget);
+      expect(find.text('✓ Property insights'), findsOneWidget);
+      expect(find.text('✓ Vehicle insights'), findsOneWidget);
+      expect(find.text('✓ Personalized Ask Tara'), findsOneWidget);
+      expect(find.text('Explore My Insights'), findsOneWidget);
+      expect(find.text('TaraVerse Premium Active'), findsNothing);
+      expect(find.textContaining('Valid until'), findsNothing);
+      razorpay.dispose();
+      product.dispose();
+    },
+  );
+
+  testWidgets('verified payment renders the selected twelve-month plan', (
     tester,
   ) async {
     final product = _controller();
@@ -636,6 +689,46 @@ void main() {
       checkout: _RazorpayCheckout(),
       entitlements: entitlements,
     );
+    await razorpay.start(
+      birthProfileId: 'profile-a',
+      logicalSku: 'career_premium_razorpay_12_month',
+    );
+
+    await tester.pumpWidget(
+      _app(
+        CareerPremiumPaywall(
+          productController: product,
+          razorpayController: razorpay,
+          razorpayProfileId: 'profile-a',
+          dedicatedRazorpaySurface: true,
+          hasAccess: false,
+          entitlementMode: 'NONE',
+          activeProfileLabel: 'Aarav',
+          onSubscribePressed: () {},
+          onContinuePressed: () {},
+        ),
+      ),
+    );
+
+    expect(find.text('12-Month Plan'), findsOneWidget);
+    expect(find.text('6-Month Plan'), findsNothing);
+    razorpay.dispose();
+    product.dispose();
+  });
+
+  testWidgets('verified payment uses the selected Hinglish success copy', (
+    tester,
+  ) async {
+    final product = _controller();
+    final entitlements = _RazorpayEntitlements()
+      ..value = CareerEligibilityState.eligible;
+    final razorpay = RazorpayCareerPremiumController(
+      api: _RazorpayApi(false),
+      checkout: _RazorpayCheckout(),
+      entitlements: entitlements,
+    );
+    final language = CareerExplanationLanguageController(_LanguageStorage());
+    await language.setLanguage(CareerExplanationLanguage.hinglish);
     await razorpay.start(
       birthProfileId: 'profile-a',
       logicalSku: 'career_premium_razorpay_6_month',
@@ -650,15 +743,22 @@ void main() {
           dedicatedRazorpaySurface: true,
           hasAccess: false,
           entitlementMode: 'NONE',
+          activeProfileLabel: 'Aarav',
+          languageController: language,
           onSubscribePressed: () {},
           onContinuePressed: () {},
         ),
       ),
     );
 
-    expect(find.text('Base price: ₹399'), findsOneWidget);
-    expect(find.text('GST @18%: ₹71.82'), findsOneWidget);
-    expect(find.text('Total: ₹470.82'), findsOneWidget);
+    expect(find.text('Premium ab active hai'), findsOneWidget);
+    expect(
+      find.text('TaraVerse Premium Aarav ke liye activate ho gaya hai.'),
+      findsOneWidget,
+    );
+    expect(find.text('Ab unlock hai'), findsOneWidget);
+    expect(find.text('Mere Insights Dekhein'), findsOneWidget);
+    language.dispose();
     razorpay.dispose();
     product.dispose();
   });
@@ -929,8 +1029,8 @@ void main() {
       ),
     );
 
-    expect(find.text('TaraVerse Premium is now active.'), findsOneWidget);
-    expect(find.text('Continue'), findsOneWidget);
+    expect(find.text('Premium is now active'), findsOneWidget);
+    expect(find.text('Explore My Insights'), findsOneWidget);
     expect(api.createCalls, 1);
     razorpay.dispose();
     product.dispose();
@@ -1365,6 +1465,14 @@ class _RazorpayEntitlements implements CareerPremiumEntitlementRefresher {
 
   @override
   Future<void> refreshEligibility() async {}
+}
+
+class _LanguageStorage implements CareerExplanationLanguageStorage {
+  @override
+  Future<String?> readLanguage() async => null;
+
+  @override
+  Future<void> writeLanguage(CareerExplanationLanguage language) async {}
 }
 
 class _PaywallApi implements PaymentApiClient {
