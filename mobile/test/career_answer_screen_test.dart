@@ -75,6 +75,20 @@ void main() {
     expect(find.text('Open Career'), findsOneWidget);
   });
 
+  test('reuses a Career answer for the same profile and question', () async {
+    final repository = _Answers(answer: _answer(window: true));
+    final harness = await _Harness.create(repository);
+
+    await harness.controller.load(CareerQuestionType.careerActivityTiming);
+    await harness.controller.load(CareerQuestionType.careerActivityTiming);
+
+    expect(repository.profileIds, ['profile-a']);
+    expect(repository.questionTypes, [CareerQuestionType.careerActivityTiming]);
+    expect(harness.controller.answer?.window, isNotNull);
+
+    harness.dispose();
+  });
+
   testWidgets('renders loading and then a grounded possible activity answer', (
     tester,
   ) async {

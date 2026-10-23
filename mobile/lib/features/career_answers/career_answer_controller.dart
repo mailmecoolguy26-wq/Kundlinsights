@@ -42,6 +42,9 @@ class CareerAnswerController extends ChangeNotifier {
   final ProfileController _profiles;
   final DebugLocalStoreKitEntitlementSession?
   _debugLocalStoreKitEntitlementSession;
+  final Map<_CareerAnswerCacheKey, CareerAnswer> _answersByScope = {};
+  final Map<_CareerAnswerCacheKey, Future<void>> _inFlightLoads = {};
+  final Map<_CareerAnswerCacheKey, Object> _inFlightKeys = {};
   CareerAnswerLoadState _state = CareerAnswerLoadState.initial;
   CareerAnswer? _answer;
   Object? _error;
@@ -54,20 +57,61 @@ class CareerAnswerController extends ChangeNotifier {
   CareerAnswer? get answer => _answer;
   Object? get error => _error;
 
-  Future<void> load(CareerQuestionType questionType) async {
+  /// A Career answer is a profile- and question-scoped session result. Route
+  /// re-entry therefore does not erase a valid answer before showing it.
+  Future<void> load(CareerQuestionType questionType, {bool force = false}) {
     final profileId = _profiles.activeProfile?.id;
-    if (profileId == null || profileId.isEmpty) return;
+    if (profileId == null || profileId.isEmpty) return Future.value();
+    final subject = _profiles.activeAuthenticatedSubject;
+    final key = _CareerAnswerCacheKey(subject, profileId, questionType);
+    final cached = _answersByScope[key];
+    if (!force && cached != null && !_isPremiumRequired(cached)) {
+      _profileId = profileId;
+      _questionType = questionType;
+      _answer = cached;
+      _error = null;
+      _state = CareerAnswerLoadState.loaded;
+      notifyListeners();
+      return Future.value();
+    }
+    final inFlight = _inFlightLoads[key];
+    if (inFlight != null) return inFlight;
+
     final generation = ++_generation;
     _profileId = profileId;
     _questionType = questionType;
-    _state = CareerAnswerLoadState.loading;
-    _answer = null;
+    _state = cached == null
+        ? CareerAnswerLoadState.loading
+        : CareerAnswerLoadState.loaded;
+    _answer = cached;
     _error = null;
     notifyListeners();
     _debugAnswer(
       'CAREER_ANSWER_FETCH_START profile=${_safeProfile(profileId)} '
       'type=${questionType.wireName}',
     );
+    final requestKey = Object();
+    final request = _loadFromRepository(
+      key: key,
+      profileId: profileId,
+      questionType: questionType,
+      generation: generation,
+      cached: cached,
+      requestKey: requestKey,
+    );
+    _inFlightLoads[key] = request;
+    _inFlightKeys[key] = requestKey;
+    return request;
+  }
+
+  Future<void> _loadFromRepository({
+    required _CareerAnswerCacheKey key,
+    required String profileId,
+    required CareerQuestionType questionType,
+    required int generation,
+    required CareerAnswer? cached,
+    required Object requestKey,
+  }) async {
     try {
       final result =
           _hasLocalDebugJobFavourabilityAccess(profileId, questionType)
@@ -76,6 +120,13 @@ class CareerAnswerController extends ChangeNotifier {
               birthProfileId: profileId,
               questionType: questionType,
             );
+      if (key.subject == _profiles.activeAuthenticatedSubject) {
+        if (_isPremiumRequired(result)) {
+          _answersByScope.remove(key);
+        } else {
+          _answersByScope[key] = result;
+        }
+      }
       if (!_current(generation, profileId)) return;
       _answer = result;
       _state = CareerAnswerLoadState.loaded;
@@ -86,9 +137,19 @@ class CareerAnswerController extends ChangeNotifier {
     } catch (error) {
       if (!_current(generation, profileId)) return;
       _error = error;
-      _state = CareerAnswerLoadState.error;
+      if (cached != null) {
+        _answer = cached;
+        _state = CareerAnswerLoadState.loaded;
+      } else {
+        _state = CareerAnswerLoadState.error;
+      }
+    } finally {
+      if (identical(_inFlightKeys[key], requestKey)) {
+        _inFlightLoads.remove(key);
+        _inFlightKeys.remove(key);
+      }
+      if (_current(generation, profileId)) notifyListeners();
     }
-    notifyListeners();
   }
 
   void _onProfileChanged() {
@@ -96,6 +157,11 @@ class CareerAnswerController extends ChangeNotifier {
     if (id == _profileId) return;
     final previous = _profileId;
     _generation++;
+    if (_profiles.activeAuthenticatedSubject == null) {
+      _answersByScope.clear();
+      _inFlightLoads.clear();
+      _inFlightKeys.clear();
+    }
     _profileId = id;
     _state = CareerAnswerLoadState.initial;
     _answer = null;
@@ -120,7 +186,7 @@ class CareerAnswerController extends ChangeNotifier {
         )) {
       return;
     }
-    unawaited(load(CareerQuestionType.jobFavourabilityTiming));
+    unawaited(load(CareerQuestionType.jobFavourabilityTiming, force: true));
   }
 
   bool _hasLocalDebugJobFavourabilityAccess(
@@ -133,6 +199,9 @@ class CareerAnswerController extends ChangeNotifier {
             birthProfileId: profileId,
           ) ??
           false);
+
+  bool _isPremiumRequired(CareerAnswer answer) =>
+      answer.answerability == CareerAnswerability.premiumRequired;
 
   void _debugAnswer(String message) {
     if (kDebugMode) debugPrint(message);
@@ -156,4 +225,21 @@ class CareerAnswerController extends ChangeNotifier {
     );
     super.dispose();
   }
+}
+
+class _CareerAnswerCacheKey {
+  const _CareerAnswerCacheKey(this.subject, this.profileId, this.questionType);
+  final String? subject;
+  final String profileId;
+  final CareerQuestionType questionType;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _CareerAnswerCacheKey &&
+      other.subject == subject &&
+      other.profileId == profileId &&
+      other.questionType == questionType;
+
+  @override
+  int get hashCode => Object.hash(subject, profileId, questionType);
 }

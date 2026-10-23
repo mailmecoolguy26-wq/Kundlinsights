@@ -84,6 +84,7 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
   bool _routerReady = false;
   late final AppActivityThrottle _activityThrottle;
   late final AppActivityThrottle _entitlementRefreshThrottle;
+  final Map<String, CareerEligibilityState> _domainEntitlementStates = {};
   final _foregroundPresenter = ForegroundPushPresenter();
 
   @override
@@ -211,6 +212,7 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
     authController.addListener(_tryDrainPushIntents);
     authController.addListener(_refreshEntitlementForAuthenticatedSession);
     _profiles.addListener(_tryDrainPushIntents);
+    _generation.addListener(_invalidateDomainCachesForEntitlementChange);
     widget.pushNotifications?.startMessageHandling(
       analytics: analytics,
       // Receiving a foreground push is deliberately passive. Its banner action
@@ -298,6 +300,25 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
     }
   }
 
+  /// Domain hubs cache only presentation results. When the established
+  /// entitlement controller observes an actual eligible/ineligible transition,
+  /// discard the affected profile cache so an old unlocked/locked projection
+  /// cannot survive that server-authoritative change.
+  void _invalidateDomainCachesForEntitlementChange() {
+    final profileId = _generation.activeBirthProfileId;
+    final state = _generation.eligibilityState;
+    if (profileId == null ||
+        (state != CareerEligibilityState.eligible &&
+            state != CareerEligibilityState.ineligible)) {
+      return;
+    }
+    final previous = _domainEntitlementStates[profileId];
+    _domainEntitlementStates[profileId] = state;
+    if (previous == null || previous == state) return;
+    _vehicleAnswers.invalidateProfile(profileId);
+    _propertyAnswers.invalidateProfile(profileId);
+  }
+
   Future<void> _drainPushIntents() async {
     final handled = await _pushDrain.drain();
     if (handled && _pushDrain.queue.hasPending) _tryDrainPushIntents();
@@ -327,6 +348,7 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
       _refreshEntitlementForAuthenticatedSession,
     );
     _profiles.removeListener(_tryDrainPushIntents);
+    _generation.removeListener(_invalidateDomainCachesForEntitlementChange);
     _careerExplanationLanguage.dispose();
     _razorpayPremium?.dispose();
     _router.dispose();

@@ -11,6 +11,57 @@ import 'package:kundlinsights_mobile/features/property/domain/property_answer_re
 import 'package:kundlinsights_mobile/features/property/property_answer_controller.dart';
 
 void main() {
+  test('reuses a cached Property answer for the same profile', () async {
+    final harness = await _Harness.create();
+    harness.repository.responses['profile-a'] = _answer('STRONG');
+
+    await harness.controller.load();
+    await harness.controller.load();
+
+    expect(harness.repository.callsFor('profile-a'), 1);
+    expect(harness.controller.answer?.classification, 'STRONG');
+
+    harness.dispose();
+  });
+
+  test('keeps a cached Property answer when a forced refresh fails', () async {
+    final harness = await _Harness.create();
+    harness.repository.responses['profile-a'] = _answer('STRONG');
+    await harness.controller.load();
+    harness.repository.failures['profile-a'] = StateError('offline');
+
+    await harness.controller.load(force: true);
+
+    expect(harness.repository.callsFor('profile-a'), 2);
+    expect(harness.controller.state, PropertyAnswerLoadState.loaded);
+    expect(harness.controller.answer?.classification, 'STRONG');
+    expect(harness.controller.error, isA<StateError>());
+
+    harness.dispose();
+  });
+
+  test(
+    'keeps Property results profile scoped and restores only that cache',
+    () async {
+      final harness = await _Harness.create();
+      harness.repository.responses['profile-a'] = _answer('STRONG');
+      harness.repository.responses['profile-b'] = _answer('MIXED');
+
+      await harness.controller.load();
+      harness.profiles.select(harness.profiles.profiles.last);
+      await Future<void>.delayed(Duration.zero);
+      expect(harness.controller.answer?.classification, 'MIXED');
+      harness.profiles.select(harness.profiles.profiles.first);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(harness.controller.answer?.classification, 'STRONG');
+      expect(harness.repository.callsFor('profile-a'), 1);
+      expect(harness.repository.callsFor('profile-b'), 1);
+
+      harness.dispose();
+    },
+  );
+
   test(
     'profile switch clears Property state and rejects a stale answer',
     () async {
@@ -41,13 +92,54 @@ void main() {
 
 class _Answers implements PropertyAnswerRepository {
   final a = Completer<PropertyAnswer>();
+  final responses = <String, PropertyAnswer>{};
+  final failures = <String, Object>{};
+  final calls = <String, int>{};
+
+  int callsFor(String profileId) => calls[profileId] ?? 0;
 
   @override
   Future<PropertyAnswer> getAnswer({
     required String birthProfileId,
     required PropertyIntent intent,
-  }) =>
-      birthProfileId == 'profile-a' ? a.future : Future.value(_answer('MIXED'));
+  }) {
+    calls[birthProfileId] = callsFor(birthProfileId) + 1;
+    final failure = failures[birthProfileId];
+    if (failure != null) return Future.error(failure);
+    final answer = responses[birthProfileId];
+    if (answer != null) return Future.value(answer);
+    return birthProfileId == 'profile-a'
+        ? a.future
+        : Future.value(_answer('MIXED'));
+  }
+}
+
+class _Harness {
+  _Harness._(this.auth, this.profiles, this.repository, this.controller);
+  final AuthController auth;
+  final ProfileController profiles;
+  final _Answers repository;
+  final PropertyAnswerController controller;
+
+  static Future<_Harness> create() async {
+    final auth = AuthController(_Auth());
+    await auth.restore();
+    final profiles = ProfileController(_Profiles(), auth);
+    await Future<void>.delayed(Duration.zero);
+    final repository = _Answers();
+    return _Harness._(
+      auth,
+      profiles,
+      repository,
+      PropertyAnswerController(repository, profiles),
+    );
+  }
+
+  void dispose() {
+    controller.dispose();
+    profiles.dispose();
+    auth.dispose();
+  }
 }
 
 PropertyAnswer _answer(String classification) => PropertyAnswer(
