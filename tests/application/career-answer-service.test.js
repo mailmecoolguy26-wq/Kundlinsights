@@ -228,6 +228,25 @@ test('contains a beta evaluator failure behind a safe no-concentration response'
   assert.equal(answer.broadWindow, null);
 });
 
+test('an entitled profile with no Career Events still receives a grounded timing window', async () => {
+  const value = detail({
+    careerTimingPeriods: [{ ...detail().careerTimingPeriods[0], recurrenceSummary: undefined }],
+  });
+  const answer = await new CareerAnswerService({ secureReadingService: service({ value }) }).answer({
+    principal: {},
+    birthProfileId: 'profile-a',
+    body: { questionType: CareerQuestionType.CAREER_ACTIVITY_TIMING },
+  });
+  assert.equal(answer.answerability, Answerability.SUPPORTED);
+  assert.deepEqual(answer.answer.window, {
+    start: '2026-11-20T00:00:00.000Z',
+    end: '2027-01-10T00:00:00.000Z',
+    classification: 'POSSIBLE_CAREER_ACTIVITY_SIGNAL',
+  });
+  assert.equal(answer.historicalContext, null);
+  assert.equal(answer.evidence.some((item) => item.family === 'HISTORICAL_PATTERN'), false);
+});
+
 test('D10, Ashtakavarga, recurrence, H6 research context, and provisional Gochar cannot create, rank, or narrow job favourability', async () => {
   const value = detail({
     careerTimingPeriods: [{ ...detail().careerTimingPeriods[0], technicalDetails: { dasha: { periods: [] }, gochar: [{ transitPlanet: 'Jupiter' }], d10: { confirmationPresent: true } } }],

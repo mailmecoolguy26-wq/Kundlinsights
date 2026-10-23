@@ -10,6 +10,36 @@ function step(log, name, status, error = null) {
   if (typeof log !== 'function') return;
   log({ event: 'CAREER_READING_INTERPRETER_STEP', step: name, status, ...(error ? { errorClass: typeof error.name === 'string' ? error.name : 'Error', errorMessage: typeof error.message === 'string' ? error.message.slice(0, 160) : 'UNKNOWN_ERROR', stackFrames: safeStackFrames(error) } : {}) });
 }
+// Career History is calibration only. Its absence must never make the
+// deterministic natal/Dasha/transit reading unavailable or require a provider
+// generation call merely to say that no history has been recorded.
+function deterministicCalibration(context) {
+  const eventCount = Array.isArray(context && context.eventReferences)
+    ? context.eventReferences.length
+    : 0;
+  const calibrationLevel = context && context.calibrationLevel;
+  if (!['NONE', 'LIMITED', 'CALIBRATED'].includes(calibrationLevel)) {
+    fail('INVALID_CAREER_READING_CONTEXT');
+  }
+  const narrative = calibrationLevel === 'NONE'
+    ? 'No Career History has been added yet. Past Career Events can help personalize this interpretation further.'
+    : calibrationLevel === 'LIMITED'
+      ? 'Career History provides limited personal context at present.'
+      : 'Career History is available as additional personal context.';
+  return {
+    schemaVersion: 'career-reading-interpretation-schema-v1',
+    calibrationSummary: { calibrationLevel, narrative, eventCount },
+    recurringHistoricalEvidence: [],
+    upcomingRecurrenceWindows: [],
+    decisionConsiderations: [],
+    disclosure: {
+      hasProvisionalEvidence: Boolean(
+        context && context.calculationBasis &&
+            context.calculationBasis.hasProvisionalEvidence,
+      ),
+    },
+  };
+}
 class CareerReadingInterpreter {
   constructor({ careerReadingContextBuilder, generator, outputValidator } = {}) { if (!careerReadingContextBuilder || typeof careerReadingContextBuilder.build !== 'function' || !generator || typeof generator.generate !== 'function') fail('INVALID_CAREER_READING_INTERPRETER'); this.contextBuilder = careerReadingContextBuilder; this.generator = generator; this.validator = outputValidator || new CareerReadingOutputValidator(); if (typeof this.validator.validate !== 'function') fail('INVALID_CAREER_READING_INTERPRETER'); }
   async interpret({ principal, birthProfileId } = {}) { return this.interpretContext(await this.contextBuilder.build({ principal, birthProfileId })); }
@@ -17,8 +47,16 @@ class CareerReadingInterpreter {
     let interpretationInput;
     try { step(diagnosticLog, 'VALIDATE_INPUT', 'STARTED'); interpretationInput = createInterpretationInput(context); step(diagnosticLog, 'VALIDATE_INPUT', 'SUCCEEDED'); } catch (error) { step(diagnosticLog, 'VALIDATE_INPUT', 'FAILED', error); throw error; }
     let candidate;
-    try { candidate = await this.generator.generate({ interpretationInput, diagnosticLog }); if (typeof diagnosticLog === 'function') diagnosticLog({ event: 'CAREER_READING_CALCULATION', state: 'INTERPRETATION_SUCCEEDED' }); } catch (error) { step(diagnosticLog, 'BUILD_FINAL_READING', 'FAILED', error); if (typeof diagnosticLog === 'function') diagnosticLog({ event: 'CAREER_READING_CALCULATION', state: 'INTERPRETATION_FAILED', safeErrorCode: typeof error.code === 'string' ? error.code : 'UNKNOWN_ERROR', errorClass: typeof error.name === 'string' ? error.name : 'Error' }); if (error && error.code === 'READING_GENERATION_FAILED') throw error; fail('READING_GENERATION_FAILED'); }
+    // No saved events means there is no recurrence material to interpret.
+    // Keep the result deterministic and do not depend on the calibration
+    // provider for a normal no-history Career reading.
+    if (context.calibrationLevel === 'NONE') {
+      candidate = deterministicCalibration(context);
+      step(diagnosticLog, 'NO_HISTORY_CALIBRATION', 'SUCCEEDED');
+    } else {
+      try { candidate = await this.generator.generate({ interpretationInput, diagnosticLog }); if (typeof diagnosticLog === 'function') diagnosticLog({ event: 'CAREER_READING_CALCULATION', state: 'INTERPRETATION_SUCCEEDED' }); } catch (error) { step(diagnosticLog, 'BUILD_FINAL_READING', 'FAILED', error); if (typeof diagnosticLog === 'function') diagnosticLog({ event: 'CAREER_READING_CALCULATION', state: 'INTERPRETATION_FAILED', safeErrorCode: typeof error.code === 'string' ? error.code : 'UNKNOWN_ERROR', errorClass: typeof error.name === 'string' ? error.name : 'Error' }); if (error && error.code === 'READING_GENERATION_FAILED') throw error; fail('READING_GENERATION_FAILED'); }
+    }
     try { step(diagnosticLog, 'BUILD_FINAL_READING', 'STARTED'); const output = this.validator.validate({ context, candidate }); step(diagnosticLog, 'BUILD_FINAL_READING', 'SUCCEEDED'); if (typeof diagnosticLog === 'function') diagnosticLog({ event: 'CAREER_READING_CALCULATION', state: 'OUTPUT_VALIDATED' }); return output; } catch (error) { step(diagnosticLog, 'BUILD_FINAL_READING', 'FAILED', error); if (typeof diagnosticLog === 'function') diagnosticLog({ event: 'CAREER_READING_CALCULATION', state: 'OUTPUT_INVALID', safeErrorCode: typeof error.code === 'string' ? error.code : 'UNKNOWN_ERROR', errorClass: typeof error.name === 'string' ? error.name : 'Error' }); if (error && error.code === 'READING_GENERATION_INVALID_OUTPUT') throw error; fail('READING_GENERATION_INVALID_OUTPUT'); }
   }
 }
-module.exports = { CareerReadingInterpreter };
+module.exports = { CareerReadingInterpreter, deterministicCalibration };
