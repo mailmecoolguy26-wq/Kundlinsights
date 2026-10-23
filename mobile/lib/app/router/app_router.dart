@@ -454,6 +454,7 @@ GoRouter createAppRouter(
             return CareerPremiumPaywall(
               dedicatedRazorpaySurface: true,
               activeProfileLabel: profiles.activeProfile?.label,
+              languageController: careerExplanationLanguage,
               razorpayProfileId: profileId,
               generationController: generation,
               analytics: analytics ?? Analytics(const NoopAnalyticsProvider()),

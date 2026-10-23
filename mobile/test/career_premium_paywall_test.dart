@@ -807,7 +807,7 @@ void main() {
       ),
     );
 
-    expect(find.text('CHECK PAYMENT STATUS'), findsOneWidget);
+    expect(find.text('CHECK PREMIUM STATUS'), findsOneWidget);
     expect(find.text('Try Again'), findsNothing);
     expect(find.text('Unlock TaraVerse Premium — ₹588.82'), findsNothing);
     razorpay.dispose();
@@ -884,9 +884,9 @@ void main() {
     );
 
     expect(find.text('TRY AGAIN'), findsNothing);
-    expect(find.text('CHECK PAYMENT STATUS'), findsOneWidget);
+    expect(find.text('CHECK PREMIUM STATUS'), findsOneWidget);
     expect(find.text('Choose Another Payment Method'), findsNothing);
-    await tester.tap(find.text('CHECK PAYMENT STATUS'));
+    await tester.tap(find.text('CHECK PREMIUM STATUS'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 1));
     expect(api.statusCalls, 1);
@@ -929,8 +929,8 @@ void main() {
       ),
     );
 
-    expect(find.text('TaraVerse Premium is now unlocked'), findsOneWidget);
-    expect(find.text('View My Career Forecast'), findsOneWidget);
+    expect(find.text('TaraVerse Premium is now active.'), findsOneWidget);
+    expect(find.text('Continue'), findsOneWidget);
     expect(api.createCalls, 1);
     razorpay.dispose();
     product.dispose();

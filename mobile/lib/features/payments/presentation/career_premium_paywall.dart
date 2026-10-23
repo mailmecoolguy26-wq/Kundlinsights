@@ -7,6 +7,7 @@ import '../../../core/analytics/analytics.dart';
 import '../../../shared/widgets/app_card.dart';
 import '../career_premium_product_controller.dart';
 import '../../readings/career_reading_generation_controller.dart';
+import '../../readings/career_explanation_language.dart';
 import '../career_premium_purchase_controller.dart';
 import '../data/apple_store_purchase_service.dart';
 import '../razorpay_career_premium_controller.dart';
@@ -34,6 +35,7 @@ class CareerPremiumPaywall extends StatefulWidget {
     this.activeProfileLabel,
     this.razorpayProfileId,
     this.generationController,
+    this.languageController,
     this.analytics,
     this.onPaywallDisplayed,
     this.onLocalDebugEntitlementActivated,
@@ -58,6 +60,7 @@ class CareerPremiumPaywall extends StatefulWidget {
   final String? activeProfileLabel;
   final String? razorpayProfileId;
   final CareerReadingGenerationController? generationController;
+  final CareerExplanationLanguageController? languageController;
   final Analytics? analytics;
   final Future<void> Function(String birthProfileId)? onPaywallDisplayed;
   final VoidCallback? onLocalDebugEntitlementActivated;
@@ -187,6 +190,8 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
                     widget.razorpayController!,
                     if (widget.generationController != null)
                       widget.generationController!,
+                    if (widget.languageController != null)
+                      widget.languageController!,
                   ]),
                   builder: (context, child) => _ProductAction(
                     controller: widget.productController,
@@ -238,6 +243,10 @@ class _CareerPremiumPaywallState extends State<CareerPremiumPaywall> {
                     generationState:
                         widget.generationController?.generationState,
                     isAddOnPurchase: isAddOnPurchase,
+                    profileLabel: widget.activeProfileLabel,
+                    hinglish:
+                        widget.languageController?.language ==
+                        CareerExplanationLanguage.hinglish,
                   ),
                 ),
               ],
@@ -474,6 +483,8 @@ class _ProductAction extends StatelessWidget {
     this.razorpayGstRateBasisPoints,
     this.generationState,
     this.isAddOnPurchase = false,
+    this.profileLabel,
+    this.hinglish = false,
   });
   final CareerPremiumProductController controller;
   final VoidCallback onSubscribePressed;
@@ -496,6 +507,8 @@ class _ProductAction extends StatelessWidget {
   final int? razorpayGstRateBasisPoints;
   final CareerGenerationState? generationState;
   final bool isAddOnPurchase;
+  final String? profileLabel;
+  final bool hinglish;
 
   @override
   Widget build(BuildContext context) {
@@ -516,6 +529,8 @@ class _ProductAction extends StatelessWidget {
             baseAmountLabel: _razorpayAmountLabel(razorpayBaseAmountMinor),
             gstAmountLabel: _razorpayAmountLabel(razorpayGstAmountMinor),
             gstRateBasisPoints: razorpayGstRateBasisPoints,
+            profileLabel: profileLabel,
+            hinglish: hinglish,
           );
         case RazorpayCareerPremiumState.checkoutOpen:
           return const SizedBox.shrink();
@@ -528,6 +543,8 @@ class _ProductAction extends StatelessWidget {
             baseAmountLabel: _razorpayAmountLabel(razorpayBaseAmountMinor),
             gstAmountLabel: _razorpayAmountLabel(razorpayGstAmountMinor),
             gstRateBasisPoints: razorpayGstRateBasisPoints,
+            profileLabel: profileLabel,
+            hinglish: hinglish,
           );
         case RazorpayCareerPremiumState.definitiveFailure:
           return _RazorpayFailure(
@@ -539,11 +556,13 @@ class _ProductAction extends StatelessWidget {
             baseAmountLabel: _razorpayAmountLabel(razorpayBaseAmountMinor),
             gstAmountLabel: _razorpayAmountLabel(razorpayGstAmountMinor),
             gstRateBasisPoints: razorpayGstRateBasisPoints,
+            hinglish: hinglish,
           );
         case RazorpayCareerPremiumState.paymentStatusUnknown:
           return _RazorpayUnknown(
             onCheck: onRazorpayRecover ?? () {},
             onHome: onBackHomePressed ?? () {},
+            hinglish: hinglish,
           );
         case RazorpayCareerPremiumState.idle:
           break;
@@ -956,11 +975,11 @@ class _CalibrationStage extends StatelessWidget {
 String _razorpayPlanLabel(String? logicalSku) {
   switch (logicalSku) {
     case 'career_premium_razorpay_6_month':
-      return '6-MONTH ACCESS';
+      return '6-Month Plan';
     case 'career_premium_razorpay_12_month':
-      return '12-MONTH ACCESS';
+      return '12-Month Plan';
     default:
-      return 'CAREER PREMIUM';
+      return 'Premium Plan';
   }
 }
 
@@ -973,6 +992,78 @@ String? _razorpayAmountLabel(int? amountMinor) {
       : '₹$rupees.${paise.toString().padLeft(2, '0')}';
 }
 
+class _PremiumStatusSurface extends StatelessWidget {
+  const _PremiumStatusSurface({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: const Color(0xFF0B2626),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: const Color(0xFF3F8179)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
+    ),
+  );
+}
+
+class _PremiumPlanSummary extends StatelessWidget {
+  const _PremiumPlanSummary({
+    required this.planLabel,
+    required this.profileLabel,
+    required this.hinglish,
+  });
+
+  final String planLabel;
+  final String? profileLabel;
+  final bool hinglish;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: const Color(0xFF114A46),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: const Color(0x5535B9AC)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'TaraVerse Premium',
+          style: TextStyle(
+            color: Color(0xFFF7F4EC),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(planLabel, style: const TextStyle(color: Color(0xFFD6B15A))),
+        if (profileLabel != null && profileLabel!.trim().isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            hinglish ? '${profileLabel!} ke liye' : 'For $profileLabel',
+            style: const TextStyle(color: Color(0xFFA8B7B4)),
+          ),
+        ],
+        const SizedBox(height: 10),
+        Text(
+          hinglish
+              ? 'Career, Property, Vehicle aur personalized Ask Tara is profile ke liye unlock honge.'
+              : 'Unlocks Career, Property, Vehicle and personalized Ask Tara for this profile.',
+          style: const TextStyle(color: Color(0xFFA8B7B4), height: 1.35),
+        ),
+      ],
+    ),
+  );
+}
+
 class _RazorpayProcessing extends StatelessWidget {
   const _RazorpayProcessing({
     required this.planLabel,
@@ -980,44 +1071,41 @@ class _RazorpayProcessing extends StatelessWidget {
     required this.baseAmountLabel,
     required this.gstAmountLabel,
     required this.gstRateBasisPoints,
+    required this.profileLabel,
+    required this.hinglish,
   });
   final String planLabel;
   final String? amountLabel;
   final String? baseAmountLabel;
   final String? gstAmountLabel;
   final int? gstRateBasisPoints;
+  final String? profileLabel;
+  final bool hinglish;
   @override
-  Widget build(BuildContext c) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext c) => _PremiumStatusSurface(
     children: [
+      const Icon(Icons.auto_awesome, color: Color(0xFFD6B15A), size: 34),
+      const SizedBox(height: 14),
       Text(
-        'CAREER PREMIUM',
-        style: TextStyle(
-          color: Color(0xFFD6B15A),
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-      SizedBox(height: 10),
-      Icon(Icons.auto_awesome, color: Color(0xFFD6B15A), size: 34),
-      SizedBox(height: 10),
-      Text(
-        'Processing your payment',
-        style: TextStyle(
+        hinglish ? 'Payment confirm ho rahi hai' : 'Confirming your payment',
+        style: const TextStyle(
           color: Color(0xFFF7F4EC),
           fontSize: 25,
           fontWeight: FontWeight.w600,
         ),
       ),
-      SizedBox(height: AppSpacing.xs),
+      const SizedBox(height: AppSpacing.xs),
       Text(
-        'Please wait while we securely confirm your payment.',
-        style: TextStyle(color: Color(0xFFA8B7B4)),
+        hinglish
+            ? 'Please wait karein jab tak hum aapki subscription securely confirm karte hain.'
+            : 'Please wait while we securely confirm your subscription.',
+        style: const TextStyle(color: Color(0xFFA8B7B4)),
       ),
-      SizedBox(height: AppSpacing.sm),
-      Text(
-        'CAREER PREMIUM · $planLabel',
-        style: const TextStyle(color: Color(0xFFD6B15A)),
+      const SizedBox(height: 20),
+      _PremiumPlanSummary(
+        planLabel: planLabel,
+        profileLabel: profileLabel,
+        hinglish: hinglish,
       ),
       _RazorpayAmountBreakdown(
         baseAmountLabel: baseAmountLabel,
@@ -1026,13 +1114,23 @@ class _RazorpayProcessing extends StatelessWidget {
         totalAmountLabel: amountLabel,
         largeTotal: true,
       ),
-      SizedBox(height: AppSpacing.sm),
-      LinearProgressIndicator(),
-      Text('Confirming payment…', style: TextStyle(color: Color(0xFFF7F4EC))),
-      SizedBox(height: AppSpacing.xs),
+      const SizedBox(height: AppSpacing.sm),
+      const Center(child: CircularProgressIndicator(color: Color(0xFF35B9AC))),
+      const SizedBox(height: 12),
+      Center(
+        child: Text(
+          hinglish
+              ? 'Subscription confirm ho rahi hai…'
+              : 'Confirming subscription…',
+          style: const TextStyle(color: Color(0xFFF7F4EC)),
+        ),
+      ),
+      const SizedBox(height: AppSpacing.sm),
       Text(
-        'Please do not close the app or press back while your payment is being confirmed.',
-        style: TextStyle(color: Color(0xFFA8B7B4), fontSize: 12),
+        hinglish
+            ? 'Payment confirm hone tak app close na karein. Ismein kuch seconds lag sakte hain.'
+            : "Please don't close the app while your payment is being confirmed. This usually takes a few seconds.",
+        style: const TextStyle(color: Color(0xFFA8B7B4), fontSize: 12),
       ),
     ],
   );
@@ -1047,6 +1145,8 @@ class _RazorpaySuccess extends StatelessWidget {
     required this.baseAmountLabel,
     required this.gstAmountLabel,
     required this.gstRateBasisPoints,
+    required this.profileLabel,
+    required this.hinglish,
   });
   final VoidCallback onContinue;
   final VoidCallback onHome;
@@ -1055,6 +1155,8 @@ class _RazorpaySuccess extends StatelessWidget {
   final String? baseAmountLabel;
   final String? gstAmountLabel;
   final int? gstRateBasisPoints;
+  final String? profileLabel;
+  final bool hinglish;
   @override
   Widget build(BuildContext c) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1066,30 +1168,31 @@ class _RazorpaySuccess extends StatelessWidget {
       const SizedBox(height: 10),
       const Icon(Icons.verified_rounded, color: Color(0xFFD6B15A), size: 38),
       const SizedBox(height: 10),
-      const Text(
-        'TaraVerse Premium is now unlocked',
+      Text(
+        hinglish
+            ? 'TaraVerse Premium ${profileLabel ?? 'is profile'} ke liye active hai.'
+            : 'TaraVerse Premium is now active${profileLabel == null ? '' : ' for $profileLabel'}.',
         style: TextStyle(
           color: Color(0xFFF7F4EC),
           fontSize: 24,
           fontWeight: FontWeight.w600,
         ),
       ),
-      const Text(
-        'You now have full access to your personalized career forecast and upcoming career windows.',
-        style: TextStyle(color: Color(0xFFA8B7B4)),
+      Text(
+        hinglish
+            ? 'Career, Property, Vehicle aur personalized Ask Tara is profile ke liye unlock ho gaye hain.'
+            : 'Career, Property, Vehicle and personalized Ask Tara are now unlocked for this profile.',
+        style: const TextStyle(color: Color(0xFFA8B7B4)),
       ),
       const SizedBox(height: AppSpacing.sm),
-      Text('Career Premium\n$planLabel\nStatus: Payment confirmed'),
+      Text('TaraVerse Premium\n$planLabel\nStatus: Payment confirmed'),
       _RazorpayAmountBreakdown(
         baseAmountLabel: baseAmountLabel,
         gstAmountLabel: gstAmountLabel,
         gstRateBasisPoints: gstRateBasisPoints,
         totalAmountLabel: amountLabel,
       ),
-      FilledButton(
-        onPressed: onContinue,
-        child: const Text('View My Career Forecast'),
-      ),
+      FilledButton(onPressed: onContinue, child: const Text('Continue')),
       TextButton(onPressed: onHome, child: const Text('Back to Home')),
     ],
   );
@@ -1105,6 +1208,7 @@ class _RazorpayFailure extends StatelessWidget {
     required this.baseAmountLabel,
     required this.gstAmountLabel,
     required this.gstRateBasisPoints,
+    required this.hinglish,
   });
   final bool canRetry;
   final VoidCallback onRetry;
@@ -1114,6 +1218,7 @@ class _RazorpayFailure extends StatelessWidget {
   final String? baseAmountLabel;
   final String? gstAmountLabel;
   final int? gstRateBasisPoints;
+  final bool hinglish;
   @override
   Widget build(BuildContext c) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1127,11 +1232,13 @@ class _RazorpayFailure extends StatelessWidget {
       Text(
         canRetry
             ? 'Your payment couldn’t be completed'
-            : 'Payment needs verification',
+            : (hinglish
+                  ? 'Subscription abhi confirm nahi ho saki'
+                  : "We couldn't confirm your subscription yet."),
         style: TextStyle(color: Color(0xFFF7F4EC), fontSize: 22),
       ),
       Text(
-        canRetry ? 'The payment was not completed.' : 'We already have a payment order for this attempt. Check its status before trying again.',
+        canRetry ? 'The payment was not completed.' : 'If your payment was completed, don\'t purchase again. Try refreshing your Premium status.',
         style: TextStyle(color: Color(0xFFA8B7B4)),
       ),
       _RazorpayAmountBreakdown(
@@ -1151,7 +1258,7 @@ class _RazorpayFailure extends StatelessWidget {
           backgroundColor: const Color(0xFFD6B15A),
           foregroundColor: const Color(0xFF061A1A),
         ),
-        child: Text(canRetry ? 'TRY AGAIN' : 'CHECK PAYMENT STATUS'),
+        child: Text(canRetry ? 'TRY AGAIN' : 'CHECK PREMIUM STATUS'),
       ),
       TextButton(
         onPressed: onHome,
@@ -1207,28 +1314,35 @@ class _RazorpayAmountBreakdown extends StatelessWidget {
 }
 
 class _RazorpayUnknown extends StatelessWidget {
-  const _RazorpayUnknown({required this.onCheck, required this.onHome});
+  const _RazorpayUnknown({
+    required this.onCheck,
+    required this.onHome,
+    required this.hinglish,
+  });
   final VoidCallback onCheck;
   final VoidCallback onHome;
+  final bool hinglish;
   @override
   Widget build(BuildContext c) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       const Text(
-        'CAREER PREMIUM',
+        'TARAVERSE PREMIUM',
         style: TextStyle(color: Color(0xFFD6B15A), fontWeight: FontWeight.w800),
       ),
       const SizedBox(height: 10),
-      const Text(
-        'We’re checking your payment',
+      Text(
+        hinglish ? 'Payment check ho rahi hai' : 'We’re checking your payment',
         style: TextStyle(
           color: Color(0xFFF7F4EC),
           fontSize: 24,
           fontWeight: FontWeight.w600,
         ),
       ),
-      const Text(
-        'Your payment may have been completed, but we haven’t confirmed it yet.',
+      Text(
+        hinglish
+            ? 'Payment complete ho sakta hai, lekin abhi confirm nahi hua hai.'
+            : 'Your payment may have been completed, but we haven’t confirmed it yet.',
         style: TextStyle(color: Color(0xFFA8B7B4)),
       ),
       const Text(
@@ -1241,7 +1355,7 @@ class _RazorpayUnknown extends StatelessWidget {
           backgroundColor: const Color(0xFFD6B15A),
           foregroundColor: const Color(0xFF061A1A),
         ),
-        child: const Text('CHECK PAYMENT STATUS'),
+        child: const Text('CHECK PREMIUM STATUS'),
       ),
       TextButton(
         onPressed: onHome,
