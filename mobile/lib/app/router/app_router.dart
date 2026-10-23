@@ -199,7 +199,10 @@ GoRouter createAppRouter(
                 onUnlock: () => context.push('/premium'),
               );
             case CareerEligibilityState.eligible:
-              return const CareerHubScreen();
+              return CareerHubScreen(
+                readings: readings,
+                language: careerExplanationLanguage,
+              );
           }
         },
       ),

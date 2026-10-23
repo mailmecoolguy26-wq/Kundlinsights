@@ -15,33 +15,65 @@ import 'package:kundlinsights_mobile/features/payments/data/debug_local_storekit
 import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile.dart';
 import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile_repository.dart';
 import 'package:kundlinsights_mobile/features/profiles/profile_controller.dart';
+import 'package:kundlinsights_mobile/features/readings/domain/reading.dart';
 
 void main() {
-  testWidgets(
-    'reserves only the approved unsupported Career questions as coming soon',
-    (tester) async {
-      await tester.pumpWidget(const MaterialApp(home: CareerHubScreen()));
+  testWidgets('renders the consolidated Career Hub and practical questions', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: CareerHubScreen()));
 
-      expect(find.text('CAREER & BUSINESS'), findsOneWidget);
-      expect(find.text('What do you want clarity on?'), findsOneWidget);
-      expect(find.text('My current career phase'), findsOneWidget);
-      expect(find.text('Career Activity'), findsOneWidget);
-      expect(find.text('Stronger Career Window'), findsOneWidget);
-      await tester.drag(find.byType(ListView), const Offset(0, -360));
-      await tester.pump();
-      for (final title in const [
-        'Find my next job',
-        'Should I switch jobs?',
-        'Should I start a business?',
-        'I have a job offer',
-        'Compare two offers',
-        'Promotion / growth',
-        'Career abroad',
-      ]) {
-        expect(find.text(title), findsOneWidget);
-      }
-    },
-  );
+    expect(find.text('CAREER & BUSINESS'), findsOneWidget);
+    expect(find.text('Your Career Outlook'), findsOneWidget);
+    expect(find.text('When is my next strong career window?'), findsNothing);
+    expect(find.text('My current career phase'), findsNothing);
+    expect(find.text('Career Activity'), findsNothing);
+    expect(find.text('Stronger Career Window'), findsNothing);
+    expect(find.text('DEV SAMPLE DATA'), findsNothing);
+    expect(find.text('DEV SAMPLE CONTROLS'), findsNothing);
+    await tester.drag(find.byType(ListView), const Offset(0, -360));
+    await tester.pump();
+    expect(find.text('Career Timeline'), findsOneWidget);
+    expect(find.text('Career Events'), findsOneWidget);
+    expect(find.text('View Career Timeline'), findsNothing);
+    for (final title in const [
+      'Should I switch jobs?',
+      'Should I start a business?',
+      'I have a job offer',
+      'Compare two offers',
+      'Promotion / growth',
+      'Career abroad',
+    ]) {
+      expect(find.text(title), findsOneWidget);
+    }
+  });
+
+  test('omits technical saved phase copy from the Career Hub projection', () {
+    final detail = _careerReadingDetail(
+      phase: 'A supplied 10th-house lord relation is recorded in this Career context.',
+      timingMeaning:
+          'Career-related support becomes stronger during this period.',
+    );
+
+    expect(careerHubCustomerPhase(detail), isNull);
+    expect(
+      careerHubCustomerMeaning(detail.careerTimingPeriods!.single),
+      'Career-related support becomes stronger during this period.',
+    );
+  });
+
+  test('keeps a saved customer-facing phase available to the Career Hub', () {
+    final detail = _careerReadingDetail(
+      phase: 'Your current phase is more supportive for active career conversations.',
+      timingMeaning:
+          'Career-related support becomes stronger during this period.',
+    );
+
+    expect(
+      careerHubCustomerPhase(detail),
+      'Your current phase is more supportive for active career conversations.',
+    );
+  });
 
   testWidgets('Career hub retains normal back navigation to the app shell', (
     tester,
@@ -393,6 +425,46 @@ CareerAnswer _answer({
   String? sourceReadingId = 'reading-a',
 }) => CareerAnswer.fromJson(
   _answerJson(window: window, sourceReadingId: sourceReadingId),
+);
+
+ReadingDetail _careerReadingDetail({
+  required String phase,
+  required String timingMeaning,
+}) => ReadingDetail(
+  readingId: 'reading-a',
+  birthProfileId: 'profile-a',
+  domain: 'CAREER',
+  status: 'READY',
+  createdAt: '2026-10-15T00:00:00.000Z',
+  readingInstant: '2026-10-15T00:00:00.000Z',
+  locale: 'en',
+  content: ReadingContent(
+    domain: 'CAREER',
+    locale: 'en',
+    sections: [
+      ReadingSection(
+        section: 'current-context',
+        headline: 'Current context',
+        items: [ReadingSectionItem(headline: 'Phase', sentence: phase)],
+      ),
+    ],
+  ),
+  careerTimingPeriods: [
+    CareerTimingPeriod(
+      startDate: '2026-11-20T00:00:00.000Z',
+      endDate: '2027-01-10T00:00:00.000Z',
+      evidenceState: 'MULTIPLE_TIMING_FACTORS_CONVERGE',
+      headline: 'Next stronger Career window',
+      summary: 'Technical Dasha evidence.',
+      whyItems: const [],
+      whatThisCanMean: timingMeaning,
+      professionalDirection: 'Prepare for important conversations.',
+      technicalDetails: const {},
+      disclosure: 'No guarantee.',
+      sourceRuleVersion: 'test',
+      longWindow: false,
+    ),
+  ],
 );
 
 Map<String, dynamic> _answerJson({
