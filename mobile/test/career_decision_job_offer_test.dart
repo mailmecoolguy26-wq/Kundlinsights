@@ -140,7 +140,7 @@ void main() {
     await _tapSubmit(tester);
     await tester.pumpAndSettle();
 
-    expect(find.text('SUPPORTIVE WITH CONDITIONS'), findsOneWidget);
+    expect(find.text('Supportive With Conditions'), findsOneWidget);
     expect(
       find.text('Use the current window alongside practical diligence.'),
       findsOneWidget,
@@ -151,16 +151,31 @@ void main() {
     expect(find.text('What Supports This'), findsOneWidget);
     expect(find.text('What Needs Caution'), findsOneWidget);
     expect(find.text('Practical Decision Factors'), findsOneWidget);
-    expect(find.text('What To Do'), findsOneWidget);
-    expect(find.text('View Detailed Astrology'), findsOneWidget);
+    expect(find.text('What To Do', skipOffstage: false), findsOneWidget);
+    expect(find.text('View Detailed Astrology', skipOffstage: false), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Career growth is your main priority. Compare whether this role meaningfully increases scope, learning, responsibility or future opportunities.',
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'Compare role scope, manager, compensation and joining conditions before accepting.',
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Career-linked Dasha evidence is active.'), findsNothing);
+    expect(find.text('Career foundation evidence is available.'), findsNothing);
+    expect(find.text('Ashtakavarga context is available.'), findsNothing);
     expect(
       find.text('Technical evidence is available from saved Career timing.'),
       findsNothing,
     );
 
-    await tester.drag(find.byType(ListView), const Offset(0, -400));
-    await tester.pump();
+    await _scrollTo(tester, find.text('View Detailed Astrology'));
     await tester.tap(find.text('View Detailed Astrology'));
     await tester.pumpAndSettle();
     expect(find.text('Dasha & Transit', skipOffstage: false), findsOneWidget);
@@ -186,6 +201,27 @@ void main() {
       findsOneWidget,
     );
     expect(
+      find.text(
+        '3 of 6 major Career timing signals currently align.',
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Primary Career timing evidence is available.',
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Supporting evidence is also present from D10 and Ashtakavarga and historical Career patterns.',
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(
       find.text('Technical evidence is available from saved Career timing.'),
       findsOneWidget,
     );
@@ -206,8 +242,7 @@ void main() {
     await _tapSubmit(tester);
     await tester.pumpAndSettle();
 
-    await tester.drag(find.byType(ListView), const Offset(0, -400));
-    await tester.pump();
+    await _scrollTo(tester, find.text('View Detailed Astrology'));
     await tester.tap(find.text('View Detailed Astrology'));
     await tester.pumpAndSettle();
 
@@ -254,7 +289,7 @@ void main() {
     await _tapSubmit(tester);
     await tester.pumpAndSettle();
 
-    expect(find.text('INSUFFICIENT EVIDENCE'), findsOneWidget);
+    expect(find.text('Insufficient Evidence'), findsOneWidget);
     expect(
       find.text('Use the current window alongside practical diligence.'),
       findsNothing,
@@ -357,8 +392,12 @@ CareerDecision _decision({
     'supports': ['A grounded Career timing signal is active.'],
   if (state != 'INSUFFICIENT_EVIDENCE')
     'cautions': ['Compare practical conditions before deciding.'],
-  'practicalFactors': ['Career growth remains a stated priority.'],
-  'whatToDo': ['Review the role and joining conditions.'],
+  'practicalFactors': [
+    'Compare role scope, manager, compensation and joining conditions before accepting.',
+  ],
+  'whatToDo': [
+    'Compare role scope, manager, compensation and joining conditions before accepting.',
+  ],
   'limitation': 'Technical evidence is available from saved Career timing.',
   if (detailed)
     'detailedAstrology': {

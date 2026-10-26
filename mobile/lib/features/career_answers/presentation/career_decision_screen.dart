@@ -62,6 +62,9 @@ class _CareerDecisionScreenState extends State<CareerDecisionScreen> {
         return _Result(
           decision: c.decision!,
           joiningKnown: _joining.text.isNotEmpty,
+          priorities: _priorities.toList(growable: false),
+          moveType: _move,
+          hasRole: _role.text.trim().isNotEmpty,
         );
       }
       return Scaffold(
@@ -160,12 +163,29 @@ class _CareerDecisionScreenState extends State<CareerDecisionScreen> {
 }
 
 class _Result extends StatelessWidget {
-  const _Result({required this.decision, required this.joiningKnown});
+  const _Result({
+    required this.decision,
+    required this.joiningKnown,
+    required this.priorities,
+    required this.moveType,
+    required this.hasRole,
+  });
   final CareerDecision decision;
   final bool joiningKnown;
+  final List<String> priorities;
+  final String moveType;
+  final bool hasRole;
+
   @override
   Widget build(BuildContext context) {
     final timing = decision.timing;
+    final whatToDo = _unique(decision.whatToDo);
+    final practicalFactors = _unique([
+      ..._contextualPracticalFactors(),
+      ...decision.practicalFactors.where(
+        (factor) => !_contains(whatToDo, factor),
+      ),
+    ]);
     return Scaffold(
       appBar: AppBar(title: const Text('JOB OFFER')),
       body: ListView(
@@ -175,30 +195,34 @@ class _Result extends StatelessWidget {
             'Overall View',
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
-          Text(decision.state.replaceAll('_', ' ')),
+          Text(_stateLabel(decision.state)),
           if (decision.overall.isNotEmpty) Text(decision.overall),
           _section(
             'Offer Timing',
             timing == null
                 ? 'TaraVerse does not have a supported timing window for this decision.'
-                : '${DateFormat('d MMM y').format(timing.start)} – ${DateFormat('d MMM y').format(timing.end)}',
+                : [
+                    '${DateFormat('d MMM y').format(timing.start)} – ${DateFormat('d MMM y').format(timing.end)}',
+                    'This period is more supportive for evaluating and progressing a new Career opportunity.',
+                  ],
           ),
           _section(
             'Joining Timing',
             joiningKnown
-                ? 'Joining timing uses the saved Career evidence with your confirmed date.'
+                ? 'Your expected joining date is included in this decision view. Review it alongside the offer timing and practical conditions.'
                 : 'Joining timing can be assessed once you know the expected joining date.',
           ),
-          if (decision.practicalFactors.isNotEmpty)
+          if (priorities.isNotEmpty)
             _section(
               'Alignment With Your Priorities',
-              decision.practicalFactors,
+              priorities.map(_priorityGuidance).toList(growable: false),
             ),
-          _section('What Supports This', decision.supports),
+          _section('What Supports This', _customerSupport(timing)),
           if (decision.cautions.isNotEmpty)
-            _section('What Needs Caution', decision.cautions),
-          _section('Practical Decision Factors', decision.practicalFactors),
-          _section('What To Do', decision.whatToDo),
+            _section('What Needs Caution', _unique(decision.cautions)),
+          if (practicalFactors.isNotEmpty)
+            _section('Practical Decision Factors', practicalFactors),
+          if (whatToDo.isNotEmpty) _section('What To Do', whatToDo),
           _DetailedAstrology(
             detailed: decision.detailedAstrology,
             limitation: decision.limitation,
@@ -207,6 +231,63 @@ class _Result extends StatelessWidget {
       ),
     );
   }
+
+  String _stateLabel(String state) => switch (state) {
+    'MORE_SUPPORTIVE' => 'More Supportive',
+    'SUPPORTIVE_WITH_CONDITIONS' => 'Supportive With Conditions',
+    'MIXED' => 'Mixed',
+    'CAUTIOUS' => 'Cautious',
+    _ => 'Insufficient Evidence',
+  };
+
+  List<String> _customerSupport(CareerDecisionTiming? timing) {
+    if (timing == null) {
+      return const [
+        'TaraVerse is using the saved Career evidence available for this decision.',
+      ];
+    }
+    final agreement = decision.detailedAstrology?.agreement;
+    if ((agreement?.alignedMajorSignals ?? 0) > 1) {
+      return const [
+        'Multiple Career timing signals are aligned around this opportunity.',
+      ];
+    }
+    return const ['The offer overlaps with a saved Career timing period.'];
+  }
+
+  List<String> _contextualPracticalFactors() => [
+    'Role scope and responsibilities',
+    'Manager and team',
+    'Compensation and benefits',
+    if (moveType == 'NEW_COMPANY') 'Company stability and work environment',
+    if (hasRole) 'Whether the role matches the stated designation and scope',
+    'Joining terms and notice-period implications',
+  ];
+
+  String _priorityGuidance(String priority) => switch (priority) {
+    'Career growth' => 'Career growth is your main priority. Compare whether this role meaningfully increases scope, learning, responsibility or future opportunities.',
+    'Higher compensation' => 'Compensation is one of your stated priorities. Compare fixed pay, variable pay, benefits and long-term upside.',
+    'Stability' => 'Stability is important to you. Review company stability, role clarity and the likelihood of sustained responsibility.',
+    'Better role/title' => 'Role and title matter to you. Compare the scope, decision-making responsibility and how the role supports your next step.',
+    'Learning' => 'Learning is a stated priority. Compare the skills, mentorship and exposure this role can realistically provide.',
+    'Leadership' => 'Leadership is a stated priority. Clarify team responsibility, decision rights and the path to greater ownership.',
+    'Work-life balance' => 'Work-life balance is important to you. Clarify expectations, travel, flexibility and the likely day-to-day workload.',
+    'Location' => 'Location is a stated priority. Compare commute, relocation, remote flexibility and the practical impact on your routine.',
+    'Company/brand' => 'Company and brand matter to you. Compare the organisation’s reputation, business direction and what the experience adds to your profile.',
+    _ => 'Compare this offer against your stated priority before making a decision.',
+  };
+
+  static List<String> _unique(Iterable<String> values) {
+    final seen = <String>{};
+    return values
+        .where((value) => value.trim().isNotEmpty)
+        .where((value) => seen.add(value.trim().toLowerCase()))
+        .toList(growable: false);
+  }
+
+  static bool _contains(Iterable<String> values, String candidate) => values
+      .map((value) => value.trim().toLowerCase())
+      .contains(candidate.trim().toLowerCase());
 
   Widget _section(String title, Object body) => Padding(
     padding: const EdgeInsets.only(top: 18),
@@ -303,47 +384,62 @@ class _EvidenceSection extends StatelessWidget {
   final String? limitation;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        for (final item in evidence)
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Text('• ${item.summary}'),
-          ),
-        if (agreement?.availableMajorSignals case final available?)
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Text('Major signals available: $available'),
-          ),
-        if (agreement?.alignedMajorSignals case final aligned?)
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Text('Aligned primary signals: $aligned'),
-          ),
-        if (agreement?.primaryEligibility case final eligible?)
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Text(
-              'Primary timing eligibility: ${eligible ? 'present' : 'not present'}',
+  Widget build(BuildContext context) {
+    final available = agreement?.availableMajorSignals;
+    final aligned = agreement?.alignedMajorSignals;
+    final eligible = agreement?.primaryEligibility;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+          for (final item in evidence)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text('• ${item.summary}'),
             ),
-          ),
-        if (agreement?.supportSignals.isNotEmpty == true)
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Text(
-              'Supporting evidence: ${agreement!.supportSignals.join(', ')}',
+          if (available != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                aligned != null
+                    ? '$aligned of $available major Career timing signals currently align.'
+                    : 'Major Career timing signals available: $available',
+              ),
             ),
-          ),
-        if (limitation?.isNotEmpty == true)
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Text(limitation!),
-          ),
-      ],
-    ),
-  );
+          if (available == null && aligned != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text('Aligned primary Career signals: $aligned'),
+            ),
+          if (eligible != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                eligible ? 'Primary Career timing evidence is available.' : 'Primary Career timing evidence is not currently available.',
+              ),
+            ),
+          if (agreement?.supportSignals.isNotEmpty == true)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                'Supporting evidence is also present from ${agreement!.supportSignals.map(_supportSignalLabel).join(' and ')}.',
+              ),
+            ),
+          if (limitation?.isNotEmpty == true)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(limitation!),
+            ),
+        ],
+      ),
+    );
+  }
+
+  static String _supportSignalLabel(String value) => switch (value) {
+    'ASHTAKAVARGA' => 'Ashtakavarga',
+    'HISTORICAL_PATTERN' => 'historical Career patterns',
+    _ => value.replaceAll('_', ' '),
+  };
 }
