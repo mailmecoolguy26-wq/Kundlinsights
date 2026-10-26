@@ -7,6 +7,7 @@ import 'domain/career_decision.dart';
 abstract interface class CareerDecisionRepository {
   Future<CareerDecision> submit({
     required String birthProfileId,
+    required String decisionType,
     required Map<String, Object?> context,
   });
 }
@@ -20,6 +21,7 @@ class UnavailableCareerDecisionRepository implements CareerDecisionRepository {
   @override
   Future<CareerDecision> submit({
     required String birthProfileId,
+    required String decisionType,
     required Map<String, Object?> context,
   }) => Future.error(StateError('Career Decision Support is unavailable.'));
 }
@@ -46,7 +48,17 @@ class CareerDecisionController extends ChangeNotifier {
   CareerDecisionLoadState state = CareerDecisionLoadState.initial;
   CareerDecision? decision;
   Object? error;
-  Future<void> submit(Map<String, Object?> context) async {
+  void reset() {
+    state = CareerDecisionLoadState.initial;
+    decision = null;
+    error = null;
+    notifyListeners();
+  }
+
+  Future<void> submit({
+    required String decisionType,
+    required Map<String, Object?> context,
+  }) async {
     if (state == CareerDecisionLoadState.loading) {
       return;
     }
@@ -56,7 +68,11 @@ class CareerDecisionController extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
-      decision = await _repository.submit(birthProfileId: id, context: context);
+      decision = await _repository.submit(
+        birthProfileId: id,
+        decisionType: decisionType,
+        context: context,
+      );
       state = CareerDecisionLoadState.loaded;
     } catch (e) {
       error = e;

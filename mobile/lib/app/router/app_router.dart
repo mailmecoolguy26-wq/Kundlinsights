@@ -240,8 +240,10 @@ GoRouter createAppRouter(
         GoRoute(
           path: 'decision/:type',
           name: 'career-decision',
-          builder: (context, state) =>
-              CareerDecisionScreen(controller: careerDecisions),
+          builder: (context, state) => CareerDecisionScreen(
+            controller: careerDecisions,
+            decisionType: state.pathParameters['type'] ?? 'job-offer',
+          ),
         ),
       ],
     ),

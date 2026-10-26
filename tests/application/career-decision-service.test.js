@@ -21,3 +21,16 @@ test('Career decisions fail safely without a usable saved timing window', async 
 test('Career decision validation rejects arbitrary context fields', () => {
   assert.throws(() => validateCareerDecisionRequest({ decisionType: 'JOB_OFFER', context: { score: 100 } }), { code: 'INVALID_CAREER_DECISION_CONTEXT' });
 });
+test('Switch Job keeps typed context and exposes exploration-only timing', async () => {
+  const service = new CareerDecisionService({ careerAnswerService: { answer: async () => supported } });
+  const result = await service.decide({ principal: {}, birthProfileId: 'profile-a', body: { decisionType: 'SWITCH_JOB', context: { reasons: ['Career growth', 'Better compensation'], activelyInterviewing: 'EXPLORING', preferredTimeline: 'ONE_TO_THREE_MONTHS', noticePeriod: '30 days' } } });
+  assert.equal(result.decisionType, 'SWITCH_JOB');
+  assert.equal(result.timingScope, 'EXPLORE_ONLY');
+  assert.deepEqual(result.context.reasons, ['Career growth', 'Better compensation']);
+  assert.equal(result.context.activelyInterviewing, 'EXPLORING');
+  assert.equal(result.context.preferredTimeline, 'ONE_TO_THREE_MONTHS');
+});
+test('Switch Job requires its typed reason, interviewing, and timeline context', () => {
+  assert.throws(() => validateCareerDecisionRequest({ decisionType: 'SWITCH_JOB', context: { reasons: ['Career growth'], activelyInterviewing: 'EXPLORING' } }), { code: 'INVALID_SWITCH_JOB_CONTEXT' });
+  assert.throws(() => validateCareerDecisionRequest({ decisionType: 'SWITCH_JOB', context: { reasons: ['Unrecognized reason'], activelyInterviewing: 'EXPLORING', preferredTimeline: 'ONE_TO_THREE_MONTHS' } }), { code: 'INVALID_SWITCH_JOB_CONTEXT' });
+});

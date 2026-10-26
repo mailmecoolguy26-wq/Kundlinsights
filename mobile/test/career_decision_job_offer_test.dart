@@ -152,7 +152,10 @@ void main() {
     expect(find.text('What Needs Caution'), findsOneWidget);
     expect(find.text('Practical Decision Factors'), findsOneWidget);
     expect(find.text('What To Do', skipOffstage: false), findsOneWidget);
-    expect(find.text('View Detailed Astrology', skipOffstage: false), findsOneWidget);
+    expect(
+      find.text('View Detailed Astrology', skipOffstage: false),
+      findsOneWidget,
+    );
     expect(
       find.textContaining(
         'Career growth is your main priority. Compare whether this role meaningfully increases scope, learning, responsibility or future opportunities.',
@@ -332,8 +335,9 @@ void main() {
   });
 }
 
-Widget _screen(CareerDecisionController controller) =>
-    MaterialApp(home: CareerDecisionScreen(controller: controller));
+Widget _screen(CareerDecisionController controller) => MaterialApp(
+  home: CareerDecisionScreen(controller: controller, decisionType: 'job-offer'),
+);
 
 class _DecisionLauncher extends StatelessWidget {
   const _DecisionLauncher({required this.controller});
@@ -345,7 +349,10 @@ class _DecisionLauncher extends StatelessWidget {
       child: FilledButton(
         onPressed: () => Navigator.of(context).push(
           MaterialPageRoute<void>(
-            builder: (_) => CareerDecisionScreen(controller: controller),
+            builder: (_) => CareerDecisionScreen(
+              controller: controller,
+              decisionType: 'job-offer',
+            ),
           ),
         ),
         child: const Text('Open Job Offer'),
@@ -380,6 +387,7 @@ CareerDecision _decision({
   String state = 'SUPPORTIVE_WITH_CONDITIONS',
   bool detailed = true,
 }) => CareerDecision.fromJson({
+  'decisionType': 'JOB_OFFER',
   'state': state,
   if (state != 'INSUFFICIENT_EVIDENCE')
     'overallView': 'Use the current window alongside practical diligence.',
@@ -399,6 +407,7 @@ CareerDecision _decision({
     'Compare role scope, manager, compensation and joining conditions before accepting.',
   ],
   'limitation': 'Technical evidence is available from saved Career timing.',
+  'context': {'priority': 'Career growth'},
   if (detailed)
     'detailedAstrology': {
       'evidence': [
@@ -454,6 +463,7 @@ class _Repository implements CareerDecisionRepository {
   @override
   Future<CareerDecision> submit({
     required String birthProfileId,
+    required String decisionType,
     required Map<String, Object?> context,
   }) {
     profileIds.add(birthProfileId);

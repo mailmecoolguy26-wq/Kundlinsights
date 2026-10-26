@@ -46,6 +46,20 @@ void main() {
     ]) {
       expect(find.text(title), findsOneWidget);
     }
+    final switchChip = tester.widget<ActionChip>(
+      find.ancestor(
+        of: find.text('Should I switch jobs?'),
+        matching: find.byType(ActionChip),
+      ),
+    );
+    final compareChip = tester.widget<ActionChip>(
+      find.ancestor(
+        of: find.text('Compare two offers'),
+        matching: find.byType(ActionChip),
+      ),
+    );
+    expect(switchChip.onPressed, isNotNull);
+    expect(compareChip.onPressed, isNull);
   });
 
   test('omits technical saved phase copy from the Career Hub projection', () {
