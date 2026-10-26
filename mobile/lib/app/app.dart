@@ -39,6 +39,7 @@ import '../features/payments/data/razorpay_purchase_service.dart';
 import '../features/splash/splash_launch_gate.dart';
 import '../features/career_chat/career_chat_controller.dart';
 import '../features/career_answers/career_answer_controller.dart';
+import '../features/career_answers/career_decision_controller.dart';
 import '../features/vehicle/vehicle_answer_controller.dart';
 import '../features/property/property_answer_controller.dart';
 
@@ -72,6 +73,7 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
   late final CareerExplanationLanguageController _careerExplanationLanguage;
   late final CareerChatController _careerChat;
   late final CareerAnswerController _careerAnswers;
+  late final CareerDecisionController _careerDecisions;
   late final VehicleAnswerController _vehicleAnswers;
   late final PropertyAnswerController _propertyAnswers;
   late final ProfileController _profiles;
@@ -147,6 +149,7 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
       careerChatControllerProvider((profiles, _careerExplanationLanguage)),
     );
     _careerAnswers = ref.read(careerAnswerControllerProvider(profiles));
+    _careerDecisions = ref.read(careerDecisionControllerProvider(profiles));
     _vehicleAnswers = ref.read(vehicleAnswerControllerProvider(profiles));
     _propertyAnswers = ref.read(propertyAnswerControllerProvider(profiles));
     final premiumProduct = ref.read(careerPremiumProductControllerProvider);
@@ -189,6 +192,7 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
       analytics: analytics,
       careerChat: _careerChat,
       careerAnswers: _careerAnswers,
+      careerDecisions: _careerDecisions,
       vehicleAnswers: _vehicleAnswers,
       propertyAnswers: _propertyAnswers,
       razorpayPremium: _razorpayPremium,

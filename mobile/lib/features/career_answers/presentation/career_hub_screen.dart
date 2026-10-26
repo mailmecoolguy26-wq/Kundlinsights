@@ -114,15 +114,8 @@ class _CareerHubScreenState extends State<CareerHubScreen> {
           const SizedBox(height: 26),
           const Text('ASK TARAVERSE', style: _CareerHubText.eyebrow),
           const SizedBox(height: 10),
-          const _QuestionComingSoon(
-            questions: [
-              'Should I switch jobs?',
-              'I have a job offer',
-              'Compare two offers',
-              'Promotion / growth',
-              'Should I start a business?',
-              'Career abroad',
-            ],
+          _CareerDecisionQuestions(
+            onOpen: (type) => context.push('/career/decision/$type'),
           ),
           const SizedBox(height: 26),
           _NavigationCard(
@@ -239,36 +232,34 @@ class _CareerOutlookCard extends StatelessWidget {
   }
 }
 
-class _QuestionComingSoon extends StatelessWidget {
-  const _QuestionComingSoon({required this.questions});
-  final List<String> questions;
+class _CareerDecisionQuestions extends StatelessWidget {
+  const _CareerDecisionQuestions({required this.onOpen});
+  final ValueChanged<String> onOpen;
   @override
   Widget build(BuildContext context) => Semantics(
     container: true,
-    label: 'More Career questions coming soon',
+    label: 'Career decision support questions',
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'MORE QUESTIONS · COMING SOON',
-          style: _CareerHubText.eyebrow,
-        ),
+        const Text('PRACTICAL CAREER QUESTIONS', style: _CareerHubText.eyebrow),
         const SizedBox(height: 10),
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: [
-            for (final question in questions)
-              Chip(
-                label: Text(question),
-                labelStyle: const TextStyle(color: _CareerHubColors.slate),
-                backgroundColor: _CareerHubColors.surfaceMuted,
-                side: const BorderSide(color: _CareerHubColors.border),
-                avatar: const Icon(
-                  Icons.lock_outline_rounded,
-                  size: 14,
-                  color: _CareerHubColors.slate,
-                ),
+            for (final question in const [
+              ('I have a job offer', 'job-offer', true),
+              ('Should I switch jobs?', 'switch-job', false),
+              ('Compare two offers', 'compare-offers', false),
+              ('Promotion / growth', 'promotion-growth', false),
+              ('Should I start a business?', 'start-business', false),
+              ('Career abroad', 'career-abroad', false),
+            ])
+              ActionChip(
+                avatar: const Icon(Icons.auto_awesome_outlined, size: 15),
+                label: Text(question.$1),
+                onPressed: question.$3 ? () => onOpen(question.$2) : null,
               ),
           ],
         ),
@@ -385,7 +376,6 @@ String? careerHubCustomerMeaning(CareerTimingPeriod period) {
 abstract final class _CareerHubColors {
   static const background = Color(0xFF061A1A);
   static const surface = Color(0xFF114A46);
-  static const surfaceMuted = Color(0xFF082625);
   static const border = Color(0xFF3F8179);
   static const ivory = Color(0xFFF7F4EC);
   static const slate = Color(0xFFA8B7B4);

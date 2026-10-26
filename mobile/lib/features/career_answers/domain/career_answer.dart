@@ -72,14 +72,21 @@ class JobFavourabilityBeta {
     }
     return JobFavourabilityBeta(
       window: window,
-      narrowerWindow:
-          JobFavourabilityWindow.tryFromJson(json['strongerConcentrationWindow']),
+      narrowerWindow: JobFavourabilityWindow.tryFromJson(
+        json['strongerConcentrationWindow'],
+      ),
       strength: strength as String,
       evidenceAgreementCount: count,
-      reasonCodes: List.unmodifiable((json['evidenceReasonCodes'] as List? ?? const [])
-          .whereType<String>().where((value) => value.isNotEmpty)),
-      actionCodes: List.unmodifiable((json['recommendedActionCodes'] as List? ?? const [])
-          .whereType<String>().where((value) => value.isNotEmpty)),
+      reasonCodes: List.unmodifiable(
+        (json['evidenceReasonCodes'] as List? ?? const [])
+            .whereType<String>()
+            .where((value) => value.isNotEmpty),
+      ),
+      actionCodes: List.unmodifiable(
+        (json['recommendedActionCodes'] as List? ?? const [])
+            .whereType<String>()
+            .where((value) => value.isNotEmpty),
+      ),
       limitationCode: limitationCode,
     );
   }
@@ -225,7 +232,8 @@ class CareerAnswer {
       'INSUFFICIENT_EVIDENCE' => CareerAnswerability.insufficientEvidence,
       'PREMIUM_REQUIRED' => CareerAnswerability.premiumRequired,
       'PROJECTION_DISABLED' => CareerAnswerability.projectionDisabled,
-      'NO_CONCENTRATED_JOB_FAVOURABILITY' => CareerAnswerability.noConcentratedJobFavourability,
+      'NO_CONCENTRATED_JOB_FAVOURABILITY' =>
+        CareerAnswerability.noConcentratedJobFavourability,
       'UNSUPPORTED' => CareerAnswerability.unsupported,
       _ => null,
     };
@@ -240,16 +248,25 @@ class CareerAnswer {
           : null;
       if (answerability == null ||
           (answerability == CareerAnswerability.supported && beta == null) ||
-          (answerability == CareerAnswerability.premiumRequired && teaser == null)) {
+          (answerability == CareerAnswerability.premiumRequired &&
+              teaser == null)) {
         throw const FormatException('Malformed Job Favourability Answer.');
       }
       return CareerAnswer(
-        questionType: type!, answerability: answerability,
-        headline: '', summary: '', currentPhase: null, window: null,
-        actionItems: const [], limitation: beta?.limitationCode ??
-            (json['limitationCode'] as String? ?? ''),
-        availableMajorSignals: 0, alignedMajorSignals: 0,
-        primaryEligibility: false, supportSignals: const [], evidence: const [],
+        questionType: type!,
+        answerability: answerability,
+        headline: '',
+        summary: '',
+        currentPhase: null,
+        window: null,
+        actionItems: const [],
+        limitation:
+            beta?.limitationCode ?? (json['limitationCode'] as String? ?? ''),
+        availableMajorSignals: 0,
+        alignedMajorSignals: 0,
+        primaryEligibility: false,
+        supportSignals: const [],
+        evidence: const [],
         historicalSummary: null,
         sourceReadingId: json['sourceReadingId'] as String?,
         rulesetVersion: json['rulesetVersion'] as String? ?? '',
@@ -289,9 +306,9 @@ class CareerAnswer {
           : null,
       window: CareerAnswerWindow.tryFromJson(answer['window']),
       actionItems: List.unmodifiable(
-        (answer['actionItems'] as List? ?? const [])
-            .whereType<String>()
-            .where((item) => item.isNotEmpty),
+        (answer['actionItems'] as List? ?? const []).whereType<String>().where(
+          (item) => item.isNotEmpty,
+        ),
       ),
       limitation: limitation,
       availableMajorSignals: available,
@@ -307,8 +324,8 @@ class CareerAnswer {
             .map(CareerAnswerEvidence.tryFromJson)
             .whereType<CareerAnswerEvidence>(),
       ),
-      historicalSummary: historical is Map<String, dynamic> &&
-              historical['summary'] is String
+      historicalSummary:
+          historical is Map<String, dynamic> && historical['summary'] is String
           ? historical['summary'] as String
           : null,
       sourceReadingId: json['sourceReadingId'] is String

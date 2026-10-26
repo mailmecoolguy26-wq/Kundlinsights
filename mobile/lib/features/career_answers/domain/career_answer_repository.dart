@@ -16,7 +16,5 @@ class UnavailableCareerAnswerRepository implements CareerAnswerRepository {
     required String birthProfileId,
     required CareerQuestionType questionType,
     String? readingId,
-  }) => Future<CareerAnswer>.error(
-    StateError('Configuration is required.'),
-  );
+  }) => Future<CareerAnswer>.error(StateError('Configuration is required.'));
 }

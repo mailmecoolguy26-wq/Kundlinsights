@@ -59,9 +59,11 @@ import '../features/career_chat/data/career_chat_api_repository.dart';
 import '../features/career_chat/career_chat_controller.dart';
 import '../features/career_chat/domain/career_chat_repository.dart';
 import '../features/career_answers/data/career_answer_api_repository.dart';
+import '../features/career_answers/data/career_decision_api_repository.dart';
 import '../features/career_answers/data/debug_job_favourability_preview_repository.dart';
 import '../features/career_answers/domain/career_answer_repository.dart';
 import '../features/career_answers/career_answer_controller.dart';
+import '../features/career_answers/career_decision_controller.dart';
 import '../features/vehicle/data/vehicle_answer_api_repository.dart';
 import '../features/vehicle/domain/vehicle_answer_repository.dart';
 import '../features/vehicle/vehicle_answer_controller.dart';
@@ -95,6 +97,7 @@ Future<void> bootstrap() async {
   final PaymentApiClient paymentApi;
   final CareerChatRepository careerChatRepository;
   final CareerAnswerRepository careerAnswerRepository;
+  final CareerDecisionRepository careerDecisionRepository;
   final VehicleAnswerRepository vehicleAnswerRepository;
   final PropertyAnswerRepository propertyAnswerRepository;
   FirebasePushNotificationService? pushNotifications;
@@ -146,6 +149,7 @@ Future<void> bootstrap() async {
     paymentApi = const UnavailablePaymentApiClient();
     careerChatRepository = const UnavailableCareerChatRepository();
     careerAnswerRepository = const UnavailableCareerAnswerRepository();
+    careerDecisionRepository = const UnavailableCareerDecisionRepository();
     vehicleAnswerRepository = const UnavailableVehicleAnswerRepository();
     propertyAnswerRepository = const UnavailablePropertyAnswerRepository();
   } else {
@@ -171,6 +175,7 @@ Future<void> bootstrap() async {
     paymentApi = AuthenticatedPaymentApiClient(apiClient);
     careerChatRepository = CareerChatApiRepository(apiClient);
     final answerApiRepository = CareerAnswerApiRepository(apiClient);
+    careerDecisionRepository = CareerDecisionApiRepository(apiClient);
     vehicleAnswerRepository = VehicleAnswerApiRepository(apiClient);
     propertyAnswerRepository = PropertyAnswerApiRepository(apiClient);
     careerAnswerRepository = DevelopmentFlags.careerPremiumUiPreviewEnabled
@@ -254,6 +259,9 @@ Future<void> bootstrap() async {
         careerChatRepositoryProvider.overrideWithValue(careerChatRepository),
         careerAnswerRepositoryProvider.overrideWithValue(
           careerAnswerRepository,
+        ),
+        careerDecisionRepositoryProvider.overrideWithValue(
+          careerDecisionRepository,
         ),
         vehicleAnswerRepositoryProvider.overrideWithValue(
           vehicleAnswerRepository,

@@ -44,9 +44,11 @@ import '../../features/splash/presentation/stitch_splash_screen.dart';
 import '../../features/career_chat/career_chat_controller.dart';
 import '../../features/career_chat/presentation/career_chat_screen.dart';
 import '../../features/career_answers/career_answer_controller.dart';
+import '../../features/career_answers/career_decision_controller.dart';
 import '../../features/career_answers/domain/career_answer.dart';
 import '../../features/career_answers/presentation/career_hub_screen.dart';
 import '../../features/career_answers/presentation/career_answer_screen.dart';
+import '../../features/career_answers/presentation/career_decision_screen.dart';
 import '../../features/vehicle/vehicle_answer_controller.dart';
 import '../../features/vehicle/presentation/vehicle_hub_screen.dart';
 import '../../features/property/property_answer_controller.dart';
@@ -86,6 +88,7 @@ GoRouter createAppRouter(
   Analytics? analytics,
   required CareerChatController careerChat,
   required CareerAnswerController careerAnswers,
+  required CareerDecisionController careerDecisions,
   VehicleAnswerController? vehicleAnswers,
   PropertyAnswerController? propertyAnswers,
   RazorpayCareerPremiumController? razorpayPremium,
@@ -233,6 +236,12 @@ GoRouter createAppRouter(
               questionType: question,
             );
           },
+        ),
+        GoRoute(
+          path: 'decision/:type',
+          name: 'career-decision',
+          builder: (context, state) =>
+              CareerDecisionScreen(controller: careerDecisions),
         ),
       ],
     ),
