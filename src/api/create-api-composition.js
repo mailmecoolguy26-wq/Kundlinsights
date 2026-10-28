@@ -13,7 +13,7 @@ const { CareerEventService, CareerEventAstrologyService, CareerPatternComparison
 const { LifeEventService } = require('../application/life-events');
 const { PropertyAnswerService } = require('../application/property');
 const { VehicleAnswerService } = require('../application/vehicle');
-const { PostgresUserRepository, PostgresBirthProfileRepository, PostgresReadingRepository, PostgresEntitlementRepository, PostgresCareerEventRepository, PostgresCareerEventObservationRepository, PostgresLifeEventRepository, PostgresPurchaseRepository, PostgresSubscriptionRepository, PostgresProfileEntitlementRepository, PostgresPaymentEventRepository, PostgresProviderPaymentOrderRepository, PostgresNotificationRepository } = require('../persistence');
+const { PostgresUserRepository, PostgresBirthProfileRepository, PostgresReadingRepository, PostgresEntitlementRepository, PostgresCareerEventRepository, PostgresCareerEventObservationRepository, PostgresLifeEventRepository, PostgresCareerDecisionRepository, PostgresPurchaseRepository, PostgresSubscriptionRepository, PostgresProfileEntitlementRepository, PostgresPaymentEventRepository, PostgresProviderPaymentOrderRepository, PostgresNotificationRepository } = require('../persistence');
 const { PostgresPaymentUnitOfWork } = require('../payment/unit-of-work');
 const { PurchaseProviderRegistry, PurchaseVerificationService } = require('../payment/purchase-services');
 const { ProfileUnlockAssignmentService } = require('../payment/profile-unlock-assignment-service');
@@ -82,6 +82,7 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
       careerEvents: new PostgresCareerEventRepository({ db: client }),
       careerEventObservations: new PostgresCareerEventObservationRepository({ db: client }),
       lifeEvents: new PostgresLifeEventRepository({ db: client }),
+      careerDecisions: new PostgresCareerDecisionRepository({ db: client }),
       envelopes,
       deks,
     };
@@ -128,7 +129,7 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   const jobFavourabilityEvaluator = new JobFavourabilityBetaEvaluator({ birthProfileService, astronomicalEngine, canonicalSiderealSunSampler, clock });
   const careerAnswerService = new CareerAnswerService({ secureReadingService, birthProfileService, jobFavourabilityResearchEnabled: Boolean(careerAnswerPolicy && careerAnswerPolicy.jobFavourabilityResearchEnabled === true), jobFavourabilityEvaluator });
   const { CareerDecisionService } = require('../application/career-decisions');
-  const careerDecisionService = new CareerDecisionService({ careerAnswerService });
+  const careerDecisionService = new CareerDecisionService({ careerAnswerService, authUserResolver: userResolver, birthProfileService, transactionExecutor: tx, repositories, idGenerator, clock });
   const { CareerChatOrchestrator } = require('../application/career-chat');
   const { TaraOrchestrator, TaraCareerCapability, TaraTransitCapability, TaraPropertyCapability, TaraVehicleCapability } = require('../application/tara');
   const transitSnapshotService = new TransitSnapshotService({ birthProfileService, astronomicalEngine, careerInsightSource: new LatestCareerReadingTransitSource({ secureReadingService }) });

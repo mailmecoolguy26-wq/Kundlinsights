@@ -6,14 +6,22 @@ import '../../readings/career_explanation_language.dart';
 import '../../readings/career_customer_copy.dart';
 import '../../readings/domain/reading.dart';
 import '../../readings/reading_controller.dart';
+import '../career_decision_history_controller.dart';
+import 'career_decision_history_screen.dart';
 
 /// Customer-facing Career landing screen. It only summarizes saved,
 /// server-authoritative reading content; it never derives timing or evidence.
 class CareerHubScreen extends StatefulWidget {
-  const CareerHubScreen({super.key, this.readings, this.language});
+  const CareerHubScreen({
+    super.key,
+    this.readings,
+    this.language,
+    this.decisionHistory,
+  });
 
   final ReadingController? readings;
   final CareerExplanationLanguageController? language;
+  final CareerDecisionHistoryController? decisionHistory;
 
   @override
   State<CareerHubScreen> createState() => _CareerHubScreenState();
@@ -117,6 +125,10 @@ class _CareerHubScreenState extends State<CareerHubScreen> {
           _CareerDecisionQuestions(
             onOpen: (type) => context.push('/career/decision/$type'),
           ),
+          if (widget.decisionHistory != null) ...[
+            const SizedBox(height: 26),
+            CareerDecisionRecentSection(controller: widget.decisionHistory!),
+          ],
           const SizedBox(height: 26),
           _NavigationCard(
             icon: Icons.timeline_outlined,
@@ -252,9 +264,9 @@ class _CareerDecisionQuestions extends StatelessWidget {
               ('I have a job offer', 'job-offer', true),
               ('Should I switch jobs?', 'switch-job', true),
               ('Compare two offers', 'compare-offers', true),
-              ('Promotion / growth', 'promotion-growth', false),
-              ('Should I start a business?', 'start-business', false),
-              ('Career abroad', 'career-abroad', false),
+              ('Promotion / growth', 'promotion-growth', true),
+              ('Should I start a business?', 'start-business', true),
+              ('Career abroad', 'career-abroad', true),
             ])
               ActionChip(
                 avatar: const Icon(Icons.auto_awesome_outlined, size: 15),

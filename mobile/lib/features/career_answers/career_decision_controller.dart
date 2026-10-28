@@ -10,6 +10,13 @@ abstract interface class CareerDecisionRepository {
     required String decisionType,
     required Map<String, Object?> context,
   });
+  Future<List<CareerDecisionSummary>> listDecisions({
+    required String birthProfileId,
+  });
+  Future<CareerDecision> getDecision({
+    required String birthProfileId,
+    required String decisionId,
+  });
 }
 
 final careerDecisionRepositoryProvider = Provider<CareerDecisionRepository>(
@@ -23,6 +30,15 @@ class UnavailableCareerDecisionRepository implements CareerDecisionRepository {
     required String birthProfileId,
     required String decisionType,
     required Map<String, Object?> context,
+  }) => Future.error(StateError('Career Decision Support is unavailable.'));
+  @override
+  Future<List<CareerDecisionSummary>> listDecisions({
+    required String birthProfileId,
+  }) => Future.error(StateError('Career Decision Support is unavailable.'));
+  @override
+  Future<CareerDecision> getDecision({
+    required String birthProfileId,
+    required String decisionId,
   }) => Future.error(StateError('Career Decision Support is unavailable.'));
 }
 
@@ -42,9 +58,10 @@ final careerDecisionControllerProvider =
 enum CareerDecisionLoadState { initial, loading, loaded, error }
 
 class CareerDecisionController extends ChangeNotifier {
-  CareerDecisionController(this._repository, this._profiles);
+  CareerDecisionController(this._repository, this._profiles, {this.onSaved});
   final CareerDecisionRepository _repository;
   final ProfileController _profiles;
+  VoidCallback? onSaved;
   CareerDecisionLoadState state = CareerDecisionLoadState.initial;
   CareerDecision? decision;
   Object? error;
@@ -74,6 +91,7 @@ class CareerDecisionController extends ChangeNotifier {
         context: context,
       );
       state = CareerDecisionLoadState.loaded;
+      onSaved?.call();
     } catch (e) {
       error = e;
       state = CareerDecisionLoadState.error;

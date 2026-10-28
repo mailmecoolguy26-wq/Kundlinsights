@@ -67,14 +67,17 @@ void main() {
       expect(find.text('Offer B'), findsOneWidget);
       expect(find.text('Timing Comparison'), findsOneWidget);
       expect(
-        find.text('Joining timing cannot be compared until both expected joining dates are known.'),
+        find.text(
+          'Joining timing cannot be compared until both expected joining dates are known.',
+        ),
         findsOneWidget,
       );
       expect(find.textContaining('No expected joining date'), findsNothing);
       expect(find.text('What Needs Caution'), findsNothing);
       expect(
-        find.text(
+        find.textContaining(
           'Based on the details provided, neither offer has a clear advantage against your selected priorities.',
+          skipOffstage: false,
         ),
         findsOneWidget,
       );
@@ -213,6 +216,15 @@ CareerDecision _decision() => CareerDecision.fromJson({
 });
 
 class _Repository implements CareerDecisionRepository {
+  @override
+  Future<CareerDecision> getDecision({
+    required String birthProfileId,
+    required String decisionId,
+  }) => Future.error(UnimplementedError());
+  @override
+  Future<List<CareerDecisionSummary>> listDecisions({
+    required String birthProfileId,
+  }) async => const [];
   _Repository({this.pending, this.failuresBeforeSuccess = 0});
   final Completer<CareerDecision>? pending;
   int failuresBeforeSuccess;

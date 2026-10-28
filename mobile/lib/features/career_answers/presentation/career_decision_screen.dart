@@ -34,6 +34,9 @@ class _CareerDecisionScreenState extends State<CareerDecisionScreen> {
 
   bool get _isSwitchJob => widget.decisionType == 'switch-job';
   bool get _isCompareOffers => widget.decisionType == 'compare-offers';
+  bool get _isPromotionGrowth => widget.decisionType == 'promotion-growth';
+  bool get _isStartBusiness => widget.decisionType == 'start-business';
+  bool get _isCareerAbroad => widget.decisionType == 'career-abroad';
   @override
   void dispose() {
     for (final c in [_offer, _current, _joining, _role, _concerns]) {
@@ -73,10 +76,13 @@ class _CareerDecisionScreenState extends State<CareerDecisionScreen> {
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       }
       if (c.state == CareerDecisionLoadState.loaded) {
-        return _Result(decision: c.decision!);
+        return CareerDecisionResultScreen(decision: c.decision!);
       }
       if (_isCompareOffers) return _CompareOffersForm(controller: c);
       if (_isSwitchJob) return _SwitchJobForm(controller: c);
+      if (_isPromotionGrowth) return _PromotionGrowthForm(controller: c);
+      if (_isStartBusiness) return _StartBusinessForm(controller: c);
+      if (_isCareerAbroad) return _CareerAbroadForm(controller: c);
       return Scaffold(
         appBar: AppBar(title: const Text('JOB OFFER')),
         body: Form(
@@ -172,12 +178,61 @@ class _CareerDecisionScreenState extends State<CareerDecisionScreen> {
   );
 }
 
+/// Shared renderer for both a just-generated decision and an immutable saved
+/// decision returned by the detail API. It never invokes generation itself.
+class CareerDecisionResultScreen extends StatelessWidget {
+  const CareerDecisionResultScreen({
+    super.key,
+    required this.decision,
+    this.savedCreatedAt,
+  });
+  final CareerDecision decision;
+  final DateTime? savedCreatedAt;
+
+  @override
+  Widget build(BuildContext context) {
+    final body = _Result(decision: decision);
+    final created = savedCreatedAt;
+    if (created == null) return body;
+    return Stack(
+      children: [
+        body,
+        Positioned(
+          top: 58,
+          right: 16,
+          child: SafeArea(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.teal.shade700,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                child: Text(
+                  'Saved Career Decision · Created ${DateFormat('d MMM y').format(created)}',
+                  style: const TextStyle(color: Colors.white, fontSize: 11),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _Result extends StatelessWidget {
   const _Result({required this.decision});
   final CareerDecision decision;
 
   bool get _isSwitchJob => decision.decisionType == 'SWITCH_JOB';
   bool get _isCompareOffers => decision.decisionType == 'COMPARE_OFFERS';
+  bool get _isPromotionGrowth => decision.decisionType == 'PROMOTION_GROWTH';
+  bool get _isStartBusiness => decision.decisionType == 'START_BUSINESS';
+  bool get _isCareerAbroad => decision.decisionType == 'CAREER_ABROAD';
 
   @override
   Widget build(BuildContext context) {
@@ -186,6 +241,9 @@ class _Result extends StatelessWidget {
       return _CompareOffersResult(decision: decision);
     }
     if (_isSwitchJob) return _SwitchJobResult(decision: decision);
+    if (_isPromotionGrowth || _isStartBusiness || _isCareerAbroad) {
+      return _ContextualDecisionResult(decision: decision);
+    }
     final priorities = (decision.context?.priority ?? '')
         .split(',')
         .map((value) => value.trim())
@@ -1021,6 +1079,523 @@ class _CompareOffersResult extends StatelessWidget {
   ];
 
   static Widget _section(String title, Object body) => Padding(
+    padding: const EdgeInsets.only(top: 18),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        Text(
+          body is List
+              ? body.map((item) => '• $item').join('\n')
+              : body.toString(),
+        ),
+      ],
+    ),
+  );
+}
+
+class _PromotionGrowthForm extends StatefulWidget {
+  const _PromotionGrowthForm({required this.controller});
+  final CareerDecisionController controller;
+  @override
+  State<_PromotionGrowthForm> createState() => _PromotionGrowthFormState();
+}
+
+class _PromotionGrowthFormState extends State<_PromotionGrowthForm> {
+  final _form = GlobalKey<FormState>();
+  final _goals = <String>{};
+  final _review = TextEditingController(),
+      _current = TextEditingController(),
+      _desired = TextEditingController(),
+      _concerns = TextEditingController();
+  String? _discussions, _timeline;
+  @override
+  void dispose() {
+    for (final c in [_review, _current, _desired, _concerns]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  void _submit() {
+    if (!(_form.currentState?.validate() ?? false) ||
+        _goals.isEmpty ||
+        _discussions == null ||
+        _timeline == null) {
+      setState(() {});
+      return;
+    }
+    widget.controller.submit(
+      decisionType: 'PROMOTION_GROWTH',
+      context: {
+        'growthTypes': _goals.toList(growable: false),
+        'managerDiscussionStatus': _discussions,
+        'preferredTimeline': _timeline,
+        if (_review.text.trim().isNotEmpty) 'reviewDate': _review.text.trim(),
+        if (_current.text.trim().isNotEmpty)
+          'currentRole': _current.text.trim(),
+        if (_desired.text.trim().isNotEmpty) 'targetRole': _desired.text.trim(),
+        if (_concerns.text.trim().isNotEmpty) 'concerns': _concerns.text.trim(),
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => _DecisionFormScaffold(
+    formKey: _form,
+    title: 'Promotion / growth',
+    controller: widget.controller,
+    onSubmit: _submit,
+    submitLabel: 'CONTINUE',
+    children: [
+      const Text('WHAT KIND OF GROWTH ARE YOU LOOKING FOR?'),
+      Wrap(
+        children: _growthGoals
+            .map(
+              (goal) => FilterChip(
+                label: Text(goal),
+                selected: _goals.contains(goal),
+                onSelected: (_) => setState(
+                  () => _goals.contains(goal)
+                      ? _goals.remove(goal)
+                      : _goals.add(goal),
+                ),
+              ),
+            )
+            .toList(),
+      ),
+      if (_goals.isEmpty) const Text('Choose at least one growth goal.'),
+      _choice('Have discussions already started?', _discussions, const [
+        ('YES', 'Yes'),
+        ('NO', 'No'),
+        ('INFORMALLY', 'Informally'),
+        ('NOT_SURE', 'Not sure'),
+      ], (value) => setState(() => _discussions = value)),
+      _choice('Preferred / expected timeline', _timeline, const [
+        ('THIS_MONTH', 'This month'),
+        ('ONE_TO_THREE_MONTHS', 'Next 1–3 months'),
+        ('THREE_TO_SIX_MONTHS', 'Next 3–6 months'),
+        ('NO_FIXED_TIMELINE', 'No fixed timeline'),
+      ], (value) => setState(() => _timeline = value)),
+      _text(_review, 'Expected appraisal / review date (optional)'),
+      _text(_current, 'Current role (optional)'),
+      _text(_desired, 'Desired role / title (optional)'),
+      _text(_concerns, 'Concerns (optional)', lines: 3),
+    ],
+  );
+}
+
+class _StartBusinessForm extends StatefulWidget {
+  const _StartBusinessForm({required this.controller});
+  final CareerDecisionController controller;
+  @override
+  State<_StartBusinessForm> createState() => _StartBusinessFormState();
+}
+
+class _StartBusinessFormState extends State<_StartBusinessForm> {
+  final _form = GlobalKey<FormState>();
+  final _category = TextEditingController(),
+      _traction = TextEditingController(),
+      _concerns = TextEditingController();
+  String? _mode, _stage, _timeline, _founder, _reason, _runway;
+  @override
+  void dispose() {
+    for (final c in [_category, _traction, _concerns]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  void _submit() {
+    if (!(_form.currentState?.validate() ?? false) ||
+        [
+          _mode,
+          _stage,
+          _timeline,
+          _founder,
+          _reason,
+        ].any((item) => item == null)) {
+      setState(() {});
+      return;
+    }
+    widget.controller.submit(
+      decisionType: 'START_BUSINESS',
+      context: {
+        'startMode': _mode,
+        'businessStage': _stage,
+        'preferredTimeline': _timeline,
+        'founderMode': _founder,
+        'businessReason': _reason,
+        if (_runway != null) 'runway': _runway,
+        if (_category.text.trim().isNotEmpty)
+          'businessCategory': _category.text.trim(),
+        if (_traction.text.trim().isNotEmpty)
+          'tractionSummary': _traction.text.trim(),
+        if (_concerns.text.trim().isNotEmpty) 'concerns': _concerns.text.trim(),
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => _DecisionFormScaffold(
+    formKey: _form,
+    title: 'Should I start a business?',
+    controller: widget.controller,
+    onSubmit: _submit,
+    submitLabel: 'CONTINUE',
+    children: [
+      _choice('How are you planning to start?', _mode, const [
+        ('FULL_TIME', 'Full-time'),
+        ('ALONGSIDE_CURRENT_JOB', 'Alongside current job'),
+        ('NOT_SURE', 'Not sure'),
+      ], (value) => setState(() => _mode = value)),
+      _choice('Current stage', _stage, const [
+        ('IDEA', 'Idea'),
+        ('RESEARCHING', 'Researching'),
+        ('MVP_PROTOTYPE', 'MVP / prototype'),
+        ('EARLY_CUSTOMERS', 'Early customers'),
+        ('REVENUE_ALREADY', 'Revenue already'),
+        ('EXISTING_BUSINESS', 'Existing business'),
+      ], (value) => setState(() => _stage = value)),
+      _choice('When are you considering starting?', _timeline, const [
+        ('NOW', 'Now'),
+        ('ONE_TO_THREE_MONTHS', 'Within 1–3 months'),
+        ('THREE_TO_SIX_MONTHS', 'Within 3–6 months'),
+        ('SIX_TO_TWELVE_MONTHS', 'Within 6–12 months'),
+        ('NO_FIXED_TIMELINE', 'No fixed timeline'),
+      ], (value) => setState(() => _timeline = value)),
+      _choice('Starting', _founder, const [
+        ('SOLO', 'Solo'),
+        ('COFOUNDER', 'Cofounder'),
+        ('NOT_DECIDED', 'Not decided'),
+      ], (value) => setState(() => _founder = value)),
+      _choice('Main reason', _reason, const [
+        ('Independence', 'Independence'),
+        ('Long-term ambition', 'Long-term ambition'),
+        ('Income upside', 'Income upside'),
+        ('Existing traction', 'Existing traction'),
+        ('Current job dissatisfaction', 'Current job dissatisfaction'),
+        ('Opportunity identified', 'Opportunity identified'),
+        ('Other', 'Other'),
+      ], (value) => setState(() => _reason = value)),
+      _choice(
+        'Runway (optional)',
+        _runway,
+        const [
+          ('UNDER_THREE_MONTHS', '<3 months'),
+          ('THREE_TO_SIX_MONTHS', '3–6 months'),
+          ('SIX_TO_TWELVE_MONTHS', '6–12 months'),
+          ('TWELVE_PLUS_MONTHS', '12+ months'),
+          ('PREFER_NOT_TO_SAY', 'Prefer not to say'),
+        ],
+        (value) => setState(() => _runway = value),
+        required: false,
+      ),
+      _text(_category, 'Business category (optional)'),
+      _text(_traction, 'Traction summary (optional)', lines: 2),
+      _text(_concerns, 'Concerns (optional)', lines: 3),
+    ],
+  );
+}
+
+class _CareerAbroadForm extends StatefulWidget {
+  const _CareerAbroadForm({required this.controller});
+  final CareerDecisionController controller;
+  @override
+  State<_CareerAbroadForm> createState() => _CareerAbroadFormState();
+}
+
+class _CareerAbroadFormState extends State<_CareerAbroadForm> {
+  final _form = GlobalKey<FormState>();
+  final _region = TextEditingController(),
+      _stage = TextEditingController(),
+      _movement = TextEditingController(),
+      _concerns = TextEditingController();
+  String? _path, _applying, _timeline, _priority;
+  @override
+  void dispose() {
+    for (final c in [_region, _stage, _movement, _concerns]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  void _submit() {
+    if (!(_form.currentState?.validate() ?? false) ||
+        [_path, _applying, _timeline, _priority].any((item) => item == null)) {
+      setState(() {});
+      return;
+    }
+    widget.controller.submit(
+      decisionType: 'CAREER_ABROAD',
+      context: {
+        'abroadPath': _path,
+        'activelyInterviewing': _applying,
+        'preferredTimeline': _timeline,
+        'priority': _priority,
+        if (_region.text.trim().isNotEmpty) 'targetRegion': _region.text.trim(),
+        if (_stage.text.trim().isNotEmpty)
+          'applicationStage': _stage.text.trim(),
+        if (_movement.text.trim().isNotEmpty)
+          'movementDate': _movement.text.trim(),
+        if (_concerns.text.trim().isNotEmpty) 'concerns': _concerns.text.trim(),
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => _DecisionFormScaffold(
+    formKey: _form,
+    title: 'Career abroad',
+    controller: widget.controller,
+    onSubmit: _submit,
+    submitLabel: 'CONTINUE',
+    children: [
+      _choice('What kind of international move?', _path, const [
+        ('OVERSEAS_JOB', 'Overseas job'),
+        ('RELOCATION', 'Relocation'),
+        ('REMOTE_FOREIGN_COMPANY', 'Remote role for foreign company'),
+        ('INTERNAL_INTERNATIONAL_TRANSFER', 'Internal international transfer'),
+        ('STUDY_TO_WORK', 'Study-to-work path'),
+      ], (value) => setState(() => _path = value)),
+      _choice('Are you already applying?', _applying, const [
+        ('YES', 'Yes'),
+        ('NO', 'No'),
+        ('EXPLORING', 'Just exploring'),
+      ], (value) => setState(() => _applying = value)),
+      _choice('Target timeline', _timeline, const [
+        ('IMMEDIATELY', 'Immediately'),
+        ('ONE_TO_THREE_MONTHS', 'Within 1–3 months'),
+        ('THREE_TO_SIX_MONTHS', 'Within 3–6 months'),
+        ('SIX_TO_TWELVE_MONTHS', 'Within 6–12 months'),
+        ('NO_FIXED_TIMELINE', 'No fixed timeline'),
+      ], (value) => setState(() => _timeline = value)),
+      _choice('Priority', _priority, const [
+        ('Career growth', 'Career growth'),
+        ('Compensation', 'Compensation'),
+        ('Immigration / settlement', 'Immigration / settlement'),
+        ('Lifestyle', 'Lifestyle'),
+        ('International exposure', 'International exposure'),
+        ('Long-term career path', 'Long-term career path'),
+      ], (value) => setState(() => _priority = value)),
+      _text(_region, 'Target country / region (optional)'),
+      _text(_stage, 'Application stage (optional)'),
+      _text(_movement, 'Expected joining / movement date (optional)'),
+      _text(_concerns, 'Concerns (optional)', lines: 3),
+    ],
+  );
+}
+
+const _growthGoals = [
+  'Promotion',
+  'Salary increase',
+  'Bigger responsibilities',
+  'Leadership role',
+  'Internal transfer',
+  'Recognition / visibility',
+  'Role expansion',
+];
+
+class _DecisionFormScaffold extends StatelessWidget {
+  const _DecisionFormScaffold({
+    required this.formKey,
+    required this.title,
+    required this.controller,
+    required this.onSubmit,
+    required this.submitLabel,
+    required this.children,
+  });
+  final GlobalKey<FormState> formKey;
+  final String title, submitLabel;
+  final CareerDecisionController controller;
+  final VoidCallback onSubmit;
+  final List<Widget> children;
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: Text(title.toUpperCase())),
+    body: Form(
+      key: formKey,
+      child: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 18),
+          ...children,
+          if (controller.state == CareerDecisionLoadState.error)
+            const Padding(
+              padding: EdgeInsets.only(top: 12),
+              child: Text(
+                'We could not prepare your decision view. Please try again.',
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.only(top: 18),
+            child: FilledButton(
+              onPressed: onSubmit,
+              child: Text(
+                controller.state == CareerDecisionLoadState.error
+                    ? 'RETRY'
+                    : submitLabel,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _choice(
+  String label,
+  String? value,
+  List<(String, String)> choices,
+  ValueChanged<String?> onChanged, {
+  bool required = true,
+}) => Padding(
+  padding: const EdgeInsets.only(top: 12),
+  child: DropdownButtonFormField<String>(
+    initialValue: value,
+    decoration: InputDecoration(labelText: label),
+    items: choices
+        .map((item) => DropdownMenuItem(value: item.$1, child: Text(item.$2)))
+        .toList(),
+    validator: required ? (item) => item == null ? 'Required' : null : null,
+    onChanged: onChanged,
+  ),
+);
+Widget _text(TextEditingController controller, String label, {int lines = 1}) =>
+    Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: TextFormField(
+        controller: controller,
+        maxLines: lines,
+        decoration: InputDecoration(labelText: label),
+      ),
+    );
+
+class _ContextualDecisionResult extends StatelessWidget {
+  const _ContextualDecisionResult({required this.decision});
+  final CareerDecision decision;
+  bool get _promotion => decision.decisionType == 'PROMOTION_GROWTH';
+  bool get _business => decision.decisionType == 'START_BUSINESS';
+  bool get _abroad => decision.decisionType == 'CAREER_ABROAD';
+  @override
+  Widget build(BuildContext context) {
+    final data = decision.context;
+    final timing = decision.timing;
+    final labels = _promotion
+        ? (
+            'PROMOTION / GROWTH',
+            'Current Growth Context',
+            'Stronger Growth Window',
+            'What Type of Growth Looks Better Supported',
+            'What Supports Growth',
+            'What May Slow Progress',
+            'Practical Growth Factors',
+            'What To Do',
+          )
+        : _business
+        ? (
+            'START A BUSINESS',
+            'Entrepreneurial Context',
+            'Stronger Business-Building Window',
+            'Build Now vs Prepare First',
+            'What Supports Entrepreneurship',
+            'What Needs Caution',
+            'Practical Readiness',
+            'Suggested Next Step',
+          )
+        : (
+            'CAREER ABROAD',
+            'International Career Outlook',
+            'Application / Exploration Timing',
+            'Movement / Joining Timing',
+            'What Supports International Opportunities',
+            'What Needs Caution',
+            'Practical Preparation',
+            'What To Do',
+          );
+    final contextual = _promotion
+        ? [
+            if (data?.growthTypes.isNotEmpty == true)
+              'Growth focus: ${data!.growthTypes.join(', ')}.',
+            if (data?.managerDiscussionStatus != null)
+              'Discussion status: ${data!.managerDiscussionStatus}.',
+          ]
+        : _business
+        ? [
+            if (data?.startMode != null) 'Start plan: ${data!.startMode}.',
+            if (data?.businessStage != null)
+              'Current stage: ${data!.businessStage}.',
+            if (data?.runway != null) 'Runway shared: ${data!.runway}.',
+          ]
+        : [
+            if (data?.abroadPath != null) 'Path: ${data!.abroadPath}.',
+            if (data?.activelyInterviewing != null)
+              'Application status: ${data!.activelyInterviewing}.',
+            if (data?.priority != null) 'Priority: ${data!.priority}.',
+          ];
+    final movementKnown = data?.movementDate?.isNotEmpty == true;
+    return Scaffold(
+      appBar: AppBar(title: Text(labels.$1)),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          const Text(
+            'Overall View',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          Text(_Result._stateLabel(decision.state)),
+          if (decision.overall.isNotEmpty) Text(decision.overall),
+          _resultSection(
+            labels.$2,
+            contextual.isEmpty ? decision.limitation : contextual,
+          ),
+          _resultSection(
+            labels.$3,
+            timing == null
+                ? 'TaraVerse does not have a supported Career timing window for this decision.'
+                : '${DateFormat('d MMM y').format(timing.start)} – ${DateFormat('d MMM y').format(timing.end)}',
+          ),
+          if (_abroad)
+            _resultSection(
+              labels.$4,
+              movementKnown
+                  ? 'Your expected movement or joining date is included for practical planning.'
+                  : 'Movement or joining timing can be assessed once you know the expected date.',
+            ),
+          if (!_abroad)
+            _resultSection(
+              labels.$4,
+              _business
+                  ? 'Timing may support building and testing, but it is not sufficient on its own to justify leaving stable income.'
+                  : 'The saved Career evidence does not distinguish a guaranteed outcome between these growth paths.',
+            ),
+          _resultSection(
+            labels.$5,
+            decision.supports.isEmpty
+                ? [
+                    'TaraVerse is using the saved Career evidence available for this decision.',
+                  ]
+                : decision.supports,
+          ),
+          if (decision.cautions.isNotEmpty)
+            _resultSection(labels.$6, decision.cautions),
+          _resultSection(labels.$7, decision.practicalFactors),
+          _resultSection(labels.$8, decision.whatToDo),
+          _DetailedAstrology(
+            detailed: decision.detailedAstrology,
+            limitation: decision.limitation,
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Widget _resultSection(String title, Object body) => Padding(
     padding: const EdgeInsets.only(top: 18),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,

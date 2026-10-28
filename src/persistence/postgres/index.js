@@ -18,6 +18,7 @@ const ENTITLEMENT_COLUMNS = 'id, user_id, product_key, status, quantity, valid_f
 const CAREER_EVENT_COLUMNS = 'id, user_id, birth_profile_id, event_type, event_date_precision, event_year, event_month, event_day, title, notes, created_at, updated_at, deleted_at';
 const CAREER_EVENT_OBSERVATION_COLUMNS = 'id, user_id, birth_profile_id, career_event_id, observation_type, event_date_precision, event_year, event_month, event_day, created_at, updated_at';
 const LIFE_EVENT_COLUMNS = 'id,user_id,birth_profile_id,category,event_type,event_date_precision,event_year,event_month,event_day,title,note,legacy_source_type,legacy_source_id,created_at,updated_at,deleted_at';
+const CAREER_DECISION_COLUMNS = 'id,user_id,birth_profile_id,decision_type,context_json,result_json,source_reading_id,created_at';
 const READING_COLUMNS = 'id, user_id, birth_profile_id, domain, engine_profile_id, engine_profile_fingerprint, record_schema_version, input_snapshot_ciphertext, provenance_ciphertext, structured_reading_ciphertext, rendered_reading_ciphertext, payload_encryption_version, payload_key_version, payload_algorithm, input_snapshot_nonce, provenance_nonce, structured_reading_nonce, rendered_reading_nonce, integrity_metadata, calculation_digest, output_digest, rendered_output_digest, created_at, archived_at, deleted_at, idempotency_key';
 
 function dbBoundary(db) { if (!db || typeof db.query !== 'function') fail('INVALID_POSTGRES_DB'); return db; }
@@ -47,6 +48,14 @@ function lifeEventDbDiagnostic(log, error, stage = 'INSERT') {
   } catch {}
 }
 function requiredNullableId(value, code) { return value === null || value === undefined ? null : requiredString(value, code); }
+function jsonObject(value, code) {
+  let parsed = value;
+  if (typeof value === 'string') {
+    try { parsed = JSON.parse(value); } catch (_) { fail(code); }
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) fail(code);
+  return immutableCopy(parsed, code);
+}
 function verifiedRecord(record) {
   if (!record || typeof record !== 'object' || typeof record.readingId !== 'string' || !record.readingId || typeof record.engineProfileId !== 'string' || !record.engineProfileId || !record.integrity || !record.integrity.calculation || !record.integrity.output) fail('INVALID_READING_RECORD');
   return immutableCopy(record, 'INVALID_READING_RECORD');
@@ -141,6 +150,51 @@ class PostgresLifeEventRepository {
   async softDeleteForProfile({ userId,birthProfileId,id,deletedAt,updatedAt } = {}) { return execute(async () => lifeEventFromRow(await queryOne(this.db, `update app.life_events set deleted_at=$4,updated_at=$5 where id=$1 and user_id=$2 and birth_profile_id=$3 and deleted_at is null returning ${LIFE_EVENT_COLUMNS}`, [requiredString(id,'INVALID_LIFE_EVENT_ID'),requiredString(userId,'INVALID_USER_ID'),requiredString(birthProfileId,'INVALID_BIRTH_PROFILE_ID'),canonicalTime(deletedAt),canonicalTime(updatedAt)], 'LIFE_EVENT_NOT_FOUND')), 'DELETE_LIFE_EVENT_FAILED'); }
 }
 
+function careerDecisionFromRow(row, { includeResult = true } = {}) {
+  const base = {
+    decisionId: row.id,
+    userId: row.user_id,
+    birthProfileId: row.birth_profile_id,
+    decisionType: row.decision_type,
+    sourceReadingId: row.source_reading_id,
+    createdAt: dbTime(row.created_at),
+  };
+  if (includeResult) {
+    base.context = jsonObject(row.context_json, 'INVALID_CAREER_DECISION_RECORD');
+    base.result = jsonObject(row.result_json, 'INVALID_CAREER_DECISION_RECORD');
+  } else {
+    base.state = typeof row.decision_state === 'string' ? row.decision_state : null;
+    // List views only use this as input to an application-level safe summary.
+    base.context = row.context_json == null
+      ? {}
+      : jsonObject(row.context_json, 'INVALID_CAREER_DECISION_RECORD');
+  }
+  return immutableCopy(base, 'INVALID_CAREER_DECISION_RECORD');
+}
+class PostgresCareerDecisionRepository {
+  constructor({ db } = {}) { this.db = dbBoundary(db); }
+  withClient(db) { return new PostgresCareerDecisionRepository({ db }); }
+  async createDecision(input = {}) {
+    const values = [
+      requiredString(input.id, 'INVALID_CAREER_DECISION_ID'),
+      requiredString(input.userId, 'INVALID_USER_ID'),
+      requiredString(input.birthProfileId, 'INVALID_BIRTH_PROFILE_ID'),
+      requiredString(input.decisionType, 'INVALID_CAREER_DECISION_TYPE'),
+      JSON.stringify(jsonObject(input.context, 'INVALID_CAREER_DECISION_CONTEXT')),
+      JSON.stringify(jsonObject(input.result, 'INVALID_CAREER_DECISION_RESULT')),
+      input.sourceReadingId == null ? null : requiredString(input.sourceReadingId, 'INVALID_READING_ID'),
+      canonicalTime(input.createdAt),
+    ];
+    return execute(async () => careerDecisionFromRow((await this.db.query(`insert into app.career_decisions (${CAREER_DECISION_COLUMNS}) values ($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7,$8) returning ${CAREER_DECISION_COLUMNS}`, values)).rows[0]), 'CREATE_CAREER_DECISION_FAILED');
+  }
+  async listDecisionsForBirthProfile({ userId, birthProfileId } = {}) {
+    return execute(async () => freeze((await this.db.query(`select id,user_id,birth_profile_id,decision_type,source_reading_id,created_at,context_json,result_json->>'state' as decision_state from app.career_decisions where user_id=$1 and birth_profile_id=$2 order by created_at desc,id desc`, [requiredString(userId, 'INVALID_USER_ID'), requiredString(birthProfileId, 'INVALID_BIRTH_PROFILE_ID')])).rows.map((row) => careerDecisionFromRow(row, { includeResult: false }))), 'LIST_CAREER_DECISIONS_FAILED');
+  }
+  async getDecisionForBirthProfile({ userId, birthProfileId, decisionId } = {}) {
+    return execute(async () => careerDecisionFromRow(await queryOne(this.db, `select ${CAREER_DECISION_COLUMNS} from app.career_decisions where id=$1 and user_id=$2 and birth_profile_id=$3`, [requiredString(decisionId, 'INVALID_CAREER_DECISION_ID'), requiredString(userId, 'INVALID_USER_ID'), requiredString(birthProfileId, 'INVALID_BIRTH_PROFILE_ID')], 'CAREER_DECISION_NOT_FOUND')), 'GET_CAREER_DECISION_FAILED');
+  }
+}
+
 class PostgresPaymentRepository {
   constructor({ db } = {}) { this.db = dbBoundary(db); }
   withClient(db) { return new PostgresPaymentRepository({ db }); }
@@ -193,4 +247,4 @@ class PostgresPaymentEventRepository {
   async markFailed(id, { processedAt, failureCode } = {}) { return execute(async () => paymentEventFromRow(await queryOne(this.db, `update app.payment_events set processing_status='FAILED',processed_at=$2,failure_code=$3 where id=$1 returning ${EVENT_COLUMNS}`, [requiredString(id, 'INVALID_PAYMENT_EVENT_ID'), canonicalTime(processedAt, 'INVALID_EVENT_TIMESTAMP'), requiredString(failureCode, 'INVALID_EVENT_FAILURE_CODE')], 'PAYMENT_EVENT_NOT_FOUND')), 'UPDATE_PAYMENT_EVENT_FAILED'); }
 }
 
-module.exports = { PostgresUserRepository, PostgresBirthProfileRepository, PostgresReadingRepository, PostgresEntitlementRepository, PostgresCareerEventRepository, PostgresCareerEventObservationRepository, PostgresLifeEventRepository, PostgresPaymentRepository, PostgresProviderPaymentOrderRepository, PostgresPurchaseRepository, PostgresSubscriptionRepository, PostgresProfileEntitlementRepository, PostgresPaymentEventRepository, PostgresNotificationRepository, profileFingerprint, mapPostgresError };
+module.exports = { PostgresUserRepository, PostgresBirthProfileRepository, PostgresReadingRepository, PostgresEntitlementRepository, PostgresCareerEventRepository, PostgresCareerEventObservationRepository, PostgresLifeEventRepository, PostgresCareerDecisionRepository, PostgresPaymentRepository, PostgresProviderPaymentOrderRepository, PostgresPurchaseRepository, PostgresSubscriptionRepository, PostgresProfileEntitlementRepository, PostgresPaymentEventRepository, PostgresNotificationRepository, profileFingerprint, mapPostgresError };

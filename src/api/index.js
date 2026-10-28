@@ -204,12 +204,20 @@ function createApi({ authVerifier, userResolver, birthProfileService, careerEven
     });
   }
   if (careerDecisionService) {
-    if (typeof careerDecisionService.decide !== 'function') throw new TypeError('INVALID_CAREER_DECISION_SERVICE');
+    if (typeof careerDecisionService.decide !== 'function' || typeof careerDecisionService.list !== 'function' || typeof careerDecisionService.get !== 'function') throw new TypeError('INVALID_CAREER_DECISION_SERVICE');
     app.post('/v1/birth-profiles/:id/career-decisions', async (request, reply) => {
       const careerDecision = await careerDecisionService.decide({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), body: request.body || {} });
       reply.code(201);
       return { careerDecision, requestId: request.id };
     });
+    app.get('/v1/birth-profiles/:id/career-decisions', async (request) => ({
+      careerDecisions: await careerDecisionService.list({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID') }),
+      requestId: request.id,
+    }));
+    app.get('/v1/birth-profiles/:id/career-decisions/:decisionId', async (request) => ({
+      careerDecision: await careerDecisionService.get({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), decisionId: id(request.params.decisionId, 'CAREER_DECISION_ID') }),
+      requestId: request.id,
+    }));
   }
   if (propertyAnswerService) {
     if (typeof propertyAnswerService.answer !== 'function') throw new TypeError('INVALID_PROPERTY_ANSWER_SERVICE');

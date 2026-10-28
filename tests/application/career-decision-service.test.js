@@ -14,7 +14,7 @@ test('Career decisions reuse persisted Career timing and preserve practical cont
 });
 test('Career decisions fail safely without a usable saved timing window', async () => {
   const service = new CareerDecisionService({ careerAnswerService: { answer: async () => ({ answerability: 'INSUFFICIENT_EVIDENCE', sourceReadingId: null, evidence: [], agreement: null }) } });
-  const result = await service.decide({ principal: {}, birthProfileId: 'profile-a', body: { decisionType: 'START_BUSINESS', context: {} } });
+  const result = await service.decide({ principal: {}, birthProfileId: 'profile-a', body: { decisionType: 'JOB_OFFER', context: {} } });
   assert.equal(result.state, DecisionState.INSUFFICIENT_EVIDENCE);
   assert.equal(result.timing, undefined);
 });
@@ -50,4 +50,77 @@ test('Compare Offers validates each offer and does not fabricate missing joining
   assert.equal(result.comparison.outcome, 'MIXED');
   assert.match(result.comparison.timingComparison, /cannot be compared/i);
   assert.equal(result.comparison.offerA.timing.state, 'NOT_ASSESSED');
+});
+
+function persistedFixture(answer = supported) {
+  const rows = []; let sequence = 0;
+  const users = { 'subject-a': { id: 'user-a', status: 'active' }, 'subject-b': { id: 'user-b', status: 'active' } };
+  const profileOwners = { 'profile-a': 'subject-a', 'profile-b': 'subject-b' };
+  const repository = {
+    async createDecision(input) { const row = { ...input, decisionId: input.id, createdAt: input.createdAt }; rows.push(row); return row; },
+    async listDecisionsForBirthProfile({ userId, birthProfileId }) { return rows.filter((row) => row.userId === userId && row.birthProfileId === birthProfileId).map((row) => ({ decisionId: row.id, decisionType: row.decisionType, state: row.result.state, context: row.context, sourceReadingId: row.sourceReadingId, createdAt: row.createdAt })); },
+    async getDecisionForBirthProfile({ userId, birthProfileId, decisionId }) { const row = rows.find((item) => item.id === decisionId && item.userId === userId && item.birthProfileId === birthProfileId); if (!row) { const error = new Error('CAREER_DECISION_NOT_FOUND'); error.code = 'CAREER_DECISION_NOT_FOUND'; throw error; } return { decisionId: row.id, birthProfileId: row.birthProfileId, context: row.context, result: row.result, sourceReadingId: row.sourceReadingId, createdAt: row.createdAt }; },
+  };
+  const service = new CareerDecisionService({
+    careerAnswerService: { answer: async () => answer },
+    authUserResolver: async (principal) => users[principal.subject],
+    birthProfileService: { get: async ({ principal, birthProfileId }) => { if (profileOwners[birthProfileId] !== principal.subject) { const error = new Error('NOT_FOUND_OR_FORBIDDEN'); error.code = 'NOT_FOUND_OR_FORBIDDEN'; throw error; } return { id: birthProfileId }; } },
+    transactionExecutor: { execute: async ({ operation }) => operation({}) },
+    repositories: () => ({ careerDecisions: repository }),
+    idGenerator: () => `decision-${++sequence}`,
+    clock: () => '2026-10-28T10:00:00.000Z',
+  });
+  return { service, rows };
+}
+const principalA = { provider: 'supabase', subject: 'subject-a', isAnonymous: false };
+const principalB = { provider: 'supabase', subject: 'subject-b', isAnonymous: false };
+test('valid generated decisions persist a sanitized immutable snapshot and return identity metadata', async () => {
+  const { service, rows } = persistedFixture();
+  const result = await service.decide({ principal: principalA, birthProfileId: 'profile-a', body: { decisionType: 'JOB_OFFER', context: { priority: 'Career growth' } } });
+  assert.equal(result.decisionId, 'decision-1');
+  assert.equal(result.createdAt, '2026-10-28T10:00:00.000Z');
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].birthProfileId, 'profile-a');
+  assert.deepEqual(rows[0].context, result.context);
+  assert.equal(rows[0].result.decisionId, undefined);
+  assert.equal(rows[0].result.createdAt, undefined);
+  assert.equal(rows[0].sourceReadingId, 'reading-a');
+});
+test('valid insufficient-evidence decisions persist while invalid requests do not', async () => {
+  const { service, rows } = persistedFixture({ answerability: 'INSUFFICIENT_EVIDENCE', sourceReadingId: null, evidence: [], agreement: null });
+  const result = await service.decide({ principal: principalA, birthProfileId: 'profile-a', body: { decisionType: 'JOB_OFFER', context: {} } });
+  assert.equal(result.state, DecisionState.INSUFFICIENT_EVIDENCE);
+  assert.equal(rows.length, 1);
+  await assert.rejects(() => service.decide({ principal: principalA, birthProfileId: 'profile-a', body: { decisionType: 'JOB_OFFER', context: { untrusted: 'no' } } }), { code: 'INVALID_CAREER_DECISION_CONTEXT' });
+  assert.equal(rows.length, 1);
+});
+test('saved decisions list and reopen only in their authenticated birth-profile scope', async () => {
+  const { service } = persistedFixture();
+  const created = await service.decide({ principal: principalA, birthProfileId: 'profile-a', body: { decisionType: 'COMPARE_OFFERS', context: { priorities: ['Career growth'], offerA: { offerDate: '2026-10-01', role: 'A', moveType: 'NEW_COMPANY' }, offerB: { offerDate: '2026-10-02', role: 'B', moveType: 'INTERNAL_MOVE' } } } });
+  const list = await service.list({ principal: principalA, birthProfileId: 'profile-a' });
+  assert.deepEqual(list.map((item) => item.decisionId), [created.decisionId]);
+  assert.equal(list[0].context.offerA.role, 'A');
+  assert.equal(list[0].context.concerns, undefined);
+  const reopened = await service.get({ principal: principalA, birthProfileId: 'profile-a', decisionId: created.decisionId });
+  assert.equal(reopened.comparison.offerA.timing.state, 'NOT_ASSESSED');
+  await assert.rejects(() => service.get({ principal: principalA, birthProfileId: 'profile-b', decisionId: created.decisionId }), { code: 'NOT_FOUND_OR_FORBIDDEN' });
+  await assert.rejects(() => service.get({ principal: principalB, birthProfileId: 'profile-b', decisionId: created.decisionId }), { code: 'NOT_FOUND_OR_FORBIDDEN' });
+});
+test('Promotion, business, and abroad contexts are strictly typed and persist through the shared decision flow', async () => {
+  const { service, rows } = persistedFixture();
+  const cases = [
+    ['PROMOTION_GROWTH', { growthTypes: ['Promotion', 'Leadership role'], managerDiscussionStatus: 'INFORMALLY', preferredTimeline: 'ONE_TO_THREE_MONTHS', reviewDate: '2026-11-01' }],
+    ['START_BUSINESS', { startMode: 'ALONGSIDE_CURRENT_JOB', businessStage: 'MVP_PROTOTYPE', preferredTimeline: 'THREE_TO_SIX_MONTHS', founderMode: 'SOLO', businessReason: 'Long-term ambition', runway: 'SIX_TO_TWELVE_MONTHS' }],
+    ['CAREER_ABROAD', { abroadPath: 'OVERSEAS_JOB', activelyInterviewing: 'EXPLORING', preferredTimeline: 'SIX_TO_TWELVE_MONTHS', priority: 'International exposure', movementDate: '2027-04-01' }],
+  ];
+  for (const [decisionType, context] of cases) {
+    const result = await service.decide({ principal: principalA, birthProfileId: 'profile-a', body: { decisionType, context } });
+    assert.ok(result.decisionId);
+    assert.equal(result.decisionType, decisionType);
+  }
+  assert.equal(rows.length, 3);
+  assert.deepEqual(rows[0].context.growthTypes, ['Promotion', 'Leadership role']);
+  await assert.rejects(() => service.decide({ principal: principalA, birthProfileId: 'profile-a', body: { decisionType: 'PROMOTION_GROWTH', context: { growthTypes: ['Promotion'], managerDiscussionStatus: 'YES' } } }), { code: 'INVALID_PROMOTION_GROWTH_CONTEXT' });
+  await assert.rejects(() => service.decide({ principal: principalA, birthProfileId: 'profile-a', body: { decisionType: 'START_BUSINESS', context: { startMode: 'FULL_TIME', businessStage: 'IDEA', preferredTimeline: 'NOW', founderMode: 'SOLO', businessReason: 'Unknown' } } }), { code: 'INVALID_START_BUSINESS_CONTEXT' });
+  await assert.rejects(() => service.decide({ principal: principalA, birthProfileId: 'profile-a', body: { decisionType: 'CAREER_ABROAD', context: { abroadPath: 'OVERSEAS_JOB', activelyInterviewing: 'YES', preferredTimeline: 'NOW', priority: 'Visa guaranteed' } } }), { code: 'INVALID_CAREER_ABROAD_CONTEXT' });
 });

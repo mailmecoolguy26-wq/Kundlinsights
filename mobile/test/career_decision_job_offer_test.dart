@@ -452,6 +452,15 @@ CareerDecision _decision({
 });
 
 class _Repository implements CareerDecisionRepository {
+  @override
+  Future<CareerDecision> getDecision({
+    required String birthProfileId,
+    required String decisionId,
+  }) => Future.error(UnimplementedError());
+  @override
+  Future<List<CareerDecisionSummary>> listDecisions({
+    required String birthProfileId,
+  }) async => const [];
   _Repository({this.pending, this.result, this.failuresBeforeSuccess = 0});
 
   final Completer<CareerDecision>? pending;

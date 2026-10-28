@@ -45,10 +45,12 @@ import '../../features/career_chat/career_chat_controller.dart';
 import '../../features/career_chat/presentation/career_chat_screen.dart';
 import '../../features/career_answers/career_answer_controller.dart';
 import '../../features/career_answers/career_decision_controller.dart';
+import '../../features/career_answers/career_decision_history_controller.dart';
 import '../../features/career_answers/domain/career_answer.dart';
 import '../../features/career_answers/presentation/career_hub_screen.dart';
 import '../../features/career_answers/presentation/career_answer_screen.dart';
 import '../../features/career_answers/presentation/career_decision_screen.dart';
+import '../../features/career_answers/presentation/career_decision_history_screen.dart';
 import '../../features/vehicle/vehicle_answer_controller.dart';
 import '../../features/vehicle/presentation/vehicle_hub_screen.dart';
 import '../../features/property/property_answer_controller.dart';
@@ -89,6 +91,7 @@ GoRouter createAppRouter(
   required CareerChatController careerChat,
   required CareerAnswerController careerAnswers,
   required CareerDecisionController careerDecisions,
+  required CareerDecisionHistoryController careerDecisionHistory,
   VehicleAnswerController? vehicleAnswers,
   PropertyAnswerController? propertyAnswers,
   RazorpayCareerPremiumController? razorpayPremium,
@@ -201,6 +204,7 @@ GoRouter createAppRouter(
               return CareerHubScreen(
                 readings: readings,
                 language: careerExplanationLanguage,
+                decisionHistory: careerDecisionHistory,
               );
           }
         },
@@ -244,6 +248,22 @@ GoRouter createAppRouter(
             controller: careerDecisions,
             decisionType: state.pathParameters['type'] ?? 'job-offer',
           ),
+        ),
+        GoRoute(
+          path: 'decisions',
+          name: 'career-decision-history',
+          builder: (context, state) =>
+              CareerDecisionHistoryScreen(controller: careerDecisionHistory),
+          routes: [
+            GoRoute(
+              path: ':decisionId',
+              name: 'career-decision-saved',
+              builder: (context, state) => CareerDecisionSavedScreen(
+                controller: careerDecisionHistory,
+                decisionId: state.pathParameters['decisionId']!,
+              ),
+            ),
+          ],
         ),
       ],
     ),

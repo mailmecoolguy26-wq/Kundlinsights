@@ -2,6 +2,8 @@ class CareerDecision {
   const CareerDecision({
     required this.decisionType,
     required this.state,
+    this.decisionId,
+    this.createdAt,
     this.timing,
     required this.overall,
     required this.supports,
@@ -16,6 +18,8 @@ class CareerDecision {
   });
   final String decisionType;
   final String state;
+  final String? decisionId;
+  final DateTime? createdAt;
   final CareerDecisionTiming? timing;
   final String overall;
   final List<String> supports, cautions, practicalFactors, whatToDo;
@@ -29,6 +33,8 @@ class CareerDecision {
     return CareerDecision(
       decisionType: json['decisionType'] as String? ?? 'JOB_OFFER',
       state: json['state'] as String? ?? 'INSUFFICIENT_EVIDENCE',
+      decisionId: json['decisionId'] as String?,
+      createdAt: _date(json['createdAt']),
       timing: timing is Map<String, dynamic>
           ? CareerDecisionTiming.fromJson(timing)
           : null,
@@ -48,12 +54,53 @@ class CareerDecision {
   }
   static List<String> _list(Object? value) =>
       List.unmodifiable((value as List? ?? const []).whereType<String>());
+  static DateTime? _date(Object? raw) {
+    if (raw is! String) return null;
+    return DateTime.tryParse(raw)?.toLocal();
+  }
+}
+
+/// A deliberately small, safe projection returned by the list API. Full
+/// context and immutable result data are fetched only after the user opens an
+/// owned decision.
+class CareerDecisionSummary {
+  const CareerDecisionSummary({
+    required this.decisionId,
+    required this.decisionType,
+    required this.state,
+    required this.createdAt,
+    this.context,
+  });
+
+  final String decisionId, decisionType, state;
+  final DateTime createdAt;
+  final CareerDecisionContext? context;
+
+  factory CareerDecisionSummary.fromJson(Map<String, dynamic> json) {
+    final id = json['decisionId'];
+    final created = json['createdAt'];
+    if (id is! String || id.isEmpty || created is! String) {
+      throw const FormatException('Malformed Career Decision summary.');
+    }
+    final parsed = DateTime.tryParse(created);
+    if (parsed == null) {
+      throw const FormatException('Malformed Career Decision summary date.');
+    }
+    return CareerDecisionSummary(
+      decisionId: id,
+      decisionType: json['decisionType'] as String? ?? 'JOB_OFFER',
+      state: json['state'] as String? ?? 'INSUFFICIENT_EVIDENCE',
+      createdAt: parsed.toLocal(),
+      context: CareerDecisionContext.tryFromJson(json['context']),
+    );
+  }
 }
 
 class CareerDecisionContext {
   const CareerDecisionContext({
     required this.reasons,
     this.priority,
+    this.role,
     this.joiningDate,
     this.activelyInterviewing,
     this.preferredTimeline,
@@ -64,10 +111,25 @@ class CareerDecisionContext {
     this.priorities = const [],
     this.offerA,
     this.offerB,
+    this.growthTypes = const [],
+    this.reviewDate,
+    this.managerDiscussionStatus,
+    this.businessStage,
+    this.startMode,
+    this.founderMode,
+    this.businessReason,
+    this.runway,
+    this.businessCategory,
+    this.tractionSummary,
+    this.abroadPath,
+    this.targetRegion,
+    this.applicationStage,
+    this.movementDate,
   });
 
   final List<String> reasons;
   final String? priority;
+  final String? role;
   final String? joiningDate;
   final String? activelyInterviewing;
   final String? preferredTimeline;
@@ -78,6 +140,11 @@ class CareerDecisionContext {
   final List<String> priorities;
   final CareerDecisionOffer? offerA;
   final CareerDecisionOffer? offerB;
+  final List<String> growthTypes;
+  final String? reviewDate, managerDiscussionStatus, businessStage, startMode;
+  final String? founderMode, businessReason, runway, businessCategory;
+  final String? tractionSummary, abroadPath, targetRegion, applicationStage;
+  final String? movementDate;
 
   static CareerDecisionContext? tryFromJson(Object? raw) {
     if (raw is! Map) return null;
@@ -99,10 +166,17 @@ class CareerDecisionContext {
         .toList(growable: false);
     final offerA = CareerDecisionOffer.tryFromJson(raw['offerA']);
     final offerB = CareerDecisionOffer.tryFromJson(raw['offerB']);
+    String? string(String key) =>
+        raw[key] is String ? raw[key] as String : null;
+    final growthTypes = (raw['growthTypes'] as List? ?? const [])
+        .whereType<String>()
+        .where((value) => value.trim().isNotEmpty)
+        .toList(growable: false);
     if (reasons.isEmpty &&
         interviewing is! String &&
         timeline is! String &&
         priority is! String &&
+        raw['role'] is! String &&
         joiningDate is! String &&
         noticePeriod is! String &&
         currentRole is! String &&
@@ -110,12 +184,29 @@ class CareerDecisionContext {
         workModelPreference is! String &&
         priorities.isEmpty &&
         offerA == null &&
-        offerB == null) {
+        offerB == null &&
+        growthTypes.isEmpty &&
+        ![
+          'reviewDate',
+          'managerDiscussionStatus',
+          'businessStage',
+          'startMode',
+          'founderMode',
+          'businessReason',
+          'runway',
+          'businessCategory',
+          'tractionSummary',
+          'abroadPath',
+          'targetRegion',
+          'applicationStage',
+          'movementDate',
+        ].any((key) => raw[key] is String)) {
       return null;
     }
     return CareerDecisionContext(
       reasons: List.unmodifiable(reasons),
       priority: priority is String ? priority : null,
+      role: string('role'),
       joiningDate: joiningDate is String ? joiningDate : null,
       activelyInterviewing: interviewing is String ? interviewing : null,
       preferredTimeline: timeline is String ? timeline : null,
@@ -128,6 +219,20 @@ class CareerDecisionContext {
       priorities: List.unmodifiable(priorities),
       offerA: offerA,
       offerB: offerB,
+      growthTypes: List.unmodifiable(growthTypes),
+      reviewDate: string('reviewDate'),
+      managerDiscussionStatus: string('managerDiscussionStatus'),
+      businessStage: string('businessStage'),
+      startMode: string('startMode'),
+      founderMode: string('founderMode'),
+      businessReason: string('businessReason'),
+      runway: string('runway'),
+      businessCategory: string('businessCategory'),
+      tractionSummary: string('tractionSummary'),
+      abroadPath: string('abroadPath'),
+      targetRegion: string('targetRegion'),
+      applicationStage: string('applicationStage'),
+      movementDate: string('movementDate'),
     );
   }
 }
