@@ -11,6 +11,7 @@ class CareerDecision {
     required this.limitation,
     this.timingScope,
     this.context,
+    this.comparison,
     this.detailedAstrology,
   });
   final String decisionType;
@@ -21,6 +22,7 @@ class CareerDecision {
   final String limitation;
   final String? timingScope;
   final CareerDecisionContext? context;
+  final CareerOfferComparison? comparison;
   final CareerDecisionDetailedAstrology? detailedAstrology;
   factory CareerDecision.fromJson(Map<String, dynamic> json) {
     final timing = json['timing'];
@@ -38,6 +40,7 @@ class CareerDecision {
       limitation: json['limitation'] as String? ?? '',
       timingScope: json['timingScope'] as String?,
       context: CareerDecisionContext.tryFromJson(json['context']),
+      comparison: CareerOfferComparison.tryFromJson(json['comparison']),
       detailedAstrology: CareerDecisionDetailedAstrology.tryFromJson(
         json['detailedAstrology'],
       ),
@@ -58,6 +61,9 @@ class CareerDecisionContext {
     this.currentRole,
     this.targetRole,
     this.workModelPreference,
+    this.priorities = const [],
+    this.offerA,
+    this.offerB,
   });
 
   final List<String> reasons;
@@ -69,6 +75,9 @@ class CareerDecisionContext {
   final String? currentRole;
   final String? targetRole;
   final String? workModelPreference;
+  final List<String> priorities;
+  final CareerDecisionOffer? offerA;
+  final CareerDecisionOffer? offerB;
 
   static CareerDecisionContext? tryFromJson(Object? raw) {
     if (raw is! Map) return null;
@@ -84,6 +93,12 @@ class CareerDecisionContext {
     final currentRole = raw['currentRole'];
     final targetRole = raw['targetRole'];
     final workModelPreference = raw['workModelPreference'];
+    final priorities = (raw['priorities'] as List? ?? const [])
+        .whereType<String>()
+        .where((value) => value.trim().isNotEmpty)
+        .toList(growable: false);
+    final offerA = CareerDecisionOffer.tryFromJson(raw['offerA']);
+    final offerB = CareerDecisionOffer.tryFromJson(raw['offerB']);
     if (reasons.isEmpty &&
         interviewing is! String &&
         timeline is! String &&
@@ -92,7 +107,10 @@ class CareerDecisionContext {
         noticePeriod is! String &&
         currentRole is! String &&
         targetRole is! String &&
-        workModelPreference is! String) {
+        workModelPreference is! String &&
+        priorities.isEmpty &&
+        offerA == null &&
+        offerB == null) {
       return null;
     }
     return CareerDecisionContext(
@@ -107,8 +125,134 @@ class CareerDecisionContext {
       workModelPreference: workModelPreference is String
           ? workModelPreference
           : null,
+      priorities: List.unmodifiable(priorities),
+      offerA: offerA,
+      offerB: offerB,
     );
   }
+}
+
+class CareerDecisionOffer {
+  const CareerDecisionOffer({
+    this.offerDate,
+    this.joiningDate,
+    this.role,
+    this.moveType,
+    this.companyLabel,
+    this.compensationContext,
+    this.locationOrWorkModel,
+    this.noticePeriodImpact,
+    this.strengths = const [],
+    this.concerns = const [],
+  });
+
+  final String? offerDate, joiningDate, role, moveType, companyLabel;
+  final String? compensationContext, locationOrWorkModel, noticePeriodImpact;
+  final List<String> strengths, concerns;
+
+  static CareerDecisionOffer? tryFromJson(Object? raw) {
+    if (raw is! Map) return null;
+    String? string(String name) =>
+        raw[name] is String ? raw[name] as String : null;
+    final values = [
+      string('offerDate'),
+      string('joiningDate'),
+      string('role'),
+      string('moveType'),
+      string('companyLabel'),
+      string('compensationContext'),
+      string('locationOrWorkModel'),
+      string('noticePeriodImpact'),
+    ];
+    final strengths = CareerDecision._list(raw['strengths']);
+    final concerns = CareerDecision._list(raw['concerns']);
+    if (values.every((value) => value == null || value.trim().isEmpty) &&
+        strengths.isEmpty &&
+        concerns.isEmpty) {
+      return null;
+    }
+    return CareerDecisionOffer(
+      offerDate: string('offerDate'),
+      joiningDate: string('joiningDate'),
+      role: string('role'),
+      moveType: string('moveType'),
+      companyLabel: string('companyLabel'),
+      compensationContext: string('compensationContext'),
+      locationOrWorkModel: string('locationOrWorkModel'),
+      noticePeriodImpact: string('noticePeriodImpact'),
+      strengths: strengths,
+      concerns: concerns,
+    );
+  }
+}
+
+class CareerOfferComparison {
+  const CareerOfferComparison({
+    required this.outcome,
+    required this.summary,
+    required this.timingComparison,
+    required this.offerA,
+    required this.offerB,
+  });
+  final String outcome, summary, timingComparison;
+  final CareerOfferComparisonDetail offerA, offerB;
+
+  static CareerOfferComparison? tryFromJson(Object? raw) {
+    if (raw is! Map ||
+        raw['outcome'] is! String ||
+        raw['summary'] is! String ||
+        raw['timingComparison'] is! String) {
+      return null;
+    }
+    final a = CareerOfferComparisonDetail.tryFromJson(raw['offerA']);
+    final b = CareerOfferComparisonDetail.tryFromJson(raw['offerB']);
+    if (a == null || b == null) return null;
+    return CareerOfferComparison(
+      outcome: raw['outcome'] as String,
+      summary: raw['summary'] as String,
+      timingComparison: raw['timingComparison'] as String,
+      offerA: a,
+      offerB: b,
+    );
+  }
+}
+
+class CareerOfferComparisonDetail {
+  const CareerOfferComparisonDetail({
+    required this.timing,
+    required this.priority,
+    required this.strengths,
+    required this.cautions,
+  });
+  final CareerOfferComparisonSignal timing, priority;
+  final List<String> strengths, cautions;
+  static CareerOfferComparisonDetail? tryFromJson(Object? raw) {
+    if (raw is! Map) return null;
+    final timing = CareerOfferComparisonSignal.tryFromJson(raw['timing']);
+    final priority = CareerOfferComparisonSignal.tryFromJson(raw['priority']);
+    if (timing == null || priority == null) return null;
+    return CareerOfferComparisonDetail(
+      timing: timing,
+      priority: priority,
+      strengths: CareerDecision._list(raw['strengths']),
+      cautions: CareerDecision._list(raw['cautions']),
+    );
+  }
+}
+
+class CareerOfferComparisonSignal {
+  const CareerOfferComparisonSignal({
+    required this.state,
+    required this.message,
+  });
+  final String state, message;
+  static CareerOfferComparisonSignal? tryFromJson(Object? raw) =>
+      raw is Map && raw['state'] is String && raw['message'] is String
+      ? CareerOfferComparisonSignal(
+          state: raw['state'] as String,
+          message: raw['message'] as String,
+        )
+      : null;
 }
 
 class CareerDecisionDetailedAstrology {

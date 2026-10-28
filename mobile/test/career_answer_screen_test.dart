@@ -59,7 +59,7 @@ void main() {
       ),
     );
     expect(switchChip.onPressed, isNotNull);
-    expect(compareChip.onPressed, isNull);
+    expect(compareChip.onPressed, isNotNull);
   });
 
   test('omits technical saved phase copy from the Career Hub projection', () {

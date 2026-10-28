@@ -251,7 +251,7 @@ class _CareerDecisionQuestions extends StatelessWidget {
             for (final question in const [
               ('I have a job offer', 'job-offer', true),
               ('Should I switch jobs?', 'switch-job', true),
-              ('Compare two offers', 'compare-offers', false),
+              ('Compare two offers', 'compare-offers', true),
               ('Promotion / growth', 'promotion-growth', false),
               ('Should I start a business?', 'start-business', false),
               ('Career abroad', 'career-abroad', false),

@@ -33,6 +33,7 @@ class _CareerDecisionScreenState extends State<CareerDecisionScreen> {
   }
 
   bool get _isSwitchJob => widget.decisionType == 'switch-job';
+  bool get _isCompareOffers => widget.decisionType == 'compare-offers';
   @override
   void dispose() {
     for (final c in [_offer, _current, _joining, _role, _concerns]) {
@@ -74,6 +75,7 @@ class _CareerDecisionScreenState extends State<CareerDecisionScreen> {
       if (c.state == CareerDecisionLoadState.loaded) {
         return _Result(decision: c.decision!);
       }
+      if (_isCompareOffers) return _CompareOffersForm(controller: c);
       if (_isSwitchJob) return _SwitchJobForm(controller: c);
       return Scaffold(
         appBar: AppBar(title: const Text('JOB OFFER')),
@@ -175,10 +177,14 @@ class _Result extends StatelessWidget {
   final CareerDecision decision;
 
   bool get _isSwitchJob => decision.decisionType == 'SWITCH_JOB';
+  bool get _isCompareOffers => decision.decisionType == 'COMPARE_OFFERS';
 
   @override
   Widget build(BuildContext context) {
     final timing = decision.timing;
+    if (_isCompareOffers) {
+      return _CompareOffersResult(decision: decision);
+    }
     if (_isSwitchJob) return _SwitchJobResult(decision: decision);
     final priorities = (decision.context?.priority ?? '')
         .split(',')
@@ -626,6 +632,364 @@ class _SwitchJobResult extends StatelessWidget {
   ]);
 
   static Widget _resultSection(String title, Object body) => Padding(
+    padding: const EdgeInsets.only(top: 18),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        Text(
+          body is List
+              ? body.map((item) => '• $item').join('\n')
+              : body.toString(),
+        ),
+      ],
+    ),
+  );
+}
+
+class _CompareOffersForm extends StatefulWidget {
+  const _CompareOffersForm({required this.controller});
+  final CareerDecisionController controller;
+
+  @override
+  State<_CompareOffersForm> createState() => _CompareOffersFormState();
+}
+
+class _CompareOffersFormState extends State<_CompareOffersForm> {
+  final _form = GlobalKey<FormState>();
+  final _priorities = <String>{};
+  final _a = _OfferInput(), _b = _OfferInput();
+
+  @override
+  void dispose() {
+    _a.dispose();
+    _b.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (!(_form.currentState?.validate() ?? false) || _priorities.isEmpty) {
+      setState(() {});
+      return;
+    }
+    widget.controller.submit(
+      decisionType: 'COMPARE_OFFERS',
+      context: {
+        'offerA': _a.toContext(),
+        'offerB': _b.toContext(),
+        'priorities': _priorities.toList(growable: false),
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('COMPARE OFFERS')),
+    body: Form(
+      key: _form,
+      child: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          const Text(
+            'Compare two offers',
+            style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
+          ),
+          const Text(
+            'Add only the practical details you want TaraVerse to use in the comparison.',
+          ),
+          _OfferBlock(
+            title: 'Offer A',
+            input: _a,
+            onChanged: () => setState(() {}),
+          ),
+          _OfferBlock(
+            title: 'Offer B',
+            input: _b,
+            onChanged: () => setState(() {}),
+          ),
+          const Padding(
+            padding: EdgeInsets.only(top: 20),
+            child: Text('WHAT MATTERS MOST TO YOU?'),
+          ),
+          Wrap(
+            children: _comparisonPriorities
+                .map(
+                  (priority) => FilterChip(
+                    label: Text(priority),
+                    selected: _priorities.contains(priority),
+                    onSelected: (_) => setState(() {
+                      if (_priorities.contains(priority)) {
+                        _priorities.remove(priority);
+                      } else {
+                        _priorities.add(priority);
+                      }
+                    }),
+                  ),
+                )
+                .toList(),
+          ),
+          if (_priorities.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 6),
+              child: Text('Choose at least one priority.'),
+            ),
+          if (widget.controller.state == CareerDecisionLoadState.error)
+            const Padding(
+              padding: EdgeInsets.only(top: 12),
+              child: Text(
+                'We could not prepare your comparison. Please try again.',
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.only(top: 16),
+            child: FilledButton(
+              onPressed: _submit,
+              child: Text(
+                widget.controller.state == CareerDecisionLoadState.error
+                    ? 'RETRY'
+                    : 'COMPARE OFFERS',
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+const _comparisonPriorities = [
+  'Career growth',
+  'Higher compensation',
+  'Stability',
+  'Better role/title',
+  'Learning',
+  'Leadership',
+  'Work-life balance',
+  'Location',
+  'Company/brand',
+  'Long-term trajectory',
+];
+
+class _OfferInput {
+  final offerDate = TextEditingController();
+  final joiningDate = TextEditingController();
+  final role = TextEditingController();
+  final companyLabel = TextEditingController();
+  final workModel = TextEditingController();
+  final noticePeriod = TextEditingController();
+  final strengths = TextEditingController();
+  final concerns = TextEditingController();
+  String moveType = 'NEW_COMPANY';
+  String compensationContext = 'NOT_SHARED';
+
+  Map<String, Object?> toContext() => {
+    'offerDate': offerDate.text.trim(),
+    'role': role.text.trim(),
+    'moveType': moveType,
+    if (joiningDate.text.trim().isNotEmpty)
+      'joiningDate': joiningDate.text.trim(),
+    if (companyLabel.text.trim().isNotEmpty)
+      'companyLabel': companyLabel.text.trim(),
+    if (compensationContext != 'NOT_SHARED')
+      'compensationContext': compensationContext,
+    if (workModel.text.trim().isNotEmpty)
+      'locationOrWorkModel': workModel.text.trim(),
+    if (noticePeriod.text.trim().isNotEmpty)
+      'noticePeriodImpact': noticePeriod.text.trim(),
+    if (strengths.text.trim().isNotEmpty) 'strengths': [strengths.text.trim()],
+    if (concerns.text.trim().isNotEmpty) 'concerns': [concerns.text.trim()],
+  };
+
+  void dispose() {
+    for (final controller in [
+      offerDate,
+      joiningDate,
+      role,
+      companyLabel,
+      workModel,
+      noticePeriod,
+      strengths,
+      concerns,
+    ]) {
+      controller.dispose();
+    }
+  }
+}
+
+class _OfferBlock extends StatelessWidget {
+  const _OfferBlock({
+    required this.title,
+    required this.input,
+    required this.onChanged,
+  });
+  final String title;
+  final _OfferInput input;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 22),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        _field(input.offerDate, 'Offer received date', required: true),
+        _field(input.role, 'Role / designation', required: true),
+        DropdownButtonFormField<String>(
+          initialValue: input.moveType,
+          decoration: const InputDecoration(labelText: 'Move type'),
+          items: const [
+            DropdownMenuItem(value: 'NEW_COMPANY', child: Text('New company')),
+            DropdownMenuItem(
+              value: 'INTERNAL_MOVE',
+              child: Text('Internal move'),
+            ),
+          ],
+          onChanged: (value) {
+            input.moveType = value!;
+            onChanged();
+          },
+        ),
+        _field(input.joiningDate, 'Expected joining date (if known)'),
+        _field(input.companyLabel, 'Company label (optional)'),
+        DropdownButtonFormField<String>(
+          initialValue: input.compensationContext,
+          decoration: const InputDecoration(labelText: 'Compensation context'),
+          items: const [
+            DropdownMenuItem(
+              value: 'NOT_SHARED',
+              child: Text('Prefer not to share'),
+            ),
+            DropdownMenuItem(value: 'LOWER', child: Text('Lower')),
+            DropdownMenuItem(value: 'SIMILAR', child: Text('Similar')),
+            DropdownMenuItem(value: 'HIGHER', child: Text('Higher')),
+          ],
+          onChanged: (value) {
+            input.compensationContext = value!;
+            onChanged();
+          },
+        ),
+        _field(input.workModel, 'Location / work model (optional)'),
+        _field(input.noticePeriod, 'Notice-period impact (optional)'),
+        _field(input.strengths, 'Perceived strengths (optional)', lines: 2),
+        _field(input.concerns, 'Perceived concerns (optional)', lines: 2),
+      ],
+    ),
+  );
+
+  Widget _field(
+    TextEditingController controller,
+    String label, {
+    bool required = false,
+    int lines = 1,
+  }) => Padding(
+    padding: const EdgeInsets.only(top: 10),
+    child: TextFormField(
+      controller: controller,
+      maxLines: lines,
+      decoration: InputDecoration(labelText: label),
+      validator: required
+          ? (value) => value == null || value.trim().isEmpty ? 'Required' : null
+          : null,
+    ),
+  );
+}
+
+class _CompareOffersResult extends StatelessWidget {
+  const _CompareOffersResult({required this.decision});
+  final CareerDecision decision;
+
+  @override
+  Widget build(BuildContext context) {
+    final comparison = decision.comparison;
+    final contextData = decision.context;
+    return Scaffold(
+      appBar: AppBar(title: const Text('COMPARE OFFERS')),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          const Text(
+            'Overall Comparison',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          Text(_outcomeLabel(comparison?.outcome ?? 'INSUFFICIENT_EVIDENCE')),
+          Text(comparison?.summary ?? decision.limitation),
+          if (comparison != null) ...[
+            _section(
+              'Offer A',
+              _offerCopy('Offer A', comparison.offerA, contextData?.offerA),
+            ),
+            _section(
+              'Offer B',
+              _offerCopy('Offer B', comparison.offerB, contextData?.offerB),
+            ),
+            _section('Timing Comparison', comparison.timingComparison),
+          ],
+          if (contextData?.priorities.isNotEmpty == true)
+            _section('Alignment With Your Priorities', [
+              'Your priorities: ${contextData!.priorities.join(', ')}.',
+              if (comparison != null) comparison.offerA.priority.message,
+              if (comparison != null) comparison.offerB.priority.message,
+            ]),
+          _section('Practical Trade-offs', _practicalTradeoffs(contextData)),
+          if (comparison != null) ...[
+            _section('What Supports Offer A', comparison.offerA.timing.message),
+            _section('What Supports Offer B', comparison.offerB.timing.message),
+          ],
+          if (comparison != null &&
+              (comparison.offerA.cautions.isNotEmpty ||
+                  comparison.offerB.cautions.isNotEmpty))
+            _section('What Needs Caution', [
+              ...comparison.offerA.cautions.map((item) => 'Offer A: $item'),
+              ...comparison.offerB.cautions.map((item) => 'Offer B: $item'),
+            ]),
+          _section(
+            'Decision Summary',
+            comparison?.summary ?? decision.limitation,
+          ),
+          _DetailedAstrology(
+            detailed: decision.detailedAstrology,
+            limitation: decision.limitation,
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _outcomeLabel(String outcome) => switch (outcome) {
+    'OFFER_A_MORE_ALIGNED' => 'Offer A More Aligned',
+    'OFFER_B_MORE_ALIGNED' => 'Offer B More Aligned',
+    'SIMILAR_ALIGNMENT' => 'Similar Alignment',
+    'INSUFFICIENT_EVIDENCE' => 'Insufficient Evidence',
+    _ => 'Mixed',
+  };
+
+  static List<String> _offerCopy(
+    String label,
+    CareerOfferComparisonDetail detail,
+    CareerDecisionOffer? offer,
+  ) => [
+    detail.timing.message,
+    detail.priority.message,
+    if (offer?.strengths.isNotEmpty == true)
+      '$label strengths: ${offer!.strengths.join(', ')}.',
+  ];
+
+  static List<String> _practicalTradeoffs(CareerDecisionContext? context) => [
+    'Role scope and responsibilities',
+    'Compensation and benefits',
+    'Learning and long-term trajectory',
+    'Location, work model and joining terms',
+    if (context?.offerA?.noticePeriodImpact?.isNotEmpty == true)
+      'Offer A notice-period impact: ${context!.offerA!.noticePeriodImpact}',
+    if (context?.offerB?.noticePeriodImpact?.isNotEmpty == true)
+      'Offer B notice-period impact: ${context!.offerB!.noticePeriodImpact}',
+  ];
+
+  static Widget _section(String title, Object body) => Padding(
     padding: const EdgeInsets.only(top: 18),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,

@@ -34,3 +34,20 @@ test('Switch Job requires its typed reason, interviewing, and timeline context',
   assert.throws(() => validateCareerDecisionRequest({ decisionType: 'SWITCH_JOB', context: { reasons: ['Career growth'], activelyInterviewing: 'EXPLORING' } }), { code: 'INVALID_SWITCH_JOB_CONTEXT' });
   assert.throws(() => validateCareerDecisionRequest({ decisionType: 'SWITCH_JOB', context: { reasons: ['Unrecognized reason'], activelyInterviewing: 'EXPLORING', preferredTimeline: 'ONE_TO_THREE_MONTHS' } }), { code: 'INVALID_SWITCH_JOB_CONTEXT' });
 });
+test('Compare Offers keeps two typed offers distinct and returns a calibrated comparison', async () => {
+  const service = new CareerDecisionService({ careerAnswerService: { answer: async () => supported } });
+  const result = await service.decide({ principal: {}, birthProfileId: 'profile-a', body: { decisionType: 'COMPARE_OFFERS', context: { priorities: ['Higher compensation'], offerA: { offerDate: '2026-10-01', joiningDate: '2026-11-12', role: 'Lead Engineer', moveType: 'NEW_COMPANY', compensationContext: 'HIGHER', strengths: ['Broader scope'] }, offerB: { offerDate: '2026-10-02', joiningDate: '2027-01-12', role: 'Engineering Manager', moveType: 'INTERNAL_MOVE', compensationContext: 'SIMILAR', concerns: ['Later start'] } } } });
+  assert.equal(result.comparison.outcome, 'OFFER_A_MORE_ALIGNED');
+  assert.equal(result.comparison.offerA.timing.state, 'WITHIN_CURRENT_WINDOW');
+  assert.equal(result.comparison.offerB.timing.state, 'OUTSIDE_CURRENT_WINDOW');
+  assert.equal(result.context.offerA.role, 'Lead Engineer');
+  assert.equal(result.context.offerB.role, 'Engineering Manager');
+});
+test('Compare Offers validates each offer and does not fabricate missing joining timing', async () => {
+  assert.throws(() => validateCareerDecisionRequest({ decisionType: 'COMPARE_OFFERS', context: { priorities: ['Career growth'], offerA: { offerDate: '2026-10-01', role: 'A', moveType: 'NEW_COMPANY' }, offerB: { offerDate: '2026-10-02', role: 'B', moveType: 'INVALID' } } }), { code: 'INVALID_OFFER_B_MOVE_TYPE' });
+  const service = new CareerDecisionService({ careerAnswerService: { answer: async () => supported } });
+  const result = await service.decide({ principal: {}, birthProfileId: 'profile-a', body: { decisionType: 'COMPARE_OFFERS', context: { priorities: ['Career growth'], offerA: { offerDate: '2026-10-01', role: 'A', moveType: 'NEW_COMPANY' }, offerB: { offerDate: '2026-10-02', role: 'B', moveType: 'INTERNAL_MOVE' } } } });
+  assert.equal(result.comparison.outcome, 'MIXED');
+  assert.match(result.comparison.timingComparison, /cannot be compared/i);
+  assert.equal(result.comparison.offerA.timing.state, 'NOT_ASSESSED');
+});
