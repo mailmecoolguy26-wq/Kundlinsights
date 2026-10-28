@@ -931,20 +931,24 @@ class _CompareOffersResult extends StatelessWidget {
           if (contextData?.priorities.isNotEmpty == true)
             _section('Alignment With Your Priorities', [
               'Your priorities: ${contextData!.priorities.join(', ')}.',
-              if (comparison != null) comparison.offerA.priority.message,
-              if (comparison != null) comparison.offerB.priority.message,
+              if (comparison != null) ..._priorityCopy(comparison),
             ]),
           _section('Practical Trade-offs', _practicalTradeoffs(contextData)),
           if (comparison != null) ...[
-            _section('What Supports Offer A', comparison.offerA.timing.message),
-            _section('What Supports Offer B', comparison.offerB.timing.message),
+            if (_hasPositiveSupport(comparison.offerA))
+              _section(
+                'What Supports Offer A',
+                comparison.offerA.timing.message,
+              ),
+            if (_hasPositiveSupport(comparison.offerB))
+              _section(
+                'What Supports Offer B',
+                comparison.offerB.timing.message,
+              ),
           ],
-          if (comparison != null &&
-              (comparison.offerA.cautions.isNotEmpty ||
-                  comparison.offerB.cautions.isNotEmpty))
+          if (comparison != null && _meaningfulCautions(comparison).isNotEmpty)
             _section('What Needs Caution', [
-              ...comparison.offerA.cautions.map((item) => 'Offer A: $item'),
-              ...comparison.offerB.cautions.map((item) => 'Offer B: $item'),
+              ..._meaningfulCautions(comparison),
             ]),
           _section(
             'Decision Summary',
@@ -972,10 +976,37 @@ class _CompareOffersResult extends StatelessWidget {
     CareerOfferComparisonDetail detail,
     CareerDecisionOffer? offer,
   ) => [
-    detail.timing.message,
-    detail.priority.message,
     if (offer?.strengths.isNotEmpty == true)
       '$label strengths: ${offer!.strengths.join(', ')}.',
+    if (offer?.strengths.isEmpty ?? true)
+      'No additional offer-specific strengths were added.',
+  ];
+
+  static List<String> _priorityCopy(CareerOfferComparison comparison) {
+    final a = comparison.offerA.priority;
+    final b = comparison.offerB.priority;
+    if (a.state == 'NOT_ASSESSED' && b.state == 'NOT_ASSESSED') {
+      return const [
+        'Based on the details provided, neither offer has a clear advantage against your selected priorities.',
+      ];
+    }
+    return [
+      if (a.state != 'NOT_ASSESSED') 'Offer A: ${a.message}',
+      if (b.state != 'NOT_ASSESSED') 'Offer B: ${b.message}',
+    ];
+  }
+
+  static bool _hasPositiveSupport(CareerOfferComparisonDetail detail) =>
+      detail.timing.state == 'WITHIN_CURRENT_WINDOW' ||
+      detail.priority.state == 'SUPPORTS_PRIORITY';
+
+  static List<String> _meaningfulCautions(CareerOfferComparison comparison) => [
+    ...comparison.offerA.cautions
+        .where((item) => !item.toLowerCase().contains('joining date'))
+        .map((item) => 'Offer A: $item'),
+    ...comparison.offerB.cautions
+        .where((item) => !item.toLowerCase().contains('joining date'))
+        .map((item) => 'Offer B: $item'),
   ];
 
   static List<String> _practicalTradeoffs(CareerDecisionContext? context) => [

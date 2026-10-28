@@ -66,7 +66,18 @@ void main() {
       expect(find.text('Offer A'), findsOneWidget);
       expect(find.text('Offer B'), findsOneWidget);
       expect(find.text('Timing Comparison'), findsOneWidget);
-      expect(find.textContaining('cannot be compared'), findsWidgets);
+      expect(
+        find.text('Joining timing cannot be compared until both expected joining dates are known.'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('No expected joining date'), findsNothing);
+      expect(find.text('What Needs Caution'), findsNothing);
+      expect(
+        find.text(
+          'Based on the details provided, neither offer has a clear advantage against your selected priorities.',
+        ),
+        findsOneWidget,
+      );
       expect(
         find.text('Career-linked Dasha evidence is active.'),
         findsNothing,
