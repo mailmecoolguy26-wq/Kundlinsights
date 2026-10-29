@@ -91,12 +91,14 @@ test('routes Hinglish Career and Transit questions through the existing grounded
     careerCapability: career,
     transitCapability: { respond: async (input) => { transitCalls.push(input); return { answerability: 'SUPPORTED', message: 'Grounded Gochar.' }; } },
   });
-  for (const message of ['Mera career kab improve hoga?', 'Job switch karne ka acha time kab hai?']) {
-    const response = await tara.respond({ principal: {}, birthProfileId: 'profile-a', message });
-    assert.equal(response.domain, 'CAREER');
-    assert.match(response.message, /Aapka stronger Career window/i);
-  }
-  assert.ok(calls.every((call) => call.body.questionType === 'JOB_FAVOURABILITY_TIMING'));
+  const timing = await tara.respond({ principal: {}, birthProfileId: 'profile-a', message: 'Mera career kab improve hoga?' });
+  assert.equal(timing.domain, 'CAREER');
+  assert.match(timing.message, /Aapka stronger Career window/i);
+  const switchDecision = await tara.respond({ principal: {}, birthProfileId: 'profile-a', message: 'Job switch karne ka acha time kab hai?' });
+  assert.equal(switchDecision.domain, 'CAREER');
+  assert.equal(switchDecision.career.intent, 'SWITCH_JOB');
+  assert.equal(switchDecision.action.type, 'OPEN_CAREER_DECISION');
+  assert.deepEqual(calls.map((call) => call.body.questionType), ['JOB_FAVOURABILITY_TIMING']);
   const lifeArea = await tara.respond({ principal: {}, birthProfileId: 'profile-a', message: 'Jupiter ka gochar mere career ko kaise affect karega?' });
   assert.equal(lifeArea.domain, 'TRANSIT');
   assert.equal(transitCalls[0].language, TaraLanguageStyle.HINGLISH);

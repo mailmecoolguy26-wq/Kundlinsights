@@ -101,6 +101,19 @@ class CareerChatController extends ChangeNotifier {
       message.birthProfileId != null &&
       message.birthProfileId == _profiles.activeProfile?.id;
 
+  bool canOpenCareerDecision(CareerChatMessage message) =>
+      message.action?.type == 'OPEN_CAREER_DECISION' &&
+      const {
+        'JOB_OFFER',
+        'SWITCH_JOB',
+        'COMPARE_OFFERS',
+        'PROMOTION_GROWTH',
+        'START_BUSINESS',
+        'CAREER_ABROAD',
+      }.contains(message.action?.decisionType) &&
+      message.birthProfileId != null &&
+      message.birthProfileId == _profiles.activeProfile?.id;
+
   Future<bool> send(String rawMessage) async {
     final message = rawMessage.trim();
     final profile = _profiles.activeProfile;

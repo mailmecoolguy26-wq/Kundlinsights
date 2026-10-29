@@ -20,24 +20,49 @@ test('routes only Career requests to the grounded Career capability', async () =
   assert.equal(calls.length, 1);
 });
 
-test('maps natural job-switch timing phrasing to the existing job-favourability answer', async () => {
+test('maps non-decision Career timing phrasing to the existing job-favourability answer', async () => {
   const calls = [];
   const answers = { answer: async (input) => { calls.push(input); return { questionType: 'JOB_FAVOURABILITY_TIMING', answerability: 'SUPPORTED', broadWindow: { start: '2026-11-20', end: '2027-01-10' } }; } };
   const capability = new TaraCareerCapability({ careerAnswerService: answers });
-  for (const message of ["What's the favourable time period for switching the job", 'When should I change jobs?', 'When is my career likely to improve?', 'When will my career improve?', 'When does my career get better?', 'When will things improve professionally?', 'When are better career opportunities likely?', 'When is my career growth stronger?', 'When will career opportunities improve?', 'When is career activity stronger?', "What's my stronger career window?"]) {
+  for (const message of ['When is my career likely to improve?', 'When will my career improve?', 'When does my career get better?', 'When will things improve professionally?', 'When are better career opportunities likely?', 'When is my career growth stronger?', 'When will career opportunities improve?', 'When is career activity stronger?', "What's my stronger career window?"]) {
     const response = await capability.respond({ principal: {}, birthProfileId: 'profile-a', message });
     assert.equal(response.intent, TaraCareerIntent.JOB_FAVOURABILITY_TIMING);
     assert.equal(response.state, TaraCareerResponseState.ENTITLED_RESULT);
     assert.match(response.message, /20 Nov 2026 to 10 Jan 2027/);
     assert.match(response.message, /does not guarantee/i);
   }
-  assert.equal(calls.length, 11);
+  assert.equal(calls.length, 9);
   assert.ok(calls.every((call) => call.body.questionType === 'JOB_FAVOURABILITY_TIMING'));
+});
+
+test('routes only conservative Career decision requests to an existing decision form', async () => {
+  const capability = new TaraCareerCapability({ careerAnswerService: { answer: async () => { throw new Error('decision routing must not calculate a result'); } } });
+  const cases = [
+    ['I have a job offer', TaraCareerIntent.JOB_OFFER, 'JOB_OFFER'],
+    ['I got a job offer', TaraCareerIntent.JOB_OFFER, 'JOB_OFFER'],
+    ['Should I accept this job offer?', TaraCareerIntent.JOB_OFFER, 'JOB_OFFER'],
+    ['Should I switch jobs?', TaraCareerIntent.SWITCH_JOB, 'SWITCH_JOB'],
+    ['I want to change my job', TaraCareerIntent.SWITCH_JOB, 'SWITCH_JOB'],
+    ['I have two job offers', TaraCareerIntent.COMPARE_OFFERS, 'COMPARE_OFFERS'],
+    ['Is this a good time for promotion?', TaraCareerIntent.PROMOTION_GROWTH, 'PROMOTION_GROWTH'],
+    ['Is salary growth likely?', TaraCareerIntent.PROMOTION_GROWTH, 'PROMOTION_GROWTH'],
+    ['Should I start a business?', TaraCareerIntent.START_BUSINESS, 'START_BUSINESS'],
+    ['Can I relocate internationally for work?', TaraCareerIntent.CAREER_ABROAD, 'CAREER_ABROAD'],
+  ];
+  for (const [message, intent, decisionType] of cases) {
+    const response = await capability.respond({ principal: {}, birthProfileId: 'profile-a', message });
+    assert.equal(response.intent, intent);
+    assert.equal(response.state, 'DECISION_CONTEXT_REQUIRED');
+    assert.deepEqual(response.action, { type: 'OPEN_CAREER_DECISION', label: response.action.label, decisionType });
+  }
+  for (const message of ['I got a discount offer', 'What services do you offer?', 'Should I switch phones?']) {
+    assert.equal(classifyTaraCareerIntent(message), TaraCareerIntent.UNSUPPORTED_CAREER);
+  }
 });
 
 test('keeps premium timing results date-free and exposes an explicit premium action', async () => {
   const capability = new TaraCareerCapability({ careerAnswerService: { answer: async () => ({ questionType: 'JOB_FAVOURABILITY_TIMING', answerability: 'PREMIUM_REQUIRED', teaser: { title: 'A stronger career window is coming up', subtitle: 'ignored in favor of explicit Tara copy' }, broadWindow: { start: '2026-11-20', end: '2027-01-10' } }) } });
-  const response = await capability.respond({ principal: {}, birthProfileId: 'profile-a', message: 'When should I switch jobs?' });
+  const response = await capability.respond({ principal: {}, birthProfileId: 'profile-a', message: 'When is my stronger career window?' });
   assert.equal(response.state, TaraCareerResponseState.PREMIUM_REQUIRED);
   assert.deepEqual(response.action, { type: 'OPEN_PROFILE_PREMIUM', label: 'Unlock TaraVerse Premium' });
   assert.match(response.message, /TaraVerse Premium/i);

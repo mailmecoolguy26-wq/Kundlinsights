@@ -72,20 +72,41 @@ class TaraConversationMessage {
 }
 
 class TaraConversationAction {
-  const TaraConversationAction({required this.type, required this.label});
+  const TaraConversationAction({
+    required this.type,
+    required this.label,
+    this.decisionType,
+  });
   final String type;
   final String label;
+  final String? decisionType;
   static TaraConversationAction? fromJson(Object? value) {
     if (value is! Map || value['label'] is! String) {
       return null;
     }
     final type = value['type'];
-    if (type != 'OPEN_PROFILE_PREMIUM' && type != 'OPEN_CAREER_PREMIUM') {
+    const decisionTypes = {
+      'JOB_OFFER',
+      'SWITCH_JOB',
+      'COMPARE_OFFERS',
+      'PROMOTION_GROWTH',
+      'START_BUSINESS',
+      'CAREER_ABROAD',
+    };
+    if (type != 'OPEN_PROFILE_PREMIUM' &&
+        type != 'OPEN_CAREER_PREMIUM' &&
+        type != 'OPEN_CAREER_DECISION') {
+      return null;
+    }
+    final decisionType = value['decisionType'];
+    if (type == 'OPEN_CAREER_DECISION' &&
+        (decisionType is! String || !decisionTypes.contains(decisionType))) {
       return null;
     }
     return TaraConversationAction(
       type: type as String,
       label: value['label'] as String,
+      decisionType: decisionType is String ? decisionType : null,
     );
   }
 }

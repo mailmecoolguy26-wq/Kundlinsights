@@ -137,7 +137,7 @@ class _CareerChatScreenState extends State<CareerChatScreen> {
                         onRetry: () => widget.controller.retry(message),
                         onFollowUp: (prompt) => unawaited(_send(prompt)),
                         onGenerate: () => context.go('/readings'),
-                        onAction: _premiumAction(context, message),
+                        onAction: _conversationAction(context, message),
                       ),
                     ],
                     if (widget.controller.requiresPremium) ...[
@@ -165,13 +165,12 @@ class _CareerChatScreenState extends State<CareerChatScreen> {
     },
   );
 
-  VoidCallback? _premiumAction(
+  VoidCallback? _conversationAction(
     BuildContext context,
     CareerChatMessage message,
   ) {
-    final shouldRenderPremiumAction = widget.controller.canOpenCareerPremium(
-      message,
-    );
+    final shouldRenderPremiumAction = widget.controller.canOpenCareerPremium(message);
+    final shouldRenderDecisionAction = widget.controller.canOpenCareerDecision(message);
     if (kDebugMode && message.action != null) {
       debugPrint(
         'TARA_ACTION_RENDER '
@@ -179,8 +178,14 @@ class _CareerChatScreenState extends State<CareerChatScreen> {
         'messageBirthProfileId=${message.birthProfileId} '
         'activeBirthProfileId=${widget.controller.activeProfileId} '
         'profileIdsMatch=${message.birthProfileId == widget.controller.activeProfileId} '
-        'shouldRenderPremiumAction=$shouldRenderPremiumAction',
+        'shouldRenderPremiumAction=$shouldRenderPremiumAction '
+        'shouldRenderDecisionAction=$shouldRenderDecisionAction',
       );
+    }
+    if (shouldRenderDecisionAction) {
+      final routeType = _decisionRouteType(message.action?.decisionType);
+      if (routeType == null) return null;
+      return () => context.push('/career/decision/$routeType');
     }
     if (!shouldRenderPremiumAction) return null;
     return () async {
@@ -188,6 +193,15 @@ class _CareerChatScreenState extends State<CareerChatScreen> {
       if (context.mounted) await widget.controller.refreshCurrentConversation();
     };
   }
+
+  String? _decisionRouteType(String? type) => const {
+    'JOB_OFFER': 'job-offer',
+    'SWITCH_JOB': 'switch-job',
+    'COMPARE_OFFERS': 'compare-offers',
+    'PROMOTION_GROWTH': 'promotion-growth',
+    'START_BUSINESS': 'start-business',
+    'CAREER_ABROAD': 'career-abroad',
+  }[type];
 
   Future<void> _openHistory(BuildContext context) async {
     await widget.controller.loadHistory();
@@ -374,7 +388,12 @@ class _MessageBubble extends StatelessWidget {
             if (message.action != null && onAction != null) ...[
               const SizedBox(height: 10),
               TextButton(
-                key: const ValueKey('ask-tara-open-career-premium'),
+                key: ValueKey(
+                  message.action!.type == 'OPEN_PROFILE_PREMIUM' ||
+                          message.action!.type == 'OPEN_CAREER_PREMIUM'
+                      ? 'ask-tara-open-career-premium'
+                      : 'ask-tara-action-${message.action!.type}',
+                ),
                 onPressed: onAction,
                 style: TextButton.styleFrom(foregroundColor: _Colors.gold),
                 child: Text(message.action!.label),

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:kundlinsights_mobile/features/auth/auth_controller.dart';
 import 'package:kundlinsights_mobile/features/auth/domain/auth_repository.dart';
 import 'package:kundlinsights_mobile/core/errors/api_failure.dart';
@@ -101,6 +102,20 @@ void main() {
     expect(repository.profileIds.last, 'profile-b');
   });
 
+  test('keeps a Career Decision action scoped to its conversation profile', () async {
+    repository.nextAction = const TaraConversationAction(
+      type: 'OPEN_CAREER_DECISION',
+      label: 'Evaluate this job offer',
+      decisionType: 'JOB_OFFER',
+    );
+    await controller.send('I got a job offer');
+    final action = controller.messages.last;
+    expect(controller.canOpenCareerDecision(action), isTrue);
+    final profileB = profiles.profiles.singleWhere((item) => item.id == 'profile-b');
+    profiles.select(profileB);
+    expect(controller.canOpenCareerDecision(action), isFalse);
+  });
+
   test(
     'reconciles a persisted answer after the message request times out',
     () async {
@@ -175,6 +190,46 @@ void main() {
       expect(find.text('Unlock Career Premium'), findsOneWidget);
     },
   );
+
+  testWidgets('opens an existing Career Decision route and returns to Ask Tara', (
+    tester,
+  ) async {
+    repository.nextAction = const TaraConversationAction(
+      type: 'OPEN_CAREER_DECISION',
+      label: 'Evaluate this job offer',
+      decisionType: 'JOB_OFFER',
+    );
+    final router = GoRouter(
+      initialLocation: '/tara',
+      routes: [
+        GoRoute(
+          path: '/tara',
+          builder: (_, _) => CareerChatScreen(controller: controller),
+        ),
+        GoRoute(
+          path: '/career/decision/:type',
+          builder: (context, state) => Scaffold(
+            appBar: AppBar(),
+            body: Text('Decision ${state.pathParameters['type']}'),
+          ),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await controller.send('I have a job offer');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Evaluate this job offer'), findsOneWidget);
+    await tester.tap(find.text('Evaluate this job offer'));
+    await tester.pumpAndSettle();
+    expect(find.text('Decision job-offer'), findsOneWidget);
+
+    router.pop();
+    await tester.pumpAndSettle();
+    expect(find.text('Ask Tara'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('clears typed input only after a successful send', (
     tester,
@@ -267,6 +322,7 @@ class _MemoryTaraRepository implements CareerChatRepository {
   bool persistResponseBeforeFailure = false;
   bool returnStaleHistoryAfterSend = false;
   Completer<void>? sendGate;
+  TaraConversationAction? nextAction;
 
   @override
   Future<TaraConversationSummary> createConversation({
@@ -378,12 +434,13 @@ class _MemoryTaraRepository implements CareerChatRepository {
         role: CareerChatRole.assistant,
         content: 'Grounded reply for $message',
         createdAt: now,
-        action: message.startsWith('timing')
-            ? const TaraConversationAction(
-                type: 'OPEN_CAREER_PREMIUM',
-                label: 'Unlock Career Premium',
-              )
-            : null,
+        action: nextAction ??
+            (message.startsWith('timing')
+                ? const TaraConversationAction(
+                    type: 'OPEN_CAREER_PREMIUM',
+                    label: 'Unlock Career Premium',
+                  )
+                : null),
       ),
     ]);
     _conversations[conversationId] = TaraConversationSummary(

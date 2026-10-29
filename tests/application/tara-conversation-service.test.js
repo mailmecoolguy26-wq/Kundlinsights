@@ -85,6 +85,26 @@ test('persists an allowlisted profile premium action only for the same profile t
   await assert.rejects(() => service.get({ principal: otherPrincipal, birthProfileId: 'profile-b', conversationId: created.conversationId }), (error) => error.code === 'NOT_FOUND_OR_FORBIDDEN');
 });
 
+test('persists and reloads only an allowlisted Career Decision action', async () => {
+  const action = { type: 'OPEN_CAREER_DECISION', label: 'Evaluate this job offer', decisionType: 'JOB_OFFER' };
+  const { service } = fixture({ taraOrchestrator: { respond: async () => ({ message: 'I need a few details about the offer.', action }) } });
+  const created = await service.create({ principal, birthProfileId: 'profile-a' });
+  const result = await service.message({ principal, birthProfileId: 'profile-a', conversationId: created.conversationId, body: { message: 'I got a job offer' } });
+  assert.deepEqual(result.assistantMessage.action, action);
+  const loaded = await service.get({ principal, birthProfileId: 'profile-a', conversationId: created.conversationId });
+  assert.deepEqual(loaded.messages.at(-1).action, action);
+});
+
+test('does not suppress a saved Career Decision action when the profile is entitled', async () => {
+  const action = { type: 'OPEN_CAREER_DECISION', label: 'Evaluate this job offer', decisionType: 'JOB_OFFER' };
+  const premium = { getReadingEntitlementStatus: async () => ({ career: { eligible: true } }) };
+  const { service } = fixture({ careerEntitlementResolver: premium, taraOrchestrator: { respond: async () => ({ message: 'I need a few details about the offer.', action }) } });
+  const created = await service.create({ principal, birthProfileId: 'profile-a' });
+  await service.message({ principal, birthProfileId: 'profile-a', conversationId: created.conversationId, body: { message: 'I got a job offer' } });
+  const loaded = await service.get({ principal, birthProfileId: 'profile-a', conversationId: created.conversationId });
+  assert.deepEqual(loaded.messages.at(-1).action, action);
+});
+
 test('returns the premium action from POST through the grounded Tara chain', async () => {
   const taraOrchestrator = new TaraOrchestrator({
     careerCapability: new TaraCareerCapability({
@@ -121,7 +141,7 @@ test('serializes persisted JSONB action metadata from GET without exposing raw m
 });
 
 test('omits malformed or non-allowlisted persisted actions', async () => {
-  for (const action of [{ type: 'OPEN_CAREER_PREMIUM', label: 'Unexpected label' }, { type: 'OPEN_OTHER_ACTION', label: 'Unlock Career Premium' }, 'not-an-action']) {
+  for (const action of [{ type: 'OPEN_CAREER_PREMIUM', label: 'Unexpected label' }, { type: 'OPEN_OTHER_ACTION', label: 'Unlock Career Premium' }, { type: 'OPEN_CAREER_DECISION', label: 'Go', decisionType: 'UNSAFE_ROUTE' }, 'not-an-action']) {
     const { service } = fixture({ taraOrchestrator: { respond: async () => ({ message: 'Safe response.', action }) } });
     const created = await service.create({ principal, birthProfileId: 'profile-a' });
     const result = await service.message({ principal, birthProfileId: 'profile-a', conversationId: created.conversationId, body: { message: 'When should I switch jobs?' } });
