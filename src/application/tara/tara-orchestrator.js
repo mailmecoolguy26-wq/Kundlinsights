@@ -1,6 +1,7 @@
 'use strict';
 
 const { TaraLanguageStyle, detectTaraLanguageStyle, normalizeHinglishForIntent, resolvedTaraLanguageStyle } = require('./tara-language');
+const { classifyDomainHubIntent, domainHubResponse } = require('./tara-domain-actions');
 
 const DOMAINS = Object.freeze(['CAREER', 'TRANSIT', 'VEHICLE', 'RELATIONSHIPS', 'WEALTH_PROPERTY', 'CHART', 'TAROT', 'GENERAL']);
 
@@ -44,6 +45,12 @@ class TaraOrchestrator {
       ? normalizeHinglishForIntent(message)
       : message;
     const responseLanguage = resolvedTaraLanguageStyle({ message, requestedLanguage: language });
+    const hubIntent = classifyDomainHubIntent(normalizedMessage);
+    const hubResponse = domainHubResponse(hubIntent, responseLanguage);
+    if (hubResponse) {
+      diagnostic(diagnosticLog, 'TARA_BACKEND_ORCHESTRATOR', { state: 'DOMAIN_HUB_ROUTING', action: hubResponse.action, birthProfileId });
+      return Object.freeze({ domain: hubIntent.kind === 'DOMAIN_HUB' ? hubIntent.domain : 'WEALTH_PROPERTY', ...hubResponse });
+    }
     const domain = classifyTaraDomain(normalizedMessage);
     if (domain === 'TRANSIT') {
       if (!this.transit) return Object.freeze({ domain, answerability: 'UNSUPPORTED', capability: null, message: unsupportedMessage(responseLanguage) });

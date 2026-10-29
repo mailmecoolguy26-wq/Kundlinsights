@@ -171,6 +171,7 @@ class _CareerChatScreenState extends State<CareerChatScreen> {
   ) {
     final shouldRenderPremiumAction = widget.controller.canOpenCareerPremium(message);
     final shouldRenderDecisionAction = widget.controller.canOpenCareerDecision(message);
+    final shouldRenderDomainAction = widget.controller.canOpenDomainHub(message);
     if (kDebugMode && message.action != null) {
       debugPrint(
         'TARA_ACTION_RENDER '
@@ -179,13 +180,19 @@ class _CareerChatScreenState extends State<CareerChatScreen> {
         'activeBirthProfileId=${widget.controller.activeProfileId} '
         'profileIdsMatch=${message.birthProfileId == widget.controller.activeProfileId} '
         'shouldRenderPremiumAction=$shouldRenderPremiumAction '
-        'shouldRenderDecisionAction=$shouldRenderDecisionAction',
+        'shouldRenderDecisionAction=$shouldRenderDecisionAction '
+        'shouldRenderDomainAction=$shouldRenderDomainAction',
       );
     }
     if (shouldRenderDecisionAction) {
       final routeType = _decisionRouteType(message.action?.decisionType);
       if (routeType == null) return null;
       return () => context.push('/career/decision/$routeType');
+    }
+    if (shouldRenderDomainAction) {
+      final route = _domainHubRoute(message.action?.domain);
+      if (route == null) return null;
+      return () => context.push(route);
     }
     if (!shouldRenderPremiumAction) return null;
     return () async {
@@ -202,6 +209,11 @@ class _CareerChatScreenState extends State<CareerChatScreen> {
     'START_BUSINESS': 'start-business',
     'CAREER_ABROAD': 'career-abroad',
   }[type];
+
+  String? _domainHubRoute(String? domain) => const {
+    'PROPERTY': '/property',
+    'VEHICLE': '/vehicle',
+  }[domain];
 
   Future<void> _openHistory(BuildContext context) async {
     await widget.controller.loadHistory();

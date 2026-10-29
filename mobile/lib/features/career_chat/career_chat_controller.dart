@@ -114,6 +114,12 @@ class CareerChatController extends ChangeNotifier {
       message.birthProfileId != null &&
       message.birthProfileId == _profiles.activeProfile?.id;
 
+  bool canOpenDomainHub(CareerChatMessage message) =>
+      message.action?.type == 'OPEN_DOMAIN_HUB' &&
+      const {'PROPERTY', 'VEHICLE'}.contains(message.action?.domain) &&
+      message.birthProfileId != null &&
+      message.birthProfileId == _profiles.activeProfile?.id;
+
   Future<bool> send(String rawMessage) async {
     final message = rawMessage.trim();
     final profile = _profiles.activeProfile;

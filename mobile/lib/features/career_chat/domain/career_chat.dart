@@ -76,10 +76,12 @@ class TaraConversationAction {
     required this.type,
     required this.label,
     this.decisionType,
+    this.domain,
   });
   final String type;
   final String label;
   final String? decisionType;
+  final String? domain;
   static TaraConversationAction? fromJson(Object? value) {
     if (value is! Map || value['label'] is! String) {
       return null;
@@ -93,9 +95,11 @@ class TaraConversationAction {
       'START_BUSINESS',
       'CAREER_ABROAD',
     };
+    const domains = {'PROPERTY', 'VEHICLE'};
     if (type != 'OPEN_PROFILE_PREMIUM' &&
         type != 'OPEN_CAREER_PREMIUM' &&
-        type != 'OPEN_CAREER_DECISION') {
+        type != 'OPEN_CAREER_DECISION' &&
+        type != 'OPEN_DOMAIN_HUB') {
       return null;
     }
     final decisionType = value['decisionType'];
@@ -103,10 +107,16 @@ class TaraConversationAction {
         (decisionType is! String || !decisionTypes.contains(decisionType))) {
       return null;
     }
+    final domain = value['domain'];
+    if (type == 'OPEN_DOMAIN_HUB' &&
+        (domain is! String || !domains.contains(domain))) {
+      return null;
+    }
     return TaraConversationAction(
       type: type as String,
       label: value['label'] as String,
       decisionType: decisionType is String ? decisionType : null,
+      domain: domain is String ? domain : null,
     );
   }
 }
