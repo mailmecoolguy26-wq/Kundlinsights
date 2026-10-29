@@ -91,7 +91,7 @@ test('POST Tara message exposes the allowlisted profile premium action', async (
   await api.close();
 });
 
-test('POST Tara Property message follows the real conversation and Property capability path without Life Events', async () => {
+test('POST Tara Property message follows the real conversation and routes to the existing Property hub without Life Events', async () => {
   const service = propertyConversationService();
   const api = createApi({
     authVerifier: createTestOnlyAuthVerifier({ token: principal }),
@@ -109,8 +109,10 @@ test('POST Tara Property message follows the real conversation and Property capa
     payload: { message: 'Property lene ka acha time kab hai?', language: 'HINGLISH' },
   });
   assert.equal(response.statusCode, 201);
-  assert.equal(response.json().tara.domain, 'WEALTH_PROPERTY');
-  assert.equal(response.json().tara.property.intent, 'PROPERTY_PURCHASE_TIMING');
-  assert.equal(response.json().tara.property.state, 'MIXED');
+  assert.equal(response.json().tara.domain, 'PROPERTY');
+  assert.equal(response.json().tara.capability, 'DOMAIN_HUB_ROUTING');
+  assert.deepEqual(response.json().assistantMessage.action, {
+    type: 'OPEN_DOMAIN_HUB', label: 'Property outlook dekhein', domain: 'PROPERTY',
+  });
   await api.close();
 });

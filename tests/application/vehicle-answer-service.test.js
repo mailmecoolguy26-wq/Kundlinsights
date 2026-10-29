@@ -176,7 +176,7 @@ test('Vehicle renders deterministic English and Latin-Hinglish copy without chan
   }
 });
 
-test('Vehicle Tara routing is isolated from Career and uses the Vehicle capability', async () => {
+test('Vehicle Ask Tara routing is isolated from Career and opens the existing Vehicle hub', async () => {
   const calls = [];
   const tara = new TaraOrchestrator({
     careerCapability: { respond: async () => { throw new Error('CAREER_MUST_NOT_RUN'); } },
@@ -184,8 +184,9 @@ test('Vehicle Tara routing is isolated from Career and uses the Vehicle capabili
   });
   const result = await tara.respond({ principal: {}, birthProfileId: 'profile-vehicle', message: 'Car lene ka acha time kab hai?' });
   assert.equal(result.domain, 'VEHICLE');
-  assert.equal(result.capability, 'VEHICLE_GROUNDED');
-  assert.deepEqual(calls, ['profile-vehicle']);
+  assert.equal(result.capability, 'DOMAIN_HUB_ROUTING');
+  assert.deepEqual(result.action, { type: 'OPEN_DOMAIN_HUB', label: 'Vehicle outlook dekhein', domain: 'VEHICLE' });
+  assert.deepEqual(calls, []);
   const capability = new TaraVehicleCapability({ vehicleAnswerService: { answer: async (input) => ({ intent: input.intent, answerability: 'SUPPORTED', classification: 'MODERATE_CANDIDATE', strongerWindow: null, windowShape: 'NO_RELIABLE_WINDOW' }) } });
   assert.match((await capability.respond({ message: 'Vehicle kab lena chahiye?', birthProfileId: 'profile-vehicle' })).message, /Vehicle support window/);
 });

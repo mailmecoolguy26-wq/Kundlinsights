@@ -116,6 +116,20 @@ void main() {
     expect(controller.canOpenCareerDecision(action), isFalse);
   });
 
+  test('keeps a domain-hub action scoped to its conversation profile', () async {
+    repository.nextAction = const TaraConversationAction(
+      type: 'OPEN_DOMAIN_HUB',
+      label: 'View Property outlook',
+      domain: 'PROPERTY',
+    );
+    await controller.send('How is my property outlook?');
+    final action = controller.messages.last;
+    expect(controller.canOpenDomainHub(action), isTrue);
+    final profileB = profiles.profiles.singleWhere((item) => item.id == 'profile-b');
+    profiles.select(profileB);
+    expect(controller.canOpenDomainHub(action), isFalse);
+  });
+
   test(
     'reconciles a persisted answer after the message request times out',
     () async {
@@ -225,6 +239,34 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Decision job-offer'), findsOneWidget);
 
+    router.pop();
+    await tester.pumpAndSettle();
+    expect(find.text('Ask Tara'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('opens an existing Property hub and returns to Ask Tara', (
+    tester,
+  ) async {
+    repository.nextAction = const TaraConversationAction(
+      type: 'OPEN_DOMAIN_HUB',
+      label: 'View Property outlook',
+      domain: 'PROPERTY',
+    );
+    final router = GoRouter(
+      initialLocation: '/tara',
+      routes: [
+        GoRoute(path: '/tara', builder: (_, _) => CareerChatScreen(controller: controller)),
+        GoRoute(path: '/property', builder: (context, state) => Scaffold(appBar: AppBar(), body: const Text('Property hub'))),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await controller.send('How is my property outlook?');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('View Property outlook'));
+    await tester.pumpAndSettle();
+    expect(find.text('Property hub'), findsOneWidget);
     router.pop();
     await tester.pumpAndSettle();
     expect(find.text('Ask Tara'), findsOneWidget);

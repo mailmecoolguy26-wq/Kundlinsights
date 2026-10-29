@@ -238,7 +238,7 @@ test('Property service checks profile premium before profile or astrology calcul
   assert.equal(result.evidence, null);
 });
 
-test('Property orchestration is profile-scoped and never routes a Property question through Career', async () => {
+test('Property Ask Tara routing is profile-scoped and opens the existing Property hub without calculation', async () => {
   const calls = [];
   const tara = new TaraOrchestrator({
     careerCapability: { respond: async () => { throw new Error('CAREER_MUST_NOT_RUN'); } },
@@ -246,6 +246,7 @@ test('Property orchestration is profile-scoped and never routes a Property quest
   });
   const first = await tara.respond({ principal: {}, birthProfileId: 'profile-a', message: 'When should I buy property?' });
   const second = await tara.respond({ principal: {}, birthProfileId: 'profile-b', message: 'When should I buy property?' });
-  assert.equal(first.capability, 'PROPERTY_GROUNDED'); assert.equal(second.capability, 'PROPERTY_GROUNDED');
-  assert.deepEqual(calls, ['profile-a', 'profile-b']);
+  assert.equal(first.capability, 'DOMAIN_HUB_ROUTING'); assert.equal(second.capability, 'DOMAIN_HUB_ROUTING');
+  assert.deepEqual(first.action, { type: 'OPEN_DOMAIN_HUB', label: 'View Property outlook', domain: 'PROPERTY' });
+  assert.deepEqual(calls, []);
 });
