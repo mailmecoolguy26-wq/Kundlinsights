@@ -25,6 +25,13 @@ test('the divisional-chart adapter delegates D4/D9/D10/D16 to validated Varga pr
   }
 });
 
+test('D7 is available only as the validated Saptamsha application adapter', () => {
+  const chart = calculateChartCoordinates(goldenLayer1(), 'd7');
+  assert.equal(chart.vargaId, 'D7');
+  assert.equal(chart.coordinates.Ascendant.varga.varga.rulesetVersion, 'parashari-saptamsha-v1');
+  assert.ok(chart.houses.planetaryAssignments.length > 0);
+});
+
 test('D16 is accepted internally while unsupported Varga identifiers still fail safely', () => {
   assert.equal(calculateChartCoordinates(goldenLayer1(), 'd16').vargaId, 'D16');
   assert.throws(() => calculateChartCoordinates(goldenLayer1(), 'd12'), /Unsupported divisional chart: d12/);

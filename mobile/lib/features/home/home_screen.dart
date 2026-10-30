@@ -389,12 +389,12 @@ class _LifeAreaCards extends StatelessWidget {
           onTap: () => context.push(destination('/wealth')),
         ),
         const SizedBox(height: 10),
-        const _LifeAreaCard(
+        _LifeAreaCard(
           key: ValueKey('home-life-area-relationships'),
           icon: Icons.favorite_border,
           title: 'Relationships & Family',
-          subtitle: 'Marriage · Child Birth',
-          comingSoon: true,
+          subtitle: 'Relationship and commitment timing insights.',
+          onTap: () => context.push(destination('/relationships')),
         ),
         const SizedBox(height: 10),
         const _LifeAreaCard(

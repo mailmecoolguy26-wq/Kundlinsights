@@ -73,6 +73,12 @@ import '../features/property/property_answer_controller.dart';
 import '../features/wealth/data/wealth_answer_api_repository.dart';
 import '../features/wealth/domain/wealth_answer_repository.dart';
 import '../features/wealth/wealth_answer_controller.dart';
+import '../features/relationships/data/relationship_answer_api_repository.dart';
+import '../features/relationships/domain/relationship_answer_repository.dart';
+import '../features/relationships/relationship_answer_controller.dart';
+import '../features/family_expansion/family_expansion_answer_api_repository.dart';
+import '../features/family_expansion/family_expansion_answer_repository.dart';
+import '../features/family_expansion/family_expansion_answer_controller.dart';
 import 'app.dart';
 
 Future<void> bootstrap() async {
@@ -104,6 +110,8 @@ Future<void> bootstrap() async {
   final VehicleAnswerRepository vehicleAnswerRepository;
   final PropertyAnswerRepository propertyAnswerRepository;
   final WealthAnswerRepository wealthAnswerRepository;
+  final RelationshipAnswerRepository relationshipAnswerRepository;
+  final FamilyExpansionAnswerRepository familyExpansionAnswerRepository;
   FirebasePushNotificationService? pushNotifications;
   final storePurchaseService = AppleStorePurchaseService(
     client: InAppPurchaseStorePurchaseClient(InAppPurchase.instance),
@@ -157,6 +165,9 @@ Future<void> bootstrap() async {
     vehicleAnswerRepository = const UnavailableVehicleAnswerRepository();
     propertyAnswerRepository = const UnavailablePropertyAnswerRepository();
     wealthAnswerRepository = const UnavailableWealthAnswerRepository();
+    relationshipAnswerRepository =
+        const UnavailableRelationshipAnswerRepository();
+    familyExpansionAnswerRepository = const UnavailableFamilyExpansionAnswerRepository();
   } else {
     await Supabase.initialize(
       url: config.supabaseUrl,
@@ -184,6 +195,8 @@ Future<void> bootstrap() async {
     vehicleAnswerRepository = VehicleAnswerApiRepository(apiClient);
     propertyAnswerRepository = PropertyAnswerApiRepository(apiClient);
     wealthAnswerRepository = WealthAnswerApiRepository(apiClient);
+    relationshipAnswerRepository = RelationshipAnswerApiRepository(apiClient);
+    familyExpansionAnswerRepository = FamilyExpansionAnswerApiRepository(apiClient);
     careerAnswerRepository = DevelopmentFlags.careerPremiumUiPreviewEnabled
         ? DebugJobFavourabilityPreviewRepository(answerApiRepository)
         : answerApiRepository;
@@ -275,7 +288,13 @@ Future<void> bootstrap() async {
         propertyAnswerRepositoryProvider.overrideWithValue(
           propertyAnswerRepository,
         ),
-        wealthAnswerRepositoryProvider.overrideWithValue(wealthAnswerRepository),
+        wealthAnswerRepositoryProvider.overrideWithValue(
+          wealthAnswerRepository,
+        ),
+        relationshipAnswerRepositoryProvider.overrideWithValue(
+          relationshipAnswerRepository,
+        ),
+        familyExpansionAnswerRepositoryProvider.overrideWithValue(familyExpansionAnswerRepository),
       ],
       child: KundlInsightsApp(
         authController: controller,

@@ -11,7 +11,11 @@ test('routes only Career requests to the grounded Career capability', async () =
   assert.equal(career.domain, 'CAREER');
   assert.equal(career.capability, 'CAREER_GROUNDED');
   assert.deepEqual(calls, ['When could my job switch be relevant?']);
-  for (const [message, domain] of [['What does my chart say about marriage?', 'RELATIONSHIPS'], ['Please do a tarot reading.', 'TAROT']]) {
+  const relationship = await tara.respond({ principal: {}, birthProfileId: 'profile-a', message: 'What does my chart say about marriage?' });
+  assert.equal(relationship.domain, 'RELATIONSHIPS');
+  assert.equal(relationship.answerability, 'SUPPORTED');
+  assert.deepEqual(relationship.action, { type: 'OPEN_DOMAIN_HUB', label: 'View Relationships & Family', domain: 'RELATIONSHIPS' });
+  for (const [message, domain] of [['Please do a tarot reading.', 'TAROT']]) {
     const result = await tara.respond({ principal: {}, birthProfileId: 'profile-a', message });
     assert.equal(result.domain, domain);
     assert.equal(result.answerability, 'UNSUPPORTED');

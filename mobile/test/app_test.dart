@@ -71,7 +71,11 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Property · Vehicle'), findsNothing);
-      expect(find.text('COMING NEXT'), findsNWidgets(2));
+      expect(find.text('COMING NEXT'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('home-life-area-relationships')),
+        findsOneWidget,
+      );
 
       await tester.tap(propertyCard);
       await tester.pumpAndSettle();

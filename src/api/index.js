@@ -68,7 +68,7 @@ function careerAnswerTiming(request, reply) {
   return Object.freeze({ record, failed: () => report('HANDLER_ERROR_RESPONSE') });
 }
 
-function createApi({ authVerifier, userResolver, birthProfileService, careerEventService = null, lifeEventService = null, careerEventAstrologyService = null, natalSummaryService = null, divisionalChartService = null, vimshottariService = null, transitSnapshotService = null, ashtakavargaService = null, secureReadingService, careerAnswerService = null, careerDecisionService = null, propertyAnswerService = null, vehicleAnswerService = null, wealthAnswerService = null, careerChatOrchestrator = null, taraConversationService = null, purchaseService = null, razorpayPaymentService = null, appleNotificationService = null, googleRtdnService = null, notificationSelfService = null, placeResolutionService = null, entitlementService, requestIdGenerator = crypto.randomUUID, corsAllowlist = [], isReady = () => true, logger = false, bodyLimit = 16 * 1024 } = {}) {
+function createApi({ authVerifier, userResolver, birthProfileService, careerEventService = null, lifeEventService = null, careerEventAstrologyService = null, natalSummaryService = null, divisionalChartService = null, vimshottariService = null, transitSnapshotService = null, ashtakavargaService = null, secureReadingService, careerAnswerService = null, careerDecisionService = null, propertyAnswerService = null, vehicleAnswerService = null, wealthAnswerService = null, relationshipAnswerService = null, familyExpansionAnswerService = null, careerChatOrchestrator = null, taraConversationService = null, purchaseService = null, razorpayPaymentService = null, appleNotificationService = null, googleRtdnService = null, notificationSelfService = null, placeResolutionService = null, entitlementService, requestIdGenerator = crypto.randomUUID, corsAllowlist = [], isReady = () => true, logger = false, bodyLimit = 16 * 1024 } = {}) {
   required(authVerifier, 'AUTH_VERIFIER'); if (typeof authVerifier.verifyRequest !== 'function') throw new TypeError('INVALID_AUTH_VERIFIER'); required(userResolver, 'USER_RESOLVER'); required(birthProfileService, 'BIRTH_PROFILE_SERVICE'); required(secureReadingService, 'SECURE_READING_SERVICE');
   if (!Array.isArray(corsAllowlist) || !corsAllowlist.every((origin) => typeof origin === 'string' && origin.startsWith('https://') && !origin.includes('*')) || typeof isReady !== 'function' || !Number.isInteger(bodyLimit) || bodyLimit < 1024 || bodyLimit > 16 * 1024) throw new TypeError('INVALID_API_RUNTIME_OPTIONS');
   const app = Fastify({ logger, bodyLimit, requestIdHeader: 'x-request-id', genReqId: () => requestIdGenerator() });
@@ -237,6 +237,20 @@ function createApi({ authVerifier, userResolver, birthProfileService, careerEven
     if (typeof wealthAnswerService.answer !== 'function') throw new TypeError('INVALID_WEALTH_ANSWER_SERVICE');
     app.post('/v1/birth-profiles/:id/wealth-answers', async (request) => ({
       wealthAnswer: await wealthAnswerService.answer({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), intent: request.body && request.body.intent }),
+      requestId: request.id,
+    }));
+  }
+  if (relationshipAnswerService) {
+    if (typeof relationshipAnswerService.answer !== 'function') throw new TypeError('INVALID_RELATIONSHIP_ANSWER_SERVICE');
+    app.post('/v1/birth-profiles/:id/relationship-answers', async (request) => ({
+      relationshipAnswer: await relationshipAnswerService.answer({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), intent: request.body && request.body.intent }),
+      requestId: request.id,
+    }));
+  }
+  if (familyExpansionAnswerService) {
+    if (typeof familyExpansionAnswerService.answer !== 'function') throw new TypeError('INVALID_FAMILY_EXPANSION_ANSWER_SERVICE');
+    app.post('/v1/birth-profiles/:id/family-expansion-answers', async (request) => ({
+      familyExpansionAnswer: await familyExpansionAnswerService.answer({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), intent: request.body && request.body.intent }),
       requestId: request.id,
     }));
   }

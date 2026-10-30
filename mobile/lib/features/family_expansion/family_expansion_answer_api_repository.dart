@@ -1,0 +1,4 @@
+import '../../../core/api/api_client.dart';
+import 'family_expansion_answer.dart';
+import 'family_expansion_answer_repository.dart';
+class FamilyExpansionAnswerApiRepository implements FamilyExpansionAnswerRepository { const FamilyExpansionAnswerApiRepository(this._client); final ApiClient _client; @override Future<FamilyExpansionAnswer> getAnswer({required String birthProfileId, required FamilyExpansionIntent intent}) async { final response = await _client.post<Map<String, dynamic>>('/v1/birth-profiles/${Uri.encodeComponent(birthProfileId)}/family-expansion-answers', data: {'intent': intent.wire}); final raw = response.data?['familyExpansionAnswer']; if (raw is! Map<String, dynamic>) throw const FormatException('Malformed Family Expansion Answer API response.'); return FamilyExpansionAnswer.fromJson(raw); } }

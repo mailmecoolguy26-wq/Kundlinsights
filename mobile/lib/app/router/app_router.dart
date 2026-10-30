@@ -57,6 +57,9 @@ import '../../features/property/property_answer_controller.dart';
 import '../../features/property/presentation/property_hub_screen.dart';
 import '../../features/wealth/wealth_answer_controller.dart';
 import '../../features/wealth/presentation/wealth_hub_screen.dart';
+import '../../features/relationships/relationship_answer_controller.dart';
+import '../../features/family_expansion/family_expansion_answer_controller.dart';
+import '../../features/relationships/presentation/relationship_hub_screen.dart';
 import '../../core/analytics/analytics.dart';
 import '../../core/push/push_notification_service.dart';
 import '../../core/push/push_permission_prompt.dart';
@@ -97,6 +100,8 @@ GoRouter createAppRouter(
   VehicleAnswerController? vehicleAnswers,
   PropertyAnswerController? propertyAnswers,
   WealthAnswerController? wealthAnswers,
+  RelationshipAnswerController? relationshipAnswers,
+  FamilyExpansionAnswerController? familyExpansionAnswers,
   RazorpayCareerPremiumController? razorpayPremium,
   required CareerExplanationLanguageController careerExplanationLanguage,
   required SplashLaunchGate splashLaunchGate,
@@ -186,6 +191,16 @@ GoRouter createAppRouter(
         child: wealthAnswers == null
             ? const _WealthUnavailable()
             : WealthHubScreen(controller: wealthAnswers),
+      ),
+    ),
+    GoRoute(
+      path: '/relationships',
+      name: 'relationships-hub',
+      pageBuilder: (context, state) => MaterialPage<void>(
+        key: state.pageKey,
+        child: relationshipAnswers == null || familyExpansionAnswers == null
+            ? const _RelationshipsUnavailable()
+            : RelationshipHubScreen(controller: relationshipAnswers, familyController: familyExpansionAnswers),
       ),
     ),
     GoRoute(
@@ -702,6 +717,18 @@ class _WealthUnavailable extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       const Scaffold(body: Center(child: Text('Wealth insights unavailable')));
+}
+
+class _RelationshipsUnavailable extends StatelessWidget {
+  const _RelationshipsUnavailable();
+
+  @override
+  Widget build(BuildContext context) => const AppPageScaffold(
+    title: 'Relationships & Family',
+    body: Center(
+      child: Text('Relationship insights are unavailable right now.'),
+    ),
+  );
 }
 
 class _CareerAnswerUnavailable extends StatelessWidget {

@@ -44,6 +44,8 @@ import '../features/career_answers/career_decision_history_controller.dart';
 import '../features/vehicle/vehicle_answer_controller.dart';
 import '../features/property/property_answer_controller.dart';
 import '../features/wealth/wealth_answer_controller.dart';
+import '../features/relationships/relationship_answer_controller.dart';
+import '../features/family_expansion/family_expansion_answer_controller.dart';
 
 class KundlInsightsApp extends ConsumerStatefulWidget {
   const KundlInsightsApp({
@@ -80,6 +82,8 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
   late final VehicleAnswerController _vehicleAnswers;
   late final PropertyAnswerController _propertyAnswers;
   late final WealthAnswerController _wealthAnswers;
+  late final RelationshipAnswerController _relationshipAnswers;
+  late final FamilyExpansionAnswerController _familyExpansionAnswers;
   late final ProfileController _profiles;
   late final CareerReadingGenerationController _generation;
   late final PushNavigationAdapter _pushNavigation;
@@ -161,6 +165,10 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
     _vehicleAnswers = ref.read(vehicleAnswerControllerProvider(profiles));
     _propertyAnswers = ref.read(propertyAnswerControllerProvider(profiles));
     _wealthAnswers = ref.read(wealthAnswerControllerProvider(profiles));
+    _relationshipAnswers = ref.read(
+      relationshipAnswerControllerProvider(profiles),
+    );
+    _familyExpansionAnswers = ref.read(familyExpansionAnswerControllerProvider(profiles));
     final premiumProduct = ref.read(careerPremiumProductControllerProvider);
     final premiumPurchase = ref.read(
       careerPremiumPurchaseControllerProvider((
@@ -206,6 +214,8 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
       vehicleAnswers: _vehicleAnswers,
       propertyAnswers: _propertyAnswers,
       wealthAnswers: _wealthAnswers,
+      relationshipAnswers: _relationshipAnswers,
+      familyExpansionAnswers: _familyExpansionAnswers,
       razorpayPremium: _razorpayPremium,
       careerExplanationLanguage: _careerExplanationLanguage,
       splashLaunchGate: _splashLaunchGate,
@@ -333,6 +343,8 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
     _vehicleAnswers.invalidateProfile(profileId);
     _propertyAnswers.invalidateProfile(profileId);
     _wealthAnswers.invalidateProfile(profileId);
+    _relationshipAnswers.invalidateProfile(profileId);
+    _familyExpansionAnswers.invalidateProfile(profileId);
   }
 
   Future<void> _drainPushIntents() async {

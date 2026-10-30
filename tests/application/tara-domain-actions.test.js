@@ -91,3 +91,33 @@ test('keeps Hinglish practical and financial questions outside domain-hub action
     assert.match(response.message, /reliable personalized guidance|reliable personalized answer|reliably|broader Wealth outlook/i, message);
   }
 });
+
+test('routes conservative Relationship, marriage, and Family Expansion planning prompts to one existing hub', async () => {
+  const english = ['How is my relationship outlook?', 'When is my stronger relationship period?', 'How is my love life phase?', 'How is my married life phase?', 'What does my chart say about marriage?', 'How is my marriage outlook?', 'When is a stronger time for marriage?', 'Is this a supportive time for family expansion?', 'How is my Family Expansion outlook?', 'When is a stronger family-oriented period?'];
+  for (const message of english) { const response = await tara().respond({ principal: {}, birthProfileId: 'profile-a', message }); assert.equal(response.domain, 'RELATIONSHIPS', message); assert.deepEqual(response.action, { type: TaraDomainAction.OPEN_DOMAIN_HUB, label: 'View Relationships & Family', domain: 'RELATIONSHIPS' }, message); }
+  const hinglish = ['Relationship ka time kaisa hai?', 'Mera relationship outlook kaisa hai?', 'Love life ka phase kaisa hai?', 'Relationship timing check karo.', 'Shaadi ka time kaisa hai?', 'Mera marriage outlook kaisa hai?', 'Marriage timing check karo.', 'Family planning ke liye timing kaisi hai?', 'Family expansion ka time kaisa hai?', 'Family badhane ka phase kaisa hai?'];
+  for (const message of hinglish) { const response = await tara().respond({ principal: {}, birthProfileId: 'profile-a', message, language: 'HINGLISH' }); assert.equal(response.domain, 'RELATIONSHIPS', message); assert.deepEqual(response.action, { type: TaraDomainAction.OPEN_DOMAIN_HUB, label: 'Relationships & Family dekhein', domain: 'RELATIONSHIPS' }, message); }
+});
+
+test('keeps relationship certainty, spouse identity, divorce, and reproductive questions behind explicit no-action boundaries', async () => {
+  const unsafe = ['Will I definitely get married this year?', 'Will I get married in 2027?', 'Kya meri shaadi iss saal pakki hogi?', 'Who will I marry?', "What will my spouse's name be?", 'What will my husband do?', 'Mere husband ka naam kya hoga?', 'Main kis se shaadi karunga?', 'Will I get divorced?', 'Kya meri shaadi toot jayegi?', 'Will my partner leave me?', 'Will my ex come back?', 'Is my partner cheating?', 'Am I fertile?', 'Am I infertile?', 'Will I conceive?', 'When will I conceive?', 'Pregnancy kab hogi?', 'What are my chances of pregnancy?', 'Will I miscarry?', 'Will my baby be healthy?', 'Boy or girl?', 'How many children will I have?', 'Kitne bacche honge?'];
+  for (const message of unsafe) { const response = await tara().respond({ principal: {}, birthProfileId: 'profile-a', message, language: 'HINGLISH' }); assert.equal(response.action, null, message); assert.equal(response.answerability, 'UNSUPPORTED', message); assert.doesNotMatch(response.message, /will marry|likely to conceive|fertility score|pregnancy chance/i, message); }
+});
+
+test('keeps trying-for-a-baby questions behind the non-medical family boundary', async () => {
+  for (const message of ['We are trying for a baby. Is this a good time?', 'Hum baby ke liye try kar rahe hain, kya yeh acha time hai?']) {
+    const response = await tara().respond({ principal: {}, birthProfileId: 'profile-a', message, language: 'HINGLISH' });
+    assert.equal(response.answerability, 'UNSUPPORTED', message);
+    assert.equal(response.action, null, message);
+    assert.match(response.message, /non-medical|fertility|conception|pregnancy/i, message);
+  }
+});
+
+test('uses one Relationship action for a combined marriage and family-planning outlook', async () => {
+  const response = await tara().respond({ principal: {}, birthProfileId: 'profile-a', message: 'Marriage aur family planning dono ka time kaisa hai?', language: 'HINGLISH' });
+  assert.deepEqual(response.action, { type: TaraDomainAction.OPEN_DOMAIN_HUB, label: 'Relationships & Family dekhein', domain: 'RELATIONSHIPS' });
+});
+
+test('does not create Relationship CTAs for legal, technical, insurance, or generic-advice false positives', async () => {
+  for (const message of ['What is an entity relationship diagram?', 'Marriage registration ka process kya hai?', 'What does the Marriage Act say?', 'Family health insurance kaunsa acha hai?', 'Family mobile plan kya hai?', 'How do I repair my relationship?', 'Job aur shaadi dono ka time kaisa hai?', 'Shaadi aur ghar lene ka time kaisa hai?']) { const response = await tara().respond({ principal: {}, birthProfileId: 'profile-a', message, language: 'HINGLISH' }); assert.notEqual(response.action?.domain, 'RELATIONSHIPS', message); }
+});

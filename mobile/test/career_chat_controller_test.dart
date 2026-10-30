@@ -102,32 +102,87 @@ void main() {
     expect(repository.profileIds.last, 'profile-b');
   });
 
-  test('keeps a Career Decision action scoped to its conversation profile', () async {
-    repository.nextAction = const TaraConversationAction(
-      type: 'OPEN_CAREER_DECISION',
-      label: 'Evaluate this job offer',
-      decisionType: 'JOB_OFFER',
-    );
-    await controller.send('I got a job offer');
-    final action = controller.messages.last;
-    expect(controller.canOpenCareerDecision(action), isTrue);
-    final profileB = profiles.profiles.singleWhere((item) => item.id == 'profile-b');
-    profiles.select(profileB);
-    expect(controller.canOpenCareerDecision(action), isFalse);
-  });
+  test(
+    'keeps a Career Decision action scoped to its conversation profile',
+    () async {
+      repository.nextAction = const TaraConversationAction(
+        type: 'OPEN_CAREER_DECISION',
+        label: 'Evaluate this job offer',
+        decisionType: 'JOB_OFFER',
+      );
+      await controller.send('I got a job offer');
+      final action = controller.messages.last;
+      expect(controller.canOpenCareerDecision(action), isTrue);
+      final profileB = profiles.profiles.singleWhere(
+        (item) => item.id == 'profile-b',
+      );
+      profiles.select(profileB);
+      expect(controller.canOpenCareerDecision(action), isFalse);
+    },
+  );
 
-  test('keeps a domain-hub action scoped to its conversation profile', () async {
+  test(
+    'keeps a domain-hub action scoped to its conversation profile',
+    () async {
+      repository.nextAction = const TaraConversationAction(
+        type: 'OPEN_DOMAIN_HUB',
+        label: 'View Property outlook',
+        domain: 'PROPERTY',
+      );
+      await controller.send('How is my property outlook?');
+      final action = controller.messages.last;
+      expect(controller.canOpenDomainHub(action), isTrue);
+      final profileB = profiles.profiles.singleWhere(
+        (item) => item.id == 'profile-b',
+      );
+      profiles.select(profileB);
+      expect(controller.canOpenDomainHub(action), isFalse);
+    },
+  );
+
+  test('keeps a Relationships domain-hub action scoped to its conversation profile', () async {
     repository.nextAction = const TaraConversationAction(
       type: 'OPEN_DOMAIN_HUB',
-      label: 'View Property outlook',
-      domain: 'PROPERTY',
+      label: 'View Relationships & Family',
+      domain: 'RELATIONSHIPS',
     );
-    await controller.send('How is my property outlook?');
+    await controller.send('How is my relationship outlook?');
     final action = controller.messages.last;
     expect(controller.canOpenDomainHub(action), isTrue);
-    final profileB = profiles.profiles.singleWhere((item) => item.id == 'profile-b');
-    profiles.select(profileB);
+    profiles.select(
+      profiles.profiles.singleWhere((item) => item.id == 'profile-b'),
+    );
     expect(controller.canOpenDomainHub(action), isFalse);
+  });
+
+  test('persists and reloads an allowlisted Relationships action for its conversation profile', () async {
+    repository.nextAction = const TaraConversationAction(
+      type: 'OPEN_DOMAIN_HUB',
+      label: 'Relationships & Family dekhein',
+      domain: 'RELATIONSHIPS',
+    );
+    await controller.send('Relationship ka time kaisa hai?');
+    final id = controller.conversationId!;
+    expect(controller.messages.last.action?.domain, 'RELATIONSHIPS');
+
+    controller.startNewConversation();
+    await controller.openConversation(id);
+
+    final restored = controller.messages.last;
+    expect(restored.action?.type, 'OPEN_DOMAIN_HUB');
+    expect(restored.action?.domain, 'RELATIONSHIPS');
+    expect(restored.action?.label, 'Relationships & Family dekhein');
+    expect(controller.canOpenDomainHub(restored), isTrue);
+  });
+
+  test('fails closed for an unknown domain-hub action', () async {
+    repository.nextAction = const TaraConversationAction(
+      type: 'OPEN_DOMAIN_HUB',
+      label: 'Unknown hub',
+      domain: 'UNRECOGNIZED_DOMAIN',
+    );
+    await controller.send('Open something unknown');
+    expect(controller.canOpenDomainHub(controller.messages.last), isFalse);
   });
 
   test(
@@ -205,45 +260,46 @@ void main() {
     },
   );
 
-  testWidgets('opens an existing Career Decision route and returns to Ask Tara', (
-    tester,
-  ) async {
-    repository.nextAction = const TaraConversationAction(
-      type: 'OPEN_CAREER_DECISION',
-      label: 'Evaluate this job offer',
-      decisionType: 'JOB_OFFER',
-    );
-    final router = GoRouter(
-      initialLocation: '/tara',
-      routes: [
-        GoRoute(
-          path: '/tara',
-          builder: (_, _) => CareerChatScreen(controller: controller),
-        ),
-        GoRoute(
-          path: '/career/decision/:type',
-          builder: (context, state) => Scaffold(
-            appBar: AppBar(),
-            body: Text('Decision ${state.pathParameters['type']}'),
+  testWidgets(
+    'opens an existing Career Decision route and returns to Ask Tara',
+    (tester) async {
+      repository.nextAction = const TaraConversationAction(
+        type: 'OPEN_CAREER_DECISION',
+        label: 'Evaluate this job offer',
+        decisionType: 'JOB_OFFER',
+      );
+      final router = GoRouter(
+        initialLocation: '/tara',
+        routes: [
+          GoRoute(
+            path: '/tara',
+            builder: (_, _) => CareerChatScreen(controller: controller),
           ),
-        ),
-      ],
-    );
-    addTearDown(router.dispose);
-    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
-    await controller.send('I have a job offer');
-    await tester.pumpAndSettle();
+          GoRoute(
+            path: '/career/decision/:type',
+            builder: (context, state) => Scaffold(
+              appBar: AppBar(),
+              body: Text('Decision ${state.pathParameters['type']}'),
+            ),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      await controller.send('I have a job offer');
+      await tester.pumpAndSettle();
 
-    expect(find.text('Evaluate this job offer'), findsOneWidget);
-    await tester.tap(find.text('Evaluate this job offer'));
-    await tester.pumpAndSettle();
-    expect(find.text('Decision job-offer'), findsOneWidget);
+      expect(find.text('Evaluate this job offer'), findsOneWidget);
+      await tester.tap(find.text('Evaluate this job offer'));
+      await tester.pumpAndSettle();
+      expect(find.text('Decision job-offer'), findsOneWidget);
 
-    router.pop();
-    await tester.pumpAndSettle();
-    expect(find.text('Ask Tara'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      router.pop();
+      await tester.pumpAndSettle();
+      expect(find.text('Ask Tara'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('opens an existing Property hub and returns to Ask Tara', (
     tester,
@@ -256,8 +312,15 @@ void main() {
     final router = GoRouter(
       initialLocation: '/tara',
       routes: [
-        GoRoute(path: '/tara', builder: (_, _) => CareerChatScreen(controller: controller)),
-        GoRoute(path: '/property', builder: (context, state) => Scaffold(appBar: AppBar(), body: const Text('Property hub'))),
+        GoRoute(
+          path: '/tara',
+          builder: (_, _) => CareerChatScreen(controller: controller),
+        ),
+        GoRoute(
+          path: '/property',
+          builder: (context, state) =>
+              Scaffold(appBar: AppBar(), body: const Text('Property hub')),
+        ),
       ],
     );
     addTearDown(router.dispose);
@@ -273,7 +336,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('opens existing domain hubs from Hinglish action labels', (tester) async {
+  testWidgets('opens existing domain hubs from Hinglish action labels', (
+    tester,
+  ) async {
     repository.nextAction = const TaraConversationAction(
       type: 'OPEN_DOMAIN_HUB',
       label: 'Vehicle outlook dekhein',
@@ -282,8 +347,15 @@ void main() {
     final router = GoRouter(
       initialLocation: '/tara',
       routes: [
-        GoRoute(path: '/tara', builder: (_, _) => CareerChatScreen(controller: controller)),
-        GoRoute(path: '/vehicle', builder: (context, state) => Scaffold(appBar: AppBar(), body: const Text('Vehicle hub'))),
+        GoRoute(
+          path: '/tara',
+          builder: (_, _) => CareerChatScreen(controller: controller),
+        ),
+        GoRoute(
+          path: '/vehicle',
+          builder: (context, state) =>
+              Scaffold(appBar: AppBar(), body: const Text('Vehicle hub')),
+        ),
       ],
     );
     addTearDown(router.dispose);
@@ -298,7 +370,44 @@ void main() {
     expect(find.text('Ask Tara'), findsOneWidget);
   });
 
-  testWidgets('opens the allowlisted Wealth hub and returns to Ask Tara', (tester) async {
+  testWidgets('opens the Relationships hub and returns to Ask Tara', (
+    tester,
+  ) async {
+    repository.nextAction = const TaraConversationAction(
+      type: 'OPEN_DOMAIN_HUB',
+      label: 'View Relationships & Family',
+      domain: 'RELATIONSHIPS',
+    );
+    final router = GoRouter(
+      initialLocation: '/tara',
+      routes: [
+        GoRoute(
+          path: '/tara',
+          builder: (_, _) => CareerChatScreen(controller: controller),
+        ),
+        GoRoute(
+          path: '/relationships',
+          builder: (context, state) =>
+              Scaffold(appBar: AppBar(), body: const Text('Relationships hub')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await controller.send('How is my relationship outlook?');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('View Relationships & Family'));
+    await tester.pumpAndSettle();
+    expect(find.text('Relationships hub'), findsOneWidget);
+    router.pop();
+    await tester.pumpAndSettle();
+    expect(find.text('Ask Tara'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('opens the allowlisted Wealth hub and returns to Ask Tara', (
+    tester,
+  ) async {
     repository.nextAction = const TaraConversationAction(
       type: 'OPEN_DOMAIN_HUB',
       label: 'Wealth outlook dekhein',
@@ -307,8 +416,15 @@ void main() {
     final router = GoRouter(
       initialLocation: '/tara',
       routes: [
-        GoRoute(path: '/tara', builder: (_, _) => CareerChatScreen(controller: controller)),
-        GoRoute(path: '/wealth', builder: (context, state) => Scaffold(appBar: AppBar(), body: const Text('Wealth hub'))),
+        GoRoute(
+          path: '/tara',
+          builder: (_, _) => CareerChatScreen(controller: controller),
+        ),
+        GoRoute(
+          path: '/wealth',
+          builder: (context, state) =>
+              Scaffold(appBar: AppBar(), body: const Text('Wealth hub')),
+        ),
       ],
     );
     addTearDown(router.dispose);
@@ -526,7 +642,8 @@ class _MemoryTaraRepository implements CareerChatRepository {
         role: CareerChatRole.assistant,
         content: 'Grounded reply for $message',
         createdAt: now,
-        action: nextAction ??
+        action:
+            nextAction ??
             (message.startsWith('timing')
                 ? const TaraConversationAction(
                     type: 'OPEN_CAREER_PREMIUM',

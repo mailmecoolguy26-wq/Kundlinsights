@@ -95,7 +95,7 @@ class TaraConversationAction {
       'START_BUSINESS',
       'CAREER_ABROAD',
     };
-    const domains = {'PROPERTY', 'VEHICLE', 'WEALTH'};
+    const domains = {'PROPERTY', 'VEHICLE', 'WEALTH', 'RELATIONSHIPS'};
     if (type != 'OPEN_PROFILE_PREMIUM' &&
         type != 'OPEN_CAREER_PREMIUM' &&
         type != 'OPEN_CAREER_DECISION' &&

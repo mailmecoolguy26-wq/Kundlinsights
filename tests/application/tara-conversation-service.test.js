@@ -95,8 +95,8 @@ test('persists and reloads only an allowlisted Career Decision action', async ()
   assert.deepEqual(loaded.messages.at(-1).action, action);
 });
 
-test('persists and reloads only allowlisted Property, Vehicle, or Wealth hub actions', async () => {
-  for (const [domain, label] of [['PROPERTY', 'View Property outlook'], ['VEHICLE', 'View Vehicle outlook'], ['WEALTH', 'View Wealth outlook']]) {
+test('persists and reloads only allowlisted domain-hub actions', async () => {
+  for (const [domain, label] of [['PROPERTY', 'View Property outlook'], ['VEHICLE', 'View Vehicle outlook'], ['WEALTH', 'View Wealth outlook'], ['RELATIONSHIPS', 'Relationships & Family dekhein']]) {
     const action = { type: 'OPEN_DOMAIN_HUB', label, domain };
     const { service } = fixture({ taraOrchestrator: { respond: async () => ({ message: `Review your ${domain} outlook.`, action }) } });
     const created = await service.create({ principal, birthProfileId: 'profile-a' });
@@ -200,7 +200,12 @@ test('keeps different detected domains in one profile-scoped Tara thread', async
   const loaded = await service.get({ principal, birthProfileId: 'profile-a', conversationId: created.conversationId });
   assert.deepEqual(loaded.messages.map((message) => message.role), ['user', 'assistant', 'user', 'assistant']);
   assert.equal(careerCalls.length, 1);
-  assert.match(loaded.messages.at(-1).content, /not ready to give you a reliable personalized answer/i);
+  assert.match(loaded.messages.at(-1).content, /Relationship outlook/i);
+  assert.deepEqual(loaded.messages.at(-1).action, {
+    type: 'OPEN_DOMAIN_HUB',
+    label: 'View Relationships & Family',
+    domain: 'RELATIONSHIPS',
+  });
 });
 
 test('fails closed for cross-profile and cross-user Ask Tara history access', async () => {

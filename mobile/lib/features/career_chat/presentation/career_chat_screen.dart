@@ -214,6 +214,7 @@ class _CareerChatScreenState extends State<CareerChatScreen> {
     'PROPERTY': '/property',
     'VEHICLE': '/vehicle',
     'WEALTH': '/wealth',
+    'RELATIONSHIPS': '/relationships',
   }[domain];
 
   Future<void> _openHistory(BuildContext context) async {
