@@ -384,9 +384,9 @@ class _LifeAreaCards extends StatelessWidget {
         _LifeAreaCard(
           key: ValueKey('home-life-area-wealth'),
           icon: Icons.account_balance_wallet_outlined,
-          title: 'Wealth & Property',
-          subtitle: 'Property timing and ownership-related insights.',
-          onTap: () => context.push(destination('/property')),
+          title: 'Wealth & Money',
+          subtitle: 'Wealth timing and financial structure insights.',
+          onTap: () => context.push(destination('/wealth')),
         ),
         const SizedBox(height: 10),
         const _LifeAreaCard(

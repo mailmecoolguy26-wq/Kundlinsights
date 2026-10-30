@@ -3,7 +3,7 @@
 // This registry describes navigation to existing product experiences only. It
 // intentionally contains no calculation, entitlement, or arbitrary route data.
 const TaraDomainAction = Object.freeze({ OPEN_DOMAIN_HUB: 'OPEN_DOMAIN_HUB' });
-const TaraDomain = Object.freeze({ PROPERTY: 'PROPERTY', VEHICLE: 'VEHICLE' });
+const TaraDomain = Object.freeze({ PROPERTY: 'PROPERTY', VEHICLE: 'VEHICLE', WEALTH: 'WEALTH' });
 
 const DOMAIN_TRANSITIONS = Object.freeze({
   [TaraDomain.PROPERTY]: Object.freeze({
@@ -24,28 +24,37 @@ const DOMAIN_TRANSITIONS = Object.freeze({
       HINGLISH: 'Main aapka Vehicle outlook aur purchase timing dekhne mein help kar sakti hoon.',
     }),
   }),
+  [TaraDomain.WEALTH]: Object.freeze({
+    label: Object.freeze({ ENGLISH: 'View Wealth outlook', HINGLISH: 'Wealth outlook dekhein' }),
+    message: Object.freeze({
+      ENGLISH: 'I can help you review your broader Wealth outlook, current financial phase and stronger Wealth timing using your saved profile.',
+      HINGLISH: 'Main aapke saved profile ke basis par Wealth outlook, current financial phase aur stronger Wealth timing dekhne mein help kar sakti hoon.',
+    }),
+  }),
 });
 
 function words(message) { return String(message || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim(); }
 function has(text, pattern) { return pattern.test(text); }
 
-function unsupportedFinancialQuestion(text) {
-  return has(text, /\b(stock|share|mutual fund|crypto|investment advice|loan\b.{0,20}\bapprov(?:ed|al)|mortgage\b.{0,20}\bapprov(?:ed|al)|price|appreciate|double in price|property tax|car mileage|vehicle mileage|foreign currency rate)\b/);
+function financialBoundary(text) {
+  if (has(text, /\b(stock|share|mutual fund|crypto|bitcoin|nav|wealth tax|property tax|wealth management|wealth manager|exchange rate|usd inr|currency|money transfer|savings account|interest rate|banking|mileage)\b/)) return 'SPECIFIC_FINANCIAL_PRODUCT';
+  if (has(text, /\b(loan|mortgage)\b|\bapprov(?:e|ed|al)\b/)) return 'LOAN_APPROVAL';
+  if (has(text, /\b(invest|investment)\b.*\b(\d+|lakh|crore|amount|now)\b|\b(earn|net worth|rich|paisa kama|money kama|kitna paisa|kitna money)\b.*\b(\d+|crore|lakh|how much|kitna)?/)) return 'EXACT_FINANCIAL_OUTCOME';
+  return null;
 }
 
 function classifyDomainHubIntent(message) {
   const text = words(message);
   if (!text) return null;
-  if (unsupportedFinancialQuestion(text)) return Object.freeze({ kind: 'FINANCIAL_UNSUPPORTED' });
+  const boundary = financialBoundary(text);
+  if (boundary) return Object.freeze({ kind: 'FINANCIAL_BOUNDARY', boundary });
   const property = has(text, /\b(property|house|home|real estate|apartment|flat|ghar)\b/);
   const vehicle = has(text, /\b(vehicle|car|bike|scooter|gaadi|gadi|four wheeler|two wheeler)\b/);
-  const wealth = has(text, /\b(wealth|money|financial|finance|invest(?:ment|ing)?)\b/);
-  const personal = has(text, /\b(my|me|i |chart|kundli|timing|outlook|buy|buying|purchase|purchasing|kharid|lene|leni|chances?|when|should|good time|acha time|better time)\b/);
+  const wealth = has(text, /\b(wealth|money|financial|finance|paisa|paise|paiso|savings?)\b/);
+  const personal = has(text, /\b(my|me|i |chart|kundli|timing|outlook|buy|buying|purchase|purchasing|kharid|lene|leni|chances?|when|should|good time|acha time|better time|period|phase|growth|time|kaisa|kaisi|kab|paisa|paise|paiso)\b/);
   if (property && wealth) return Object.freeze({ kind: 'CROSS_DOMAIN_FINANCIAL' });
   if ((property && has(text, /\b(object|dart|css|value|code|programming)\b/)) || (vehicle && has(text, /\b(api|http|transportation system|metaphor)\b/)) || has(text, /\b(phone|mobile)\s+switch\b/)) return Object.freeze({ kind: 'TECHNICAL_UNSUPPORTED' });
-  // Wealth has no product module, reading, API, or route today. Keep it
-  // explicit rather than accidentally forwarding money questions to Property.
-  if (wealth && !property) return Object.freeze({ kind: 'WEALTH_UNSUPPORTED' });
+  if (wealth && !property && personal) return Object.freeze({ kind: 'DOMAIN_HUB', domain: TaraDomain.WEALTH, specific: false });
   if (property && !has(text, /\b(object|dart|css|value|code|programming)\b/) && personal) return Object.freeze({ kind: 'DOMAIN_HUB', domain: TaraDomain.PROPERTY, specific: has(text, /\b(specific|this|\d+\s*(?:lakh|crore|million)|apartment|flat)\b/) });
   if (vehicle && !has(text, /\b(api|http|transportation system|metaphor)\b/) && personal) return Object.freeze({ kind: 'DOMAIN_HUB', domain: TaraDomain.VEHICLE, specific: false });
   return null;
@@ -63,17 +72,17 @@ function domainHubResponse(intent, language) {
       action: null,
     });
   }
-  if (intent.kind === 'WEALTH_UNSUPPORTED') {
+  if (intent.kind === 'FINANCIAL_BOUNDARY') {
     return Object.freeze({
       answerability: 'UNSUPPORTED',
       capability: null,
       message: language === 'HINGLISH'
-        ? 'Main abhi Wealth ke liye reliable personalized outlook dene ke liye ready nahi hoon.'
-        : 'I’m not ready to give you a reliable personalized Wealth outlook yet.',
-      action: null,
+        ? 'Main aapka broader Wealth outlook aur timing dekhne mein help kar sakti hoon, lekin specific investment, amount ya lender approval recommend ya predict nahi karti.'
+        : 'I can help you review your broader Wealth outlook and timing, but TaraVerse does not recommend specific investments, amounts, or lender approvals.',
+      action: intent.boundary === 'SPECIFIC_FINANCIAL_PRODUCT' ? null : Object.freeze({ type: TaraDomainAction.OPEN_DOMAIN_HUB, label: DOMAIN_TRANSITIONS[TaraDomain.WEALTH].label[language === 'HINGLISH' ? 'HINGLISH' : 'ENGLISH'], domain: TaraDomain.WEALTH }),
     });
   }
-  if (intent.kind === 'FINANCIAL_UNSUPPORTED' || intent.kind === 'TECHNICAL_UNSUPPORTED') {
+  if (intent.kind === 'TECHNICAL_UNSUPPORTED') {
     return Object.freeze({
       answerability: 'UNSUPPORTED',
       capability: null,

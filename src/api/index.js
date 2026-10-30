@@ -68,7 +68,7 @@ function careerAnswerTiming(request, reply) {
   return Object.freeze({ record, failed: () => report('HANDLER_ERROR_RESPONSE') });
 }
 
-function createApi({ authVerifier, userResolver, birthProfileService, careerEventService = null, lifeEventService = null, careerEventAstrologyService = null, natalSummaryService = null, divisionalChartService = null, vimshottariService = null, transitSnapshotService = null, ashtakavargaService = null, secureReadingService, careerAnswerService = null, careerDecisionService = null, propertyAnswerService = null, vehicleAnswerService = null, careerChatOrchestrator = null, taraConversationService = null, purchaseService = null, razorpayPaymentService = null, appleNotificationService = null, googleRtdnService = null, notificationSelfService = null, placeResolutionService = null, entitlementService, requestIdGenerator = crypto.randomUUID, corsAllowlist = [], isReady = () => true, logger = false, bodyLimit = 16 * 1024 } = {}) {
+function createApi({ authVerifier, userResolver, birthProfileService, careerEventService = null, lifeEventService = null, careerEventAstrologyService = null, natalSummaryService = null, divisionalChartService = null, vimshottariService = null, transitSnapshotService = null, ashtakavargaService = null, secureReadingService, careerAnswerService = null, careerDecisionService = null, propertyAnswerService = null, vehicleAnswerService = null, wealthAnswerService = null, careerChatOrchestrator = null, taraConversationService = null, purchaseService = null, razorpayPaymentService = null, appleNotificationService = null, googleRtdnService = null, notificationSelfService = null, placeResolutionService = null, entitlementService, requestIdGenerator = crypto.randomUUID, corsAllowlist = [], isReady = () => true, logger = false, bodyLimit = 16 * 1024 } = {}) {
   required(authVerifier, 'AUTH_VERIFIER'); if (typeof authVerifier.verifyRequest !== 'function') throw new TypeError('INVALID_AUTH_VERIFIER'); required(userResolver, 'USER_RESOLVER'); required(birthProfileService, 'BIRTH_PROFILE_SERVICE'); required(secureReadingService, 'SECURE_READING_SERVICE');
   if (!Array.isArray(corsAllowlist) || !corsAllowlist.every((origin) => typeof origin === 'string' && origin.startsWith('https://') && !origin.includes('*')) || typeof isReady !== 'function' || !Number.isInteger(bodyLimit) || bodyLimit < 1024 || bodyLimit > 16 * 1024) throw new TypeError('INVALID_API_RUNTIME_OPTIONS');
   const app = Fastify({ logger, bodyLimit, requestIdHeader: 'x-request-id', genReqId: () => requestIdGenerator() });
@@ -230,6 +230,13 @@ function createApi({ authVerifier, userResolver, birthProfileService, careerEven
     if (typeof vehicleAnswerService.answer !== 'function') throw new TypeError('INVALID_VEHICLE_ANSWER_SERVICE');
     app.post('/v1/birth-profiles/:id/vehicle-answers', async (request) => ({
       vehicleAnswer: await vehicleAnswerService.answer({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), intent: request.body && request.body.intent, diagnosticLog: (entry) => request.log.info(entry) }),
+      requestId: request.id,
+    }));
+  }
+  if (wealthAnswerService) {
+    if (typeof wealthAnswerService.answer !== 'function') throw new TypeError('INVALID_WEALTH_ANSWER_SERVICE');
+    app.post('/v1/birth-profiles/:id/wealth-answers', async (request) => ({
+      wealthAnswer: await wealthAnswerService.answer({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), intent: request.body && request.body.intent }),
       requestId: request.id,
     }));
   }

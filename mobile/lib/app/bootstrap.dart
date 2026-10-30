@@ -70,6 +70,9 @@ import '../features/vehicle/vehicle_answer_controller.dart';
 import '../features/property/data/property_answer_api_repository.dart';
 import '../features/property/domain/property_answer_repository.dart';
 import '../features/property/property_answer_controller.dart';
+import '../features/wealth/data/wealth_answer_api_repository.dart';
+import '../features/wealth/domain/wealth_answer_repository.dart';
+import '../features/wealth/wealth_answer_controller.dart';
 import 'app.dart';
 
 Future<void> bootstrap() async {
@@ -100,6 +103,7 @@ Future<void> bootstrap() async {
   final CareerDecisionRepository careerDecisionRepository;
   final VehicleAnswerRepository vehicleAnswerRepository;
   final PropertyAnswerRepository propertyAnswerRepository;
+  final WealthAnswerRepository wealthAnswerRepository;
   FirebasePushNotificationService? pushNotifications;
   final storePurchaseService = AppleStorePurchaseService(
     client: InAppPurchaseStorePurchaseClient(InAppPurchase.instance),
@@ -152,6 +156,7 @@ Future<void> bootstrap() async {
     careerDecisionRepository = const UnavailableCareerDecisionRepository();
     vehicleAnswerRepository = const UnavailableVehicleAnswerRepository();
     propertyAnswerRepository = const UnavailablePropertyAnswerRepository();
+    wealthAnswerRepository = const UnavailableWealthAnswerRepository();
   } else {
     await Supabase.initialize(
       url: config.supabaseUrl,
@@ -178,6 +183,7 @@ Future<void> bootstrap() async {
     careerDecisionRepository = CareerDecisionApiRepository(apiClient);
     vehicleAnswerRepository = VehicleAnswerApiRepository(apiClient);
     propertyAnswerRepository = PropertyAnswerApiRepository(apiClient);
+    wealthAnswerRepository = WealthAnswerApiRepository(apiClient);
     careerAnswerRepository = DevelopmentFlags.careerPremiumUiPreviewEnabled
         ? DebugJobFavourabilityPreviewRepository(answerApiRepository)
         : answerApiRepository;
@@ -269,6 +275,7 @@ Future<void> bootstrap() async {
         propertyAnswerRepositoryProvider.overrideWithValue(
           propertyAnswerRepository,
         ),
+        wealthAnswerRepositoryProvider.overrideWithValue(wealthAnswerRepository),
       ],
       child: KundlInsightsApp(
         authController: controller,

@@ -21,7 +21,7 @@ function publicAction(metadata) {
   const action = parsed && parsed.action;
   if (!action || typeof action !== 'object' || Array.isArray(action)) return null;
   if (action.type === 'OPEN_PROFILE_PREMIUM' && action.label === 'Unlock TaraVerse Premium') return Object.freeze({ type: action.type, label: action.label });
-  if (action.type === 'OPEN_DOMAIN_HUB' && typeof action.label === 'string' && action.label.length > 0 && action.label.length <= 120 && ['PROPERTY', 'VEHICLE'].includes(action.domain)) return Object.freeze({ type: action.type, label: action.label, domain: action.domain });
+  if (action.type === 'OPEN_DOMAIN_HUB' && typeof action.label === 'string' && action.label.length > 0 && action.label.length <= 120 && ['PROPERTY', 'VEHICLE', 'WEALTH'].includes(action.domain)) return Object.freeze({ type: action.type, label: action.label, domain: action.domain });
   const decisionTypes = new Set(['JOB_OFFER', 'SWITCH_JOB', 'COMPARE_OFFERS', 'PROMOTION_GROWTH', 'START_BUSINESS', 'CAREER_ABROAD']);
   if (action.type === 'OPEN_CAREER_DECISION' && typeof action.label === 'string' && action.label.length > 0 && action.label.length <= 120 && decisionTypes.has(action.decisionType)) return Object.freeze({ type: action.type, label: action.label, decisionType: action.decisionType });
   return null;

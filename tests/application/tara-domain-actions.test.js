@@ -30,21 +30,34 @@ test('routes clear Vehicle requests to the existing Vehicle hub without calculat
   }
 });
 
-test('keeps Wealth unsupported because no Wealth module exists and handles cross-domain choices safely', async () => {
-  const wealth = await tara().respond({ principal: {}, birthProfileId: 'profile-a', message: 'How is my wealth outlook?' });
-  assert.equal(wealth.answerability, 'UNSUPPORTED');
-  assert.equal(wealth.action, null);
+test('routes clear English and Hinglish Wealth outlook requests to the existing Wealth hub', async () => {
+  for (const [message, language, label] of [['How is my wealth outlook?', 'ENGLISH', 'View Wealth outlook'], ['Is this a good financial period?', 'ENGLISH', 'View Wealth outlook'], ['When is my stronger Wealth period?', 'ENGLISH', 'View Wealth outlook'], ['Mera wealth outlook kaisa hai?', 'HINGLISH', 'Wealth outlook dekhein'], ['Paiso ka time kaisa hai?', 'HINGLISH', 'Wealth outlook dekhein'], ['Financial growth ka time kaisa hai?', 'HINGLISH', 'Wealth outlook dekhein']]) {
+    const wealth = await tara().respond({ principal: {}, birthProfileId: 'profile-a', message, language });
+    assert.equal(wealth.domain, 'WEALTH');
+    assert.deepEqual(wealth.action, { type: TaraDomainAction.OPEN_DOMAIN_HUB, label, domain: 'WEALTH' });
+  }
   const crossDomain = await tara().respond({ principal: {}, birthProfileId: 'profile-a', message: 'Should I buy a house or invest the money?' });
   assert.equal(crossDomain.answerability, 'UNSUPPORTED');
   assert.equal(crossDomain.action, null);
   assert.match(crossDomain.message, /separately/i);
 });
 
-test('does not create domain CTAs for technical, financial, or general false positives', async () => {
-  for (const message of ['What are object properties in Dart?', 'Set this property value.', 'What vehicle does this API use?', 'Which stock should I buy?', 'Will my home loan be approved?']) {
+test('does not create domain CTAs for technical and financial false positives', async () => {
+  for (const message of ['What are object properties in Dart?', 'Set this property value.', 'What vehicle does this API use?', 'Which stock should I buy?', 'What is wealth tax?', 'USD INR rate kya hai?', 'Savings account interest kitna hai?', 'What does a wealth manager do?', 'Mutual fund NAV kya hai?']) {
     const response = await tara().respond({ principal: {}, birthProfileId: 'profile-a', message });
     assert.notEqual(response.action?.type, 'OPEN_DOMAIN_HUB', message);
   }
+});
+
+test('keeps investment, loan, and exact-money questions behind a safe boundary with a Wealth hub transition', async () => {
+  for (const [message, label] of [['Should I invest 10 lakh now?', 'View Wealth outlook'], ['Will my home loan be approved?', 'View Wealth outlook'], ['Main kitna paisa kamaunga?', 'Wealth outlook dekhein']]) {
+    const response = await tara().respond({ principal: {}, birthProfileId: 'profile-a', message, language: 'HINGLISH' });
+    assert.equal(response.answerability, 'UNSUPPORTED');
+    assert.match(response.message, /specific investment|lender approval|specific investment|recommend/i);
+    assert.deepEqual(response.action, { type: TaraDomainAction.OPEN_DOMAIN_HUB, label, domain: 'WEALTH' });
+  }
+  const crypto = await tara().respond({ principal: {}, birthProfileId: 'profile-a', message: 'Crypto mein invest karu?', language: 'HINGLISH' });
+  assert.equal(crypto.action, null);
 });
 
 test('uses Hinglish transition wording without changing the allowlisted Property action', async () => {
@@ -75,6 +88,6 @@ test('keeps Hinglish practical and financial questions outside domain-hub action
   for (const message of ['Phone switch kaise karu?', 'Car mileage kitna hai?', 'Property tax kitna lagega?', 'Foreign currency rate kya hai?', 'Kaunsa stock kharidu?']) {
     const response = await tara().respond({ principal: {}, birthProfileId: 'profile-a', message, language: 'HINGLISH' });
     assert.notEqual(response.action?.type, TaraDomainAction.OPEN_DOMAIN_HUB, message);
-    assert.match(response.message, /reliable personalized guidance|reliable personalized answer|reliably/i, message);
+    assert.match(response.message, /reliable personalized guidance|reliable personalized answer|reliably|broader Wealth outlook/i, message);
   }
 });

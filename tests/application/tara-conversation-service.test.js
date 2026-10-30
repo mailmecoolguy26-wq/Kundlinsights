@@ -95,14 +95,16 @@ test('persists and reloads only an allowlisted Career Decision action', async ()
   assert.deepEqual(loaded.messages.at(-1).action, action);
 });
 
-test('persists and reloads only an allowlisted Property or Vehicle hub action', async () => {
-  const action = { type: 'OPEN_DOMAIN_HUB', label: 'View Property outlook', domain: 'PROPERTY' };
-  const { service } = fixture({ taraOrchestrator: { respond: async () => ({ message: 'Review your Property outlook.', action }) } });
-  const created = await service.create({ principal, birthProfileId: 'profile-a' });
-  const result = await service.message({ principal, birthProfileId: 'profile-a', conversationId: created.conversationId, body: { message: 'How is my property outlook?' } });
-  assert.deepEqual(result.assistantMessage.action, action);
-  const loaded = await service.get({ principal, birthProfileId: 'profile-a', conversationId: created.conversationId });
-  assert.deepEqual(loaded.messages.at(-1).action, action);
+test('persists and reloads only allowlisted Property, Vehicle, or Wealth hub actions', async () => {
+  for (const [domain, label] of [['PROPERTY', 'View Property outlook'], ['VEHICLE', 'View Vehicle outlook'], ['WEALTH', 'View Wealth outlook']]) {
+    const action = { type: 'OPEN_DOMAIN_HUB', label, domain };
+    const { service } = fixture({ taraOrchestrator: { respond: async () => ({ message: `Review your ${domain} outlook.`, action }) } });
+    const created = await service.create({ principal, birthProfileId: 'profile-a' });
+    const result = await service.message({ principal, birthProfileId: 'profile-a', conversationId: created.conversationId, body: { message: `How is my ${domain.toLowerCase()} outlook?` } });
+    assert.deepEqual(result.assistantMessage.action, action);
+    const loaded = await service.get({ principal, birthProfileId: 'profile-a', conversationId: created.conversationId });
+    assert.deepEqual(loaded.messages.at(-1).action, action);
+  }
 });
 
 test('does not suppress a saved Career Decision action when the profile is entitled', async () => {
@@ -151,7 +153,7 @@ test('serializes persisted JSONB action metadata from GET without exposing raw m
 });
 
 test('omits malformed or non-allowlisted persisted actions', async () => {
-  for (const action of [{ type: 'OPEN_CAREER_PREMIUM', label: 'Unexpected label' }, { type: 'OPEN_OTHER_ACTION', label: 'Unlock Career Premium' }, { type: 'OPEN_CAREER_DECISION', label: 'Go', decisionType: 'UNSAFE_ROUTE' }, { type: 'OPEN_DOMAIN_HUB', label: 'Go', domain: 'WEALTH' }, 'not-an-action']) {
+  for (const action of [{ type: 'OPEN_CAREER_PREMIUM', label: 'Unexpected label' }, { type: 'OPEN_OTHER_ACTION', label: 'Unlock Career Premium' }, { type: 'OPEN_CAREER_DECISION', label: 'Go', decisionType: 'UNSAFE_ROUTE' }, { type: 'OPEN_DOMAIN_HUB', label: 'Go', domain: 'UNSAFE_ROUTE' }, 'not-an-action']) {
     const { service } = fixture({ taraOrchestrator: { respond: async () => ({ message: 'Safe response.', action }) } });
     const created = await service.create({ principal, birthProfileId: 'profile-a' });
     const result = await service.message({ principal, birthProfileId: 'profile-a', conversationId: created.conversationId, body: { message: 'When should I switch jobs?' } });

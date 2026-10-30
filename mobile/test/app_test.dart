@@ -57,7 +57,7 @@ void main() {
   });
 
   testWidgets(
-    'Home does not open Property while profile entitlement is unresolved',
+    'Home does not open Wealth while profile entitlement is unresolved',
     (tester) async {
       await tester.pumpWidget(_app(controller, profiles));
       await controller.restore();
@@ -67,7 +67,7 @@ void main() {
       await tester.ensureVisible(propertyCard);
       await tester.pumpAndSettle();
       expect(
-        find.text('Property timing and ownership-related insights.'),
+        find.text('Wealth timing and financial structure insights.'),
         findsOneWidget,
       );
       expect(find.text('Property · Vehicle'), findsNothing);

@@ -298,6 +298,31 @@ void main() {
     expect(find.text('Ask Tara'), findsOneWidget);
   });
 
+  testWidgets('opens the allowlisted Wealth hub and returns to Ask Tara', (tester) async {
+    repository.nextAction = const TaraConversationAction(
+      type: 'OPEN_DOMAIN_HUB',
+      label: 'Wealth outlook dekhein',
+      domain: 'WEALTH',
+    );
+    final router = GoRouter(
+      initialLocation: '/tara',
+      routes: [
+        GoRoute(path: '/tara', builder: (_, _) => CareerChatScreen(controller: controller)),
+        GoRoute(path: '/wealth', builder: (context, state) => Scaffold(appBar: AppBar(), body: const Text('Wealth hub'))),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await controller.send('Paiso ka time kaisa hai?');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Wealth outlook dekhein'));
+    await tester.pumpAndSettle();
+    expect(find.text('Wealth hub'), findsOneWidget);
+    router.pop();
+    await tester.pumpAndSettle();
+    expect(find.text('Ask Tara'), findsOneWidget);
+  });
+
   testWidgets('clears typed input only after a successful send', (
     tester,
   ) async {

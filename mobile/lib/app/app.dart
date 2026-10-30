@@ -40,8 +40,10 @@ import '../features/splash/splash_launch_gate.dart';
 import '../features/career_chat/career_chat_controller.dart';
 import '../features/career_answers/career_answer_controller.dart';
 import '../features/career_answers/career_decision_controller.dart';
+import '../features/career_answers/career_decision_history_controller.dart';
 import '../features/vehicle/vehicle_answer_controller.dart';
 import '../features/property/property_answer_controller.dart';
+import '../features/wealth/wealth_answer_controller.dart';
 
 class KundlInsightsApp extends ConsumerStatefulWidget {
   const KundlInsightsApp({
@@ -74,8 +76,10 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
   late final CareerChatController _careerChat;
   late final CareerAnswerController _careerAnswers;
   late final CareerDecisionController _careerDecisions;
+  late final CareerDecisionHistoryController _careerDecisionHistory;
   late final VehicleAnswerController _vehicleAnswers;
   late final PropertyAnswerController _propertyAnswers;
+  late final WealthAnswerController _wealthAnswers;
   late final ProfileController _profiles;
   late final CareerReadingGenerationController _generation;
   late final PushNavigationAdapter _pushNavigation;
@@ -149,9 +153,14 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
       careerChatControllerProvider((profiles, _careerExplanationLanguage)),
     );
     _careerAnswers = ref.read(careerAnswerControllerProvider(profiles));
+    _careerDecisionHistory = ref.read(
+      careerDecisionHistoryControllerProvider(profiles),
+    );
     _careerDecisions = ref.read(careerDecisionControllerProvider(profiles));
+    _careerDecisions.onSaved = _careerDecisionHistory.refreshAfterCreate;
     _vehicleAnswers = ref.read(vehicleAnswerControllerProvider(profiles));
     _propertyAnswers = ref.read(propertyAnswerControllerProvider(profiles));
+    _wealthAnswers = ref.read(wealthAnswerControllerProvider(profiles));
     final premiumProduct = ref.read(careerPremiumProductControllerProvider);
     final premiumPurchase = ref.read(
       careerPremiumPurchaseControllerProvider((
@@ -193,8 +202,10 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
       careerChat: _careerChat,
       careerAnswers: _careerAnswers,
       careerDecisions: _careerDecisions,
+      careerDecisionHistory: _careerDecisionHistory,
       vehicleAnswers: _vehicleAnswers,
       propertyAnswers: _propertyAnswers,
+      wealthAnswers: _wealthAnswers,
       razorpayPremium: _razorpayPremium,
       careerExplanationLanguage: _careerExplanationLanguage,
       splashLaunchGate: _splashLaunchGate,
@@ -321,6 +332,7 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
     if (previous == null || previous == state) return;
     _vehicleAnswers.invalidateProfile(profileId);
     _propertyAnswers.invalidateProfile(profileId);
+    _wealthAnswers.invalidateProfile(profileId);
   }
 
   Future<void> _drainPushIntents() async {

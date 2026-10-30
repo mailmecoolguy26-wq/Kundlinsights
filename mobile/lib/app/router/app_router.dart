@@ -55,6 +55,8 @@ import '../../features/vehicle/vehicle_answer_controller.dart';
 import '../../features/vehicle/presentation/vehicle_hub_screen.dart';
 import '../../features/property/property_answer_controller.dart';
 import '../../features/property/presentation/property_hub_screen.dart';
+import '../../features/wealth/wealth_answer_controller.dart';
+import '../../features/wealth/presentation/wealth_hub_screen.dart';
 import '../../core/analytics/analytics.dart';
 import '../../core/push/push_notification_service.dart';
 import '../../core/push/push_permission_prompt.dart';
@@ -94,6 +96,7 @@ GoRouter createAppRouter(
   required CareerDecisionHistoryController careerDecisionHistory,
   VehicleAnswerController? vehicleAnswers,
   PropertyAnswerController? propertyAnswers,
+  WealthAnswerController? wealthAnswers,
   RazorpayCareerPremiumController? razorpayPremium,
   required CareerExplanationLanguageController careerExplanationLanguage,
   required SplashLaunchGate splashLaunchGate,
@@ -174,6 +177,16 @@ GoRouter createAppRouter(
       builder: (context, state) => propertyAnswers == null
           ? const _PropertyUnavailable()
           : PropertyHubScreen(controller: propertyAnswers),
+    ),
+    GoRoute(
+      path: '/wealth',
+      name: 'wealth-hub',
+      pageBuilder: (context, state) => MaterialPage<void>(
+        key: state.pageKey,
+        child: wealthAnswers == null
+            ? const _WealthUnavailable()
+            : WealthHubScreen(controller: wealthAnswers),
+      ),
     ),
     GoRoute(
       path: '/career',
@@ -682,6 +695,13 @@ class _PropertyUnavailable extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       const Scaffold(body: Center(child: Text('Property timing unavailable')));
+}
+
+class _WealthUnavailable extends StatelessWidget {
+  const _WealthUnavailable();
+  @override
+  Widget build(BuildContext context) =>
+      const Scaffold(body: Center(child: Text('Wealth insights unavailable')));
 }
 
 class _CareerAnswerUnavailable extends StatelessWidget {

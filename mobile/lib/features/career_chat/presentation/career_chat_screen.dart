@@ -213,6 +213,7 @@ class _CareerChatScreenState extends State<CareerChatScreen> {
   String? _domainHubRoute(String? domain) => const {
     'PROPERTY': '/property',
     'VEHICLE': '/vehicle',
+    'WEALTH': '/wealth',
   }[domain];
 
   Future<void> _openHistory(BuildContext context) async {
