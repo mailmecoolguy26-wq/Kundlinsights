@@ -60,6 +60,58 @@ test('routes only conservative Career decision requests to an existing decision 
   }
 });
 
+test('normalizes common Hinglish Career decision requests into the existing allowlisted actions', async () => {
+  const capability = new TaraCareerCapability({ careerAnswerService: { answer: async () => { throw new Error('decision routing must not calculate a result'); } } });
+  const tara = new TaraOrchestrator({ careerCapability: capability });
+  const cases = [
+    ['Mere paas job offer hai', TaraCareerIntent.JOB_OFFER],
+    ['Mujhe ek offer mila hai', TaraCareerIntent.JOB_OFFER],
+    ['Naya job offer aaya hai', TaraCareerIntent.JOB_OFFER],
+    ['Kya mujhe ye offer accept karna chahiye?', TaraCareerIntent.JOB_OFFER],
+    ['Is job offer ko analyse karo', TaraCareerIntent.JOB_OFFER],
+    ['Ye offer mere liye sahi hai kya?', TaraCareerIntent.JOB_OFFER],
+    ['Dusri company se offer mila hai', TaraCareerIntent.JOB_OFFER],
+    ['Kya mujhe job switch karni chahiye?', TaraCareerIntent.SWITCH_JOB],
+    ['Current company chhodni chahiye?', TaraCareerIntent.SWITCH_JOB],
+    ['Nayi job dekhna start karu?', TaraCareerIntent.SWITCH_JOB],
+    ['Switch ka time sahi hai kya?', TaraCareerIntent.SWITCH_JOB],
+    ['Mere paas do offers hain', TaraCareerIntent.COMPARE_OFFERS],
+    ['Dono job offers compare karo', TaraCareerIntent.COMPARE_OFFERS],
+    ['Offer A aur Offer B mein kya better hai?', TaraCareerIntent.COMPARE_OFFERS],
+    ['Promotion ke chances kaise hain?', TaraCareerIntent.PROMOTION_GROWTH],
+    ['Salary hike ke chances hain?', TaraCareerIntent.PROMOTION_GROWTH],
+    ['Career growth ka time kaisa hai?', TaraCareerIntent.PROMOTION_GROWTH],
+    ['Kya mujhe business start karna chahiye?', TaraCareerIntent.START_BUSINESS],
+    ['Apna business shuru karu?', TaraCareerIntent.START_BUSINESS],
+    ['Foreign job ke chances hain?', TaraCareerIntent.CAREER_ABROAD],
+    ['Bahar job milne ke yog hain?', TaraCareerIntent.CAREER_ABROAD],
+    ['Kya mujhe foreign jobs ke liye apply karna chahiye?', TaraCareerIntent.CAREER_ABROAD],
+  ];
+  for (const [message, intent] of cases) {
+    const response = await tara.respond({ principal: {}, birthProfileId: 'profile-a', message, language: 'ENGLISH' });
+    assert.equal(response.career.intent, intent, message);
+    assert.equal(response.action.type, 'OPEN_CAREER_DECISION', message);
+    assert.match(response.message, /Main|aapki|aapka/i, message);
+  }
+});
+
+test('rejects Hinglish administrative and non-Career false positives', () => {
+  for (const message of ['Promotion code kya hai?', 'Startup India registration kaise karein?', 'Mere phone ko switch karo?']) {
+    assert.equal(classifyTaraCareerIntent(message), TaraCareerIntent.UNSUPPORTED_CAREER, message);
+  }
+});
+
+test('keeps Career decision action semantics identical while localizing Hinglish presentation', async () => {
+  const capability = new TaraCareerCapability({ careerAnswerService: { answer: async () => { throw new Error('decision routing must not calculate a result'); } } });
+  const tara = new TaraOrchestrator({ careerCapability: capability });
+  const english = await tara.respond({ principal: {}, birthProfileId: 'profile-a', message: 'I have a job offer', language: 'ENGLISH' });
+  const hinglish = await tara.respond({ principal: {}, birthProfileId: 'profile-a', message: 'Mere paas job offer hai', language: 'ENGLISH' });
+  assert.equal(english.action.type, hinglish.action.type);
+  assert.equal(english.action.decisionType, hinglish.action.decisionType);
+  assert.equal(hinglish.action.label, 'Job offer evaluate karein');
+  assert.notEqual(english.message, hinglish.message);
+});
+
 test('keeps premium timing results date-free and exposes an explicit premium action', async () => {
   const capability = new TaraCareerCapability({ careerAnswerService: { answer: async () => ({ questionType: 'JOB_FAVOURABILITY_TIMING', answerability: 'PREMIUM_REQUIRED', teaser: { title: 'A stronger career window is coming up', subtitle: 'ignored in favor of explicit Tara copy' }, broadWindow: { start: '2026-11-20', end: '2027-01-10' } }) } });
   const response = await capability.respond({ principal: {}, birthProfileId: 'profile-a', message: 'When is my stronger career window?' });

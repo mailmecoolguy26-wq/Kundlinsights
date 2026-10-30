@@ -36,13 +36,16 @@ function normalize(value) { return String(value || '').toLowerCase().replace(/[^
 function classifyTaraCareerIntent(message) {
   const text = normalize(message);
   if (!text) return TaraCareerIntent.UNSUPPORTED_CAREER;
+  // Product, coupon, and administrative questions must never open a Career
+  // decision flow merely because they contain a decision keyword.
+  if (/\b(promotion code|discount offer|coupon|service offer|startup india|business registration|registration process)\b/.test(text)) return TaraCareerIntent.UNSUPPORTED_CAREER;
   // Decision requests take precedence over general timing phrasing. They do
   // not calculate a result here: they only offer the existing decision form.
-  if ((/\b(compare|comparison)\b/.test(text) || /\b(two|both|2)\b/.test(text)) && /\b(offers?|jobs?|roles?)\b/.test(text)) return TaraCareerIntent.COMPARE_OFFERS;
-  if (!/\b(discount|sale|coupon|service) offers?\b/.test(text) && (/\b(i |ive |i ve |got|received|have) (?:a )?(?:job )?offer\b/.test(text) || /\bjob offer\b/.test(text))) return TaraCareerIntent.JOB_OFFER;
-  if (/\b(promotion|promoted|growth at work|grow in my role|salary growth|more responsibility)\b/.test(text)) return TaraCareerIntent.PROMOTION_GROWTH;
+  if ((/\b(compare|comparison)\b/.test(text) || /\b(two|both|2)\b/.test(text) || /\boffer a\b.*\boffer b\b/.test(text)) && /\b(offers?|jobs?|roles?)\b/.test(text)) return TaraCareerIntent.COMPARE_OFFERS;
+  if (!/\b(discount|sale|coupon|service) offers?\b/.test(text) && (/\b(i |ive |i ve |got|received|have) (?:a )?(?:job )?offer\b/.test(text) || /\bjob offer\b/.test(text) || (/\boffer\b/.test(text) && /\b(accept|analyse|analyze|evaluate|sahi|better)\b/.test(text)))) return TaraCareerIntent.JOB_OFFER;
+  if (/\b(promotion|promoted|growth at work|grow in my role|salary growth|salary hike|leadership role|more responsibility)\b/.test(text) || /\bgrowth\s+(?:when|kab|hogi|hoga)\b/.test(text)) return TaraCareerIntent.PROMOTION_GROWTH;
   if (/\b(start|starting|launch|launching|build|building) (?:a )?business\b|\bentrepreneur(?:ship)?\b|\bown company\b/.test(text)) return TaraCareerIntent.START_BUSINESS;
-  if (/\b(abroad|overseas|international|internationally|foreign)\b/.test(text) && (/\b(career|job|work|relocate|relocating|relocation|move)\b/.test(text))) return TaraCareerIntent.CAREER_ABROAD;
+  if (/\b(abroad|overseas|international|internationally|foreign)\b/.test(text) && (/\b(career|jobs?|work|relocate|relocating|relocation|move|shift)\b/.test(text))) return TaraCareerIntent.CAREER_ABROAD;
   if ((/\b(switch|change|leave|quit|new|another)\b/.test(text) && /\b(jobs?|career|company|work|roles?)\b/.test(text)) || /\bthinking of switching\b/.test(text)) return TaraCareerIntent.SWITCH_JOB;
   const timing = [/\bswitch(?:ing)? (?:the )?jobs?\b/, /\bchange (?:the )?jobs?\b/, /\bnew jobs?\b/, /\bjob opportunit(?:y|ies)\b/, /\bbetter (?:career )?opportunit(?:y|ies)\b/, /\bcareer timing\b/, /\bfavou?rable (?:time )?periods?\b/, /\bstronger career windows?\b/, /\bcareer activity stronger\b/, /\bcareer opportunit(?:y|ies) (?:improve|better)\b/, /\bcareer (?:likely to )?(?:improve|improvement|get better|growth)\b/, /\bthings improve professionally\b/, /\bprofessional(?:ly)? (?:improve|improvement|better)\b/, /\bgood (?:time|period) to (?:look for|change)\b/];
   if (timing.some((pattern) => pattern.test(text))) return TaraCareerIntent.JOB_FAVOURABILITY_TIMING;

@@ -7,7 +7,7 @@ const DOMAINS = Object.freeze(['CAREER', 'TRANSIT', 'VEHICLE', 'RELATIONSHIPS', 
 
 const DOMAIN_KEYWORDS = Object.freeze({
   TRANSIT: /\b(gochar|transit|transits|planetary movement|planet changing house|jupiter|saturn|rahu|ketu|mars|mercury)\b/i,
-  CAREER: /\b(career|job|offer|joining|promotion|salary|switch|work|business)\b/i,
+  CAREER: /\b(career|jobs?|offers?|joining|promotion|salary|switch|work|business)\b/i,
   VEHICLE: /\b(vehicle|car|bike|scooter|gaadi|gadi|four wheeler|two wheeler)\b/i,
   RELATIONSHIPS: /\b(relationship|marriage|marry|wedding|spouse|partner|love)\b/i,
   WEALTH_PROPERTY: /\b(wealth|property|home|house|real estate|investment|money)\b/i,

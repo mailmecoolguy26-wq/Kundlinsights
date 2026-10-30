@@ -30,7 +30,7 @@ function words(message) { return String(message || '').toLowerCase().replace(/[^
 function has(text, pattern) { return pattern.test(text); }
 
 function unsupportedFinancialQuestion(text) {
-  return has(text, /\b(stock|share|mutual fund|crypto|investment advice|loan\b.{0,20}\bapprov(?:ed|al)|mortgage\b.{0,20}\bapprov(?:ed|al)|price|appreciate|double in price)\b/);
+  return has(text, /\b(stock|share|mutual fund|crypto|investment advice|loan\b.{0,20}\bapprov(?:ed|al)|mortgage\b.{0,20}\bapprov(?:ed|al)|price|appreciate|double in price|property tax|car mileage|vehicle mileage|foreign currency rate)\b/);
 }
 
 function classifyDomainHubIntent(message) {
@@ -40,9 +40,9 @@ function classifyDomainHubIntent(message) {
   const property = has(text, /\b(property|house|home|real estate|apartment|flat|ghar)\b/);
   const vehicle = has(text, /\b(vehicle|car|bike|scooter|gaadi|gadi|four wheeler|two wheeler)\b/);
   const wealth = has(text, /\b(wealth|money|financial|finance|invest(?:ment|ing)?)\b/);
-  const personal = has(text, /\b(my|me|i |chart|kundli|timing|outlook|buy|buying|purchase|purchasing|kharid|lene|when|should|good time|acha time|better time)\b/);
+  const personal = has(text, /\b(my|me|i |chart|kundli|timing|outlook|buy|buying|purchase|purchasing|kharid|lene|leni|chances?|when|should|good time|acha time|better time)\b/);
   if (property && wealth) return Object.freeze({ kind: 'CROSS_DOMAIN_FINANCIAL' });
-  if ((property && has(text, /\b(object|dart|css|value|code|programming)\b/)) || (vehicle && has(text, /\b(api|http|transportation system|metaphor)\b/))) return Object.freeze({ kind: 'TECHNICAL_UNSUPPORTED' });
+  if ((property && has(text, /\b(object|dart|css|value|code|programming)\b/)) || (vehicle && has(text, /\b(api|http|transportation system|metaphor)\b/)) || has(text, /\b(phone|mobile)\s+switch\b/)) return Object.freeze({ kind: 'TECHNICAL_UNSUPPORTED' });
   // Wealth has no product module, reading, API, or route today. Keep it
   // explicit rather than accidentally forwarding money questions to Property.
   if (wealth && !property) return Object.freeze({ kind: 'WEALTH_UNSUPPORTED' });

@@ -53,3 +53,28 @@ test('uses Hinglish transition wording without changing the allowlisted Property
   assert.match(response.message, /Property outlook aur timing/i);
   assert.deepEqual(response.action, { type: TaraDomainAction.OPEN_DOMAIN_HUB, label: 'Property outlook dekhein', domain: 'PROPERTY' });
 });
+
+test('routes common Hinglish Property and Vehicle timing phrasing to the existing hubs', async () => {
+  const cases = [
+    ['Property lene ka time sahi hai?', 'PROPERTY', 'Property outlook dekhein'],
+    ['Ghar kharidne ka acha time hai?', 'PROPERTY', 'Property outlook dekhein'],
+    ['Flat lene ka time sahi hai kya?', 'PROPERTY', 'Property outlook dekhein'],
+    ['Car lene ka time sahi hai?', 'VEHICLE', 'Vehicle outlook dekhein'],
+    ['Gaadi kharidne ka acha time hai?', 'VEHICLE', 'Vehicle outlook dekhein'],
+    ['Kya abhi gadi leni chahiye?', 'VEHICLE', 'Vehicle outlook dekhein'],
+  ];
+  for (const [message, domain, label] of cases) {
+    const response = await tara().respond({ principal: {}, birthProfileId: 'profile-a', message, language: 'ENGLISH' });
+    assert.equal(response.domain, domain, message);
+    assert.deepEqual(response.action, { type: TaraDomainAction.OPEN_DOMAIN_HUB, label, domain }, message);
+    assert.match(response.message, /Main aapka/i, message);
+  }
+});
+
+test('keeps Hinglish practical and financial questions outside domain-hub actions', async () => {
+  for (const message of ['Phone switch kaise karu?', 'Car mileage kitna hai?', 'Property tax kitna lagega?', 'Foreign currency rate kya hai?', 'Kaunsa stock kharidu?']) {
+    const response = await tara().respond({ principal: {}, birthProfileId: 'profile-a', message, language: 'HINGLISH' });
+    assert.notEqual(response.action?.type, TaraDomainAction.OPEN_DOMAIN_HUB, message);
+    assert.match(response.message, /reliable personalized guidance|reliable personalized answer|reliably/i, message);
+  }
+});

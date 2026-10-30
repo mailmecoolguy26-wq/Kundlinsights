@@ -273,6 +273,31 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('opens existing domain hubs from Hinglish action labels', (tester) async {
+    repository.nextAction = const TaraConversationAction(
+      type: 'OPEN_DOMAIN_HUB',
+      label: 'Vehicle outlook dekhein',
+      domain: 'VEHICLE',
+    );
+    final router = GoRouter(
+      initialLocation: '/tara',
+      routes: [
+        GoRoute(path: '/tara', builder: (_, _) => CareerChatScreen(controller: controller)),
+        GoRoute(path: '/vehicle', builder: (context, state) => Scaffold(appBar: AppBar(), body: const Text('Vehicle hub'))),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await controller.send('Gaadi kharidne ka acha time hai?');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Vehicle outlook dekhein'));
+    await tester.pumpAndSettle();
+    expect(find.text('Vehicle hub'), findsOneWidget);
+    router.pop();
+    await tester.pumpAndSettle();
+    expect(find.text('Ask Tara'), findsOneWidget);
+  });
+
   testWidgets('clears typed input only after a successful send', (
     tester,
   ) async {
