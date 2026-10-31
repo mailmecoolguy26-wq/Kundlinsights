@@ -1,5 +1,6 @@
 'use strict';
 const Fastify = require('fastify'); const cors = require('@fastify/cors'); const crypto = require('node:crypto'); const { mapApiError } = require('./api-error');
+const { publicHistoricalContext } = require('../application/life-event-calibration');
 function required(value, name) { if (!value || typeof value !== 'object') throw new TypeError(`INVALID_${name}`); return value; }
 function id(value, name) { if (typeof value !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(value)) { const e = new Error(); e.code = `INVALID_${name}`; throw e; } return value; }
 function careerReadingDomain(value) { const domain = id(value, 'READING_DOMAIN'); if (domain !== 'CAREER') { const e = new Error(); e.code = 'INVALID_READING_DOMAIN'; throw e; } return domain; }
@@ -36,6 +37,16 @@ function dtoReadingDetail(reading) {
       insights: reading.insights,
     }),
   };
+}
+
+// Domain services may retain internal calibration while calculating an answer.
+// This is the only API boundary that projects it into the deliberately tiny,
+// customer-safe historical context.  The internal object is never serialized.
+function publicDomainAnswer(answer, domain) {
+  if (!answer || typeof answer !== 'object') return answer;
+  const { internalCalibration, ...publicAnswer } = answer;
+  const historicalContext = publicHistoricalContext({ domain, calibration: internalCalibration });
+  return historicalContext ? { ...publicAnswer, historicalContext } : publicAnswer;
 }
 
 // The payload intentionally contains timing metadata only. It is safe to emit
@@ -222,14 +233,14 @@ function createApi({ authVerifier, userResolver, birthProfileService, careerEven
   if (propertyAnswerService) {
     if (typeof propertyAnswerService.answer !== 'function') throw new TypeError('INVALID_PROPERTY_ANSWER_SERVICE');
     app.post('/v1/birth-profiles/:id/property-answers', async (request) => ({
-      propertyAnswer: await propertyAnswerService.answer({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), intent: request.body && request.body.intent, diagnosticLog: (entry) => request.log.info(entry) }),
+      propertyAnswer: publicDomainAnswer(await propertyAnswerService.answer({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), intent: request.body && request.body.intent, diagnosticLog: (entry) => request.log.info(entry), includeInternalCalibration: true }), 'PROPERTY'),
       requestId: request.id,
     }));
   }
   if (vehicleAnswerService) {
     if (typeof vehicleAnswerService.answer !== 'function') throw new TypeError('INVALID_VEHICLE_ANSWER_SERVICE');
     app.post('/v1/birth-profiles/:id/vehicle-answers', async (request) => ({
-      vehicleAnswer: await vehicleAnswerService.answer({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), intent: request.body && request.body.intent, diagnosticLog: (entry) => request.log.info(entry) }),
+      vehicleAnswer: publicDomainAnswer(await vehicleAnswerService.answer({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), intent: request.body && request.body.intent, diagnosticLog: (entry) => request.log.info(entry), includeInternalCalibration: true }), 'VEHICLE'),
       requestId: request.id,
     }));
   }
@@ -243,14 +254,14 @@ function createApi({ authVerifier, userResolver, birthProfileService, careerEven
   if (relationshipAnswerService) {
     if (typeof relationshipAnswerService.answer !== 'function') throw new TypeError('INVALID_RELATIONSHIP_ANSWER_SERVICE');
     app.post('/v1/birth-profiles/:id/relationship-answers', async (request) => ({
-      relationshipAnswer: await relationshipAnswerService.answer({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), intent: request.body && request.body.intent }),
+      relationshipAnswer: publicDomainAnswer(await relationshipAnswerService.answer({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), intent: request.body && request.body.intent, includeInternalCalibration: true }), 'RELATIONSHIP'),
       requestId: request.id,
     }));
   }
   if (familyExpansionAnswerService) {
     if (typeof familyExpansionAnswerService.answer !== 'function') throw new TypeError('INVALID_FAMILY_EXPANSION_ANSWER_SERVICE');
     app.post('/v1/birth-profiles/:id/family-expansion-answers', async (request) => ({
-      familyExpansionAnswer: await familyExpansionAnswerService.answer({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), intent: request.body && request.body.intent }),
+      familyExpansionAnswer: publicDomainAnswer(await familyExpansionAnswerService.answer({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), intent: request.body && request.body.intent, includeInternalCalibration: true }), 'FAMILY_EXPANSION'),
       requestId: request.id,
     }));
   }

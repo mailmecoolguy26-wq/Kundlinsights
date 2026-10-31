@@ -92,7 +92,8 @@ function eventStart(event) { const d = event.eventDate; return `${String(d.year)
 class CareerPatternComparisonService {
   constructor({ careerEventService, careerEventAstrologyService } = {}) { if (!careerEventService || !careerEventAstrologyService || typeof careerEventService.list !== 'function' || typeof careerEventAstrologyService.get !== 'function') fail('INVALID_CAREER_PATTERN_COMPARISON_SERVICE'); this.events = careerEventService; this.snapshots = careerEventAstrologyService; Object.freeze(this); }
   async get({ principal, birthProfileId } = {}) {
-    const events = (await this.events.list({ principal, birthProfileId })).slice().sort((a, b) => eventStart(a).localeCompare(eventStart(b)) || String(a.createdAt).localeCompare(String(b.createdAt)) || a.careerEventId.localeCompare(b.careerEventId)).slice(0, 10);
+    const list = typeof this.events.listForCalibration === 'function' ? this.events.listForCalibration.bind(this.events) : this.events.list.bind(this.events);
+    const events = (await list({ principal, birthProfileId })).slice().sort((a, b) => eventStart(a).localeCompare(eventStart(b)) || String(a.createdAt).localeCompare(String(b.createdAt)) || a.careerEventId.localeCompare(b.careerEventId)).slice(0, 10);
     if (events.length < 2) fail('INSUFFICIENT_CAREER_PATTERN_EVENTS');
     const pairs = await bounded(events, 2, async (event) => ({ event, snapshot: await this.snapshots.get({ principal, birthProfileId, eventId: event.careerEventId }) }));
     const contexts = new Map();

@@ -230,8 +230,10 @@ function present({ questionType, reading }) {
   if (!reading) return noReading(questionType);
   const signal = selectSignal(reading);
   const collected = collectEvidence(reading, signal);
-  const history = signal && typeof signal.recurrenceSummary === 'string' && signal.recurrenceSummary.trim()
-    ? { summary: signal.recurrenceSummary } : null;
+  const calibratedHistory = reading && reading.calibrationInterpretation && reading.calibrationInterpretation.customerHistoricalContext;
+  const history = calibratedHistory && calibratedHistory.available === true && typeof calibratedHistory.summary === 'string'
+    ? { summary: calibratedHistory.summary }
+    : null;
   const base = {
     questionType,
     agreement: agreement(collected.evidence),

@@ -284,6 +284,24 @@ class _Result extends StatelessWidget {
             ),
           ),
         const SizedBox(height: 12),
+        if (answer.historicalContext case final historical?) ...[
+          _Card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  hinglish
+                      ? 'AAPKI RECORDED HISTORY KE BASIS PAR'
+                      : 'BASED ON YOUR RECORDED HISTORY',
+                  style: _T.eyebrow,
+                ),
+                const SizedBox(height: 8),
+                Text(historical.summary, style: _T.body),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         _Card(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

@@ -227,6 +227,22 @@ class _Result extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
+        if (answer.historicalContext case final historical?) ...[
+          _Card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'BASED ON YOUR RECORDED HISTORY',
+                  style: _PropertyText.eyebrow,
+                ),
+                const SizedBox(height: 8),
+                Text(historical.summary, style: _PropertyText.body),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         _Card(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

@@ -9,7 +9,11 @@ import '../../family_expansion/family_expansion_answer_controller.dart';
 /// Presentation-only projection of the server-owned Relationship & Marriage V1
 /// response. It never derives relationship states, dates, or marriage claims.
 class RelationshipHubScreen extends StatefulWidget {
-  const RelationshipHubScreen({super.key, required this.controller, required this.familyController});
+  const RelationshipHubScreen({
+    super.key,
+    required this.controller,
+    required this.familyController,
+  });
 
   final RelationshipAnswerController controller;
   final FamilyExpansionAnswerController familyController;
@@ -27,7 +31,9 @@ class _RelationshipHubScreenState extends State<RelationshipHubScreen> {
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => widget.controller.load(),
     );
-    WidgetsBinding.instance.addPostFrameCallback((_) => widget.familyController.load());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => widget.familyController.load(),
+    );
   }
 
   @override
@@ -195,6 +201,15 @@ class _Result extends StatelessWidget {
           _Section(title: 'WHAT NEEDS ATTENTION', items: answer.cautionFactors),
         if (answer.practicalFocus.isNotEmpty)
           _Section(title: 'WHAT TO FOCUS ON', items: answer.practicalFocus),
+        if (answer.historicalContext case final historical?) ...[
+          const SizedBox(height: 12),
+          _Card(
+            children: [
+              const _Heading('BASED ON YOUR RECORDED HISTORY'),
+              Text(historical.summary, style: _RelationshipText.body),
+            ],
+          ),
+        ],
         const SizedBox(height: 12),
         _Card(
           children: [
@@ -271,9 +286,193 @@ class _Result extends StatelessWidget {
       : value.toString();
 }
 
-class _FamilyExpansionSection extends StatefulWidget { const _FamilyExpansionSection({required this.controller}); final FamilyExpansionAnswerController controller; @override State<_FamilyExpansionSection> createState() => _FamilyExpansionSectionState(); }
-class _FamilyExpansionSectionState extends State<_FamilyExpansionSection> { bool details = false; @override Widget build(BuildContext context) { final controller = widget.controller; if (controller.state == FamilyExpansionLoadState.initial || controller.state == FamilyExpansionLoadState.loading) return const Padding(padding: EdgeInsets.symmetric(vertical: 20), child: Center(child: CircularProgressIndicator(color: _RelationshipColors.turquoise))); if (controller.state == FamilyExpansionLoadState.error) return _Card(children: [const _Heading('FAMILY EXPANSION OUTLOOK'), const Text('We couldn’t load Family Expansion insights right now.', style: _RelationshipText.body), const SizedBox(height: 10), FilledButton(onPressed: () => controller.load(force: true), child: const Text('Retry'))]); final answer = controller.answer; if (answer == null) return const SizedBox.shrink(); if (answer.premiumRequired) return _Card(children: [const _Heading('FAMILY EXPANSION OUTLOOK'), const Text('Unlock personalized insights for this birth profile.', style: _RelationshipText.body), const SizedBox(height: 10), FilledButton(onPressed: () => context.push('/premium'), child: const Text('Unlock TaraVerse Premium'))]); final window = answer.strongerWindow; return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const _Heading('FAMILY EXPANSION OUTLOOK'), _Card(children: [_StateChip(answer.state), if (answer.summary.isNotEmpty) ...[const SizedBox(height: 10), Text(answer.summary, style: _RelationshipText.body)]]), if (window != null) ...[const SizedBox(height: 12), _Card(children: [const _Heading('STRONGER FAMILY EXPANSION WINDOW'), Text('${formatCustomerLocalDate(window.start)} – ${formatCustomerLocalDate(window.end)}', style: _RelationshipText.cardTitle), const SizedBox(height: 8), Text(window.temporalStatus == 'CURRENT' ? 'Active now · ${window.state}' : 'Upcoming · ${window.state}', style: _RelationshipText.body)])], if (answer.whatThisCanMean.isNotEmpty) _Section(title: 'WHAT THIS CAN MEAN', items: answer.whatThisCanMean), if (answer.supportiveFactors.isNotEmpty) _Section(title: 'WHAT SUPPORTS THIS', items: answer.supportiveFactors), if (answer.cautionFactors.isNotEmpty) _Section(title: 'WHAT NEEDS ATTENTION', items: answer.cautionFactors), if (answer.practicalFocus.isNotEmpty) _Section(title: 'WHAT TO FOCUS ON', items: answer.practicalFocus), const SizedBox(height: 12), _Card(children: [InkWell(onTap: () => setState(() => details = !details), child: Row(children: [const Expanded(child: Text('VIEW FAMILY EXPANSION DETAILED ASTROLOGY', style: _RelationshipText.eyebrow)), Icon(details ? Icons.expand_less : Icons.expand_more, color: _RelationshipColors.turquoise)])), if (details) ..._familyDetails(answer.detailedAstrology)]), const Padding(padding: EdgeInsets.only(top: 18), child: Text('This reflects broader astrological timing for family planning and expansion. It does not assess fertility, conception, pregnancy, or medical outcomes.', style: _RelationshipText.subtle))]); }
-  List<Widget> _familyDetails(Map<String, dynamic> values) => values.entries.where((entry) => entry.value != null && (entry.value is! Map || (entry.value as Map).isNotEmpty)).map((entry) => Padding(padding: const EdgeInsets.only(top: 14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text({'timingEvidence': 'Timing Evidence', 'dashaAndTransit': 'Dasha & Transit', 'd1FamilyFoundation': 'D1 Family Foundation', 'd7Saptamsha': 'D7 / Saptamsa', 'ashtakavarga': 'Ashtakavarga', 'calibrationAndSafety': 'Calibration & Safety'}[entry.key] ?? entry.key, style: _RelationshipText.eyebrow), const SizedBox(height: 4), Text(entry.value is Map ? entry.value.entries.map((item) => '${item.key}: ${item.value is Map || item.value is List ? 'available' : item.value}').join('\n') : entry.value.toString(), style: _RelationshipText.body)]))).toList(); }
+class _FamilyExpansionSection extends StatefulWidget {
+  const _FamilyExpansionSection({required this.controller});
+  final FamilyExpansionAnswerController controller;
+  @override
+  State<_FamilyExpansionSection> createState() =>
+      _FamilyExpansionSectionState();
+}
+
+class _FamilyExpansionSectionState extends State<_FamilyExpansionSection> {
+  bool details = false;
+  @override
+  Widget build(BuildContext context) {
+    final controller = widget.controller;
+    if (controller.state == FamilyExpansionLoadState.initial ||
+        controller.state == FamilyExpansionLoadState.loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 20),
+        child: Center(
+          child: CircularProgressIndicator(
+            color: _RelationshipColors.turquoise,
+          ),
+        ),
+      );
+    }
+    if (controller.state == FamilyExpansionLoadState.error) {
+      return _Card(
+        children: [
+          const _Heading('FAMILY EXPANSION OUTLOOK'),
+          const Text(
+            'We couldn’t load Family Expansion insights right now.',
+            style: _RelationshipText.body,
+          ),
+          const SizedBox(height: 10),
+          FilledButton(
+            onPressed: () => controller.load(force: true),
+            child: const Text('Retry'),
+          ),
+        ],
+      );
+    }
+    final answer = controller.answer;
+    if (answer == null) return const SizedBox.shrink();
+    if (answer.premiumRequired) {
+      return _Card(
+        children: [
+          const _Heading('FAMILY EXPANSION OUTLOOK'),
+          const Text(
+            'Unlock personalized insights for this birth profile.',
+            style: _RelationshipText.body,
+          ),
+          const SizedBox(height: 10),
+          FilledButton(
+            onPressed: () => context.push('/premium'),
+            child: const Text('Unlock TaraVerse Premium'),
+          ),
+        ],
+      );
+    }
+    final window = answer.strongerWindow;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _Heading('FAMILY EXPANSION OUTLOOK'),
+        _Card(
+          children: [
+            _StateChip(answer.state),
+            if (answer.summary.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(answer.summary, style: _RelationshipText.body),
+            ],
+          ],
+        ),
+        if (window != null) ...[
+          const SizedBox(height: 12),
+          _Card(
+            children: [
+              const _Heading('STRONGER FAMILY EXPANSION WINDOW'),
+              Text(
+                '${formatCustomerLocalDate(window.start)} – ${formatCustomerLocalDate(window.end)}',
+                style: _RelationshipText.cardTitle,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                window.temporalStatus == 'CURRENT'
+                    ? 'Active now · ${window.state}'
+                    : 'Upcoming · ${window.state}',
+                style: _RelationshipText.body,
+              ),
+            ],
+          ),
+        ],
+        if (answer.whatThisCanMean.isNotEmpty)
+          _Section(title: 'WHAT THIS CAN MEAN', items: answer.whatThisCanMean),
+        if (answer.supportiveFactors.isNotEmpty)
+          _Section(
+            title: 'WHAT SUPPORTS THIS',
+            items: answer.supportiveFactors,
+          ),
+        if (answer.cautionFactors.isNotEmpty)
+          _Section(title: 'WHAT NEEDS ATTENTION', items: answer.cautionFactors),
+        if (answer.practicalFocus.isNotEmpty)
+          _Section(title: 'WHAT TO FOCUS ON', items: answer.practicalFocus),
+        if (answer.historicalContext case final historical?) ...[
+          const SizedBox(height: 12),
+          _Card(
+            children: [
+              const _Heading('BASED ON YOUR RECORDED HISTORY'),
+              Text(historical.summary, style: _RelationshipText.body),
+            ],
+          ),
+        ],
+        const SizedBox(height: 12),
+        _Card(
+          children: [
+            InkWell(
+              onTap: () => setState(() => details = !details),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'VIEW FAMILY EXPANSION DETAILED ASTROLOGY',
+                      style: _RelationshipText.eyebrow,
+                    ),
+                  ),
+                  Icon(
+                    details ? Icons.expand_less : Icons.expand_more,
+                    color: _RelationshipColors.turquoise,
+                  ),
+                ],
+              ),
+            ),
+            if (details) ..._familyDetails(answer.detailedAstrology),
+          ],
+        ),
+        const Padding(
+          padding: EdgeInsets.only(top: 18),
+          child: Text(
+            'This reflects broader astrological timing for family planning and expansion. It does not assess fertility, conception, pregnancy, or medical outcomes.',
+            style: _RelationshipText.subtle,
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<Widget> _familyDetails(Map<String, dynamic> values) => values.entries
+      .where(
+        (entry) =>
+            entry.value != null &&
+            (entry.value is! Map || (entry.value as Map).isNotEmpty),
+      )
+      .map(
+        (entry) => Padding(
+          padding: const EdgeInsets.only(top: 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                {
+                      'timingEvidence': 'Timing Evidence',
+                      'dashaAndTransit': 'Dasha & Transit',
+                      'd1FamilyFoundation': 'D1 Family Foundation',
+                      'd7Saptamsha': 'D7 / Saptamsa',
+                      'ashtakavarga': 'Ashtakavarga',
+                      'calibrationAndSafety': 'Calibration & Safety',
+                    }[entry.key] ??
+                    entry.key,
+                style: _RelationshipText.eyebrow,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                entry.value is Map
+                    ? entry.value.entries
+                          .map(
+                            (item) =>
+                                '${item.key}: ${item.value is Map || item.value is List ? 'available' : item.value}',
+                          )
+                          .join('\n')
+                    : entry.value.toString(),
+                style: _RelationshipText.body,
+              ),
+            ],
+          ),
+        ),
+      )
+      .toList();
+}
 
 class _StateChip extends StatelessWidget {
   const _StateChip(this.state);

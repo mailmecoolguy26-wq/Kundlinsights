@@ -2,6 +2,7 @@
 
 const { VehicleIntent } = require('../vehicle');
 const { normalizeHinglishForIntent, resolvedTaraLanguageStyle, TaraLanguageStyle } = require('./tara-language');
+const { appendHistoricalContext } = require('./tara-historical-context');
 
 function normalize(value) { return String(value || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim(); }
 function intentFor(message) {
@@ -49,7 +50,11 @@ class TaraVehicleCapability {
     try {
       const result = await this.vehicle.answer({ principal, birthProfileId, intent, diagnosticLog });
       if (result.answerability === 'PREMIUM_REQUIRED') return freeze({ intent, answerability: result.answerability, state: result.state, message: responseLanguage === TaraLanguageStyle.HINGLISH ? 'Is profile ke personalized insights TaraVerse Premium ka part hain.' : 'Personalized insights for this profile are part of TaraVerse Premium.', vehicle: null, action: result.action });
-      return freeze({ intent, answerability: result.answerability, state: result.classification, message: answer(result, responseLanguage), vehicle: result, action: null });
+      const rendered = answer(result, responseLanguage);
+      const message = result.answerability === 'SUPPORTED'
+        ? appendHistoricalContext(rendered, { domain: 'VEHICLE', historicalContext: result.historicalContext, language: responseLanguage })
+        : rendered;
+      return freeze({ intent, answerability: result.answerability, state: result.classification, message, vehicle: result, action: null });
     } catch (error) {
       if (typeof diagnosticLog === 'function') diagnosticLog(freeze({ event: 'VEHICLE_TARA_RESPONSE', birthProfileId, intent, state: 'FAILED', safeErrorCode: error && error.code || 'VEHICLE_CALCULATION_FAILED', errorClass: error && error.name || 'Error' }));
       throw error;

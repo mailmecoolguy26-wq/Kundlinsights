@@ -1,3 +1,5 @@
+import '../../../shared/models/historical_context.dart';
+
 enum VehicleIntent {
   currentStrength('VEHICLE_CURRENT_STRENGTH'),
   purchaseTiming('VEHICLE_PURCHASE_TIMING'),
@@ -50,6 +52,7 @@ class VehicleAnswer {
     required this.windowShape,
     required this.strongerWindow,
     required this.evidence,
+    this.historicalContext,
   });
   final VehicleIntent intent;
   final String answerability;
@@ -57,6 +60,7 @@ class VehicleAnswer {
   final String windowShape;
   final VehicleSupportWindow? strongerWindow;
   final Map<String, dynamic> evidence;
+  final HistoricalContext? historicalContext;
   bool get premiumRequired => answerability == 'PREMIUM_REQUIRED';
 
   factory VehicleAnswer.fromJson(Map<String, dynamic> json) {
@@ -74,6 +78,9 @@ class VehicleAnswer {
         json['evidence'] is Map
             ? Map<String, dynamic>.from(json['evidence'] as Map)
             : const {},
+      ),
+      historicalContext: HistoricalContext.tryFromJson(
+        json['historicalContext'],
       ),
     );
   }

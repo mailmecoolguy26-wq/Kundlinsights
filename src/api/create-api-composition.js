@@ -9,14 +9,15 @@ const { DivisionalChartService } = require('../application/divisional-charts');
 const { VimshottariService, LatestCareerReadingInsightSource } = require('../application/vimshottari');
 const { TransitSnapshotService, LatestCareerReadingTransitSource } = require('../application/transit-snapshot');
 const { AshtakavargaService } = require('../application/ashtakavarga');
-const { CareerEventService, CareerEventAstrologyService, CareerPatternComparisonService, CareerFutureRecurrenceService, CareerReadingContextBuilder } = require('../application/career-events');
+const { CareerEventService, CareerEventAstrologyService, CareerPatternComparisonService, CareerFutureRecurrenceService, CareerCalibrationAdapter, CareerReadingContextBuilder } = require('../application/career-events');
 const { LifeEventService } = require('../application/life-events');
-const { PropertyAnswerService } = require('../application/property');
-const { VehicleAnswerService } = require('../application/vehicle');
+const { LifeEventCalibrationCoordinator } = require('../application/life-event-calibration');
+const { PropertyAnswerService, PropertyCalibrationAdapter } = require('../application/property');
+const { VehicleAnswerService, VehicleCalibrationAdapter } = require('../application/vehicle');
 const { WealthAnswerService } = require('../application/wealth');
-const { RelationshipAnswerService } = require('../application/relationships');
-const { FamilyExpansionAnswerService } = require('../application/family-expansion');
-const { PostgresUserRepository, PostgresBirthProfileRepository, PostgresReadingRepository, PostgresEntitlementRepository, PostgresCareerEventRepository, PostgresCareerEventObservationRepository, PostgresLifeEventRepository, PostgresCareerDecisionRepository, PostgresPurchaseRepository, PostgresSubscriptionRepository, PostgresProfileEntitlementRepository, PostgresPaymentEventRepository, PostgresProviderPaymentOrderRepository, PostgresNotificationRepository } = require('../persistence');
+const { RelationshipAnswerService, RelationshipCalibrationAdapter } = require('../application/relationships');
+const { FamilyExpansionAnswerService, FamilyExpansionCalibrationAdapter } = require('../application/family-expansion');
+const { PostgresUserRepository, PostgresBirthProfileRepository, PostgresReadingRepository, PostgresEntitlementRepository, PostgresCareerEventRepository, PostgresCareerEventObservationRepository, PostgresLifeEventRepository, PostgresLifeEventObservationRepository, PostgresCareerDecisionRepository, PostgresPurchaseRepository, PostgresSubscriptionRepository, PostgresProfileEntitlementRepository, PostgresPaymentEventRepository, PostgresProviderPaymentOrderRepository, PostgresNotificationRepository } = require('../persistence');
 const { PostgresPaymentUnitOfWork } = require('../payment/unit-of-work');
 const { PurchaseProviderRegistry, PurchaseVerificationService } = require('../payment/purchase-services');
 const { ProfileUnlockAssignmentService } = require('../payment/profile-unlock-assignment-service');
@@ -85,6 +86,7 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
       careerEvents: new PostgresCareerEventRepository({ db: client }),
       careerEventObservations: new PostgresCareerEventObservationRepository({ db: client }),
       lifeEvents: new PostgresLifeEventRepository({ db: client }),
+      lifeEventObservations: new PostgresLifeEventObservationRepository({ db: client }),
       careerDecisions: new PostgresCareerDecisionRepository({ db: client }),
       envelopes,
       deks,
@@ -110,7 +112,9 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   const careerEventAstrologyService = new CareerEventAstrologyService({ careerEventService, birthProfileService, astronomicalEngine, canonicalSiderealSunSampler, divisionalChartService, ashtakavargaService });
   const careerPatternComparisonService = new CareerPatternComparisonService({ careerEventService, careerEventAstrologyService });
   const careerFutureRecurrenceService = new CareerFutureRecurrenceService({ careerPatternComparisonService, birthProfileService, astronomicalEngine, canonicalSiderealSunSampler, ashtakavargaService, clock });
-  const careerReadingContextBuilder = new CareerReadingContextBuilder({ careerEventService, careerPatternComparisonService, careerFutureRecurrenceService });
+  const lifeEventCalibrationCoordinator = new LifeEventCalibrationCoordinator({ canonicalEventLoader: ({ principal, birthProfileId }) => careerEventService.listForCalibration({ principal, birthProfileId }), clock });
+  const careerCalibrationAdapter = new CareerCalibrationAdapter({ careerEventAstrologyService, birthProfileService });
+  const careerReadingContextBuilder = new CareerReadingContextBuilder({ careerEventService, careerPatternComparisonService, careerFutureRecurrenceService, lifeEventCalibrationCoordinator, careerCalibrationAdapter });
   const baseReadingGenerator = {
     generate: async ({ birthProfile }) => {
       const { BirthCareerReadingOrchestrator } = require('../orchestration');
@@ -138,11 +142,19 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   const transitSnapshotService = new TransitSnapshotService({ birthProfileService, astronomicalEngine, careerInsightSource: new LatestCareerReadingTransitSource({ secureReadingService }) });
   const careerChatRenderer = careerChat && careerChat.enabled === true ? new OpenAICareerChatRenderer({ apiKey: careerChat.apiKey, model: careerChat.model, timeoutMilliseconds: careerChat.timeoutMilliseconds }) : null;
   const careerChatOrchestrator = new CareerChatOrchestrator({ secureReadingService, languageModel: careerChatRenderer });
-  const propertyAnswerService = new PropertyAnswerService({ birthProfileService, lifeEventService, astronomicalEngine, canonicalSiderealSunSampler, entitlementService: secureReadingService, clock });
-  const vehicleAnswerService = new VehicleAnswerService({ birthProfileService, lifeEventService, astronomicalEngine, canonicalSiderealSunSampler, entitlementService: secureReadingService, clock });
+  const propertyLifeEventCalibrationCoordinator = new LifeEventCalibrationCoordinator({ canonicalEventLoader: ({ principal, birthProfileId }) => lifeEventService.getRelevantLifeEvents({ principal, birthProfileId, categories: ['PROPERTY'] }), clock });
+  const propertyCalibrationAdapter = new PropertyCalibrationAdapter({ birthProfileService, astronomicalEngine, canonicalSiderealSunSampler });
+  const propertyAnswerService = new PropertyAnswerService({ birthProfileService, lifeEventService, astronomicalEngine, canonicalSiderealSunSampler, entitlementService: secureReadingService, clock, lifeEventCalibrationCoordinator: propertyLifeEventCalibrationCoordinator, propertyCalibrationAdapter });
+  const vehicleLifeEventCalibrationCoordinator = new LifeEventCalibrationCoordinator({ canonicalEventLoader: ({ principal, birthProfileId }) => lifeEventService.getRelevantLifeEvents({ principal, birthProfileId, categories: ['VEHICLE'] }), clock });
+  const vehicleCalibrationAdapter = new VehicleCalibrationAdapter({ birthProfileService, astronomicalEngine, canonicalSiderealSunSampler });
+  const vehicleAnswerService = new VehicleAnswerService({ birthProfileService, lifeEventService, astronomicalEngine, canonicalSiderealSunSampler, entitlementService: secureReadingService, clock, lifeEventCalibrationCoordinator: vehicleLifeEventCalibrationCoordinator, vehicleCalibrationAdapter });
   const wealthAnswerService = new WealthAnswerService({ birthProfileService, astronomicalEngine, canonicalSiderealSunSampler, entitlementService: secureReadingService, clock });
-  const relationshipAnswerService = new RelationshipAnswerService({ birthProfileService, lifeEventService, astronomicalEngine, canonicalSiderealSunSampler, entitlementService: secureReadingService, clock });
-  const familyExpansionAnswerService = new FamilyExpansionAnswerService({ birthProfileService, lifeEventService, astronomicalEngine, canonicalSiderealSunSampler, entitlementService: secureReadingService, clock });
+  const relationshipLifeEventCalibrationCoordinator = new LifeEventCalibrationCoordinator({ canonicalEventLoader: ({ principal, birthProfileId }) => lifeEventService.getRelevantLifeEvents({ principal, birthProfileId, categories: ['RELATIONSHIPS_FAMILY'] }), clock });
+  const relationshipCalibrationAdapter = new RelationshipCalibrationAdapter({ birthProfileService, astronomicalEngine, canonicalSiderealSunSampler });
+  const relationshipAnswerService = new RelationshipAnswerService({ birthProfileService, lifeEventService, astronomicalEngine, canonicalSiderealSunSampler, entitlementService: secureReadingService, clock, lifeEventCalibrationCoordinator: relationshipLifeEventCalibrationCoordinator, relationshipCalibrationAdapter });
+  const familyExpansionLifeEventCalibrationCoordinator = new LifeEventCalibrationCoordinator({ canonicalEventLoader: ({ principal, birthProfileId }) => lifeEventService.getRelevantLifeEvents({ principal, birthProfileId, categories: ['RELATIONSHIPS_FAMILY'] }), clock });
+  const familyExpansionCalibrationAdapter = new FamilyExpansionCalibrationAdapter({ birthProfileService, astronomicalEngine, canonicalSiderealSunSampler });
+  const familyExpansionAnswerService = new FamilyExpansionAnswerService({ birthProfileService, lifeEventService, astronomicalEngine, canonicalSiderealSunSampler, entitlementService: secureReadingService, clock, lifeEventCalibrationCoordinator: familyExpansionLifeEventCalibrationCoordinator, familyExpansionCalibrationAdapter });
   const taraOrchestrator = new TaraOrchestrator({ careerCapability: new TaraCareerCapability({ careerAnswerService }), transitCapability: new TaraTransitCapability({ transitSnapshotService, clock }), propertyCapability: new TaraPropertyCapability({ propertyAnswerService }), vehicleCapability: new TaraVehicleCapability({ vehicleAnswerService }) });
   const { TaraConversationService } = require('../application/tara-conversations/tara-conversation-service');
   const taraConversationService = new TaraConversationService({ authUserResolver: userResolver, birthProfileService, transactionExecutor: tx, taraOrchestrator, careerEntitlementResolver: secureReadingService, idGenerator, clock });

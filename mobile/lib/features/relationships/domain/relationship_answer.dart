@@ -1,3 +1,5 @@
+import '../../../shared/models/historical_context.dart';
+
 enum RelationshipIntent {
   outlook('RELATIONSHIP_OUTLOOK'),
   strongerWindow('RELATIONSHIP_STRONGER_WINDOW'),
@@ -77,6 +79,7 @@ class RelationshipAnswer {
     required this.practicalFocus,
     required this.detailedAstrology,
     required this.ruleVersion,
+    this.historicalContext,
   });
 
   final RelationshipIntent intent;
@@ -92,6 +95,7 @@ class RelationshipAnswer {
   final List<String> practicalFocus;
   final Map<String, dynamic> detailedAstrology;
   final String ruleVersion;
+  final HistoricalContext? historicalContext;
 
   bool get premiumRequired => answerability == 'PREMIUM_REQUIRED';
 
@@ -122,6 +126,9 @@ class RelationshipAnswer {
             : const {},
       ),
       ruleVersion: json['ruleVersion'] as String? ?? '',
+      historicalContext: HistoricalContext.tryFromJson(
+        json['historicalContext'],
+      ),
     );
   }
 }

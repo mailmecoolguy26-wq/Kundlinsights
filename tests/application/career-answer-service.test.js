@@ -17,6 +17,12 @@ function detail(overrides = {}) {
       technicalDetails: { dasha: { periods: ['MD:Saturn'] }, gochar: [{ transitPlanet: 'Jupiter' }], d10: { confirmationPresent: true } },
       recurrenceSummary: 'A related pattern also appeared around a previous Career transition.',
     }],
+    calibrationInterpretation: {
+      customerHistoricalContext: {
+        available: true,
+        summary: 'Similar timing factors were present around 2 of your 3 recorded job changes.',
+      },
+    },
     ...overrides,
   };
 }
@@ -34,7 +40,7 @@ test('returns only an existing possible activity signal with primary eligibility
   assert.deepEqual(answer.answer.window, { start: '2026-11-20T00:00:00.000Z', end: '2027-01-10T00:00:00.000Z', classification: 'POSSIBLE_CAREER_ACTIVITY_SIGNAL' });
   assert.equal(answer.agreement.primaryEligibility, true);
   assert.deepEqual(answer.agreement.supportSignals, ['D10', 'ASHTAKAVARGA', 'HISTORICAL_PATTERN']);
-  assert.equal(answer.historicalContext.summary.includes('related pattern'), true);
+  assert.equal(answer.historicalContext.summary, 'Similar timing factors were present around 2 of your 3 recorded job changes.');
   assert.equal(JSON.stringify({ headline: answer.answer.headline, summary: answer.answer.summary, classification: answer.answer.window.classification }).match(/probability|favo[u]?rable|likely job|likely employment|exact.?date/i), null);
   assert.match(answer.answer.limitation, /not a favourable window, job-offer prediction, or guarantee/i);
 });
@@ -62,6 +68,7 @@ test('uses only the selected signal historical context and never invents dates o
   const value = detail({
     careerEvidenceSynthesis: { futureRecurrence: 'Do not expose this unsupported summary.' },
     careerTimingPeriods: [{ ...detail().careerTimingPeriods[0], recurrenceSummary: undefined }],
+    calibrationInterpretation: undefined,
   });
   const answer = await new CareerAnswerService({ secureReadingService: service({ value }) }).answer({
     principal: {}, birthProfileId: 'profile-a', body: { questionType: CareerQuestionType.CAREER_ACTIVITY_TIMING },
@@ -231,6 +238,7 @@ test('contains a beta evaluator failure behind a safe no-concentration response'
 test('an entitled profile with no Career Events still receives a grounded timing window', async () => {
   const value = detail({
     careerTimingPeriods: [{ ...detail().careerTimingPeriods[0], recurrenceSummary: undefined }],
+    calibrationInterpretation: undefined,
   });
   const answer = await new CareerAnswerService({ secureReadingService: service({ value }) }).answer({
     principal: {},

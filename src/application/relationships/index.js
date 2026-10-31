@@ -1,2 +1,5 @@
 'use strict';
-module.exports = require('./relationship-answer-service');
+module.exports = {
+  ...require('./relationship-answer-service'),
+  ...require('./relationship-calibration-adapter'),
+};

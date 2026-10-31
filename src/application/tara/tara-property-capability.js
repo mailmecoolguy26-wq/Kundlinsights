@@ -1,6 +1,7 @@
 'use strict';
 
 const { PropertyIntent } = require('../property');
+const { appendHistoricalContext } = require('./tara-historical-context');
 
 function normalize(value) { return String(value || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim(); }
 function intentFor(message) {
@@ -59,7 +60,11 @@ class TaraPropertyCapability {
       const result = await this.property.answer({ principal, birthProfileId, intent, diagnosticLog });
       if (result.answerability === 'PREMIUM_REQUIRED') return Object.freeze({ intent, answerability: result.answerability, state: result.state, message: language === 'HINGLISH' ? 'Is profile ke personalized insights TaraVerse Premium ka part hain.' : 'Personalized insights for this profile are part of TaraVerse Premium.', property: null, action: result.action });
       log('PROPERTY_TARA_RESPONSE', { stage: 'RESPONSE', state: 'SUCCEEDED', evidenceCount: result.evidence && result.evidence.transit && result.evidence.transit.activeMajor.length || 0 });
-      return Object.freeze({ intent, answerability: result.answerability, state: result.state, message: answer(result, language), property: result, action: null });
+      const rendered = answer(result, language);
+      const message = result.answerability === 'SUPPORTED'
+        ? appendHistoricalContext(rendered, { domain: 'PROPERTY', historicalContext: result.historicalContext, language })
+        : rendered;
+      return Object.freeze({ intent, answerability: result.answerability, state: result.state, message, property: result, action: null });
     } catch (error) {
       log('PROPERTY_TARA_RESPONSE', { stage: 'RESPONSE', state: 'FAILED', safeErrorCode: error && error.code || 'PROPERTY_CALCULATION_FAILED', errorClass: error && error.name || 'Error' });
       throw error;

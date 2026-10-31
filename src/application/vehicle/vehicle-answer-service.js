@@ -11,6 +11,7 @@ const { scanTransitEvents } = require('../../transit-events');
 const { calculateChartCoordinates } = require('../divisional-charts/divisional-chart-service');
 const { calculateAshtakavargaForLayer2 } = require('../ashtakavarga');
 const { classifyLayer1Bodies, canonicalPlanetId } = require('../../jyotish');
+const { publicHistoricalContext } = require('../life-event-calibration');
 
 const VehicleIntent = Object.freeze({
   VEHICLE_CURRENT_STRENGTH: 'VEHICLE_CURRENT_STRENGTH',
@@ -25,6 +26,7 @@ const ACQUISITION_HOUSES = Object.freeze([2, 11]);
 const CONTEXT_HOUSES = Object.freeze([3, 6, 12]);
 const DAY = 86_400_000;
 const VEHICLE_WINDOW_COARSE_SCAN_STEP_MS = DAY;
+const VEHICLE_RULESET_VERSION = 'vehicle-rules-v1';
 
 function freeze(value) { if (value && typeof value === 'object' && !Object.isFrozen(value)) { Object.freeze(value); Object.values(value).forEach(freeze); } return value; }
 function fail(code) { const error = new Error(code); error.code = code; throw error; }
@@ -177,6 +179,44 @@ function calibration(events, at) {
   return freeze({ policy: 'STRICTLY_PRIOR_CONTEXT_ONLY', eventCount: before.length, events: freeze(before.map((event) => freeze({ lifeEventId: event.lifeEventId, eventType: event.eventType, eventDate: event.eventDate }))), recurringPattern: false });
 }
 
+// MONTH/YEAR records represent an uncertainty interval.  These samples are
+// only a deterministic retrospective summary of that interval; they never
+// manufacture a precise vehicle-event date.
+function retrospectiveSampleInstants(interval, precision) {
+  if (!interval || !Number.isFinite(Date.parse(interval.from)) || !Number.isFinite(Date.parse(interval.to))) fail('INVALID_VEHICLE_CALIBRATION_INTERVAL');
+  if (precision === 'DAY') return freeze([interval.from]);
+  const from = Date.parse(interval.from); const to = Date.parse(interval.to);
+  if (to <= from) fail('INVALID_VEHICLE_CALIBRATION_INTERVAL');
+  return freeze([interval.from, new Date(from + Math.floor((to - from) / 2)).toISOString(), new Date(to - 1).toISOString()]);
+}
+
+async function reconstructVehicleRetrospectiveEvidence({ principal, birthProfileId, interval, datePrecision, birthProfileService, astronomicalEngine, canonicalSiderealSunSampler } = {}) {
+  if (!birthProfileService || typeof birthProfileService.get !== 'function' || !astronomicalEngine || typeof astronomicalEngine.calculate !== 'function' || !canonicalSiderealSunSampler) fail('INVALID_VEHICLE_RETROSPECTIVE_DEPENDENCIES');
+  const profile = await birthProfileService.get({ principal, birthProfileId });
+  if (!profile || profile.status !== 'active') fail('NOT_FOUND_OR_FORBIDDEN');
+  const natal = astronomicalEngine.calculate(request(profile.birthData));
+  const d1Houses = calculateRashiHouses({ ascendantCanonicalSiderealLongitude: natal.bodies.Ascendant.siderealLongitudeDegrees, bodies: natal.bodies });
+  const d1 = d1Evidence(d1Houses); const d16 = d16Evidence(natal); const promise = natalPromise(d1, d16);
+  const dashaTree = calculateVimshottariDasha({ birthInstant: natal.instant.utc, moonCanonicalSiderealLongitude: natal.bodies.Moon.siderealLongitudeDegrees, natalSunCanonicalSiderealLongitude: natal.bodies.Sun.siderealLongitudeDegrees, canonicalSiderealSunSampler, rulesetId: SOLAR_RETURN_VIMSHOTTARI_RULESET.id });
+  const ashtakavarga = ashtakavargaEvidence(calculateAshtakavargaForLayer2(classifyLayer1Bodies(natal)), d1Houses);
+  const samples = retrospectiveSampleInstants(interval, datePrecision).map((instant) => {
+    const dasha = dashaAt(dashaTree, instant); const mdAd = mdAdEvidence(d1Houses, d16, dasha); const pd = pdRefinement(mdAd);
+    const transitBodies = astronomicalEngine.calculate(transitRequest(instant, profile.birthData));
+    const snapshot = calculateGocharSnapshot({ snapshotInstant: instant, natalBodies: natal.bodies, natalHouses: d1Houses, transitBodies: transitBodies.bodies });
+    const transit = transitEvidence(snapshot, d1Houses);
+    return freeze({ instant, dasha: freeze({ classification: mdAd.classification, eligible: mdAd.eligible, md: mdAd.periods && mdAd.periods.md || null, ad: mdAd.periods && mdAd.periods.ad || null, pd: mdAd.periods && mdAd.periods.pd || null, pdRefinement: pd.state }), transit: freeze({ majorConfirmation: transit.majorConfirmation, hasMajorConfirmation: transit.hasMajorConfirmation, majorPlanets: freeze([...transit.majorDirect, ...transit.majorSupporting].map((item) => item.planet)), supportPlanets: freeze(transit.supporting.map((item) => item.planet)) }) });
+  });
+  return freeze({ foundation: freeze({ classification: promise, d1Seed: d1.d1Seed, coreConnectionCount: d1.coreVehicleConnections.length, acquisitionConnectionCount: d1.acquisitionConnections.length }), d16: freeze({ confirmation: d16.confirmation, coreConnectionCount: d16.coreVehicleConnections.length, acquisitionConnectionCount: d16.acquisitionConnections.length }), dasha: freeze(samples.map((item) => item.dasha)), transit: freeze(samples.map((item) => item.transit)), ashtakavarga, intervalSummary: freeze({ policy: datePrecision === 'DAY' ? 'EXACT_DAY' : datePrecision === 'MONTH' ? 'INTERVAL_START_MIDPOINT_END_MINUS_ONE' : 'BROAD_INTERVAL_START_MIDPOINT_END_MINUS_ONE', sampleInstants: freeze(samples.map((item) => item.instant)) }), provenance: freeze({ vehicleRulesVersion: VEHICLE_RULESET_VERSION, dashaRulesetId: SOLAR_RETURN_VIMSHOTTARI_RULESET.id, d16RulesetId: 'parashari-shodashamsha-v1', ashtakavargaPolicy: 'RAW_CONTEXT_ONLY' }) });
+}
+
+function vehicleCalibrationCandidates(window, classification) {
+  const windows = [window, ...((window && window.secondaryWindows) || [])].filter(Boolean);
+  return freeze(windows.map((item, index) => {
+    const phase = item.internalPhases && item.internalPhases[0];
+    return freeze({ candidateId: `vehicle-candidate-v1:${item.start}:${item.end}:${phase && phase.refinement && phase.refinement.pd || 'none'}`, primaryRank: index, primaryState: classification, primaryStrength: item.candidateStrength || null, start: item.start, end: item.end, primaryEvidenceFingerprint: freeze({ pd: phase && phase.refinement && phase.refinement.pd || null, majorConfirmation: phase && phase.majorGocharConfirmation || null }) });
+  }));
+}
+
 function classifyCandidate({ promise, d16, mdAd, pd, transit }) {
   if (!['STRONG', 'MODERATE'].includes(promise) || d16.confirmation !== 'CONFIRMS' || !mdAd.eligible || !['PRIMARY_REFINEMENT', 'CONFIRMING_REFINEMENT'].includes(pd.state) || !transit.hasMajorConfirmation) return 'NOT_SUPPORTED';
   if (mdAd.classification === 'STRONG_MD_AD_SUPPORT' && pd.state === 'PRIMARY_REFINEMENT' && transit.majorConfirmation === 'MAJOR_CONFIRMATION') return 'STRONG_CANDIDATE';
@@ -327,12 +367,13 @@ function strongerWindow({ engine, scanner, birth, natalBodies, d1Houses, d16, da
 }
 
 class VehicleAnswerService {
-  constructor({ birthProfileService, lifeEventService, astronomicalEngine, canonicalSiderealSunSampler, entitlementService = null, clock = () => new Date().toISOString(), transitScanner = scanTransitEvents } = {}) {
+  constructor({ birthProfileService, lifeEventService, astronomicalEngine, canonicalSiderealSunSampler, entitlementService = null, clock = () => new Date().toISOString(), transitScanner = scanTransitEvents, lifeEventCalibrationCoordinator = null, vehicleCalibrationAdapter = null } = {}) {
     if (!birthProfileService || typeof birthProfileService.get !== 'function' || !lifeEventService || typeof lifeEventService.getRelevantLifeEvents !== 'function' || !astronomicalEngine || typeof astronomicalEngine.calculate !== 'function' || !canonicalSiderealSunSampler) throw new TypeError('INVALID_VEHICLE_ANSWER_DEPENDENCIES');
     if (entitlementService && typeof entitlementService.getReadingEntitlementStatus !== 'function') throw new TypeError('INVALID_PROFILE_PREMIUM_ENTITLEMENT_SERVICE');
-    Object.assign(this, { profiles: birthProfileService, lifeEvents: lifeEventService, engine: astronomicalEngine, sampler: canonicalSiderealSunSampler, entitlements: entitlementService, clock, scanner: transitScanner }); Object.freeze(this);
+    if ((lifeEventCalibrationCoordinator && !vehicleCalibrationAdapter) || (!lifeEventCalibrationCoordinator && vehicleCalibrationAdapter)) throw new TypeError('INVALID_VEHICLE_CALIBRATION_DEPENDENCIES');
+    Object.assign(this, { profiles: birthProfileService, lifeEvents: lifeEventService, engine: astronomicalEngine, sampler: canonicalSiderealSunSampler, entitlements: entitlementService, clock, scanner: transitScanner, calibrationCoordinator: lifeEventCalibrationCoordinator, calibrationAdapter: vehicleCalibrationAdapter }); Object.freeze(this);
   }
-  async answer({ principal, birthProfileId, intent = VehicleIntent.VEHICLE_CURRENT_STRENGTH, at = null, diagnosticLog = null } = {}) {
+  async answer({ principal, birthProfileId, intent = VehicleIntent.VEHICLE_CURRENT_STRENGTH, at = null, diagnosticLog = null, includeInternalCalibration = false } = {}) {
     if (!Object.values(VehicleIntent).includes(intent)) fail('UNSUPPORTED_VEHICLE_INTENT');
     const log = (event, fields = {}) => { if (typeof diagnosticLog === 'function') diagnosticLog(freeze({ event, birthProfileId, intent, ...fields })); };
     if (this.entitlements) {
@@ -352,13 +393,17 @@ class VehicleAnswerService {
       stage = 'CALIBRATION'; const events = await this.lifeEvents.getRelevantLifeEvents({ principal, birthProfileId, categories: ['VEHICLE'] }); const history = calibration(events, instant);
       stage = 'WINDOW'; const window = strongerWindow({ engine: this.engine, scanner: this.scanner, birth: profile.birthData, natalBodies: natal.bodies, d1Houses, d16, dashaTree, promise, start: instant, diagnosticLog: log });
       const currentStrength = classifyCandidate({ promise, d16, mdAd, pd, transit });
-      const result = freeze({ intent, answerability: promise === 'NO_VEHICLE_PROMISE' ? 'LIMITED_EVIDENCE' : 'SUPPORTED', classification: currentStrength, natalPromise: promise, strongerWindow: window, windowShape: window && window.windowShape || 'NO_RELIABLE_WINDOW', evidence: freeze({ d1, d16: freeze({ ...d16, d16Houses: undefined }), mdAd, pd, transit, ashtakavarga, lifeEvents: history }), limitations: freeze(['NO_OUTCOME_GUARANTEE', 'NO_EXACT_PURCHASE_DATE', 'SAV_BAV_CONTEXT_ONLY', 'LIFE_EVENTS_CALIBRATION_ONLY']), provenance: freeze({ dashaRulesetId: SOLAR_RETURN_VIMSHOTTARI_RULESET.id, d16RulesetId: 'parashari-shodashamsha-v1', transitBoundaryPolicy: 'REFINED_EXISTING_TRANSIT_BOUNDARIES_ONLY' }) });
+      const result = freeze({ intent, answerability: promise === 'NO_VEHICLE_PROMISE' ? 'LIMITED_EVIDENCE' : 'SUPPORTED', classification: currentStrength, natalPromise: promise, strongerWindow: window, windowShape: window && window.windowShape || 'NO_RELIABLE_WINDOW', evidence: freeze({ d1, d16: freeze({ ...d16, d16Houses: undefined }), mdAd, pd, transit, ashtakavarga, lifeEvents: history }), limitations: freeze(['NO_OUTCOME_GUARANTEE', 'NO_EXACT_PURCHASE_DATE', 'SAV_BAV_CONTEXT_ONLY', 'LIFE_EVENTS_CALIBRATION_ONLY']), provenance: freeze({ vehicleRulesVersion: VEHICLE_RULESET_VERSION, dashaRulesetId: SOLAR_RETURN_VIMSHOTTARI_RULESET.id, d16RulesetId: 'parashari-shodashamsha-v1', transitBoundaryPolicy: 'REFINED_EXISTING_TRANSIT_BOUNDARIES_ONLY' }) });
+      const internalCalibration = this.calibrationCoordinator && await this.calibrationCoordinator.calibrate({ principal, birthProfileId, adapter: this.calibrationAdapter, primaryCandidates: vehicleCalibrationCandidates(window, currentStrength), primaryDomainRulesVersion: result.provenance.vehicleRulesVersion, adapterContext: { intent, primaryVehicleEvidence: { d1, d16, mdAd, pd, transit, ashtakavarga }, strongerWindow: window } });
+      if (internalCalibration) log('VEHICLE_LIFE_EVENT_CALIBRATION', { state: internalCalibration.status, patternStrength: internalCalibration.patternStrength, eventCount: internalCalibration.comparableEventCount });
       log('VEHICLE_RESULT', { state: result.classification, evidenceCount: transit.majorDirect.length + transit.majorSupporting.length });
-      return result;
+      const historicalContext = publicHistoricalContext({ domain: 'VEHICLE', calibration: internalCalibration });
+      const publicResult = historicalContext ? freeze({ ...result, historicalContext }) : result;
+      return includeInternalCalibration && internalCalibration ? freeze({ ...publicResult, internalCalibration }) : publicResult;
     } catch (error) {
       log('VEHICLE_RESULT', { state: 'FAILED', stage, safeErrorCode: error && error.code || 'VEHICLE_CALCULATION_FAILED', errorClass: error && error.name || 'Error' }); throw error;
     }
   }
 }
 
-module.exports = { VehicleAnswerService, VehicleIntent, d1Evidence, d16Evidence, natalPromise, vehicleFactor, mdAdEvidence, pdRefinement, transitEvidence, ashtakavargaEvidence, calibration, classifyCandidate, classifyWindowShape, coalesceVehicleCandidates, sameEffectiveVehicleSupport, selectVehicleWindow, selectPeak, transitBoundaries, transitStatesForPd, strongerWindow, VEHICLE_WINDOW_COARSE_SCAN_STEP_MS };
+module.exports = { VehicleAnswerService, VehicleIntent, VEHICLE_RULESET_VERSION, d1Evidence, d16Evidence, natalPromise, vehicleFactor, mdAdEvidence, pdRefinement, transitEvidence, ashtakavargaEvidence, calibration, retrospectiveSampleInstants, reconstructVehicleRetrospectiveEvidence, vehicleCalibrationCandidates, classifyCandidate, classifyWindowShape, coalesceVehicleCandidates, sameEffectiveVehicleSupport, selectVehicleWindow, selectPeak, transitBoundaries, transitStatesForPd, strongerWindow, VEHICLE_WINDOW_COARSE_SCAN_STEP_MS };

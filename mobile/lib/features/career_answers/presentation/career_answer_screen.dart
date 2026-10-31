@@ -650,22 +650,12 @@ class _AnswerBody extends StatelessWidget {
       _Evidence(answer: answer),
       if (answer.historicalSummary != null) ...[
         const SizedBox(height: 16),
-        const _Label('PATTERN SEEN BEFORE'),
+        const _Label('BASED ON YOUR RECORDED HISTORY'),
         const SizedBox(height: 8),
         _Card(
           child: Text(
             answer.historicalSummary!,
             style: const TextStyle(color: Color(0xFFD7E1DE), height: 1.4),
-          ),
-        ),
-      ] else ...[
-        const SizedBox(height: 16),
-        const _Label('MAKE TARAVERSE MORE PERSONAL'),
-        const SizedBox(height: 8),
-        _Card(
-          child: const Text(
-            'Add important Career events so TaraVerse can compare future periods with patterns that have appeared in your life.',
-            style: TextStyle(color: Color(0xFFD7E1DE), height: 1.4),
           ),
         ),
       ],

@@ -1,3 +1,5 @@
+import '../../../shared/models/historical_context.dart';
+
 enum PropertyIntent {
   currentStrength('PROPERTY_CURRENT_STRENGTH'),
   purchaseTiming('PROPERTY_PURCHASE_TIMING'),
@@ -45,6 +47,7 @@ class PropertyAnswer {
     required this.windowStatus,
     required this.strongerWindow,
     required this.evidence,
+    this.historicalContext,
   });
 
   final PropertyIntent intent;
@@ -53,6 +56,7 @@ class PropertyAnswer {
   final String windowStatus;
   final PropertySupportWindow? strongerWindow;
   final Map<String, dynamic> evidence;
+  final HistoricalContext? historicalContext;
   bool get premiumRequired => answerability == 'PREMIUM_REQUIRED';
 
   factory PropertyAnswer.fromJson(Map<String, dynamic> json) {
@@ -70,6 +74,9 @@ class PropertyAnswer {
         json['evidence'] is Map
             ? Map<String, dynamic>.from(json['evidence'] as Map)
             : const {},
+      ),
+      historicalContext: HistoricalContext.tryFromJson(
+        json['historicalContext'],
       ),
     );
   }

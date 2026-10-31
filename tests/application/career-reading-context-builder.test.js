@@ -83,3 +83,21 @@ test('keeps static Ashtakavarga and Career-house patterns out of timing recurren
   assert.deepEqual(out.historicalEvidence[0].matchedEvents.map((item) => item.eventDate.precision), ['DAY']);
   assert.equal(JSON.stringify(out).includes('private'), false);
 });
+test('adds an internal annotation-only calibration envelope without changing Career recurrence candidates', async () => {
+  const x = fixture({ events: [event('a'), event('b')] });
+  let received;
+  const envelope = { calibrationContractVersion: 'life-event-calibration-v1', status: 'PATTERN_EVALUATED', annotations: [{ candidateId: 'future:v1:ctx-a:p1:WINDOW:2025-01-01T00:00:00.000Z:2025-02-01T00:00:00.000Z' }], audit: { customerSummaryEnabled: false } };
+  const builder = new CareerReadingContextBuilder({
+    careerEventService: { list: async () => x.p3 && [event('a'), event('b')] },
+    careerPatternComparisonService: { get: async () => x.p3 },
+    careerFutureRecurrenceService: { get: async () => x.p4 },
+    lifeEventCalibrationCoordinator: { calibrate: async (input) => { received = input; return envelope; } },
+    careerCalibrationAdapter: {},
+  });
+  const out = await builder.build({ principal: {}, birthProfileId: 'profile-a' });
+  assert.deepEqual(out.lifeEventCalibration, envelope);
+  assert.equal(out.futureOccurrences[0].evidenceId, 'future:v1:ctx-a:p1:WINDOW:2025-01-01T00:00:00.000Z:2025-02-01T00:00:00.000Z');
+  assert.equal(received.primaryCandidates[0].candidateId, out.futureOccurrences[0].evidenceId);
+  assert.equal(received.primaryCandidates[0].primaryState, 'EXISTING_CAREER_RECURRENCE');
+  assert.equal(received.primaryDomainRulesVersion, 'career-future-recurrence-v1');
+});

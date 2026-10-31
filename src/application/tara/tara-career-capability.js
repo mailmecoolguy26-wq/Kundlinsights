@@ -1,6 +1,7 @@
 'use strict';
 
 const { CareerQuestionType, Answerability } = require('../career-answers');
+const { appendHistoricalContext } = require('./tara-historical-context');
 
 const TaraCareerIntent = Object.freeze({ CURRENT_CAREER_PHASE: 'CURRENT_CAREER_PHASE', JOB_FAVOURABILITY_TIMING: 'JOB_FAVOURABILITY_TIMING', JOB_OFFER: 'JOB_OFFER', SWITCH_JOB: 'SWITCH_JOB', COMPARE_OFFERS: 'COMPARE_OFFERS', PROMOTION_GROWTH: 'PROMOTION_GROWTH', START_BUSINESS: 'START_BUSINESS', CAREER_ABROAD: 'CAREER_ABROAD', UNSUPPORTED_CAREER: 'UNSUPPORTED_CAREER' });
 const TaraCareerResponseState = Object.freeze({ ENTITLED_RESULT: 'ENTITLED_RESULT', PREMIUM_REQUIRED: 'PREMIUM_REQUIRED', FEATURE_DISABLED: 'FEATURE_DISABLED', UNSUPPORTED_CAREER: 'UNSUPPORTED_CAREER' });
@@ -93,7 +94,11 @@ class TaraCareerCapability {
     const state = answer.answerability === Answerability.PREMIUM_REQUIRED ? TaraCareerResponseState.PREMIUM_REQUIRED
       : answer.answerability === Answerability.PROJECTION_DISABLED ? TaraCareerResponseState.FEATURE_DISABLED
         : TaraCareerResponseState.ENTITLED_RESULT;
-    const result = Object.freeze({ intent, state, answerability: answer.answerability, message: renderCareerAnswer(answer, language), answer, action: state === TaraCareerResponseState.PREMIUM_REQUIRED ? Object.freeze({ type: 'OPEN_PROFILE_PREMIUM', label: 'Unlock TaraVerse Premium' }) : null });
+    const rendered = renderCareerAnswer(answer, language);
+    const messageWithContext = state === TaraCareerResponseState.ENTITLED_RESULT
+      ? appendHistoricalContext(rendered, { domain: 'CAREER', historicalContext: answer.historicalContext, language })
+      : rendered;
+    const result = Object.freeze({ intent, state, answerability: answer.answerability, message: messageWithContext, answer, action: state === TaraCareerResponseState.PREMIUM_REQUIRED ? Object.freeze({ type: 'OPEN_PROFILE_PREMIUM', label: 'Unlock TaraVerse Premium' }) : null });
     diagnostic(diagnosticLog, { state: result.state, action: result.action, birthProfileId });
     return result;
   }

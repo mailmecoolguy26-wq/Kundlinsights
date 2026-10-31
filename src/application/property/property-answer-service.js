@@ -10,6 +10,7 @@ const { scanTransitEvents } = require('../../transit-events');
 const { calculateChartCoordinates } = require('../divisional-charts/divisional-chart-service');
 const { calculateAshtakavargaForLayer2 } = require('../ashtakavarga');
 const { classifyLayer1Bodies, canonicalPlanetId } = require('../../jyotish');
+const { publicHistoricalContext } = require('../life-event-calibration');
 
 const PropertyIntent = Object.freeze({
   PROPERTY_CURRENT_STRENGTH: 'PROPERTY_CURRENT_STRENGTH',
@@ -29,6 +30,7 @@ const DAY = 86_400_000;
 // customer-facing refined ingress/aspect/association boundaries without the
 // 18k+ hourly astronomy samples previously used by a Property window scan.
 const PROPERTY_WINDOW_COARSE_SCAN_STEP_MS = DAY;
+const PROPERTY_RULESET_VERSION = 'property-rules-v1';
 
 function freeze(value) { if (value && typeof value === 'object' && !Object.isFrozen(value)) { Object.freeze(value); Object.values(value).forEach(freeze); } return value; }
 function fail(code) { const error = new Error(code); error.code = code; throw error; }
@@ -149,6 +151,48 @@ function calibration(events, at) {
     .filter((event) => Number.isFinite(cutoff) && eventInstant(event) !== null && eventInstant(event) < cutoff);
   const state = usable.length === 0 ? 'NONE' : usable.length === 1 ? 'LIMITED' : usable.length === 2 ? 'MODERATE' : 'STRONG';
   return freeze({ state, eventCount: usable.length, recurringPattern: false, events: freeze(usable.map((event) => freeze({ lifeEventId: event.lifeEventId, eventType: event.eventType, eventDate: event.eventDate }))) });
+}
+function retrospectiveSampleInstants(interval, precision) {
+  const from = Date.parse(interval && interval.from); const to = Date.parse(interval && interval.to);
+  if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from) fail('INVALID_PROPERTY_RETROSPECTIVE_INTERVAL');
+  if (precision === 'DAY') return freeze([new Date(from).toISOString()]);
+  // Broad user-entered dates remain intervals. These deterministic samples are
+  // evidence summarization points, never substituted as an exact event date.
+  const values = [from, from + Math.floor((to - from) / 2), to - 1];
+  return freeze([...new Set(values)].sort((left, right) => left - right).map((value) => new Date(value).toISOString()));
+}
+function compactRetrospectiveDasha(evidence) {
+  return freeze({ classification: evidence.classification, active: evidence.active, md: evidence.periods && evidence.periods.md || null, ad: evidence.periods && evidence.periods.ad || null, pd: evidence.periods && evidence.periods.pd || null });
+}
+function compactRetrospectiveTransit(evidence) {
+  return freeze({ active: evidence.active, majorPlanets: freeze(evidence.activeMajor.map((item) => item.planet).sort()), supportPlanets: freeze(evidence.activeSupport.map((item) => item.planet).sort()) });
+}
+// Internal-only reconstruction for Life Event Calibration. It is deliberately
+// composed from the same Property Rules v1 helpers used by `answer`; it does
+// not create a second Property methodology or a customer-facing result.
+async function reconstructPropertyRetrospectiveEvidence({ principal, birthProfileId, interval, datePrecision, birthProfileService, astronomicalEngine, canonicalSiderealSunSampler } = {}) {
+  if (!birthProfileService || typeof birthProfileService.get !== 'function' || !astronomicalEngine || typeof astronomicalEngine.calculate !== 'function' || !canonicalSiderealSunSampler) fail('INVALID_PROPERTY_RETROSPECTIVE_DEPENDENCIES');
+  if (!['DAY', 'MONTH', 'YEAR'].includes(datePrecision)) fail('INVALID_PROPERTY_RETROSPECTIVE_PRECISION');
+  const profile = await birthProfileService.get({ principal, birthProfileId });
+  if (!profile || profile.status !== 'active') fail('NOT_FOUND_OR_FORBIDDEN');
+  const natal = astronomicalEngine.calculate(request(profile.birthData));
+  const houses = calculateRashiHouses({ ascendantCanonicalSiderealLongitude: natal.bodies.Ascendant.siderealLongitudeDegrees, bodies: natal.bodies });
+  const natalFacts = natalEvidence(houses);
+  const d4 = d4Evidence(natal, houses);
+  const dashaTree = calculateVimshottariDasha({ birthInstant: natal.instant.utc, moonCanonicalSiderealLongitude: natal.bodies.Moon.siderealLongitudeDegrees, natalSunCanonicalSiderealLongitude: natal.bodies.Sun.siderealLongitudeDegrees, canonicalSiderealSunSampler, rulesetId: SOLAR_RETURN_VIMSHOTTARI_RULESET.id });
+  const rawAshtaka = calculateAshtakavargaForLayer2(classifyLayer1Bodies(natal));
+  const ashtakavarga = ashtakavargaEvidence(rawAshtaka, houses);
+  const samples = retrospectiveSampleInstants(interval, datePrecision).map((instant) => {
+    const dasha = dashaEvidence(houses, dashaAt(dashaTree, instant));
+    const transitBodies = astronomicalEngine.calculate(transitRequest(instant, profile.birthData));
+    const snapshot = calculateGocharSnapshot({ snapshotInstant: instant, natalBodies: natal.bodies, natalHouses: houses, transitBodies: transitBodies.bodies });
+    return freeze({ instant, dasha: compactRetrospectiveDasha(dasha), transit: compactRetrospectiveTransit(transitEvidence(snapshot, houses)) });
+  });
+  return freeze({ foundation: freeze({ classification: natalFacts.classification, coreConnectionCount: natalFacts.coreConnectionCount, acquisitionConnectionCount: natalFacts.acquisitionConnectionCount }), d4: freeze({ confirmation: d4.confirmation }), dasha: freeze(samples.map((item) => item.dasha)), transit: freeze(samples.map((item) => item.transit)), ashtakavarga, intervalSummary: freeze({ policy: datePrecision === 'DAY' ? 'EXACT_DAY' : datePrecision === 'MONTH' ? 'INTERVAL_START_MIDPOINT_END_MINUS_ONE' : 'BROAD_INTERVAL_START_MIDPOINT_END_MINUS_ONE', sampleInstants: freeze(samples.map((item) => item.instant)) }), provenance: freeze({ propertyRulesVersion: PROPERTY_RULESET_VERSION, dashaRulesetId: SOLAR_RETURN_VIMSHOTTARI_RULESET.id, d4RulesetId: 'parashari-chaturthamsha-v1', ashtakavargaPolicy: 'RAW_CONTEXT_ONLY' }) });
+}
+function propertyCalibrationCandidates(window, classification) {
+  const windows = [window, ...(window && window.secondaryWindows || [])].filter(Boolean);
+  return freeze(windows.map((item, index) => freeze({ candidateId: `property-candidate-v1:${item.start}:${item.end}:${item.pd || 'none'}`, primaryRank: index, primaryState: classification, primaryStrength: item.classification, start: item.start, end: item.end, primaryEvidenceFingerprint: freeze({ candidateState: item.classification, pd: item.pd || null, transitConfirmation: item.transitConfirmation || null }) })));
 }
 function limitation(intent) { return intent === PropertyIntent.PROPERTY_SALE_TIMING ? 'PROPERTY_SALE_TIMING_NOT_PREDICTIVE_IN_V1' : null; }
 function propertyTransitStateBoundaries(scan, scanStart, end) {
@@ -367,12 +411,13 @@ function strongerWindow({ engine, scanner, birth, natalBodies, houses, dashaTree
 }
 
 class PropertyAnswerService {
-  constructor({ birthProfileService, lifeEventService, astronomicalEngine, canonicalSiderealSunSampler, entitlementService = null, clock = () => new Date().toISOString(), transitScanner = scanTransitEvents } = {}) {
+  constructor({ birthProfileService, lifeEventService, astronomicalEngine, canonicalSiderealSunSampler, entitlementService = null, clock = () => new Date().toISOString(), transitScanner = scanTransitEvents, lifeEventCalibrationCoordinator = null, propertyCalibrationAdapter = null } = {}) {
     if (!birthProfileService || typeof birthProfileService.get !== 'function' || !lifeEventService || typeof lifeEventService.getRelevantLifeEvents !== 'function' || !astronomicalEngine || typeof astronomicalEngine.calculate !== 'function' || !canonicalSiderealSunSampler) throw new TypeError('INVALID_PROPERTY_ANSWER_DEPENDENCIES');
     if (entitlementService && typeof entitlementService.getReadingEntitlementStatus !== 'function') throw new TypeError('INVALID_PROFILE_PREMIUM_ENTITLEMENT_SERVICE');
-    Object.assign(this, { profiles: birthProfileService, lifeEvents: lifeEventService, engine: astronomicalEngine, sampler: canonicalSiderealSunSampler, entitlements: entitlementService, clock, scanner: transitScanner }); Object.freeze(this);
+    if ((lifeEventCalibrationCoordinator && !propertyCalibrationAdapter) || (!lifeEventCalibrationCoordinator && propertyCalibrationAdapter)) throw new TypeError('INVALID_PROPERTY_CALIBRATION_DEPENDENCIES');
+    Object.assign(this, { profiles: birthProfileService, lifeEvents: lifeEventService, engine: astronomicalEngine, sampler: canonicalSiderealSunSampler, entitlements: entitlementService, clock, scanner: transitScanner, calibrationCoordinator: lifeEventCalibrationCoordinator, calibrationAdapter: propertyCalibrationAdapter }); Object.freeze(this);
   }
-  async answer({ principal, birthProfileId, intent = PropertyIntent.PROPERTY_CURRENT_STRENGTH, at = null, diagnosticLog = null } = {}) {
+  async answer({ principal, birthProfileId, intent = PropertyIntent.PROPERTY_CURRENT_STRENGTH, at = null, diagnosticLog = null, includeInternalCalibration = false } = {}) {
     if (!Object.values(PropertyIntent).includes(intent)) fail('UNSUPPORTED_PROPERTY_INTENT');
     const log = (event, fields = {}) => { if (typeof diagnosticLog === 'function') diagnosticLog(freeze({ event, birthProfileId, intent, ...fields })); };
     const startedAt = Date.now();
@@ -415,8 +460,13 @@ class PropertyAnswerService {
       timed('PROPERTY_WINDOW_EVIDENCE', stageStartedAt);
       const financing = transit.all.some((item) => item.propertyActive && item.contexts.some((house) => [6, 12].includes(house))) || dasha.factors.some((item) => item.corePropertyConnection && item.contextConnection);
       const shared = transit.all.some((item) => item.propertyActive && item.contexts.includes(8)) || dasha.factors.some((item) => item.corePropertyConnection && item.rulesHouses.includes(8));
-      const result = freeze({ intent, answerability: intent === PropertyIntent.PROPERTY_SALE_TIMING ? 'LIMITED_EVIDENCE' : 'SUPPORTED', classification: final, state: limitation(intent) || final, strongerWindow: window, windowStatus: window && window.timingClassification || 'NO_RELIABLE_WINDOW', evidence: freeze({ natal: natalFacts, d4: freeze({ ...d4, d4Houses: undefined }), dasha, transit, ashtakavarga, lifeEvents: history }), contexts: freeze({ financing: financing ? (intent === PropertyIntent.PROPERTY_LOAN_CONTEXT ? 'STRONGER_FINANCING_INVOLVEMENT' : 'FINANCING_CONTEXT') : 'LIMITED_EVIDENCE', sharedAsset: shared ? (intent === PropertyIntent.PROPERTY_INHERITANCE_CONTEXT ? 'SHARED_OR_INHERITED_ASSET_THEME_ACTIVE' : 'SHARED_ASSET_CONTEXT') : 'LIMITED_EVIDENCE', expenditure: transit.all.some((item) => item.propertyActive && item.contexts.includes(12)) ? 'EXPENDITURE_CONTEXT' : 'NONE' }), limitations: freeze(['NO_OUTCOME_GUARANTEE', 'NO_EXACT_PURCHASE_DATE', ...(intent === PropertyIntent.PROPERTY_SALE_TIMING ? ['SALE_METHODOLOGY_DEFERRED'] : [])]), provenance: freeze({ dashaRulesetId: SOLAR_RETURN_VIMSHOTTARI_RULESET.id, d4RulesetId: 'parashari-chaturthamsha-v1', ashtakavargaPolicy: 'RAW_CONTEXT_ONLY' }) });
-      log('PROPERTY_RESULT', { state: result.state, classification: result.classification, evidenceCount: transit.activeMajor.length, durationMs: Date.now() - startedAt }); return result;
+      const result = freeze({ intent, answerability: intent === PropertyIntent.PROPERTY_SALE_TIMING ? 'LIMITED_EVIDENCE' : 'SUPPORTED', classification: final, state: limitation(intent) || final, strongerWindow: window, windowStatus: window && window.timingClassification || 'NO_RELIABLE_WINDOW', evidence: freeze({ natal: natalFacts, d4: freeze({ ...d4, d4Houses: undefined }), dasha, transit, ashtakavarga, lifeEvents: history }), contexts: freeze({ financing: financing ? (intent === PropertyIntent.PROPERTY_LOAN_CONTEXT ? 'STRONGER_FINANCING_INVOLVEMENT' : 'FINANCING_CONTEXT') : 'LIMITED_EVIDENCE', sharedAsset: shared ? (intent === PropertyIntent.PROPERTY_INHERITANCE_CONTEXT ? 'SHARED_OR_INHERITED_ASSET_THEME_ACTIVE' : 'SHARED_ASSET_CONTEXT') : 'LIMITED_EVIDENCE', expenditure: transit.all.some((item) => item.propertyActive && item.contexts.includes(12)) ? 'EXPENDITURE_CONTEXT' : 'NONE' }), limitations: freeze(['NO_OUTCOME_GUARANTEE', 'NO_EXACT_PURCHASE_DATE', ...(intent === PropertyIntent.PROPERTY_SALE_TIMING ? ['SALE_METHODOLOGY_DEFERRED'] : [])]), provenance: freeze({ propertyRulesVersion: PROPERTY_RULESET_VERSION, dashaRulesetId: SOLAR_RETURN_VIMSHOTTARI_RULESET.id, d4RulesetId: 'parashari-chaturthamsha-v1', ashtakavargaPolicy: 'RAW_CONTEXT_ONLY' }) });
+      const internalCalibration = this.calibrationCoordinator && await this.calibrationCoordinator.calibrate({ principal, birthProfileId, adapter: this.calibrationAdapter, primaryCandidates: propertyCalibrationCandidates(window, final), primaryDomainRulesVersion: result.provenance.propertyRulesVersion, adapterContext: { intent, primaryPropertyEvidence: { natal: natalFacts, d4, dasha, transit, ashtakavarga }, strongerWindow: window } });
+      if (internalCalibration) log('PROPERTY_LIFE_EVENT_CALIBRATION', { state: internalCalibration.status, patternStrength: internalCalibration.patternStrength, eventCount: internalCalibration.comparableEventCount });
+      log('PROPERTY_RESULT', { state: result.state, classification: result.classification, evidenceCount: transit.activeMajor.length, durationMs: Date.now() - startedAt });
+      const historicalContext = publicHistoricalContext({ domain: 'PROPERTY', calibration: internalCalibration });
+      const publicResult = historicalContext ? freeze({ ...result, historicalContext }) : result;
+      return includeInternalCalibration && internalCalibration ? freeze({ ...publicResult, internalCalibration }) : publicResult;
     } catch (error) {
       log('PROPERTY_RESULT', { stage, state: 'FAILED', safeErrorCode: error && error.code || 'PROPERTY_CALCULATION_FAILED', errorClass: error && error.name || 'Error' });
       throw error;
@@ -424,4 +474,4 @@ class PropertyAnswerService {
   }
 }
 
-module.exports = { PropertyAnswerService, PropertyIntent, natalEvidence, d4Evidence, dashaEvidence, primaryDashaBounds, transitEvidence, ashtakavargaEvidence, calibration, propertyTransitStateBoundaries, classifyPropertyWindow, pdRelevance, candidateState, selectVisiblePeak, transitConfirmationForPd, classify, selectPropertyWindow, strongerWindow, PROPERTY_WINDOW_COARSE_SCAN_STEP_MS };
+module.exports = { PropertyAnswerService, PropertyIntent, PROPERTY_RULESET_VERSION, natalEvidence, d4Evidence, dashaEvidence, primaryDashaBounds, transitEvidence, ashtakavargaEvidence, calibration, retrospectiveSampleInstants, reconstructPropertyRetrospectiveEvidence, propertyCalibrationCandidates, propertyTransitStateBoundaries, classifyPropertyWindow, pdRelevance, candidateState, selectVisiblePeak, transitConfirmationForPd, classify, selectPropertyWindow, strongerWindow, PROPERTY_WINDOW_COARSE_SCAN_STEP_MS };

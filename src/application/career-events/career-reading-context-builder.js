@@ -50,26 +50,41 @@ function selectFuture(contexts, historicalEvidence, references) {
   return { composites: selectedComposites, futureOccurrences: matches.slice(0, Math.max(0, MAX_FUTURE_ITEMS - selectedComposites.length)) };
 }
 function provisional(value) { return JSON.stringify(value).includes('PROVISIONAL'); }
+function calibrationCandidates(futureOccurrences, composites) {
+  const out = [];
+  for (const item of [...(futureOccurrences || []), ...(composites || [])]) {
+    const candidateId = item.evidenceId;
+    if (typeof candidateId !== 'string') continue;
+    out.push({ candidateId, primaryRank: out.length, primaryState: 'EXISTING_CAREER_RECURRENCE', primaryStrength: null, start: item.from || item.instant || null, end: item.to || item.instant || null, primaryEvidenceFingerprint: item.evidenceId });
+  }
+  return out;
+}
 
 class CareerReadingContextBuilder {
-  constructor({ careerEventService, careerPatternComparisonService, careerFutureRecurrenceService } = {}) {
+  constructor({ careerEventService, careerPatternComparisonService, careerFutureRecurrenceService, lifeEventCalibrationCoordinator = null, careerCalibrationAdapter = null } = {}) {
     if (!careerEventService || typeof careerEventService.list !== 'function' || !careerPatternComparisonService || typeof careerPatternComparisonService.get !== 'function' || !careerFutureRecurrenceService || typeof careerFutureRecurrenceService.get !== 'function') fail('INVALID_CAREER_READING_CONTEXT_BUILDER');
-    this.events = careerEventService; this.patterns = careerPatternComparisonService; this.future = careerFutureRecurrenceService;
+    if ((lifeEventCalibrationCoordinator && !careerCalibrationAdapter) || (!lifeEventCalibrationCoordinator && careerCalibrationAdapter)) fail('INVALID_CAREER_READING_CONTEXT_BUILDER');
+    this.events = careerEventService; this.patterns = careerPatternComparisonService; this.future = careerFutureRecurrenceService; this.calibration = lifeEventCalibrationCoordinator; this.adapter = careerCalibrationAdapter;
   }
   async build({ principal, birthProfileId } = {}) {
-    const events = await this.events.list({ principal, birthProfileId });
+    const list = typeof this.events.listForCalibration === 'function' ? this.events.listForCalibration.bind(this.events) : this.events.list.bind(this.events);
+    const events = await list({ principal, birthProfileId });
     if (!Array.isArray(events)) fail('INVALID_CAREER_READING_CONTEXT_EVENTS');
     const eventReferences = events.slice(0, MAX_EVENT_REFERENCES).map(eventReference);
     const calibrationLevel = events.length === 0 ? 'NONE' : events.length === 1 ? 'LIMITED' : 'CALIBRATED';
     const base = { contextVersion: CONTEXT_VERSION, selectionPolicyVersion: SELECTION_POLICY_VERSION, birthProfileId, calibrationLevel, sourceEventIds: eventReferences.map((item) => item.eventId), eventReferences, historicalEvidence: [], futureOccurrences: [], composites: [], calculationBasis: { hasProvisionalEvidence: false }, rulesets: { p3: null, p4: null } };
-    if (calibrationLevel !== 'CALIBRATED') return immutableCopy(base);
+    if (calibrationLevel !== 'CALIBRATED') {
+      if (!this.calibration) return immutableCopy(base);
+      return immutableCopy({ ...base, lifeEventCalibration: await this.calibration.calibrate({ principal, birthProfileId, adapter: this.adapter, primaryCandidates: [], primaryDomainRulesVersion: null, adapterContext: { historicalEvidence: [], futureOccurrences: [] } }) });
+    }
     const p3 = await this.patterns.get({ principal, birthProfileId });
     const p4 = await this.future.get({ principal, birthProfileId, patternComparison: p3 });
     const historicalEvidence = selectHistorical(p3.comparisonContexts || [], eventReferences);
     const selectedFuture = selectFuture(p4.comparisonContexts || [], historicalEvidence, eventReferences);
     const out = { ...base, historicalEvidence, futureOccurrences: selectedFuture.futureOccurrences, composites: selectedFuture.composites, calibrationEvidence: { eventCount: events.length, eligibleEventCount: events.length, matchedEventCount: Math.max(0, ...historicalEvidence.map((item) => item.matchedEventCount)), recurringPatternIds: historicalEvidence.map((item) => item.patternKey), sourceSnapshotIds: historicalEvidence.map((item) => item.provenance.contextKey), datePrecisionContext: [...new Set(eventReferences.map((item) => item.eventDate.precision))].sort(), provenance: { rulesetId: 'career-calibration-evidence-v1' } }, calculationBasis: { hasProvisionalEvidence: provisional({ p3: p3.comparisonContexts, p4: p4.comparisonContexts, provenance: p4.provenance }) }, rulesets: { p3: p3.provenance && p3.provenance.rulesetId || null, p4: p4.provenance && p4.provenance.rulesetId || null } };
+    if (this.calibration) out.lifeEventCalibration = await this.calibration.calibrate({ principal, birthProfileId, adapter: this.adapter, primaryCandidates: calibrationCandidates(selectedFuture.futureOccurrences, selectedFuture.composites), primaryDomainRulesVersion: out.rulesets.p4 || out.rulesets.p3, adapterContext: { patternComparison: p3, futureRecurrence: p4, historicalEvidence, futureOccurrences: selectedFuture.futureOccurrences, composites: selectedFuture.composites } });
     return immutableCopy(out);
   }
 }
 
-module.exports = { CareerReadingContextBuilder, CONTEXT_VERSION, SELECTION_POLICY_VERSION, MAX_EVENT_REFERENCES, MAX_HISTORICAL_EVIDENCE, MAX_FUTURE_ITEMS, mechanismFamily };
+module.exports = { CareerReadingContextBuilder, CONTEXT_VERSION, SELECTION_POLICY_VERSION, MAX_EVENT_REFERENCES, MAX_HISTORICAL_EVIDENCE, MAX_FUTURE_ITEMS, mechanismFamily, calibrationCandidates };

@@ -16,7 +16,16 @@ test('Property Answers API is authenticated, profile-scoped, and forwards only s
     propertyAnswerService: {
       answer: async (input) => {
         calls.push(input);
-        return { intent: input.intent, classification: 'MIXED', strongerWindow: null };
+        return {
+          intent: input.intent,
+          classification: 'MIXED',
+          strongerWindow: null,
+          internalCalibration: {
+            customerDisplayEligible: true,
+            customerDisplayReadiness: [{ customerDisplayEligible: true, matchedEventCount: 2, comparableEventCount: 3 }],
+            audit: { eventTypes: ['PROPERTY_PURCHASE'], forbiddenInternalDetail: 'must-not-leak' },
+          },
+        };
       },
     },
     requestIdGenerator: () => 'property-request',
@@ -31,10 +40,13 @@ test('Property Answers API is authenticated, profile-scoped, and forwards only s
 
   assert.equal(response.statusCode, 200);
   assert.equal(response.json().propertyAnswer.classification, 'MIXED');
+  assert.equal(response.json().propertyAnswer.historicalContext.summary, 'Similar timing factors were present around 2 of your 3 recorded property purchases.');
+  assert.equal(Object.hasOwn(response.json().propertyAnswer, 'internalCalibration'), false);
   assert.equal(calls.length, 1);
   assert.equal(calls[0].birthProfileId, 'profile-a');
   assert.equal(calls[0].principal.subject, 'subject-a');
   assert.equal(calls[0].intent, 'PROPERTY_PURCHASE_TIMING');
   assert.equal(Object.hasOwn(calls[0], 'clientSuppliedChart'), false);
+  assert.equal(calls[0].includeInternalCalibration, true);
   await app.close();
 });
