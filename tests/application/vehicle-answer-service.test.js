@@ -6,7 +6,9 @@ const {
   VehicleAnswerService, d1Evidence, natalPromise, vehicleFactor, mdAdEvidence, pdRefinement,
   transitEvidence, ashtakavargaEvidence, calibration, classifyCandidate,
   classifyWindowShape, coalesceVehicleCandidates, selectVehicleWindow, selectPeak, transitBoundaries,
+  vehicleCalibrationCandidates, applyPersonalisedVehicleWindow,
 } = require('../../src/application/vehicle');
+const { rankPersonalisedTiming } = require('../../src/application/life-event-calibration');
 const { TaraVehicleCapability, TaraOrchestrator, vehicleAnswer } = require('../../src/application/tara');
 
 function houses({ fourthLord = 'Moon', occupants = ['Moon'], extra = [] } = {}) {
@@ -25,12 +27,12 @@ function snapshot({ jupiter = null, saturn = null, venus = null, mars = null, ra
   const entry = (house) => house == null ? null : { transitNatalHouseNumber: house, aspectsNatalHouses: [], aspectsNatalBodies: [], sameRashiNatalBodies: [] };
   return { transitBodies: { Jupiter: entry(jupiter), Saturn: entry(saturn), Venus: entry(venus), Mars: entry(mars), Rahu: entry(rahu), Ketu: entry(ketu) } };
 }
-function supportedSegment({ start, end, strength = 'MODERATE_CANDIDATE', major = 'PARTIAL_MAJOR_CONFIRMATION', pd = 'PRIMARY_REFINEMENT', pdLord = 'mercury', source = [] } = {}) {
+function supportedSegment({ start, end, strength = 'MODERATE_CANDIDATE', major = 'PARTIAL_MAJOR_CONFIRMATION', pd = 'PRIMARY_REFINEMENT', pdLord = 'mercury', d16Confirmation = 'CONFIRMS', mdAdClassification = 'STRONG_MD_AD_SUPPORT', contextCount = 1, source = [] } = {}) {
   const hasMajor = major !== 'NO_MAJOR_CONFIRMATION';
   return {
-    start, end, candidateStrength: strength, windowShape: classifyWindowShape({ start, end }), natalPromise: 'STRONG', d16Confirmation: 'CONFIRMS',
-    mdAd: { eligible: true, classification: 'STRONG_MD_AD_SUPPORT', periods: { pd: pdLord } }, pd: { state: pd },
-    transit: { hasMajorConfirmation: hasMajor, majorConfirmation: major, majorDirect: major === 'MAJOR_CONFIRMATION' ? [{ planet: 'Jupiter' }] : [], majorSupporting: major === 'PARTIAL_MAJOR_CONFIRMATION' ? [{ planet: 'Jupiter' }] : [], contexts: [{ planet: 'Saturn', kind: 'MAJOR', contextualHouses: [3] }] },
+    start, end, candidateStrength: strength, windowShape: classifyWindowShape({ start, end }), natalPromise: 'STRONG', d16Confirmation,
+    mdAd: { eligible: true, classification: mdAdClassification, periods: { pd: pdLord } }, pd: { state: pd },
+    transit: { hasMajorConfirmation: hasMajor, majorConfirmation: major, majorDirect: major === 'MAJOR_CONFIRMATION' ? [{ planet: 'Jupiter' }] : [], majorSupporting: major === 'PARTIAL_MAJOR_CONFIRMATION' ? [{ planet: 'Jupiter' }] : [], contexts: Array.from({ length: contextCount }, () => ({ planet: 'Saturn', kind: 'MAJOR', contextualHouses: [3] })) },
     transitChanges: source,
   };
 }
@@ -206,4 +208,65 @@ test('Vehicle service checks profile premium before profile or astrology calcula
   assert.equal(profileRead, false);
   assert.equal(result.answerability, 'PREMIUM_REQUIRED');
   assert.equal(result.evidence, null);
+});
+
+function vehicleV2Window(candidates, now = '2026-11-01T00:00:00.000Z') {
+  const selected = selectVehicleWindow(candidates, { now });
+  const first = selected.selected;
+  const temporalTier = (item) => Date.parse(item.start) <= Date.parse(now) && Date.parse(now) < Date.parse(item.end)
+    ? 'CURRENT'
+    : Date.parse(item.start) > Date.parse(now) ? 'UPCOMING' : 'HISTORICAL';
+  const output = { start: first.start, end: first.end, candidateStrength: first.candidateStrength, windowShape: first.windowShape, temporalStatus: temporalTier(first), peakActivation: first.peakActivation || null, basis: 'D1_D16_MD_AD_PD_MAJOR_GOCHAR', supportWindow: first.supportWindow, internalPhases: first.internalPhases, secondaryWindows: [] };
+  const ranked = Object.freeze(selected.ranked.map((item) => Object.freeze({ ...item, personalizationTemporalTier: temporalTier(item) })));
+  Object.defineProperty(output, '_rankingCandidates', { value: ranked, enumerable: false });
+  Object.defineProperty(output, '_rankingInstant', { value: now, enumerable: false });
+  return output;
+}
+function vehicleEligibleCalibration(candidates, matches) {
+  const annotations = candidates.map((candidate, index) => ({ candidateId: candidate.candidateId, tieBreakEligible: true, patternStrength: matches[index] >= 3 ? 'STRONG' : 'MODERATE', contradictionFlags: [] }));
+  const customerDisplayReadiness = candidates.map((candidate, index) => ({ candidateId: candidate.candidateId, customerDisplayEligible: true, matchedEventCount: matches[index], highMediumMatchedEventCount: matches[index], matchedEvidenceFamilies: ['DIVISIONAL_CHART', 'DASHA', 'TRANSIT'] }));
+  return { annotations, customerDisplayReadiness };
+}
+test('Vehicle V2 selects a materially stronger eligible purchase-history match only within an equivalent coalesced tier', () => {
+  const a = coalesceVehicleCandidates([supportedSegment({ start: '2027-01-01T00:00:00.000Z', end: '2027-02-01T00:00:00.000Z', pdLord: 'mercury' })], { now: '2026-11-01T00:00:00.000Z' })[0];
+  const b = coalesceVehicleCandidates([supportedSegment({ start: '2027-03-01T00:00:00.000Z', end: '2027-04-01T00:00:00.000Z', pdLord: 'venus' })], { now: '2026-11-01T00:00:00.000Z' })[0];
+  const window = vehicleV2Window([a, b]);
+  const candidates = vehicleCalibrationCandidates(window, 'MODERATE_CANDIDATE');
+  const calibration = vehicleEligibleCalibration(candidates, [2, 3]);
+  calibration.personalisedTiming = rankPersonalisedTiming({ candidates, calibration });
+  const result = applyPersonalisedVehicleWindow(window, calibration);
+  assert.equal(result.start, b.start);
+  assert.equal(result.end, b.end);
+  assert.equal(result.personalizedTiming.applied, true);
+  assert.equal(JSON.stringify(result).includes('_rankingCandidates'), false);
+});
+test('Vehicle V2 cannot override temporal, D16, Dasha, transit, or candidate-strength tiers', () => {
+  const strong = coalesceVehicleCandidates([supportedSegment({ start: '2026-11-01T00:00:00.000Z', end: '2026-12-01T00:00:00.000Z', strength: 'STRONG_CANDIDATE', major: 'MAJOR_CONFIRMATION' })], { now: '2026-11-15T00:00:00.000Z' })[0];
+  const weaker = coalesceVehicleCandidates([supportedSegment({ start: '2027-01-01T00:00:00.000Z', end: '2027-02-01T00:00:00.000Z', strength: 'MODERATE_CANDIDATE' })], { now: '2026-11-15T00:00:00.000Z' })[0];
+  const window = vehicleV2Window([strong, weaker], '2026-11-15T00:00:00.000Z');
+  const candidates = vehicleCalibrationCandidates(window, 'STRONG_CANDIDATE');
+  const calibration = vehicleEligibleCalibration(candidates, [2, 9]);
+  calibration.personalisedTiming = rankPersonalisedTiming({ candidates, calibration });
+  assert.equal(calibration.personalisedTiming.applied, false);
+  assert.equal(applyPersonalisedVehicleWindow(window, calibration), window);
+});
+test('Vehicle V2 keeps same-strength candidates separated by earlier D16, Dasha, transit, caution, or duration criteria', () => {
+  const now = '2026-11-01T00:00:00.000Z';
+  const base = coalesceVehicleCandidates([supportedSegment({ start: '2027-01-01T00:00:00.000Z', end: '2027-02-01T00:00:00.000Z' })], { now })[0];
+  const variants = [
+    supportedSegment({ start: '2027-03-01T00:00:00.000Z', end: '2027-04-01T00:00:00.000Z', d16Confirmation: 'NEUTRAL' }),
+    supportedSegment({ start: '2027-03-01T00:00:00.000Z', end: '2027-04-01T00:00:00.000Z', mdAdClassification: 'MODERATE_MD_AD_SUPPORT' }),
+    supportedSegment({ start: '2027-03-01T00:00:00.000Z', end: '2027-04-01T00:00:00.000Z', major: 'MAJOR_CONFIRMATION' }),
+    supportedSegment({ start: '2027-03-01T00:00:00.000Z', end: '2027-04-01T00:00:00.000Z', contextCount: 2 }),
+    supportedSegment({ start: '2027-03-01T00:00:00.000Z', end: '2027-04-02T00:00:00.000Z' }),
+  ];
+  for (const variant of variants) {
+    const other = coalesceVehicleCandidates([variant], { now })[0];
+    const window = vehicleV2Window([base, other], now);
+    const candidates = vehicleCalibrationCandidates(window, 'MODERATE_CANDIDATE');
+    const calibration = vehicleEligibleCalibration(candidates, [2, 9]);
+    calibration.personalisedTiming = rankPersonalisedTiming({ candidates, calibration });
+    assert.equal(calibration.personalisedTiming.applied, false);
+    assert.equal(applyPersonalisedVehicleWindow(window, calibration), window);
+  }
 });

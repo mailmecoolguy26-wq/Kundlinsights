@@ -2,7 +2,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { calculateRashiHouses } = require('../../src/bhava');
-const { RelationshipAnswerService, d1Evidence, parentEvidence, refinement, transitEvidence, state, marriageOutlook, coalesce, rank } = require('../../src/application/relationships');
+const { RelationshipAnswerService, d1Evidence, parentEvidence, refinement, transitEvidence, state, marriageOutlook, coalesce, rank, relationshipCalibrationCandidates, relationshipWindowSelection, applyPersonalisedRelationshipWindow } = require('../../src/application/relationships');
+const { rankPersonalisedTiming } = require('../../src/application/life-event-calibration');
 
 function houses({ seventhLord = 'Venus', venus = 7, jupiter = 7, saturn = 8 } = {}) {
   return { houses: Array.from({ length: 12 }, (_, index) => ({ houseNumber: index + 1, rashiHouseLord: index + 1 === 7 ? seventhLord : index + 1 === 2 ? 'Moon' : index + 1 === 5 ? 'Mercury' : index + 1 === 11 ? 'Jupiter' : index + 1 === 8 ? 'Saturn' : 'Sun' })), planetaryAssignments: [{ body: 'Venus', rashiHouseNumber: venus }, { body: 'Jupiter', rashiHouseNumber: jupiter }, { body: 'Saturn', rashiHouseNumber: saturn }, { body: 'Moon', rashiHouseNumber: 2 }] };
@@ -88,4 +89,85 @@ test('coalescing does not cross an AD boundary and ranking stays lexicographic',
   assert.equal(coalesce([first, second]).length, 1);
   assert.equal(coalesce([first, { ...second, parent: { adStart: second.start } }]).length, 2);
   assert.ok(rank(first, { ...first, state: 'Improving' }) < 0);
+});
+
+function relationshipCandidate({ start, end, state = 'Supportive', d9 = 'Reinforcing', parentStrength = 4, parentState = 'RELATIONSHIP_RELEVANT', pd = 'jupiter', refinementState = 'Strengthening', majorRegime = 'JUPITER', caution = 0, sav = 'AVAILABLE_CONTEXT' } = {}) {
+  return Object.freeze({
+    start, end, state, direction: state === 'Consolidation' ? 'CONSOLIDATION' : state === 'Supportive' ? 'PROGRESSION' : 'IMPROVING', cautionBreak: false,
+    d1: Object.freeze({ state: 'CONSTRUCTIVE', constructiveSignals: Object.freeze(['venus', 'jupiter']), cautionSignals: Object.freeze([]) }),
+    parent: Object.freeze({ md: 'moon', ad: 'venus', adStart: '2026-01-01T00:00:00.000Z' }),
+    parentEvidence: Object.freeze({ state: parentState, strength: parentStrength, cautionCount: 0 }),
+    pd: Object.freeze({ lord: pd }), refinement: Object.freeze({ state: refinementState }), d9: Object.freeze({ confirmation: d9 }),
+    transit: Object.freeze({ major: majorRegime !== 'NONE', majorRegime, caution }), sav: Object.freeze({ confirmation: sav }),
+  });
+}
+function eligibleRelationshipCalibration(candidates, matches) {
+  const annotations = candidates.map((candidate, index) => ({ candidateId: candidate.candidateId, tieBreakEligible: true, patternStrength: matches[index] >= 3 ? 'STRONG' : 'MODERATE', contradictionFlags: [] }));
+  const customerDisplayReadiness = candidates.map((candidate, index) => ({ candidateId: candidate.candidateId, customerDisplayEligible: true, matchedEventCount: matches[index], highMediumMatchedEventCount: matches[index], matchedEvidenceFamilies: ['DIVISIONAL_CHART', 'DASHA', 'TRANSIT'] }));
+  return { annotations, customerDisplayReadiness };
+}
+test('Relationship V2 selects a materially stronger eligible marriage-history match only inside an equivalent cohort and tier', () => {
+  const now = '2026-11-01T00:00:00.000Z';
+  const first = relationshipCandidate({ start: '2027-01-01T00:00:00.000Z', end: '2027-02-01T00:00:00.000Z', pd: 'jupiter' });
+  const second = relationshipCandidate({ start: '2027-03-01T00:00:00.000Z', end: '2027-04-01T00:00:00.000Z', pd: 'venus' });
+  const window = relationshipWindowSelection([first, second], now);
+  const candidates = relationshipCalibrationCandidates(window, { now, intent: 'MARRIAGE_OUTLOOK' });
+  const calibration = eligibleRelationshipCalibration(candidates, [2, 3]);
+  calibration.personalisedTiming = rankPersonalisedTiming({ candidates, calibration });
+  const result = applyPersonalisedRelationshipWindow(window, calibration);
+  assert.equal(result.start, second.start);
+  assert.equal(result.end, second.end);
+  assert.equal(result.personalizedTiming.applied, true);
+  assert.equal(JSON.stringify(result).includes('_rankingCandidates'), false);
+});
+test('Relationship V2 treats generic relationship candidates as cohort-ambiguous and non-applicable', () => {
+  const now = '2026-11-01T00:00:00.000Z';
+  const windows = [
+    relationshipCandidate({ start: '2027-01-01T00:00:00.000Z', end: '2027-02-01T00:00:00.000Z' }),
+    relationshipCandidate({ start: '2027-03-01T00:00:00.000Z', end: '2027-04-01T00:00:00.000Z' }),
+  ];
+  const window = relationshipWindowSelection(windows, now);
+  const candidates = relationshipCalibrationCandidates(window, { now, intent: 'RELATIONSHIP_OUTLOOK' });
+  assert.deepEqual(candidates.map((candidate) => candidate.personalizationGroup), [null, null]);
+  const calibration = eligibleRelationshipCalibration(candidates, [2, 9]);
+  calibration.personalisedTiming = rankPersonalisedTiming({ candidates, calibration });
+  assert.equal(calibration.personalisedTiming.applied, false);
+  assert.equal(applyPersonalisedRelationshipWindow(window, calibration), window);
+});
+test('Relationship V2 cannot override state, D9, Dasha, PD, transit, SAV, caution, or duration boundaries', () => {
+  const now = '2026-11-01T00:00:00.000Z';
+  const base = relationshipCandidate({ start: '2027-01-01T00:00:00.000Z', end: '2027-02-01T00:00:00.000Z' });
+  const variants = [
+    relationshipCandidate({ start: '2027-03-01T00:00:00.000Z', end: '2027-04-01T00:00:00.000Z', state: 'Improving' }),
+    relationshipCandidate({ start: '2027-03-01T00:00:00.000Z', end: '2027-04-01T00:00:00.000Z', d9: 'Neutral' }),
+    relationshipCandidate({ start: '2027-03-01T00:00:00.000Z', end: '2027-04-01T00:00:00.000Z', parentStrength: 3 }),
+    relationshipCandidate({ start: '2027-03-01T00:00:00.000Z', end: '2027-04-01T00:00:00.000Z', refinementState: 'Neutral' }),
+    relationshipCandidate({ start: '2027-03-01T00:00:00.000Z', end: '2027-04-01T00:00:00.000Z', majorRegime: 'SATURN' }),
+    relationshipCandidate({ start: '2027-03-01T00:00:00.000Z', end: '2027-04-01T00:00:00.000Z', sav: 'NEUTRAL' }),
+    relationshipCandidate({ start: '2027-03-01T00:00:00.000Z', end: '2027-04-01T00:00:00.000Z', caution: 1 }),
+    relationshipCandidate({ start: '2027-03-01T00:00:00.000Z', end: '2027-04-02T00:00:00.000Z' }),
+  ];
+  for (const variant of variants) {
+    const window = relationshipWindowSelection([base, variant], now);
+    const candidates = relationshipCalibrationCandidates(window, { now, intent: 'MARRIAGE_OUTLOOK' });
+    const calibration = eligibleRelationshipCalibration(candidates, [2, 9]);
+    calibration.personalisedTiming = rankPersonalisedTiming({ candidates, calibration });
+    assert.equal(calibration.personalisedTiming.applied, false);
+    assert.equal(applyPersonalisedRelationshipWindow(window, calibration), window);
+  }
+});
+test('Relationship V2 selection leaves the primary Marriage Outlook object unchanged', () => {
+  const d1 = d1Evidence(houses()), parent = parentEvidence(houses(), relevant);
+  const originalSelected = { start: '2027-01-01T00:00:00.000Z', end: '2027-02-01T00:00:00.000Z' };
+  const outlook = marriageOutlook({ d1, parent, d9: { confirmation: 'Reinforcing' }, transit: { major: true }, selected: originalSelected });
+  const window = relationshipWindowSelection([
+    relationshipCandidate(originalSelected),
+    relationshipCandidate({ start: '2027-03-01T00:00:00.000Z', end: '2027-04-01T00:00:00.000Z' }),
+  ], '2026-11-01T00:00:00.000Z');
+  const candidates = relationshipCalibrationCandidates(window, { now: '2026-11-01T00:00:00.000Z', intent: 'MARRIAGE_OUTLOOK' });
+  const calibration = eligibleRelationshipCalibration(candidates, [2, 3]);
+  calibration.personalisedTiming = rankPersonalisedTiming({ candidates, calibration });
+  applyPersonalisedRelationshipWindow(window, calibration);
+  assert.deepEqual(outlook.window, originalSelected);
+  assert.equal(outlook.message, 'This period is relatively supportive for commitment or marriage-related developments.');
 });

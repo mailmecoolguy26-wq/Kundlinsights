@@ -2,6 +2,7 @@
 
 const { localDateTimeToUtc } = require('../../astronomy/time');
 const { immutableCopy, repositoryError } = require('../../persistence/contracts');
+const { rankPersonalisedTiming } = require('./personalised-timing-comparator');
 
 const CALIBRATION_CONTRACT_VERSION = 'life-event-calibration-v1';
 const DATE_PRECISIONS = Object.freeze(['DAY', 'MONTH', 'YEAR']);
@@ -37,9 +38,9 @@ function precisionCategory(precision) { return precision === 'DAY' ? 'HIGH' : pr
 function threshold(count) { return count === 0 ? 'NONE' : count === 1 ? 'CONTEXT_ONLY' : count === 2 ? 'WEAK_PATTERN' : 'PATTERN_ELIGIBLE'; }
 function primaryCandidate(value, index) {
   if (!value || typeof value !== 'object' || typeof value.candidateId !== 'string' || !value.candidateId) fail('INVALID_PRIMARY_CALIBRATION_CANDIDATE');
-  const allowed = ['candidateId', 'primaryRank', 'primaryState', 'primaryStrength', 'start', 'end', 'primaryEvidenceFingerprint'];
+  const allowed = ['candidateId', 'primaryRank', 'primaryState', 'primaryStrength', 'start', 'end', 'primaryEvidenceFingerprint', 'personalizationGroup'];
   if (Object.keys(value).some((key) => !allowed.includes(key))) fail('INVALID_PRIMARY_CALIBRATION_CANDIDATE');
-  return Object.freeze({ candidateId: value.candidateId, primaryRank: Number.isSafeInteger(value.primaryRank) ? value.primaryRank : index, primaryState: value.primaryState == null ? null : value.primaryState, primaryStrength: value.primaryStrength == null ? null : value.primaryStrength, start: value.start == null ? null : value.start, end: value.end == null ? null : value.end, primaryEvidenceFingerprint: value.primaryEvidenceFingerprint == null ? null : value.primaryEvidenceFingerprint });
+  return Object.freeze({ candidateId: value.candidateId, primaryRank: Number.isSafeInteger(value.primaryRank) ? value.primaryRank : index, primaryState: value.primaryState == null ? null : value.primaryState, primaryStrength: value.primaryStrength == null ? null : value.primaryStrength, start: value.start == null ? null : value.start, end: value.end == null ? null : value.end, primaryEvidenceFingerprint: value.primaryEvidenceFingerprint == null ? null : value.primaryEvidenceFingerprint, personalizationGroup: typeof value.personalizationGroup === 'string' ? value.personalizationGroup : null });
 }
 function annotation(value, knownIds) {
   if (!value || typeof value !== 'object' || typeof value.candidateId !== 'string' || !knownIds.has(value.candidateId)) fail('INVALID_CALIBRATION_ANNOTATION');
@@ -133,7 +134,8 @@ class LifeEventCalibrationCoordinator {
       const customerDisplayReadiness = annotations.length ? annotations.map((item) => readiness(item, fingerprintsById, comparableEventCount, safety)) : [readiness(null, fingerprintsById, comparableEventCount, safety)];
       const customerDisplayEligible = customerDisplayReadiness.some((item) => item.customerDisplayEligible);
       const audit = { ...base.audit, relevantEventIds: prepared.map((item) => item.event.careerEventId || item.event.lifeEventId || item.event.id), eventTypes: [...new Set(prepared.map((item) => item.event.eventType))].sort(), cohorts: [...cohorts.entries()].map(([cohort, items]) => ({ cohort, eventCount: items.length })).sort((left, right) => left.cohort.localeCompare(right.cohort)), precisionCategories: [...new Set(prepared.map((item) => item.precisionCategory))].sort(), matchedEvidenceFamilies: [...new Set(annotations.flatMap((item) => item.matchedEvidenceFamilies))].sort(), unmatchedEvidenceFamilies: [...new Set(annotations.flatMap((item) => item.unmatchedEvidenceFamilies))].sort(), qualityFlags: [...new Set([...fingerprints.flatMap((item) => item.qualityFlags || []), ...annotations.flatMap((item) => item.qualityFlags)])].sort(), contradictionFlags: contradictions, exclusionCounts, timing: { totalMilliseconds: elapsedMilliseconds(startedAt), loadMilliseconds, extractionMilliseconds, annotationMilliseconds } };
-      return immutableCopy({ ...base, status: prepared.length === 0 ? 'NO_EVENTS' : thresholdLevel === 'CONTEXT_ONLY' ? 'CONTEXT_ONLY' : 'PATTERN_EVALUATED', comparableEventCount, matchedEventCount, thresholdLevel, patternStrength: contradictions.length ? (patternStrength === 'NONE' ? 'NONE' : 'LIMITED') : patternStrength, historicalConsistency: contradictions.length ? 'LIMITED' : matchedEventCount >= 2 ? 'BOUNDED' : 'NONE', customerDisplayEligible, customerDisplayReadiness, annotations, fingerprints, audit });
+      const personalisedTiming = rankPersonalisedTiming({ candidates, calibration: { annotations, customerDisplayReadiness }, enabled: adapter.personalisedTimingEnabled !== false });
+      return immutableCopy({ ...base, status: prepared.length === 0 ? 'NO_EVENTS' : thresholdLevel === 'CONTEXT_ONLY' ? 'CONTEXT_ONLY' : 'PATTERN_EVALUATED', comparableEventCount, matchedEventCount, thresholdLevel, patternStrength: contradictions.length ? (patternStrength === 'NONE' ? 'NONE' : 'LIMITED') : patternStrength, historicalConsistency: contradictions.length ? 'LIMITED' : matchedEventCount >= 2 ? 'BOUNDED' : 'NONE', customerDisplayEligible, customerDisplayReadiness, annotations, fingerprints, personalisedTiming, audit: { ...audit, personalisedTimingAudit: personalisedTiming.audit } });
     } catch (error) {
       return immutableCopy({ ...base, status: 'CALIBRATION_UNAVAILABLE', audit: { ...base.audit, qualityFlags: ['CALIBRATION_UNAVAILABLE'], safeFailureCode: safeCode(error), timing: { ...base.audit.timing, totalMilliseconds: elapsedMilliseconds(startedAt) } } });
     }

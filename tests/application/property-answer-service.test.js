@@ -2,7 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { PropertyAnswerService, PropertyIntent, natalEvidence, dashaEvidence, primaryDashaBounds, ashtakavargaEvidence, calibration, propertyTransitStateBoundaries, classifyPropertyWindow, candidateState, selectVisiblePeak, classify, selectPropertyWindow, strongerWindow, PROPERTY_WINDOW_COARSE_SCAN_STEP_MS } = require('../../src/application/property');
+const { PropertyAnswerService, PropertyIntent, natalEvidence, dashaEvidence, primaryDashaBounds, ashtakavargaEvidence, calibration, propertyCalibrationCandidates, applyPersonalisedPropertyWindow, propertyTransitStateBoundaries, classifyPropertyWindow, candidateState, selectVisiblePeak, classify, selectPropertyWindow, strongerWindow, PROPERTY_WINDOW_COARSE_SCAN_STEP_MS } = require('../../src/application/property');
+const { rankPersonalisedTiming } = require('../../src/application/life-event-calibration');
 const { TaraPropertyCapability, TaraOrchestrator, intentFor, answer } = require('../../src/application/tara');
 
 function houses({ fourthLord = 'Moon', secondLord = 'Mars', occupants = ['Moon'] } = {}) {
@@ -249,4 +250,44 @@ test('Property Ask Tara routing is profile-scoped and opens the existing Propert
   assert.equal(first.capability, 'DOMAIN_HUB_ROUTING'); assert.equal(second.capability, 'DOMAIN_HUB_ROUTING');
   assert.deepEqual(first.action, { type: 'OPEN_DOMAIN_HUB', label: 'View Property outlook', domain: 'PROPERTY' });
   assert.deepEqual(calls, []);
+});
+
+function propertyV2Candidate({ start, end, pd, state = 'MIXED_CANDIDATE', dasha = 'MODERATE', temporalStatus = 'UPCOMING', d4 = 'NEUTRAL' }) {
+  return Object.freeze({
+    start, end, temporalStatus, candidateState: state, d4Confirmation: d4,
+    dasha: Object.freeze({ classification: dasha, periods: Object.freeze({ pd }) }),
+    pdRelevance: Object.freeze({ state: 'PROPERTY_ACTIVE' }),
+    transitConfirmation: Object.freeze({ state: 'MIXED', hasCaution: false, peakActivation: null }),
+  });
+}
+function eligibleCalibration(candidates, matchCounts) {
+  const annotations = candidates.map((candidate, index) => ({ candidateId: candidate.candidateId, tieBreakEligible: true, patternStrength: matchCounts[index] >= 3 ? 'STRONG' : 'MODERATE', contradictionFlags: [] }));
+  const readiness = candidates.map((candidate, index) => ({ candidateId: candidate.candidateId, customerDisplayEligible: true, matchedEventCount: matchCounts[index], highMediumMatchedEventCount: matchCounts[index], matchedEvidenceFamilies: ['DASHA', 'TRANSIT'] }));
+  return { annotations, customerDisplayReadiness: readiness };
+}
+test('Property V2 selects the stronger eligible purchase-history match only within a primary-equivalent group', () => {
+  const a = propertyV2Candidate({ start: '2027-01-01T00:00:00.000Z', end: '2027-02-01T00:00:00.000Z', pd: 'Mercury' });
+  const b = propertyV2Candidate({ start: '2027-03-01T00:00:00.000Z', end: '2027-04-01T00:00:00.000Z', pd: 'Venus' });
+  const window = { ...a, classification: a.candidateState, timingClassification: 'BOUNDED_WINDOW', transitConfirmation: a.transitConfirmation.state, pd: 'Mercury', secondaryWindows: [] };
+  Object.defineProperty(window, '_rankingCandidates', { value: Object.freeze([a, b]), enumerable: false });
+  const candidates = propertyCalibrationCandidates(window, 'MIXED');
+  const calibration = eligibleCalibration(candidates, [2, 3]);
+  calibration.personalisedTiming = rankPersonalisedTiming({ candidates, calibration });
+  const result = applyPersonalisedPropertyWindow(window, calibration);
+  assert.equal(result.start, b.start);
+  assert.equal(result.end, b.end);
+  assert.deepEqual(result.personalizedTiming, { applied: true, summary: 'Among the astrologically supportive Property periods, this window also aligns with timing patterns in your recorded Property history.' });
+  assert.equal(JSON.stringify(result).includes('_rankingCandidates'), false);
+  assert.equal(a.start, '2027-01-01T00:00:00.000Z');
+});
+test('Property V2 cannot cross temporal or deterministic primary tiers', () => {
+  const current = propertyV2Candidate({ start: '2026-10-01T00:00:00.000Z', end: '2026-11-01T00:00:00.000Z', pd: 'Mercury', temporalStatus: 'CURRENT', state: 'STRONG_CANDIDATE', dasha: 'STRONG', d4: 'CONFIRMS' });
+  const future = propertyV2Candidate({ start: '2027-01-01T00:00:00.000Z', end: '2027-02-01T00:00:00.000Z', pd: 'Venus', state: 'MIXED_CANDIDATE' });
+  const window = { ...current, classification: current.candidateState, timingClassification: 'BOUNDED_WINDOW', transitConfirmation: current.transitConfirmation.state, pd: 'Mercury', secondaryWindows: [] };
+  Object.defineProperty(window, '_rankingCandidates', { value: Object.freeze([current, future]), enumerable: false });
+  const candidates = propertyCalibrationCandidates(window, 'STRONG');
+  const calibration = eligibleCalibration(candidates, [2, 9]);
+  calibration.personalisedTiming = rankPersonalisedTiming({ candidates, calibration });
+  assert.equal(calibration.personalisedTiming.applied, false);
+  assert.equal(applyPersonalisedPropertyWindow(window, calibration), window);
 });

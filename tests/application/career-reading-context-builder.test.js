@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { CareerReadingContextBuilder } = require('../../src/application/career-events');
+const { CareerReadingContextBuilder, applyPersonalisedOrder } = require('../../src/application/career-events/career-reading-context-builder');
 
 const event = (id, precision = 'DAY', title = 'Title', notes = 'private') => ({ careerEventId: id, birthProfileId: 'profile-a', eventType: 'PROMOTION', eventDate: precision === 'DAY' ? { precision, year: 2020, month: 4, day: 2 } : precision === 'MONTH' ? { precision, year: 2021, month: 4 } : { precision, year: 2022 }, title, notes });
 const pattern = (key, category = 'DASHA', matched = 2, rate = 1) => ({ patternKey: key, category, dimensions: ['Jupiter'], matchedEventCount: matched, eligibleEventCount: 2, recurrenceRate: rate, eventEvidence: [{ careerEventId: 'event-a', sourceFacts: { raw: true } }] });
@@ -100,4 +100,17 @@ test('adds an internal annotation-only calibration envelope without changing Car
   assert.equal(received.primaryCandidates[0].candidateId, out.futureOccurrences[0].evidenceId);
   assert.equal(received.primaryCandidates[0].primaryState, 'EXISTING_CAREER_RECURRENCE');
   assert.equal(received.primaryDomainRulesVersion, 'career-future-recurrence-v1');
+});
+test('applies eligible Career personalisation only to the final ordering of primary-equivalent future candidates', () => {
+  const first = { evidenceId: 'first', occurrenceType: 'WINDOW' };
+  const second = { evidenceId: 'second', occurrenceType: 'WINDOW' };
+  const selected = { futureOccurrences: [first, second], composites: [] };
+  const reordered = applyPersonalisedOrder(selected, { personalisedTiming: { applied: true, orderedCandidateIds: ['second', 'first'] } });
+  assert.deepEqual(reordered.futureOccurrences.map((item) => item.evidenceId), ['second', 'first']);
+  assert.deepEqual(selected.futureOccurrences.map((item) => item.evidenceId), ['first', 'second']);
+});
+test('does not change Career ordering for unavailable or non-applied calibration', () => {
+  const selected = { futureOccurrences: [{ evidenceId: 'first' }, { evidenceId: 'second' }], composites: [] };
+  assert.equal(applyPersonalisedOrder(selected, null), selected);
+  assert.equal(applyPersonalisedOrder(selected, { personalisedTiming: { applied: false, orderedCandidateIds: ['second', 'first'] } }), selected);
 });

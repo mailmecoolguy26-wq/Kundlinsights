@@ -92,7 +92,13 @@ class CareerCalibrationAdapter {
       const source = future.get(candidate.candidateId);
       if (!source) continue;
       const historical = source.patternKey ? existing.get(source.patternKey) : null;
-      const ids = (historical && historical.sourceEventIds || source.sourceEventIds || []).filter((id) => references.has(id));
+      const cohort = candidate.primaryEvidenceFingerprint && candidate.primaryEvidenceFingerprint.cohort;
+      // A Career event type is a real cohort boundary: job-switch history
+      // cannot rank promotion or business-start recurrence merely because both
+      // share an astrology mechanism.
+      const ids = (historical && historical.sourceEventIds || source.sourceEventIds || [])
+        .filter((id) => references.has(id))
+        .filter((id) => cohort == null || references.get(id).eventType === cohort);
       const relatedFingerprints = fingerprints.filter((item) => ids.includes(item.eventId));
       const expectedFamilies = [...new Set((source.mechanismFamilies || []).map(familyForMechanism).filter(Boolean))].sort();
       const availableFamilies = new Set(relatedFingerprints.flatMap((item) => item.evidenceFamilies || []));

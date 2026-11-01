@@ -50,14 +50,37 @@ function selectFuture(contexts, historicalEvidence, references) {
   return { composites: selectedComposites, futureOccurrences: matches.slice(0, Math.max(0, MAX_FUTURE_ITEMS - selectedComposites.length)) };
 }
 function provisional(value) { return JSON.stringify(value).includes('PROVISIONAL'); }
-function calibrationCandidates(futureOccurrences, composites) {
+function careerCandidateCohort(item, references) {
+  const types = [...new Set((item.sourceEventIds || []).map((id) => references.get(id) && references.get(id).eventType).filter(Boolean))];
+  // A mixed source is not a conservative event cohort and is deliberately
+  // ineligible for personalised ordering.
+  return types.length === 1 ? types[0] : null;
+}
+function calibrationCandidates(futureOccurrences, composites, references = []) {
+  const byId = new Map(references.map((item) => [item.eventId, item]));
   const out = [];
   for (const item of [...(futureOccurrences || []), ...(composites || [])]) {
     const candidateId = item.evidenceId;
     if (typeof candidateId !== 'string') continue;
-    out.push({ candidateId, primaryRank: out.length, primaryState: 'EXISTING_CAREER_RECURRENCE', primaryStrength: null, start: item.from || item.instant || null, end: item.to || item.instant || null, primaryEvidenceFingerprint: item.evidenceId });
+    const cohort = careerCandidateCohort(item, byId);
+    const group = cohort && [item.occurrenceType || (item.composite ? 'COMPOSITE' : 'WINDOW'), item.matchType || 'COMPOSITE', ...(item.mechanismFamilies || []).slice().sort()].join(':');
+    out.push({ candidateId, primaryRank: out.length, primaryState: 'EXISTING_CAREER_RECURRENCE', primaryStrength: null, start: item.from || item.instant || null, end: item.to || item.instant || null, primaryEvidenceFingerprint: { evidenceId: item.evidenceId, cohort }, personalizationGroup: group ? `career:${group}` : null });
   }
   return out;
+}
+function applyPersonalisedOrder(selectedFuture, calibration) {
+  const ranking = calibration && calibration.personalisedTiming;
+  if (!ranking || ranking.applied !== true || !Array.isArray(ranking.orderedCandidateIds)) return selectedFuture;
+  const items = [...selectedFuture.futureOccurrences, ...selectedFuture.composites];
+  const byId = new Map(items.map((item) => [item.evidenceId, item]));
+  const ordered = ranking.orderedCandidateIds.map((id) => byId.get(id)).filter(Boolean);
+  if (ordered.length !== items.length) return selectedFuture;
+  return {
+    // Keep the established separate output buckets; their internal ordering is
+    // the only customer-facing change and no candidate data is modified.
+    futureOccurrences: ordered.filter((item) => !item.composite),
+    composites: ordered.filter((item) => item.composite),
+  };
 }
 
 class CareerReadingContextBuilder {
@@ -82,9 +105,16 @@ class CareerReadingContextBuilder {
     const historicalEvidence = selectHistorical(p3.comparisonContexts || [], eventReferences);
     const selectedFuture = selectFuture(p4.comparisonContexts || [], historicalEvidence, eventReferences);
     const out = { ...base, historicalEvidence, futureOccurrences: selectedFuture.futureOccurrences, composites: selectedFuture.composites, calibrationEvidence: { eventCount: events.length, eligibleEventCount: events.length, matchedEventCount: Math.max(0, ...historicalEvidence.map((item) => item.matchedEventCount)), recurringPatternIds: historicalEvidence.map((item) => item.patternKey), sourceSnapshotIds: historicalEvidence.map((item) => item.provenance.contextKey), datePrecisionContext: [...new Set(eventReferences.map((item) => item.eventDate.precision))].sort(), provenance: { rulesetId: 'career-calibration-evidence-v1' } }, calculationBasis: { hasProvisionalEvidence: provisional({ p3: p3.comparisonContexts, p4: p4.comparisonContexts, provenance: p4.provenance }) }, rulesets: { p3: p3.provenance && p3.provenance.rulesetId || null, p4: p4.provenance && p4.provenance.rulesetId || null } };
-    if (this.calibration) out.lifeEventCalibration = await this.calibration.calibrate({ principal, birthProfileId, adapter: this.adapter, primaryCandidates: calibrationCandidates(selectedFuture.futureOccurrences, selectedFuture.composites), primaryDomainRulesVersion: out.rulesets.p4 || out.rulesets.p3, adapterContext: { patternComparison: p3, futureRecurrence: p4, historicalEvidence, futureOccurrences: selectedFuture.futureOccurrences, composites: selectedFuture.composites } });
+    if (this.calibration) {
+      const candidates = calibrationCandidates(selectedFuture.futureOccurrences, selectedFuture.composites, eventReferences);
+      out.lifeEventCalibration = await this.calibration.calibrate({ principal, birthProfileId, adapter: this.adapter, primaryCandidates: candidates, primaryDomainRulesVersion: out.rulesets.p4 || out.rulesets.p3, adapterContext: { patternComparison: p3, futureRecurrence: p4, historicalEvidence, futureOccurrences: selectedFuture.futureOccurrences, composites: selectedFuture.composites } });
+      const personalised = applyPersonalisedOrder(selectedFuture, out.lifeEventCalibration);
+      out.futureOccurrences = personalised.futureOccurrences;
+      out.composites = personalised.composites;
+      if (out.lifeEventCalibration.personalisedTiming && out.lifeEventCalibration.personalisedTiming.applied) out.personalizedTiming = { applied: true, summary: 'Among the astrologically supportive Career periods, this window also aligns with timing patterns in your recorded Career history.' };
+    }
     return immutableCopy(out);
   }
 }
 
-module.exports = { CareerReadingContextBuilder, CONTEXT_VERSION, SELECTION_POLICY_VERSION, MAX_EVENT_REFERENCES, MAX_HISTORICAL_EVIDENCE, MAX_FUTURE_ITEMS, mechanismFamily, calibrationCandidates };
+module.exports = { CareerReadingContextBuilder, CONTEXT_VERSION, SELECTION_POLICY_VERSION, MAX_EVENT_REFERENCES, MAX_HISTORICAL_EVIDENCE, MAX_FUTURE_ITEMS, mechanismFamily, calibrationCandidates, applyPersonalisedOrder, careerCandidateCohort };

@@ -191,9 +191,14 @@ async function reconstructPropertyRetrospectiveEvidence({ principal, birthProfil
   return freeze({ foundation: freeze({ classification: natalFacts.classification, coreConnectionCount: natalFacts.coreConnectionCount, acquisitionConnectionCount: natalFacts.acquisitionConnectionCount }), d4: freeze({ confirmation: d4.confirmation }), dasha: freeze(samples.map((item) => item.dasha)), transit: freeze(samples.map((item) => item.transit)), ashtakavarga, intervalSummary: freeze({ policy: datePrecision === 'DAY' ? 'EXACT_DAY' : datePrecision === 'MONTH' ? 'INTERVAL_START_MIDPOINT_END_MINUS_ONE' : 'BROAD_INTERVAL_START_MIDPOINT_END_MINUS_ONE', sampleInstants: freeze(samples.map((item) => item.instant)) }), provenance: freeze({ propertyRulesVersion: PROPERTY_RULESET_VERSION, dashaRulesetId: SOLAR_RETURN_VIMSHOTTARI_RULESET.id, d4RulesetId: 'parashari-chaturthamsha-v1', ashtakavargaPolicy: 'RAW_CONTEXT_ONLY' }) });
 }
 function propertyCalibrationCandidates(window, classification) {
-  const windows = [window, ...(window && window.secondaryWindows || [])].filter(Boolean);
-  return freeze(windows.map((item, index) => freeze({ candidateId: `property-candidate-v1:${item.start}:${item.end}:${item.pd || 'none'}`, primaryRank: index, primaryState: classification, primaryStrength: item.classification, start: item.start, end: item.end, primaryEvidenceFingerprint: freeze({ candidateState: item.classification, pd: item.pd || null, transitConfirmation: item.transitConfirmation || null }) })));
+  const windows = window && window._rankingCandidates || [window, ...((window && window.secondaryWindows) || [])].filter(Boolean);
+  return freeze(windows.map((item, index) => {
+    if (!item.dasha) return freeze({ candidateId: `property-candidate-v1:${item.start}:${item.end}:${item.pd || 'none'}`, primaryRank: index, primaryState: classification, primaryStrength: item.classification, start: item.start, end: item.end, primaryEvidenceFingerprint: freeze({ candidateState: item.classification, pd: item.pd || null, transitConfirmation: item.transitConfirmation || null }), personalizationGroup: null });
+    return freeze({ candidateId: propertyCandidateId(item), primaryRank: index, primaryState: classification, primaryStrength: item.candidateState, start: item.start, end: item.end, primaryEvidenceFingerprint: freeze({ candidateState: item.candidateState, pd: item.dasha.periods.pd || null, transitConfirmation: item.transitConfirmation.state || null }), personalizationGroup: propertyRankingGroup(item, classification) });
+  }));
 }
+function propertyCandidateId(item) { return `property-candidate-v1:${item.start}:${item.end}:${item.dasha && item.dasha.periods && item.dasha.periods.pd || 'none'}`; }
+function propertyRankingGroup(item, classification) { return `property:${item.temporalStatus}:${classification}:${item.candidateState}:${item.dasha.classification}:${item.pdRelevance.state}:${item.transitConfirmation.state}:${item.d4Confirmation}:${Number(item.transitConfirmation.hasCaution)}:${Date.parse(item.end) - Date.parse(item.start)}`; }
 function limitation(intent) { return intent === PropertyIntent.PROPERTY_SALE_TIMING ? 'PROPERTY_SALE_TIMING_NOT_PREDICTIVE_IN_V1' : null; }
 function propertyTransitStateBoundaries(scan, scanStart, end) {
   return freeze([...new Set([scanStart, end, ...(scan.events || [])
@@ -358,6 +363,20 @@ function pdIntervals(dashaTree, start, end) {
 function publicCandidate(candidate) {
   return freeze({ start: candidate.start, end: candidate.end, classification: candidate.candidateState, timingClassification: 'BOUNDED_WINDOW', temporalStatus: candidate.temporalStatus, basis: 'MD_AD_PD_TRANSIT_CONFIRMATION', peakActivation: candidate.transitConfirmation.peakActivation, transitConfirmation: candidate.transitConfirmation.state, pd: candidate.dasha.periods.pd });
 }
+function publicPropertyWindow(ranked, personalizedTiming = false) {
+  const out = { ...publicCandidate(ranked[0]), secondaryWindows: freeze(ranked.slice(1, 3).map(publicCandidate)) };
+  if (personalizedTiming) out.personalizedTiming = freeze({ applied: true, summary: 'Among the astrologically supportive Property periods, this window also aligns with timing patterns in your recorded Property history.' });
+  return out;
+}
+function applyPersonalisedPropertyWindow(window, calibration) {
+  if (!window || !calibration || !calibration.personalisedTiming || calibration.personalisedTiming.applied !== true) return window;
+  const byId = new Map((window._rankingCandidates || []).map((item) => [propertyCandidateId(item), item]));
+  const ranked = calibration.personalisedTiming.orderedCandidateIds.map((id) => byId.get(id)).filter(Boolean);
+  if (!ranked.length || ranked.length !== byId.size) return window;
+  const output = publicPropertyWindow(ranked, true);
+  Object.defineProperty(output, '_rankingCandidates', { value: freeze(ranked), enumerable: false });
+  return freeze(output);
+}
 function strongerWindow({ engine, scanner, birth, natalBodies, houses, dashaTree, natal, d1, d4, start, diagnosticLog = null }) {
   const end = new Date(Date.parse(start) + 365 * DAY).toISOString();
   const candidates = [];
@@ -407,7 +426,9 @@ function strongerWindow({ engine, scanner, birth, natalBodies, houses, dashaTree
       peakSource: ranked.selected.transitConfirmation.peakActivation && ranked.selected.transitConfirmation.peakActivation.source || freeze([]),
     }));
   }
-  return freeze({ ...publicCandidate(ranked.selected), secondaryWindows: freeze(ranked.secondary.map(publicCandidate)) });
+  const output = publicPropertyWindow(ranked.ranked);
+  Object.defineProperty(output, '_rankingCandidates', { value: ranked.ranked, enumerable: false });
+  return freeze(output);
 }
 
 class PropertyAnswerService {
@@ -464,8 +485,10 @@ class PropertyAnswerService {
       const internalCalibration = this.calibrationCoordinator && await this.calibrationCoordinator.calibrate({ principal, birthProfileId, adapter: this.calibrationAdapter, primaryCandidates: propertyCalibrationCandidates(window, final), primaryDomainRulesVersion: result.provenance.propertyRulesVersion, adapterContext: { intent, primaryPropertyEvidence: { natal: natalFacts, d4, dasha, transit, ashtakavarga }, strongerWindow: window } });
       if (internalCalibration) log('PROPERTY_LIFE_EVENT_CALIBRATION', { state: internalCalibration.status, patternStrength: internalCalibration.patternStrength, eventCount: internalCalibration.comparableEventCount });
       log('PROPERTY_RESULT', { state: result.state, classification: result.classification, evidenceCount: transit.activeMajor.length, durationMs: Date.now() - startedAt });
+      const personalisedWindow = applyPersonalisedPropertyWindow(window, internalCalibration);
+      const personalisedResult = personalisedWindow === window ? result : freeze({ ...result, strongerWindow: personalisedWindow });
       const historicalContext = publicHistoricalContext({ domain: 'PROPERTY', calibration: internalCalibration });
-      const publicResult = historicalContext ? freeze({ ...result, historicalContext }) : result;
+      const publicResult = historicalContext ? freeze({ ...personalisedResult, historicalContext }) : personalisedResult;
       return includeInternalCalibration && internalCalibration ? freeze({ ...publicResult, internalCalibration }) : publicResult;
     } catch (error) {
       log('PROPERTY_RESULT', { stage, state: 'FAILED', safeErrorCode: error && error.code || 'PROPERTY_CALCULATION_FAILED', errorClass: error && error.name || 'Error' });
@@ -474,4 +497,4 @@ class PropertyAnswerService {
   }
 }
 
-module.exports = { PropertyAnswerService, PropertyIntent, PROPERTY_RULESET_VERSION, natalEvidence, d4Evidence, dashaEvidence, primaryDashaBounds, transitEvidence, ashtakavargaEvidence, calibration, retrospectiveSampleInstants, reconstructPropertyRetrospectiveEvidence, propertyCalibrationCandidates, propertyTransitStateBoundaries, classifyPropertyWindow, pdRelevance, candidateState, selectVisiblePeak, transitConfirmationForPd, classify, selectPropertyWindow, strongerWindow, PROPERTY_WINDOW_COARSE_SCAN_STEP_MS };
+module.exports = { PropertyAnswerService, PropertyIntent, PROPERTY_RULESET_VERSION, natalEvidence, d4Evidence, dashaEvidence, primaryDashaBounds, transitEvidence, ashtakavargaEvidence, calibration, retrospectiveSampleInstants, reconstructPropertyRetrospectiveEvidence, propertyCalibrationCandidates, propertyCandidateId, propertyRankingGroup, applyPersonalisedPropertyWindow, propertyTransitStateBoundaries, classifyPropertyWindow, pdRelevance, candidateState, selectVisiblePeak, transitConfirmationForPd, classify, selectPropertyWindow, strongerWindow, PROPERTY_WINDOW_COARSE_SCAN_STEP_MS };

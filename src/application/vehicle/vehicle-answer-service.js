@@ -210,11 +210,17 @@ async function reconstructVehicleRetrospectiveEvidence({ principal, birthProfile
 }
 
 function vehicleCalibrationCandidates(window, classification) {
-  const windows = [window, ...((window && window.secondaryWindows) || [])].filter(Boolean);
+  const windows = window && window._rankingCandidates || [window, ...((window && window.secondaryWindows) || [])].filter(Boolean);
   return freeze(windows.map((item, index) => {
     const phase = item.internalPhases && item.internalPhases[0];
-    return freeze({ candidateId: `vehicle-candidate-v1:${item.start}:${item.end}:${phase && phase.refinement && phase.refinement.pd || 'none'}`, primaryRank: index, primaryState: classification, primaryStrength: item.candidateStrength || null, start: item.start, end: item.end, primaryEvidenceFingerprint: freeze({ pd: phase && phase.refinement && phase.refinement.pd || null, majorConfirmation: phase && phase.majorGocharConfirmation || null }) });
+    return freeze({ candidateId: vehicleCandidateId(item), primaryRank: index, primaryState: classification, primaryStrength: item.candidateStrength || null, start: item.start, end: item.end, primaryEvidenceFingerprint: freeze({ pd: phase && phase.refinement && phase.refinement.pd || null, majorConfirmation: phase && phase.majorGocharConfirmation || null }), personalizationGroup: item.mdAd ? vehicleRankingGroup(item, classification) : null });
   }));
+}
+function vehicleCandidateId(item) { const phase = item.internalPhases && item.internalPhases[0]; return `vehicle-candidate-v1:${item.start}:${item.end}:${phase && phase.refinement && phase.refinement.pd || 'none'}`; }
+function vehicleRankingGroup(item, classification) {
+  const contextBurden = (item.transit && item.transit.contexts || []).length;
+  const temporal = item.personalizationTemporalTier || item.temporalStatus || 'UNKNOWN';
+  return `vehicle:${temporal}:${classification}:${item.candidateStrength}:${item.natalPromise}:${item.d16Confirmation}:${item.mdAd.classification}:${item.pd.state}:${item.transit.majorConfirmation}:${contextBurden}:${Date.parse(item.end) - Date.parse(item.start)}`;
 }
 
 function classifyCandidate({ promise, d16, mdAd, pd, transit }) {
@@ -301,6 +307,23 @@ function selectVehicleWindow(candidates, { now } = {}) {
   });
   return freeze({ selected: ranked[0], ranked: freeze(ranked), secondary: freeze(ranked.slice(1, 3)) });
 }
+function publicVehicleCandidate(candidate, now) { return freeze({ start: candidate.start, end: candidate.end, candidateStrength: candidate.candidateStrength, windowShape: candidate.windowShape, temporalStatus: temporalPriority(candidate, now) === 0 ? 'CURRENT' : temporalPriority(candidate, now) === 1 ? 'UPCOMING' : 'HISTORICAL', peakActivation: candidate.peakActivation, basis: 'D1_D16_MD_AD_PD_MAJOR_GOCHAR', supportWindow: candidate.supportWindow, internalPhases: candidate.internalPhases }); }
+function publicVehicleWindow(ranked, now, personalizedTiming = false) {
+  const out = { ...publicVehicleCandidate(ranked[0], now), secondaryWindows: freeze(ranked.slice(1, 3).map((item) => publicVehicleCandidate(item, now))) };
+  if (personalizedTiming) out.personalizedTiming = freeze({ applied: true, summary: 'Among the astrologically supportive Vehicle periods, this window more closely aligns with timing patterns in your recorded Vehicle history.' });
+  return out;
+}
+function applyPersonalisedVehicleWindow(window, calibration) {
+  if (!window || !calibration || !calibration.personalisedTiming || calibration.personalisedTiming.applied !== true) return window;
+  const byId = new Map((window._rankingCandidates || []).map((item) => [vehicleCandidateId(item), item]));
+  const ranked = calibration.personalisedTiming.orderedCandidateIds.map((id) => byId.get(id)).filter(Boolean);
+  if (!ranked.length || ranked.length !== byId.size) return window;
+  const now = window._rankingInstant;
+  const output = publicVehicleWindow(ranked, now, true);
+  Object.defineProperty(output, '_rankingCandidates', { value: freeze(ranked), enumerable: false });
+  Object.defineProperty(output, '_rankingInstant', { value: now, enumerable: false });
+  return freeze(output);
+}
 
 function transitBoundaries(scan, start, end) {
   const events = (scan.events || [])
@@ -362,8 +385,11 @@ function strongerWindow({ engine, scanner, birth, natalBodies, d1Houses, d16, da
     diagnosticLog(freeze({ event: 'VEHICLE_WINDOW_SELECTED', ...candidateDiagnostic(selected.selected) }));
     diagnosticLog(freeze({ event: 'VEHICLE_PEAK_SELECTED', ...candidateDiagnostic(selected.selected) }));
   }
-  const publicCandidate = (candidate) => freeze({ start: candidate.start, end: candidate.end, candidateStrength: candidate.candidateStrength, windowShape: candidate.windowShape, temporalStatus: temporalPriority(candidate, start) === 0 ? 'CURRENT' : temporalPriority(candidate, start) === 1 ? 'UPCOMING' : 'HISTORICAL', peakActivation: candidate.peakActivation, basis: 'D1_D16_MD_AD_PD_MAJOR_GOCHAR', supportWindow: candidate.supportWindow, internalPhases: candidate.internalPhases });
-  return freeze({ ...publicCandidate(selected.selected), secondaryWindows: freeze(selected.secondary.map(publicCandidate)) });
+  const rankingCandidates = freeze(selected.ranked.map((candidate) => freeze({ ...candidate, personalizationTemporalTier: temporalPriority(candidate, start) === 0 ? 'CURRENT' : temporalPriority(candidate, start) === 1 ? 'UPCOMING' : 'HISTORICAL' })));
+  const output = publicVehicleWindow(rankingCandidates, start);
+  Object.defineProperty(output, '_rankingCandidates', { value: rankingCandidates, enumerable: false });
+  Object.defineProperty(output, '_rankingInstant', { value: start, enumerable: false });
+  return freeze(output);
 }
 
 class VehicleAnswerService {
@@ -393,9 +419,11 @@ class VehicleAnswerService {
       stage = 'CALIBRATION'; const events = await this.lifeEvents.getRelevantLifeEvents({ principal, birthProfileId, categories: ['VEHICLE'] }); const history = calibration(events, instant);
       stage = 'WINDOW'; const window = strongerWindow({ engine: this.engine, scanner: this.scanner, birth: profile.birthData, natalBodies: natal.bodies, d1Houses, d16, dashaTree, promise, start: instant, diagnosticLog: log });
       const currentStrength = classifyCandidate({ promise, d16, mdAd, pd, transit });
-      const result = freeze({ intent, answerability: promise === 'NO_VEHICLE_PROMISE' ? 'LIMITED_EVIDENCE' : 'SUPPORTED', classification: currentStrength, natalPromise: promise, strongerWindow: window, windowShape: window && window.windowShape || 'NO_RELIABLE_WINDOW', evidence: freeze({ d1, d16: freeze({ ...d16, d16Houses: undefined }), mdAd, pd, transit, ashtakavarga, lifeEvents: history }), limitations: freeze(['NO_OUTCOME_GUARANTEE', 'NO_EXACT_PURCHASE_DATE', 'SAV_BAV_CONTEXT_ONLY', 'LIFE_EVENTS_CALIBRATION_ONLY']), provenance: freeze({ vehicleRulesVersion: VEHICLE_RULESET_VERSION, dashaRulesetId: SOLAR_RETURN_VIMSHOTTARI_RULESET.id, d16RulesetId: 'parashari-shodashamsha-v1', transitBoundaryPolicy: 'REFINED_EXISTING_TRANSIT_BOUNDARIES_ONLY' }) });
-      const internalCalibration = this.calibrationCoordinator && await this.calibrationCoordinator.calibrate({ principal, birthProfileId, adapter: this.calibrationAdapter, primaryCandidates: vehicleCalibrationCandidates(window, currentStrength), primaryDomainRulesVersion: result.provenance.vehicleRulesVersion, adapterContext: { intent, primaryVehicleEvidence: { d1, d16, mdAd, pd, transit, ashtakavarga }, strongerWindow: window } });
+      const provenance = freeze({ vehicleRulesVersion: VEHICLE_RULESET_VERSION, dashaRulesetId: SOLAR_RETURN_VIMSHOTTARI_RULESET.id, d16RulesetId: 'parashari-shodashamsha-v1', transitBoundaryPolicy: 'REFINED_EXISTING_TRANSIT_BOUNDARIES_ONLY' });
+      const internalCalibration = this.calibrationCoordinator && await this.calibrationCoordinator.calibrate({ principal, birthProfileId, adapter: this.calibrationAdapter, primaryCandidates: vehicleCalibrationCandidates(window, currentStrength), primaryDomainRulesVersion: provenance.vehicleRulesVersion, adapterContext: { intent, primaryVehicleEvidence: { d1, d16, mdAd, pd, transit, ashtakavarga }, strongerWindow: window } });
       if (internalCalibration) log('VEHICLE_LIFE_EVENT_CALIBRATION', { state: internalCalibration.status, patternStrength: internalCalibration.patternStrength, eventCount: internalCalibration.comparableEventCount });
+      const personalisedWindow = applyPersonalisedVehicleWindow(window, internalCalibration);
+      const result = freeze({ intent, answerability: promise === 'NO_VEHICLE_PROMISE' ? 'LIMITED_EVIDENCE' : 'SUPPORTED', classification: currentStrength, natalPromise: promise, strongerWindow: personalisedWindow, windowShape: personalisedWindow && personalisedWindow.windowShape || 'NO_RELIABLE_WINDOW', evidence: freeze({ d1, d16: freeze({ ...d16, d16Houses: undefined }), mdAd, pd, transit, ashtakavarga, lifeEvents: history }), limitations: freeze(['NO_OUTCOME_GUARANTEE', 'NO_EXACT_PURCHASE_DATE', 'SAV_BAV_CONTEXT_ONLY', 'LIFE_EVENTS_CALIBRATION_ONLY']), provenance });
       log('VEHICLE_RESULT', { state: result.classification, evidenceCount: transit.majorDirect.length + transit.majorSupporting.length });
       const historicalContext = publicHistoricalContext({ domain: 'VEHICLE', calibration: internalCalibration });
       const publicResult = historicalContext ? freeze({ ...result, historicalContext }) : result;
@@ -406,4 +434,4 @@ class VehicleAnswerService {
   }
 }
 
-module.exports = { VehicleAnswerService, VehicleIntent, VEHICLE_RULESET_VERSION, d1Evidence, d16Evidence, natalPromise, vehicleFactor, mdAdEvidence, pdRefinement, transitEvidence, ashtakavargaEvidence, calibration, retrospectiveSampleInstants, reconstructVehicleRetrospectiveEvidence, vehicleCalibrationCandidates, classifyCandidate, classifyWindowShape, coalesceVehicleCandidates, sameEffectiveVehicleSupport, selectVehicleWindow, selectPeak, transitBoundaries, transitStatesForPd, strongerWindow, VEHICLE_WINDOW_COARSE_SCAN_STEP_MS };
+module.exports = { VehicleAnswerService, VehicleIntent, VEHICLE_RULESET_VERSION, d1Evidence, d16Evidence, natalPromise, vehicleFactor, mdAdEvidence, pdRefinement, transitEvidence, ashtakavargaEvidence, calibration, retrospectiveSampleInstants, reconstructVehicleRetrospectiveEvidence, vehicleCalibrationCandidates, vehicleCandidateId, vehicleRankingGroup, applyPersonalisedVehicleWindow, classifyCandidate, classifyWindowShape, coalesceVehicleCandidates, sameEffectiveVehicleSupport, selectVehicleWindow, selectPeak, transitBoundaries, transitStatesForPd, strongerWindow, VEHICLE_WINDOW_COARSE_SCAN_STEP_MS };
