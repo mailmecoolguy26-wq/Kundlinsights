@@ -40,4 +40,35 @@ void main() {
       expect(config.careerPremiumAnnualGoogleProductId, 'google.annual');
     },
   );
+
+  test(
+    'rejects missing schemes, insecure production hosts, and relative URLs',
+    () {
+      for (final value in [
+        'api.example.test',
+        '/v1',
+        'http://api.example.test',
+      ]) {
+        expect(
+          () =>
+              AppConfig.validateApiBaseUrl(value, allowLocalDevelopment: false),
+          throwsFormatException,
+        );
+      }
+      expect(
+        AppConfig.validateApiBaseUrl(
+          'https://api.example.test',
+          allowLocalDevelopment: false,
+        ).host,
+        'api.example.test',
+      );
+      expect(
+        AppConfig.validateApiBaseUrl(
+          'http://10.0.2.2:3000',
+          allowLocalDevelopment: true,
+        ).host,
+        '10.0.2.2',
+      );
+    },
+  );
 }

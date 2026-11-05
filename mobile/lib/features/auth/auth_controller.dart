@@ -38,6 +38,12 @@ class AuthController extends ChangeNotifier {
   bool get isSigningOut => _isSigningOut;
   late final StreamSubscription<AuthSnapshot> _sub;
 
+  void clearTransientError() {
+    if (_state.status != AuthStatus.error) return;
+    _state = const AuthSnapshot(AuthStatus.unauthenticated);
+    notifyListeners();
+  }
+
   Future<void> restore() async {
     _state = await repo.restore();
     _debug(

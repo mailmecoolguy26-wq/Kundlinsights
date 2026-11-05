@@ -122,6 +122,21 @@ void main() {
     expect(find.textContaining('raw provider detail'), findsNothing);
   });
 
+  testWidgets('returning to login clears a stale OTP verification error', (
+    tester,
+  ) async {
+    source.verifyError = StateError('expired otp');
+    await controller.verifyPhoneOtp(
+      phoneNumber: '+919876543210',
+      otp: '123456',
+    );
+    expect(controller.state.status, AuthStatus.error);
+    await tester.pumpWidget(_app(LoginScreen(controller: controller)));
+    await tester.pump();
+    expect(controller.state.status, AuthStatus.unauthenticated);
+    expect(find.byKey(const ValueKey('phone-auth-error')), findsNothing);
+  });
+
   testWidgets('resend calls the OTP repository safely', (tester) async {
     await tester.pumpWidget(
       _app(

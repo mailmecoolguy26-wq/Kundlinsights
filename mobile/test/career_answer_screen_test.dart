@@ -25,6 +25,7 @@ void main() {
 
     expect(find.text('CAREER & BUSINESS'), findsOneWidget);
     expect(find.text('Your Career Outlook'), findsOneWidget);
+    expect(find.text('Create Career Reading'), findsOneWidget);
     expect(find.text('When is my next strong career window?'), findsNothing);
     expect(find.text('My current career phase'), findsNothing);
     expect(find.text('Career Activity'), findsNothing);

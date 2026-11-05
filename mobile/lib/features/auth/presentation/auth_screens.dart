@@ -25,6 +25,14 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _otpRequested = false;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.controller.clearTransientError();
+    });
+  }
+
+  @override
   void dispose() {
     _phone.dispose();
     super.dispose();

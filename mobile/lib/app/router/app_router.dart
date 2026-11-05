@@ -200,7 +200,10 @@ GoRouter createAppRouter(
         key: state.pageKey,
         child: relationshipAnswers == null || familyExpansionAnswers == null
             ? const _RelationshipsUnavailable()
-            : RelationshipHubScreen(controller: relationshipAnswers, familyController: familyExpansionAnswers),
+            : RelationshipHubScreen(
+                controller: relationshipAnswers,
+                familyController: familyExpansionAnswers,
+              ),
       ),
     ),
     GoRoute(
@@ -311,10 +314,18 @@ GoRouter createAppRouter(
     GoRoute(
       path: '/transits',
       name: 'current-transits',
-      builder: (context, state) => CurrentTransitsScreen(
-        profileController: profiles,
-        controller: transits,
-      ),
+      builder: (context, state) {
+        if (transits.state == TransitSnapshotLoadState.error ||
+            transits.state == TransitSnapshotLoadState.initial) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            transits.refresh();
+          });
+        }
+        return CurrentTransitsScreen(
+          profileController: profiles,
+          controller: transits,
+        );
+      },
     ),
     GoRoute(
       path: '/splash',
@@ -621,9 +632,12 @@ GoRouter createAppRouter(
               name: 'insights',
               builder: (context, state) => InsightsScreen(
                 generation: generation,
+                transits: transits,
                 onOpenCareer: () => context.push('/career'),
                 onOpenCareerChat: () => context.push('/career-chat'),
                 onOpenVehicle: () => context.push('/vehicle'),
+                onOpenWealth: () => context.push('/wealth'),
+                onOpenRelationships: () => context.push('/relationships'),
               ),
             ),
           ],

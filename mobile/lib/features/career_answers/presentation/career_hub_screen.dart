@@ -205,6 +205,11 @@ class _CareerOutlookCard extends StatelessWidget {
               'Create a Career Reading to see your current context and upcoming Career periods here.',
               style: _CareerHubText.body,
             ),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: () => context.go('/readings'),
+              child: const Text('Create Career Reading'),
+            ),
           ],
         ),
       );

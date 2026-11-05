@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'); const assert=require('node:assert/strict');
-const {WealthAnswerService,d1Evidence,dashaEvidence,classify,rankRelative,savEvidence,bavEvidence,parentDashaEvidence,pdRefinement,exactParentPeriods,pdSegments,sampleInstants,sampledTransitEvidence,candidateState,coalesceCandidates,rankCandidate,selectStrongerWindow}=require('../../src/application/wealth');
+const {WealthAnswerService,WEALTH_WINDOW_HORIZON_DAYS,d1Evidence,dashaEvidence,classify,rankRelative,savEvidence,bavEvidence,parentDashaEvidence,pdRefinement,exactParentPeriods,pdSegments,sampleInstants,sampledTransitEvidence,candidateState,coalesceCandidates,rankCandidate,selectStrongerWindow}=require('../../src/application/wealth');
 function houses(){return {houses:Array.from({length:12},(_,i)=>({houseNumber:i+1,rashiHouseLord:i+1===2?'Moon':i+1===11?'Venus':i+1===6?'Saturn':'Sun'})),planetaryAssignments:[{body:'Moon',rashiHouseNumber:2},{body:'Venus',rashiHouseNumber:11},{body:'Saturn',rashiHouseNumber:6}]};}
 const period={md:'moon',ad:'venus',pd:'sun',start:'2027-01-01T00:00:00.000Z',end:'2027-06-01T00:00:00.000Z',adStart:'2027-01-01T00:00:00.000Z',adEnd:'2027-12-01T00:00:00.000Z'};
 test('Wealth Rules v1 keeps D1 and MD/AD dominant over confirmation-only layers',()=>{const d1=d1Evidence(houses()); const dasha=dashaEvidence(houses(),period); assert.equal(d1.state,'SUPPORTIVE_FOUNDATION'); assert.equal(dasha.eligible,true); assert.equal(classify({d1,dasha,d2:{reinforcement:'REINFORCES'}}),'Supportive'); assert.notEqual(classify({d1:{...d1,state:'UNCLEAR_FOUNDATION'},dasha:{...dasha,eligible:false,state:'NO_RELEVANCE'},d2:{reinforcement:'REINFORCES'}}),'Supportive');});
@@ -38,6 +38,14 @@ test('parent extraction retains exact MD/AD boundaries and PD generation discard
   const segments=pdSegments([parents[0]],'2027-02-01T00:00:00.000Z',houses());
   assert.equal(segments.length,2);assert.equal(segments[0].pd.temporalStatus,'CURRENT');assert.equal(segments[1].pd.lord,'saturn');assert.equal(segments[1].pd.start,'2027-03-01T00:00:00.000Z');
   assert.deepEqual(sampleInstants(segments[1],'2027-02-01T00:00:00.000Z'),['2027-03-01T00:00:00.000Z','2027-04-30T12:00:00.000Z','2027-06-30T00:00:00.000Z']);
+});
+
+test('customer Wealth candidates are bounded and cannot rank a decades-away PD',()=>{
+  assert.equal(WEALTH_WINDOW_HORIZON_DAYS,730);
+  const tree=hierarchy(), d1=d1Evidence(houses());
+  const parents=exactParentPeriods(tree,'2027-01-01T00:00:00.000Z',houses(),d1,'2027-08-01T00:00:00.000Z');
+  const segments=pdSegments(parents,'2027-01-01T00:00:00.000Z',houses(),'2027-04-01T00:00:00.000Z');
+  assert.equal(segments.every((segment)=>Date.parse(segment.pd.start)<Date.parse('2027-04-01T00:00:00.000Z')),true);
 });
 
 test('irrelevant MD/AD has no PD candidates, while PD refinements remain subordinate to a qualifying parent',()=>{

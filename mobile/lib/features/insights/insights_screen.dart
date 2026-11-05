@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../readings/career_reading_generation_controller.dart';
 import '../readings/astrology_presentation_copy.dart';
+import '../transits/transit_snapshot_controller.dart';
 
 class InsightsScreen extends StatelessWidget {
   const InsightsScreen({
@@ -11,11 +12,17 @@ class InsightsScreen extends StatelessWidget {
     this.onOpenCareer,
     this.onOpenCareerChat,
     this.onOpenVehicle,
+    this.onOpenWealth,
+    this.onOpenRelationships,
+    this.transits,
   });
   final CareerReadingGenerationController generation;
   final VoidCallback? onOpenCareer;
   final VoidCallback? onOpenCareerChat;
   final VoidCallback? onOpenVehicle;
+  final VoidCallback? onOpenWealth;
+  final VoidCallback? onOpenRelationships;
+  final TransitSnapshotController? transits;
 
   static const midnight = Color(0xFF061A1A);
   static const abyss = Color(0xFF082625);
@@ -28,7 +35,7 @@ class InsightsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final copy = AstrologyPresentationCopy.of(context);
     return ListenableBuilder(
-      listenable: generation,
+      listenable: Listenable.merge([generation, ?transits]),
       builder: (context, child) => Scaffold(
         backgroundColor: midnight,
         body: SafeArea(
@@ -41,6 +48,7 @@ class InsightsScreen extends StatelessWidget {
               const SizedBox(height: 10),
               _TransitCard(
                 copy: copy,
+                loadState: transits?.state,
                 onTap: () => context.pushNamed('current-transits'),
               ),
               const SizedBox(height: 12),
@@ -52,19 +60,19 @@ class InsightsScreen extends StatelessWidget {
                 onTap: onOpenVehicle,
               ),
               const SizedBox(height: 12),
-              const SizedBox(height: 28),
-              const _SectionLabel('COMING NEXT'),
-              const SizedBox(height: 10),
-              const _InsightCard(
+              _AvailableInsightCard(
                 icon: Icons.favorite_border,
-                title: 'Marriage',
-                subtitle: 'Relationship timing and compatibility insights',
+                title: 'Relationships & Family',
+                subtitle:
+                    'Relationship, commitment, and family timing insights.',
+                onTap: onOpenRelationships,
               ),
               const SizedBox(height: 12),
-              const _InsightCard(
+              _AvailableInsightCard(
                 icon: Icons.account_balance_wallet_outlined,
-                title: 'Wealth & Property',
-                subtitle: 'Financial cycles, assets, and property timing',
+                title: 'Wealth & Money',
+                subtitle: 'Wealth timing and financial structure insights.',
+                onTap: onOpenWealth,
               ),
             ],
           ),
@@ -100,13 +108,23 @@ class _SectionLabel extends StatelessWidget {
 }
 
 class _TransitCard extends StatelessWidget {
-  const _TransitCard({required this.copy, required this.onTap});
+  const _TransitCard({required this.copy, required this.onTap, this.loadState});
   final AstrologyPresentationCopy copy;
   final VoidCallback onTap;
+  final TransitSnapshotLoadState? loadState;
+
+  String get _statusLabel => switch (loadState) {
+    TransitSnapshotLoadState.error => 'UNAVAILABLE',
+    TransitSnapshotLoadState.initial ||
+    TransitSnapshotLoadState.loading ||
+    TransitSnapshotLoadState.refreshing => 'CHECKING',
+    TransitSnapshotLoadState.loaded || null => 'AVAILABLE',
+  };
+
   @override
   Widget build(BuildContext context) => Semantics(
     button: true,
-    label: 'Current Transits, available',
+    label: 'Current Transits, ${_statusLabel.toLowerCase()}',
     child: Material(
       color: InsightsScreen.violet,
       borderRadius: BorderRadius.circular(18),
@@ -142,64 +160,16 @@ class _TransitCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              const Column(
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  _Pill('AVAILABLE'),
-                  SizedBox(height: 44),
-                  Icon(Icons.chevron_right, color: InsightsScreen.gold),
+                  _Pill(_statusLabel),
+                  const SizedBox(height: 44),
+                  const Icon(Icons.chevron_right, color: InsightsScreen.gold),
                 ],
               ),
             ],
           ),
-        ),
-      ),
-    ),
-  );
-}
-
-class _InsightCard extends StatelessWidget {
-  const _InsightCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    label: '$title, coming soon',
-    child: Opacity(
-      opacity: .78,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: InsightsScreen.abyss,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0x33255C57)),
-        ),
-        child: Row(
-          children: [
-            _IconTile(icon),
-            const SizedBox(width: 13),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: _Styles.cardTitle),
-                  const SizedBox(height: 3),
-                  Text(subtitle, style: _Styles.cardBody),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: const [_Pill('COMING SOON')],
-            ),
-          ],
         ),
       ),
     ),

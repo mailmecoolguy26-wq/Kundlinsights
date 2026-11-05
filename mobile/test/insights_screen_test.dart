@@ -28,8 +28,10 @@ void main() {
       await _pumpInsights(tester, scope);
 
       expect(find.text('OPEN CAREER'), findsNothing);
-      expect(find.text('COMING SOON'), findsOneWidget);
+      expect(find.text('COMING SOON'), findsNothing);
       expect(find.text('Vehicle & Mobility'), findsOneWidget);
+      expect(find.text('Relationships & Family'), findsOneWidget);
+      expect(find.text('Wealth & Money'), findsOneWidget);
       expect(find.text('Current Transits'), findsOneWidget);
     },
   );
@@ -44,7 +46,7 @@ void main() {
       await _pumpInsights(tester, scope);
 
       expect(find.text('OPEN CAREER'), findsNothing);
-      expect(find.text('COMING SOON'), findsOneWidget);
+      expect(find.text('COMING SOON'), findsNothing);
       expect(find.text('Vehicle & Mobility'), findsOneWidget);
       expect(find.text('Current Transits'), findsOneWidget);
     },

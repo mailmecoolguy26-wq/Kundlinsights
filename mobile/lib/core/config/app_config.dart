@@ -115,13 +115,11 @@ class AppConfig {
     );
     if (url.isEmpty || key.isEmpty || api.isEmpty) return null;
     final supabase = Uri.tryParse(url);
-    final base = Uri.tryParse(api);
-    final usesAcceptedApiBaseUrl = base != null && isAcceptedApiBaseUrl(base);
-    if (supabase == null ||
-        base == null ||
-        !supabase.hasScheme ||
-        !base.hasScheme ||
-        !usesAcceptedApiBaseUrl) {
+    final base = validateApiBaseUrl(
+      api,
+      allowLocalDevelopment: !const bool.fromEnvironment('dart.vm.product'),
+    );
+    if (supabase == null || !supabase.hasScheme || !base.hasScheme) {
       return null;
     }
     return AppConfig._(
@@ -180,8 +178,32 @@ class AppConfig {
   /// Allows TLS endpoints everywhere and loopback endpoints only for local
   /// development. `10.0.2.2` is Android Emulator's host-machine loopback.
   static bool isAcceptedApiBaseUrl(Uri base) {
+    if (!base.isAbsolute || base.host.isEmpty || base.hasFragment) return false;
     if (base.scheme == 'https') return true;
     return (base.scheme == 'http' || base.scheme == 'https') &&
         const {'localhost', '127.0.0.1', '10.0.2.2'}.contains(base.host);
+  }
+
+  static Uri validateApiBaseUrl(
+    String value, {
+    required bool allowLocalDevelopment,
+  }) {
+    final uri = Uri.tryParse(value);
+    final local =
+        uri != null &&
+        uri.scheme == 'http' &&
+        const {'localhost', '127.0.0.1', '10.0.2.2'}.contains(uri.host);
+    final valid =
+        uri != null &&
+        uri.isAbsolute &&
+        uri.host.isNotEmpty &&
+        !uri.hasFragment &&
+        (uri.scheme == 'https' || (allowLocalDevelopment && local));
+    if (!valid) {
+      throw const FormatException(
+        'API_BASE_URL must be an absolute HTTPS URL; local debug builds may use an explicit loopback HTTP URL.',
+      );
+    }
+    return uri;
   }
 }

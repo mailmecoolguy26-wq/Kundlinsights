@@ -151,6 +151,14 @@ class _Result extends StatelessWidget {
               const SizedBox(height: 10),
               Text(answer.summary, style: _RelationshipText.body),
             ],
+            if (answer.state == 'Insufficient Evidence' &&
+                answer.strongerWindow != null) ...[
+              const SizedBox(height: 8),
+              const Text(
+                'Some supporting chart signals are present, but the current primary Dasha and timing evidence does not meet the level needed for a clear overall outlook. The window below is contextual, not a prediction of conception or pregnancy.',
+                style: _RelationshipText.subtle,
+              ),
+            ],
           ],
         ),
         if (window != null) ...[
@@ -431,47 +439,76 @@ class _FamilyExpansionSectionState extends State<_FamilyExpansionSection> {
     );
   }
 
-  List<Widget> _familyDetails(Map<String, dynamic> values) => values.entries
-      .where(
-        (entry) =>
-            entry.value != null &&
-            (entry.value is! Map || (entry.value as Map).isNotEmpty),
-      )
-      .map(
-        (entry) => Padding(
-          padding: const EdgeInsets.only(top: 14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                {
-                      'timingEvidence': 'Timing Evidence',
-                      'dashaAndTransit': 'Dasha & Transit',
-                      'd1FamilyFoundation': 'D1 Family Foundation',
-                      'd7Saptamsha': 'D7 / Saptamsa',
-                      'ashtakavarga': 'Ashtakavarga',
-                      'calibrationAndSafety': 'Calibration & Safety',
-                    }[entry.key] ??
-                    entry.key,
-                style: _RelationshipText.eyebrow,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                entry.value is Map
-                    ? entry.value.entries
-                          .map(
-                            (item) =>
-                                '${item.key}: ${item.value is Map || item.value is List ? 'available' : item.value}',
-                          )
-                          .join('\n')
-                    : entry.value.toString(),
-                style: _RelationshipText.body,
-              ),
-            ],
+  List<Widget> _familyDetails(Map<String, dynamic> values) {
+    final d1 = values['d1FamilyFoundation'] as Map?;
+    final d7 = values['d7Saptamsha'] as Map?;
+    final timing = values['timingEvidence'] as Map?;
+    final transit = (values['dashaAndTransit'] as Map?)?['transit'] as Map?;
+    final ashtaka = values['ashtakavarga'] as Map?;
+    final rows = <(String, String)>[];
+    final d1State = d1?['state'];
+    if (d1State is String) {
+      rows.add((
+        'D1 Family Foundation',
+        switch (d1State) {
+          'CONSTRUCTIVE' =>
+            'D1 foundation shows supportive family-related indicators.',
+          'LIMITED' => 'D1 shows some family-related indicators, with limited reinforcement.',
+          _ => 'D1 does not currently provide a sufficiently clear family-related foundation.',
+        },
+      ));
+    }
+    final d7Confirmation = d7?['confirmation'];
+    if (d7Confirmation is String) {
+      rows.add((
+        'D7 / Saptamsa',
+        switch (d7Confirmation) {
+          'Reinforcing' => 'D7 provides reinforcing confirmation.',
+          'Conflicting' => 'D7 contains mixed or conflicting confirmation.',
+          _ =>
+            'D7 is neutral and does not independently strengthen the outlook.',
+        },
+      ));
+    }
+    if (timing != null) {
+      rows.add((
+        'Active Dasha',
+        timing['eligible'] == true
+            ? 'The active Dasha has a meaningful family-related connection.'
+            : 'The active Dasha does not currently provide the primary support required for a clear timing conclusion.',
+      ));
+    }
+    if (transit != null) {
+      final major = transit['jupiter'] == true || transit['saturn'] == true;
+      rows.add((
+        'Current Transits',
+        major
+            ? 'Current Jupiter or Saturn transits provide relevant family-oriented context.'
+            : 'Current major transits do not provide additional confirmation.',
+      ));
+    }
+    if (ashtaka != null) {
+      rows.add((
+        'Ashtakavarga',
+        'Ashtakavarga is used as supporting context only and does not create a family-expansion prediction.',
+      ));
+    }
+    return rows
+        .map(
+          (entry) => Padding(
+            padding: const EdgeInsets.only(top: 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(entry.$1, style: _RelationshipText.eyebrow),
+                const SizedBox(height: 4),
+                Text(entry.$2, style: _RelationshipText.body),
+              ],
+            ),
           ),
-        ),
-      )
-      .toList();
+        )
+        .toList();
+  }
 }
 
 class _StateChip extends StatelessWidget {

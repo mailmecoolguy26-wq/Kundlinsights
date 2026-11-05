@@ -15,6 +15,9 @@ const SECONDARY_HOUSES = Object.freeze([5, 9, 10]);
 const CONSTRUCTIVE_HOUSES = Object.freeze([...PRIMARY_HOUSES, ...SECONDARY_HOUSES]);
 const CAUTION_HOUSES = Object.freeze([6, 8, 12]);
 const DAY_MS = 86_400_000;
+// Wealth V1 is a near-term customer forecast. Do not rank unrelated PDs from
+// later Mahadashas decades into the future as the current stronger window.
+const WEALTH_WINDOW_HORIZON_DAYS = 730;
 const WINDOW_STATES = Object.freeze(['Supportive', 'Improving', 'Consolidation']);
 const STATE_PRIORITY = Object.freeze({ Supportive: 0, Improving: 1, Consolidation: 2 });
 
@@ -133,20 +136,22 @@ function candidateState({ d1, d2, parent, pd, transit, sav }) {
 }
 function classify({ d1, d2, dasha, transit = { supportive: false, consolidation: false, caution: 0 } }) { return candidateState({ d1, d2, parent: { eligible: dasha.eligible, state: dasha.state, strength: dasha.strength || 0 }, pd: { state: String(dasha.pdState || 'NEUTRAL_REFINEMENT').replace('_REFINEMENT', '') }, transit: { persistent: { jupiterSupport: Boolean(transit.supportive), saturnConsolidation: Boolean(transit.consolidation), nodeCaution: Number(transit.caution || 0) > 0 } }, sav: { overallConfirmation: 'NEUTRAL' } }); }
 
-function exactParentPeriods(tree, from, houses, d1) {
+function exactParentPeriods(tree, from, houses, d1, horizonEnd = null) {
   const candidates = [];
+  const horizon = horizonEnd == null ? Number.POSITIVE_INFINITY : epoch(horizonEnd);
   for (const md of tree.periods || []) for (const ad of md.children || []) {
     if (periodEpoch(ad, 'end') <= epoch(from)) continue;
+    if (periodEpoch(ad, 'start') >= horizon) continue;
     const parent = freeze({ md: canonical(md.lord.id), ad: canonical(ad.lord.id), mdStart: md.startInstant.utc, mdEnd: md.endInstant.utc, adStart: ad.startInstant.utc, adEnd: ad.endInstant.utc });
     const evidence = parentDashaEvidence(houses, parent); if (!evidence.eligible || d1.state === 'UNCLEAR_FOUNDATION') continue;
     candidates.push(freeze({ parent, evidence, ad }));
   }
   return freeze(candidates);
 }
-function pdSegments(parents, from, houses) {
-  const now = epoch(from), output = [];
+function pdSegments(parents, from, houses, horizonEnd = null) {
+  const now = epoch(from), horizon = horizonEnd == null ? Number.POSITIVE_INFINITY : epoch(horizonEnd), output = [];
   for (const { parent, evidence, ad } of parents) for (const pd of ad.children || []) { const start = periodEpoch(pd, 'start'), end = periodEpoch(pd, 'end'); if (end <= now) continue; output.push(freeze({ parent, parentEvidence: evidence, pd: freeze({ lord: canonical(pd.lord.id), start: pd.startInstant.utc, end: pd.endInstant.utc, temporalStatus: start <= now ? 'CURRENT' : 'FUTURE' }), refinement: pdRefinement(houses, pd.lord.id) })); }
-  return freeze(output);
+  return freeze(output.filter((segment) => epoch(segment.pd.start) < horizon));
 }
 function sampleInstants(segment, now) { const start = Math.max(epoch(segment.pd.start), epoch(now)), end = epoch(segment.pd.end), latest = Math.max(start, end - DAY_MS), midpoint = start + Math.floor((latest - start) / 2); return [...new Set([start, midpoint, latest])].map(iso); }
 function direction(state) { return state === 'Supportive' ? 'GROWTH' : state === 'Improving' ? 'IMPROVING' : state === 'Consolidation' ? 'CONSOLIDATION' : 'CAUTION_OR_INSUFFICIENT'; }
@@ -190,11 +195,12 @@ class WealthAnswerService {
     const tree = calculateVimshottariDasha({ birthInstant: natal.instant.utc, moonCanonicalSiderealLongitude: natal.bodies.Moon.siderealLongitudeDegrees, natalSunCanonicalSiderealLongitude: natal.bodies.Sun.siderealLongitudeDegrees, canonicalSiderealSunSampler: this.sampler, rulesetId: SOLAR_RETURN_VIMSHOTTARI_RULESET.id });
     const currentPeriod = dashaAt(tree, instant), currentDasha = dashaEvidence(houses, currentPeriod), currentBodies = this.engine.calculate(transitRequest(instant, profile.birthData));
     const currentTransit = transitEvidence(calculateGocharSnapshot({ snapshotInstant: instant, natalBodies: natal.bodies, natalHouses: houses, transitBodies: currentBodies.bodies })), currentState = classify({ d1, d2, dasha: currentDasha, transit: currentTransit });
-    const parents = exactParentPeriods(tree, instant, houses, d1), segments = pdSegments(parents, instant, houses);
+    const horizonEnd = iso(epoch(instant) + WEALTH_WINDOW_HORIZON_DAYS * DAY_MS);
+    const parents = exactParentPeriods(tree, instant, houses, d1, horizonEnd), segments = pdSegments(parents, instant, houses, horizonEnd);
     const evaluated = segments.map((segment) => { const samples = sampleInstants(segment, instant).map((sampleInstant) => { const bodies = this.engine.calculate(transitRequest(sampleInstant, profile.birthData)); return freeze({ instant: sampleInstant, evidence: transitEvidence(calculateGocharSnapshot({ snapshotInstant: sampleInstant, natalBodies: natal.bodies, natalHouses: houses, transitBodies: bodies.bodies })) }); }); return evaluateCandidate({ segment, samples, d1, d2, natal, houses }); });
     const coalesced = coalesceCandidates(evaluated), strongerWindow = selectStrongerWindow(coalesced), wording = copy(currentState);
     return freeze({ intent, answerability: 'SUPPORTED', state: currentState, summary: wording.summary, currentPhase: currentState, strongerWindow, whatThisCanMean: freeze([wording.summary]), supportiveFactors: freeze(d1.primary.map((factor) => factor.planet)), cautionFactors: freeze(d1.caution.map((factor) => factor.planet)), practicalFocus: wording.practicalFocus, detailedAstrology: freeze({ timingEvidence: currentDasha, dashaAndTransit: currentTransit, d1WealthFoundation: d1, d2Hora: d2, ashtakavarga: ashtakavarga(natal, houses, currentTransit), candidatePipeline: freeze({ parents, pdSegments: segments, evaluated, coalesced }), calibration: freeze({ financialActivityIsNotGain: true }) }), evidence: freeze({ d1, d2, dasha: currentDasha, transit: currentTransit }), ruleVersion: 'wealth-rules-v1', limitations: freeze(['NO_FINANCIAL_ADVICE', 'NO_OUTCOME_GUARANTEE', 'FINANCIAL_ACTIVITY_IS_NOT_GAIN']) });
   }
 }
 
-module.exports = { WealthAnswerService, WealthIntent, d1Evidence, d2Evidence, dashaEvidence, classify, rankRelative, savEvidence, bavEvidence, parentDashaEvidence, pdRefinement, exactParentPeriods, pdSegments, sampleInstants, sampledTransitEvidence, evaluateCandidate, candidateState, coalesceCandidates, rankCandidate, selectStrongerWindow };
+module.exports = { WealthAnswerService, WealthIntent, WEALTH_WINDOW_HORIZON_DAYS, d1Evidence, d2Evidence, dashaEvidence, classify, rankRelative, savEvidence, bavEvidence, parentDashaEvidence, pdRefinement, exactParentPeriods, pdSegments, sampleInstants, sampledTransitEvidence, evaluateCandidate, candidateState, coalesceCandidates, rankCandidate, selectStrongerWindow };
