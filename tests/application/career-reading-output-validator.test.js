@@ -2,6 +2,7 @@
 const test = require('node:test'); const assert = require('node:assert/strict');
 const { CareerReadingOutputValidator, createInterpretationInput, CAREER_READING_INTERPRETATION_SCHEMA_VERSION } = require('../../src/application/readings');
 const fail = (fn) => assert.throws(fn, (error) => error.code === 'READING_GENERATION_INVALID_OUTPUT');
+const reason = (fn, reasonCode) => assert.throws(fn, (error) => error.code === 'READING_GENERATION_INVALID_OUTPUT' && error.reasonCode === reasonCode);
 function context(level = 'CALIBRATED', provisional = true) { return { calibrationLevel: level, eventReferences: [{ eventId: 'e-year', eventDate: { precision: 'YEAR', year: 2020 } }], historicalEvidence: level === 'CALIBRATED' ? [{ evidenceId: 'hist:1', dimensions: ['Jupiter'], matchedEventCount: 2, eligibleEventCount: 3, recurrenceRate: 2 / 3 }] : [], futureOccurrences: level === 'CALIBRATED' ? [{ evidenceId: 'future:window', occurrenceType: 'WINDOW', from: '2025-01-01T00:00:00.000Z', to: '2025-02-01T00:00:00.000Z', dimensions: ['Jupiter'] }, { evidenceId: 'future:event', occurrenceType: 'EVENT', instant: '2025-03-01T00:00:00.000Z', dimensions: ['Jupiter'] }] : [], composites: level === 'CALIBRATED' ? [{ evidenceId: 'composite:1', from: '2025-01-10T00:00:00.000Z', to: '2025-01-20T00:00:00.000Z', matchedPatternKeys: ['x'], matchedPatternCount: 2, matchedPrimaryPatternCount: 1 }] : [], calculationBasis: { hasProvisionalEvidence: provisional } }; }
 function candidate(level = 'CALIBRATED', provisional = true) { return { schemaVersion: CAREER_READING_INTERPRETATION_SCHEMA_VERSION, calibrationSummary: { calibrationLevel: level, narrative: 'This context deserves attention.', eventCount: 1 }, recurringHistoricalEvidence: level === 'CALIBRATED' ? [{ evidenceId: 'hist:1', text: 'A recurring factor is present.', matchedEventCount: 2, eligibleEventCount: 3, recurrenceRate: 2 / 3, eventDateReferences: [{ eventId: 'e-year', precision: 'YEAR', year: 2020 }], factorsReferenced: ['Jupiter'] }] : [], upcomingRecurrenceWindows: level === 'CALIBRATED' ? [{ evidenceId: 'future:window', text: 'Similar conditions recur during this period.', occurrenceType: 'WINDOW', from: '2025-01-01T00:00:00.000Z', to: '2025-02-01T00:00:00.000Z', factorsReferenced: ['Jupiter'] }, { evidenceId: 'future:event', text: 'This point deserves attention.', occurrenceType: 'EVENT', instant: '2025-03-01T00:00:00.000Z', factorsReferenced: ['Jupiter'] }, { evidenceId: 'composite:1', text: 'Multiple factors overlap.', occurrenceType: 'COMPOSITE', from: '2025-01-10T00:00:00.000Z', to: '2025-01-20T00:00:00.000Z', factorsReferenced: [] }] : [], decisionConsiderations: ['Review options before acting.'], disclosure: { hasProvisionalEvidence: provisional } }; }
 test('accepts valid calibrated output with exact historical, window, event, and composite citations', () => { const out = new CareerReadingOutputValidator().validate({ context: context(), candidate: candidate() }); assert.equal(out.upcomingRecurrenceWindows.length, 3); assert.notEqual(out, candidate()); });
@@ -11,6 +12,54 @@ test('rejects unknown evidence IDs, shifted window boundaries, and shifted event
 test('rejects count mismatch, precision escalation, and composite expansion', () => { const validator = new CareerReadingOutputValidator(); for (const change of [(x) => { x.recurringHistoricalEvidence[0].matchedEventCount = 3; }, (x) => { x.recurringHistoricalEvidence[0].eventDateReferences[0].month = 1; }, (x) => { x.upcomingRecurrenceWindows[2].to = '2025-01-21T00:00:00.000Z'; }]) { const x = candidate(); change(x); fail(() => validator.validate({ context: context(), candidate: x })); } });
 test('rejects score/probability, certainty language, unsupported factors, and missing provisional disclosure', () => { const validator = new CareerReadingOutputValidator(); for (const change of [(x) => { x.calibrationSummary.score = 10; }, (x) => { x.calibrationSummary.narrative = 'This has greater strength.'; }, (x) => { x.calibrationSummary.narrative = 'You will definitely get promoted.'; }, (x) => { x.recurringHistoricalEvidence[0].factorsReferenced = ['Saturn']; }, (x) => { x.disclosure.hasProvisionalEvidence = false; }]) { const x = candidate(); change(x); fail(() => validator.validate({ context: context(), candidate: x })); } });
 test('is deterministic and does not mutate context or candidate', () => { const validator = new CareerReadingOutputValidator(), input = context(), output = candidate(), before = JSON.stringify({ input, output }), a = validator.validate({ context: input, candidate: output }), b = validator.validate({ context: input, candidate: output }); assert.deepEqual(a, b); assert.equal(JSON.stringify({ input, output }), before); });
+test('accepts strict-mode nullable optionals and returns the canonical omission form', () => {
+  const strict = candidate();
+  strict.calibrationSummary.eventCount = null;
+  Object.assign(strict.recurringHistoricalEvidence[0], {
+    matchedEventCount: null,
+    eligibleEventCount: null,
+    recurrenceRate: null,
+  });
+  strict.recurringHistoricalEvidence[0].eventDateReferences[0].month = null;
+  strict.recurringHistoricalEvidence[0].eventDateReferences[0].day = null;
+  Object.assign(strict.upcomingRecurrenceWindows[0], { instant: null });
+  Object.assign(strict.upcomingRecurrenceWindows[1], { from: null, to: null });
+  Object.assign(strict.upcomingRecurrenceWindows[2], { instant: null });
+  const output = new CareerReadingOutputValidator().validate({ context: context(), candidate: strict });
+  assert.equal(Object.hasOwn(output.calibrationSummary, 'eventCount'), false);
+  assert.equal(Object.hasOwn(output.upcomingRecurrenceWindows[0], 'instant'), false);
+  assert.equal(Object.hasOwn(output.upcomingRecurrenceWindows[1], 'from'), false);
+});
+test('emits stable safe reasons without provider narrative content', () => {
+  const validator = new CareerReadingOutputValidator();
+  const cases = [
+    ['INVALID_TOP_LEVEL', (x) => { delete x.disclosure; }],
+    ['INVALID_CALIBRATION_LEVEL', (x) => { x.calibrationSummary.calibrationLevel = 'WRONG'; }],
+    ['INVALID_DECISION_CONSIDERATIONS', (x) => { x.decisionConsiderations = ['a', 'b', 'c', 'd', 'e', 'f']; }],
+    ['INVALID_DISCLOSURE', (x) => { x.disclosure.hasProvisionalEvidence = false; }],
+    ['INVALID_EVIDENCE_REFERENCE', (x) => { x.recurringHistoricalEvidence[0].evidenceId = 'unknown'; }],
+    ['INVALID_FACTOR_REFERENCE', (x) => { x.recurringHistoricalEvidence[0].factorsReferenced = ['unsupported']; }],
+    ['INVALID_EVENT_DATE', (x) => { x.recurringHistoricalEvidence[0].eventDateReferences[0].year = 2021; }],
+    ['INVALID_FUTURE_EVIDENCE', (x) => { x.upcomingRecurrenceWindows[0].to = '2025-02-02T00:00:00.000Z'; }],
+    ['UNSAFE_CERTAINTY_LANGUAGE', (x) => { x.calibrationSummary.narrative = 'You will definitely get promoted.'; }],
+    ['UNSAFE_SCORE_LANGUAGE', (x) => { x.calibrationSummary.narrative = 'This has a 90% chance.'; }],
+  ];
+  for (const [expected, mutate] of cases) {
+    const value = candidate(); mutate(value);
+    reason(() => validator.validate({ context: context(), candidate: value }), expected);
+  }
+});
+test('enforces EVENT, WINDOW, and COMPOSITE temporal semantics', () => {
+  const validator = new CareerReadingOutputValidator();
+  for (const mutate of [
+    (x) => { x.upcomingRecurrenceWindows[1].from = '2025-01-01T00:00:00.000Z'; },
+    (x) => { x.upcomingRecurrenceWindows[0].instant = '2025-01-02T00:00:00.000Z'; },
+    (x) => { x.upcomingRecurrenceWindows[2].from = '2025-01-11T00:00:00.000Z'; },
+  ]) {
+    const value = candidate(); mutate(value);
+    reason(() => validator.validate({ context: context(), candidate: value }), 'INVALID_FUTURE_EVIDENCE');
+  }
+});
 test('serializes EVENT and WINDOW temporal fields without undefined values while preserving the exact P6B contract', () => {
   const input = createInterpretationInput(context());
   assert.deepEqual(Object.keys(input).sort(), ['allowedFactors', 'calibrationLevel', 'composites', 'eventCount', 'eventReferences', 'futureOccurrences', 'hasProvisionalEvidence', 'historicalEvidence', 'schemaVersion']);

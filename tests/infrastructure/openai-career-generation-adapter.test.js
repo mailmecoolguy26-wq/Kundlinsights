@@ -1,11 +1,37 @@
 'use strict';
 const test = require('node:test'); const assert = require('node:assert/strict');
-const { OpenAICareerGenerationAdapter, OPENAI_RESPONSES_ENDPOINT } = require('../../src/infrastructure/ai/openai-career-generation-adapter');
+const { OpenAICareerGenerationAdapter, OPENAI_RESPONSES_ENDPOINT, CAREER_OUTPUT_SCHEMA } = require('../../src/infrastructure/ai/openai-career-generation-adapter');
 const prompt = Object.freeze({ version: 'career-reading-prompt-v1', instructions: 'safe instructions', input: Object.freeze({ schemaVersion: 'career-reading-interpretation-schema-v1', eventReferences: [] }) });
 const candidate = { schemaVersion: 'career-reading-interpretation-schema-v1', calibrationSummary: {}, recurringHistoricalEvidence: [], upcomingRecurrenceWindows: [], decisionConsiderations: [], disclosure: {} };
 function response(body, status = 200) { return { ok: status >= 200 && status < 300, status, headers: { get: (key) => key === 'x-request-id' ? 'req-safe' : null }, json: async () => body }; }
 function adapter(fetchImplementation) { return new OpenAICareerGenerationAdapter({ apiKey: 'test-secret', model: 'fake-model', fetchImplementation }); }
-test('posts one provider-neutral prompt to Responses structured output and returns one candidate', async () => { let seen; const value = await adapter(async (url, init) => { seen = { url, init }; return response({ status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text: JSON.stringify(candidate) }] }] }); }).generate({ prompt }); assert.deepEqual(value, candidate); assert.equal(seen.url, OPENAI_RESPONSES_ENDPOINT); assert.equal(seen.init.headers.Authorization, 'Bearer test-secret'); const body = JSON.parse(seen.init.body); assert.equal(body.text.format.type, 'json_schema'); assert.equal(body.input.includes('safe instructions'), false); assert.equal(body.input.includes('PRIVATE'), false); assert.equal(body.instructions, 'safe instructions'); });
+test('posts one provider-neutral prompt to strict Responses structured output and returns one candidate', async () => { let seen; const value = await adapter(async (url, init) => { seen = { url, init }; return response({ status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text: JSON.stringify(candidate) }] }] }); }).generate({ prompt }); assert.deepEqual(value, candidate); assert.equal(seen.url, OPENAI_RESPONSES_ENDPOINT); assert.equal(seen.init.headers.Authorization, 'Bearer test-secret'); const body = JSON.parse(seen.init.body); assert.equal(body.text.format.type, 'json_schema'); assert.equal(body.text.format.strict, true); assert.equal(body.input.includes('safe instructions'), false); assert.equal(body.input.includes('PRIVATE'), false); assert.equal(body.instructions, 'safe instructions'); });
+test('strict schema closes every object and requires strict-mode nullable optionals', () => {
+  const objects = [];
+  const visit = (schema) => {
+    if (!schema || typeof schema !== 'object') return;
+    if (schema.type === 'object') objects.push(schema);
+    for (const value of Object.values(schema)) {
+      if (Array.isArray(value)) value.forEach(visit);
+      else visit(value);
+    }
+  };
+  visit(CAREER_OUTPUT_SCHEMA);
+  assert.ok(objects.length >= 6);
+  for (const schema of objects) {
+    assert.equal(schema.additionalProperties, false);
+    assert.deepEqual(new Set(schema.required), new Set(Object.keys(schema.properties)));
+  }
+  assert.equal(CAREER_OUTPUT_SCHEMA.properties.decisionConsiderations.maxItems, 5);
+  assert.deepEqual(
+    CAREER_OUTPUT_SCHEMA.properties.upcomingRecurrenceWindows.items.required,
+    ['evidenceId', 'text', 'occurrenceType', 'from', 'to', 'instant', 'factorsReferenced'],
+  );
+  assert.deepEqual(
+    CAREER_OUTPUT_SCHEMA.properties.upcomingRecurrenceWindows.items.properties.instant.type,
+    ['string', 'null'],
+  );
+});
 test('uses exactly one call and safely maps network, 401, 429, 5xx, empty, refusal, and malformed JSON failures', async () => { for (const fetchImplementation of [async () => { throw new Error('test-secret'); }, async () => response({}, 401), async () => response({}, 429), async () => response({}, 500), async () => response({ status: 'completed', output: [] }), async () => response({ status: 'completed', refusal: 'no' }), async () => ({ ok: true, status: 200, headers: { get: () => null }, json: async () => { throw new Error('bad'); } })]) await assert.rejects(() => adapter(fetchImplementation).generate({ prompt }), (error) => error.code === 'READING_GENERATION_FAILED' && !String(error.message).includes('test-secret')); });
 test('emits only safe provider-stage diagnostics when a provider response fails', async () => {
   const diagnostics = [];

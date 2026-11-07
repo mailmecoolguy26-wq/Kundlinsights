@@ -22,6 +22,16 @@ test('treats zero Career Events as deterministic optional calibration and never 
   assert.deepEqual(output.upcomingRecurrenceWindows, []);
 });
 test('fails closed without a second generation attempt and does not mutate inputs', async () => { let calls = 0; const source = Object.freeze(context()), bad = Object.freeze({ ...valid(), calibrationSummary: { ...valid().calibrationSummary, narrative: 'You will definitely get promoted.' } }); const interpreter = new CareerReadingInterpreter({ careerReadingContextBuilder: { build: async () => source }, generator: { generate: async () => { calls++; return bad; } } }); await assert.rejects(interpreter.interpret({}), (error) => error.code === 'READING_GENERATION_INVALID_OUTPUT'); assert.equal(calls, 1); assert.equal(bad.calibrationSummary.narrative, 'You will definitely get promoted.'); });
+test('logs only the safe validator reason for invalid provider output', async () => {
+  const diagnostics = [];
+  const bad = { ...valid(), calibrationSummary: { ...valid().calibrationSummary, narrative: 'You will definitely get promoted.' } };
+  const interpreter = new CareerReadingInterpreter({ careerReadingContextBuilder: { build: async () => context() }, generator: { generate: async () => bad } });
+  await assert.rejects(() => interpreter.interpretContext(context(), { diagnosticLog: (entry) => diagnostics.push(entry) }), (error) => error.code === 'READING_GENERATION_INVALID_OUTPUT');
+  const diagnostic = diagnostics.find((entry) => entry.event === 'CAREER_READING_CALCULATION' && entry.state === 'OUTPUT_INVALID');
+  assert.equal(diagnostic.safeErrorCode, 'READING_GENERATION_INVALID_OUTPUT');
+  assert.equal(diagnostic.validationReasonCode, 'UNSAFE_CERTAINTY_LANGUAGE');
+  assert.equal(JSON.stringify(diagnostics).includes(bad.calibrationSummary.narrative), false);
+});
 test('maps classified and unknown generator failures to generation failure',async()=>{for(const thrown of [Object.assign(new Error('safe'),{code:'READING_GENERATION_FAILED'}),new Error('unknown')]){const interpreter=new CareerReadingInterpreter({careerReadingContextBuilder:{build:async()=>context()},generator:{generate:async()=>{throw thrown;}}});await assert.rejects(()=>interpreter.interpret({}),e=>e.code==='READING_GENERATION_FAILED');}});
 test('records a redacted interpreter failure boundary for a provider generation failure', async () => {
   const diagnostics = [];

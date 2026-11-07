@@ -5,12 +5,121 @@ const { repositoryError, immutableCopy } = require('../../persistence/contracts'
 const OPENAI_RESPONSES_ENDPOINT = 'https://api.openai.com/v1/responses';
 const DEFAULT_TIMEOUT_MILLISECONDS = 15000;
 const DEFAULT_MAX_OUTPUT_TOKENS = 2000;
-const CAREER_OUTPUT_SCHEMA = Object.freeze({
-  type: 'object', additionalProperties: false,
-  required: ['schemaVersion', 'calibrationSummary', 'recurringHistoricalEvidence', 'upcomingRecurrenceWindows', 'decisionConsiderations', 'disclosure'],
+const nullableString = Object.freeze({ type: ['string', 'null'] });
+const nullableInteger = Object.freeze({
+  type: ['integer', 'null'],
+  minimum: 0,
+});
+const eventDateReferenceSchema = Object.freeze({
+  type: 'object',
+  additionalProperties: false,
+  required: ['eventId', 'precision', 'year', 'month', 'day'],
   properties: {
-    schemaVersion: { type: 'string', const: 'career-reading-interpretation-schema-v1' },
-    calibrationSummary: { type: 'object' }, recurringHistoricalEvidence: { type: 'array' }, upcomingRecurrenceWindows: { type: 'array' }, decisionConsiderations: { type: 'array', items: { type: 'string' } }, disclosure: { type: 'object' },
+    eventId: { type: 'string' },
+    precision: { type: 'string', enum: ['YEAR', 'MONTH', 'DAY'] },
+    year: { type: 'integer' },
+    month: { type: ['integer', 'null'], minimum: 1, maximum: 12 },
+    day: { type: ['integer', 'null'], minimum: 1, maximum: 31 },
+  },
+});
+const historicalEvidenceSchema = Object.freeze({
+  type: 'object',
+  additionalProperties: false,
+  required: [
+    'evidenceId',
+    'text',
+    'matchedEventCount',
+    'eligibleEventCount',
+    'recurrenceRate',
+    'eventDateReferences',
+    'factorsReferenced',
+  ],
+  properties: {
+    evidenceId: { type: 'string' },
+    text: { type: 'string' },
+    matchedEventCount: nullableInteger,
+    eligibleEventCount: nullableInteger,
+    recurrenceRate: { type: ['number', 'null'], minimum: 0 },
+    eventDateReferences: {
+      type: ['array', 'null'],
+      items: eventDateReferenceSchema,
+    },
+    factorsReferenced: { type: 'array', items: { type: 'string' } },
+  },
+});
+const futureEvidenceSchema = Object.freeze({
+  type: 'object',
+  additionalProperties: false,
+  required: [
+    'evidenceId',
+    'text',
+    'occurrenceType',
+    'from',
+    'to',
+    'instant',
+    'factorsReferenced',
+  ],
+  properties: {
+    evidenceId: { type: 'string' },
+    text: { type: 'string' },
+    occurrenceType: {
+      type: 'string',
+      enum: ['EVENT', 'WINDOW', 'COMPOSITE'],
+    },
+    from: nullableString,
+    to: nullableString,
+    instant: nullableString,
+    factorsReferenced: { type: 'array', items: { type: 'string' } },
+  },
+});
+const CAREER_OUTPUT_SCHEMA = Object.freeze({
+  type: 'object',
+  additionalProperties: false,
+  required: [
+    'schemaVersion',
+    'calibrationSummary',
+    'recurringHistoricalEvidence',
+    'upcomingRecurrenceWindows',
+    'decisionConsiderations',
+    'disclosure',
+  ],
+  properties: {
+    schemaVersion: {
+      type: 'string',
+      const: 'career-reading-interpretation-schema-v1',
+    },
+    calibrationSummary: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['calibrationLevel', 'narrative', 'eventCount'],
+      properties: {
+        calibrationLevel: {
+          type: 'string',
+          enum: ['NONE', 'LIMITED', 'CALIBRATED'],
+        },
+        narrative: { type: 'string' },
+        eventCount: nullableInteger,
+      },
+    },
+    recurringHistoricalEvidence: {
+      type: 'array',
+      items: historicalEvidenceSchema,
+    },
+    upcomingRecurrenceWindows: {
+      type: 'array',
+      items: futureEvidenceSchema,
+    },
+    decisionConsiderations: {
+      type: 'array',
+      maxItems: 5,
+      items: { type: 'string' },
+    },
+    disclosure: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['hasProvisionalEvidence'],
+      properties: { hasProvisionalEvidence: { type: 'boolean' } },
+    },
   },
 });
 function fail(category, status, requestId) { const error = repositoryError('READING_GENERATION_FAILED'); error.provider = 'openai'; error.category = category; if (Number.isInteger(status)) error.httpStatus = status; if (typeof requestId === 'string' && requestId) error.providerRequestId = requestId; throw error; }
@@ -33,7 +142,7 @@ class OpenAICareerGenerationAdapter {
     if (!prompt || prompt.version !== 'career-reading-prompt-v1' || !validText(prompt.instructions) || !prompt.input || typeof prompt.input !== 'object') fail('invalid_prompt');
     const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), this.timeoutMilliseconds); let response;
     if (typeof diagnosticLog === 'function') diagnosticLog({ event: 'CAREER_READING_INTERPRETER_STEP', step: 'PROVIDER_REQUEST', status: 'STARTED' });
-    try { response = await this.fetch(this.endpoint, { method: 'POST', headers: { Authorization: `Bearer ${this.apiKey}`, 'Content-Type': 'application/json' }, signal: controller.signal, body: JSON.stringify({ model: this.model, instructions: prompt.instructions, input: JSON.stringify(prompt.input), max_output_tokens: this.maxOutputTokens, store: false, text: { format: { type: 'json_schema', name: 'career_reading_interpretation', strict: false, schema: CAREER_OUTPUT_SCHEMA } } }) }); } catch { if (typeof diagnosticLog === 'function') diagnosticLog({ event: 'CAREER_READING_INTERPRETER_STEP', step: controller.signal.aborted ? 'PROVIDER_TIMEOUT' : 'PROVIDER_NETWORK', status: 'FAILED' }); fail(controller.signal.aborted ? 'timeout' : 'network'); } finally { clearTimeout(timer); }
+    try { response = await this.fetch(this.endpoint, { method: 'POST', headers: { Authorization: `Bearer ${this.apiKey}`, 'Content-Type': 'application/json' }, signal: controller.signal, body: JSON.stringify({ model: this.model, instructions: prompt.instructions, input: JSON.stringify(prompt.input), max_output_tokens: this.maxOutputTokens, store: false, text: { format: { type: 'json_schema', name: 'career_reading_interpretation', strict: true, schema: CAREER_OUTPUT_SCHEMA } } }) }); } catch { if (typeof diagnosticLog === 'function') diagnosticLog({ event: 'CAREER_READING_INTERPRETER_STEP', step: controller.signal.aborted ? 'PROVIDER_TIMEOUT' : 'PROVIDER_NETWORK', status: 'FAILED' }); fail(controller.signal.aborted ? 'timeout' : 'network'); } finally { clearTimeout(timer); }
     const requestId = response && response.headers && typeof response.headers.get === 'function' ? response.headers.get('x-request-id') : undefined;
     if (!response || !response.ok) { const category = response && response.status === 401 || response && response.status === 403 ? 'authentication' : response && response.status === 429 ? 'rate_limit' : 'provider'; if (typeof diagnosticLog === 'function') diagnosticLog({ event: 'CAREER_READING_INTERPRETER_STEP', step: category === 'authentication' ? 'PROVIDER_AUTHENTICATION' : category === 'rate_limit' ? 'PROVIDER_RATE_LIMIT' : 'PROVIDER_RESPONSE', status: 'FAILED' }); fail(category, response && response.status, requestId); }
     if (typeof diagnosticLog === 'function') diagnosticLog({ event: 'CAREER_READING_INTERPRETER_STEP', step: 'PROVIDER_RESPONSE', status: 'SUCCEEDED' });
