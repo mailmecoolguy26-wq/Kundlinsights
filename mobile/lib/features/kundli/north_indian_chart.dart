@@ -87,6 +87,34 @@ List<D1ChartHouse> buildD1ChartHouses(NatalSummary summary) {
   return List<D1ChartHouse>.unmodifiable(houses);
 }
 
+/// Presentation-only Chandra chart rotation of authoritative D1 positions.
+///
+/// The Moon sign becomes the first house and every other sign retains its
+/// existing planet placements. No longitude, sign, or astrology calculation is
+/// performed here.
+List<D1ChartHouse> buildChandraChartHouses(NatalSummary summary) {
+  final moonSign = summary.summary.moonSign.rashiIndex;
+  final signs = <int, NatalSign>{
+    for (final house in summary.houses) house.sign.rashiIndex: house.sign,
+  };
+  final houses = List<D1ChartHouse>.generate(12, (index) {
+    final house = index + 1;
+    final signIndex = ((moonSign - 1 + index) % 12) + 1;
+    final sign = signs[signIndex];
+    if (sign == null) {
+      throw StateError('MISSING_NATAL_SIGN_$signIndex');
+    }
+    return D1ChartHouse(
+      house: house,
+      sign: sign,
+      planets: List<NatalPosition>.unmodifiable(
+        summary.planets.where((planet) => planet.sign.rashiIndex == signIndex),
+      ),
+    );
+  });
+  return List<D1ChartHouse>.unmodifiable(houses);
+}
+
 /// Fixed, normalized visual regions for the conventional North Indian chart.
 ///
 /// These polygons are the same twelve regions drawn by [_NorthIndianChartPainter]:

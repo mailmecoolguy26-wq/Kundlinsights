@@ -14,6 +14,7 @@ import '../../features/kundli/kundli_screen.dart';
 import '../../features/kundli/planet_detail_screen.dart';
 import '../../features/natal/natal_summary_controller.dart';
 import '../../features/divisional/divisional_chart_controller.dart';
+import '../../features/divisional/domain/divisional_chart.dart';
 import '../../features/profiles/presentation/birth_profile_onboarding_screen.dart';
 import '../../features/profiles/presentation/birth_profiles_screen.dart';
 import '../../features/profiles/profile_controller.dart';
@@ -613,6 +614,59 @@ GoRouter createAppRouter(
                 divisionalController: divisional,
               ),
               routes: [
+                GoRoute(
+                  path: 'lagna',
+                  builder: (context, state) => LagnaChartScreen(
+                    profileController: profiles,
+                    natalController: natal,
+                  ),
+                ),
+                GoRoute(
+                  path: 'navamsha',
+                  builder: (context, state) => KundliDivisionalChartScreen(
+                    profileController: profiles,
+                    controller: divisional,
+                    type: DivisionalChartType.d9,
+                  ),
+                ),
+                GoRoute(
+                  path: 'chandra',
+                  builder: (context, state) => ChandraChartScreen(
+                    profileController: profiles,
+                    natalController: natal,
+                  ),
+                ),
+                GoRoute(
+                  path: 'divisional',
+                  builder: (context, state) => const DivisionalChartsScreen(),
+                  routes: [
+                    GoRoute(
+                      path: 'd10',
+                      builder: (context, state) => KundliDivisionalChartScreen(
+                        profileController: profiles,
+                        controller: divisional,
+                        type: DivisionalChartType.d10,
+                      ),
+                    ),
+                  ],
+                ),
+                GoRoute(
+                  path: 'planets',
+                  builder: (context, state) =>
+                      PlanetPositionsScreen(natalController: natal),
+                ),
+                GoRoute(
+                  path: 'planetary-status',
+                  builder: (context, state) =>
+                      PlanetaryStatusScreen(natalController: natal),
+                ),
+                GoRoute(
+                  path: 'birth-details',
+                  builder: (context, state) => BirthDetailsScreen(
+                    profileController: profiles,
+                    natalController: natal,
+                  ),
+                ),
                 GoRoute(
                   path: 'planet/:planet',
                   name: 'planet-detail',

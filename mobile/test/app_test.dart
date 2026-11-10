@@ -71,7 +71,11 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Property · Vehicle'), findsNothing);
-      expect(find.text('COMING NEXT'), findsOneWidget);
+      expect(find.text('COMING NEXT'), findsNothing);
+      expect(
+        find.byKey(const ValueKey('home-life-area-tarot')),
+        findsOneWidget,
+      );
       expect(
         find.byKey(const ValueKey('home-life-area-relationships')),
         findsOneWidget,
@@ -313,6 +317,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Kundli').last);
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Lagna Chart'));
+    await tester.pumpAndSettle();
     expect(find.text('Lagna'), findsOneWidget);
     expect(find.text('11'), findsNWidgets(12));
     await tester.scrollUntilVisible(find.text('Accessible house list'), 240);
@@ -330,6 +336,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Kundli').last);
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Lagna Chart'));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Su 20° R', findRichText: true));
     await tester.pumpAndSettle();
@@ -339,9 +347,11 @@ void main() {
     expect(find.text('Astronomical Details'), findsOneWidget);
   });
 
-  testWidgets('switches D1, Navamsa, and Dasamsa without stale chart labels', (
+  testWidgets('opens D1, Navamsa, and Dasamsa without stale chart labels', (
     tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
       _app(controller, profiles, charts: _DivisionalCharts()),
     );
@@ -351,21 +361,20 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('My Kundli'), findsOneWidget);
 
-    await tester.tap(find.text('D9'));
-    await tester.pump();
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    await tester.tap(find.text('Navamsha Chart'));
     await tester.pumpAndSettle();
-    expect(find.text('Navamsa (D9)'), findsOneWidget);
+    expect(find.text('Navamsha Chart'), findsOneWidget);
     expect(find.text('D9 · Sun'), findsNothing);
 
-    await tester.tap(find.text('D10'));
+    await tester.pageBack();
     await tester.pumpAndSettle();
-    expect(find.text('D10 Career Chart'), findsOneWidget);
-    expect(find.text('Navamsa (D9)'), findsNothing);
-
-    await tester.tap(find.text('D1'));
+    await tester.scrollUntilVisible(find.text('Divisional Charts'), 240);
+    await tester.tap(find.text('Divisional Charts'));
     await tester.pumpAndSettle();
-    expect(find.text('My Kundli'), findsOneWidget);
+    await tester.tap(find.text('Dashamsha (D10)'));
+    await tester.pumpAndSettle();
+    expect(find.text('D10 Career Chart'), findsWidgets);
+    expect(find.text('Navamsha Chart'), findsNothing);
   });
 
   testWidgets(
@@ -376,8 +385,10 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Kundli').last);
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(find.text('PLANETARY POSITIONS'), 240);
-      expect(find.text('PLANETARY POSITIONS'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Planet Positions'), 240);
+      await tester.tap(find.text('Planet Positions'));
+      await tester.pumpAndSettle();
+      expect(find.text('Authoritative natal placements'), findsOneWidget);
       expect(find.text('Sun'), findsOneWidget);
       await tester.tap(find.text('Sun'));
       await tester.pumpAndSettle();

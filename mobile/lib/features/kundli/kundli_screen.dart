@@ -14,7 +14,7 @@ import '../readings/astrology_presentation_copy.dart';
 import 'divisional_chart_panel.dart';
 import 'north_indian_chart.dart';
 
-class KundliScreen extends StatefulWidget {
+class KundliScreen extends StatelessWidget {
   const KundliScreen({
     super.key,
     required this.profileController,
@@ -27,101 +27,107 @@ class KundliScreen extends StatefulWidget {
   final DivisionalChartController divisionalController;
 
   @override
-  State<KundliScreen> createState() => _KundliScreenState();
-}
-
-class _KundliScreenState extends State<KundliScreen> {
-  DivisionalChartType? _selectedType;
-
-  void _select(DivisionalChartType? type) {
-    setState(() => _selectedType = type);
-    if (type != null) widget.divisionalController.load(type);
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final t = AppLocalizations.of(context)!;
-    final baseTheme = Theme.of(context);
-    return Theme(
-      data: baseTheme.copyWith(
-        scaffoldBackgroundColor: const Color(0xFF061A1A),
-        cardTheme: const CardThemeData(
-          color: Color(0xFF082625),
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(16)),
-            side: BorderSide(color: Color(0x33255C57)),
-          ),
-        ),
-        textTheme: baseTheme.textTheme.apply(
-          bodyColor: const Color(0xFFF7F4EC),
-          displayColor: const Color(0xFFF7F4EC),
-        ),
-      ),
-      child: Scaffold(
-        backgroundColor: const Color(0xFF061A1A),
-        body: SafeArea(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                child: SegmentedButton<DivisionalChartType?>(
-                  segments: [
-                    ButtonSegment(value: null, label: Text(t.d1)),
-                    ButtonSegment(
-                      value: DivisionalChartType.d9,
-                      label: Text(t.d9),
-                    ),
-                    ButtonSegment(
-                      value: DivisionalChartType.d10,
-                      label: Text(t.d10),
-                    ),
-                  ],
-                  selected: {_selectedType},
-                  onSelectionChanged: (selection) => _select(selection.single),
-                  style: ButtonStyle(
-                    foregroundColor: WidgetStateProperty.resolveWith(
-                      (states) => states.contains(WidgetState.selected)
-                          ? const Color(0xFF061A1A)
-                          : const Color(0xFFF7F4EC),
-                    ),
-                    backgroundColor: WidgetStateProperty.resolveWith(
-                      (states) => states.contains(WidgetState.selected)
-                          ? const Color(0xFF35B9AC)
-                          : const Color(0xFF0D312F),
-                    ),
-                    side: WidgetStateProperty.resolveWith(
-                      (states) => BorderSide(
-                        color: states.contains(WidgetState.selected)
-                            ? const Color(0xFF35B9AC)
-                            : const Color(0xFF255C57),
-                      ),
-                    ),
-                  ),
+    return Scaffold(
+      backgroundColor: const Color(0xFF061A1A),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 112),
+          children: [
+            _KundliHero(profile: profileController.activeProfile),
+            const SizedBox(height: AppSpacing.lg),
+            const _KundliIntro(),
+            const SizedBox(height: AppSpacing.lg),
+            _KundliGroup(
+              title: 'CHARTS',
+              children: [
+                _KundliLink(
+                  icon: Icons.diamond_outlined,
+                  title: 'Lagna Chart',
+                  subtitle: 'Your D1 chart and core life structure',
+                  onTap: () => context.push('/kundli/lagna'),
                 ),
-              ),
-              Expanded(
-                child: _selectedType == null
-                    ? _D1KundliContent(
-                        profileController: widget.profileController,
-                        natalController: widget.natalController,
-                      )
-                    : DivisionalChartPanel(
-                        profileController: widget.profileController,
-                        controller: widget.divisionalController,
-                        type: _selectedType!,
-                      ),
-              ),
-            ],
-          ),
+                _KundliLink(
+                  icon: Icons.auto_awesome_outlined,
+                  title: 'Navamsha Chart',
+                  subtitle: 'D9 chart for deeper chart context',
+                  onTap: () => context.push('/kundli/navamsha'),
+                ),
+                _KundliLink(
+                  icon: Icons.nightlight_outlined,
+                  title: 'Chandra Kundli',
+                  subtitle: 'Your natal chart viewed from the Moon',
+                  onTap: () => context.push('/kundli/chandra'),
+                ),
+                _KundliLink(
+                  icon: Icons.grid_view_outlined,
+                  title: 'Divisional Charts',
+                  subtitle: 'Explore available D9 and D10 charts',
+                  onTap: () => context.push('/kundli/divisional'),
+                ),
+              ],
+            ),
+            _KundliGroup(
+              title: 'TIMING',
+              children: [
+                _KundliLink(
+                  icon: Icons.timeline_outlined,
+                  title: 'Vimshottari Dasha',
+                  subtitle: 'Current Mahadasha, Antardasha and timeline',
+                  onTap: () => context.pushNamed('vimshottari-timeline'),
+                ),
+                _KundliLink(
+                  icon: Icons.public_outlined,
+                  title: 'Current Transits',
+                  subtitle: 'Current Gochar and activated natal houses',
+                  onTap: () => context.pushNamed('current-transits'),
+                ),
+              ],
+            ),
+            _KundliGroup(
+              title: 'PLANETARY ANALYSIS',
+              children: [
+                _KundliLink(
+                  icon: Icons.list_alt_outlined,
+                  title: 'Planet Positions',
+                  subtitle: 'Sign, house, degree, Nakshatra and motion',
+                  onTap: () => context.push('/kundli/planets'),
+                ),
+                _KundliLink(
+                  icon: Icons.speed_outlined,
+                  title: 'Planetary Status',
+                  subtitle: 'Supported direct and retrograde states',
+                  onTap: () => context.push('/kundli/planetary-status'),
+                ),
+                _KundliLink(
+                  icon: Icons.apps_outlined,
+                  title: 'Ashtakavarga',
+                  subtitle: 'SAV and BAV sign-oriented support scores',
+                  onTap: () => context.push('/ashtakavarga'),
+                ),
+              ],
+            ),
+            _KundliGroup(
+              title: 'BIRTH DETAILS',
+              children: [
+                _KundliLink(
+                  icon: Icons.person_outline,
+                  title: 'Birth Details',
+                  subtitle: 'Saved birth input and chart identity',
+                  onTap: () => context.push('/kundli/birth-details'),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _D1KundliContent extends StatelessWidget {
-  const _D1KundliContent({
+class LagnaChartScreen extends StatelessWidget {
+  const LagnaChartScreen({
+    super.key,
     required this.profileController,
     required this.natalController,
   });
@@ -130,111 +136,91 @@ class _D1KundliContent extends StatelessWidget {
   final NatalSummaryController natalController;
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: natalController,
-    builder: (context, child) {
-      final copy = AstrologyPresentationCopy.of(context);
-      final summary = natalController.summary;
-      return RefreshIndicator(
-        onRefresh: natalController.refresh,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 112),
-          children: [
-            _KundliHero(profile: profileController.activeProfile),
-            const SizedBox(height: 20),
-            _ModuleGrid(
-              onDasha: () => context.pushNamed('vimshottari-timeline'),
-              onTransits: () => context.pushNamed('current-transits'),
-              onAshtakavarga: () => context.push('/ashtakavarga'),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            if (natalController.state == NatalSummaryLoadState.loading ||
-                natalController.state == NatalSummaryLoadState.initial)
-              const _NatalLoading()
-            else if (summary == null)
-              _NatalError(onRetry: natalController.refresh)
-            else ...[
-              const Text('LAGNA CHART', style: _KundliStyle.eyebrow),
-              const SizedBox(height: 8),
-              AppCard(
-                padding: const EdgeInsets.all(AppSpacing.sm),
-                child: NorthIndianKundliChart(
-                  houses: buildD1ChartHouses(summary),
-                  onHouseTap: (house) => _showHouseDetails(context, house),
-                  onPlanetTap: (planet) => context.goNamed(
-                    'planet-detail',
-                    pathParameters: {'planet': planet.body},
+  Widget build(BuildContext context) => _KundliDetailScaffold(
+    title: 'Lagna Chart',
+    child: ListenableBuilder(
+      listenable: natalController,
+      builder: (context, child) {
+        final summary = natalController.summary;
+        return RefreshIndicator(
+          onRefresh: natalController.refresh,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 112),
+            children: [
+              _ChartExplanation(
+                title: 'Your main birth chart',
+                body: 'The Lagna or D1 chart is the main view of your natal placements and houses. It provides the foundation used by TaraVerse calculations.',
+              ),
+              const SizedBox(height: AppSpacing.md),
+              if (natalController.state == NatalSummaryLoadState.loading ||
+                  natalController.state == NatalSummaryLoadState.initial)
+                const _NatalLoading()
+              else if (summary == null)
+                _NatalError(onRetry: natalController.refresh)
+              else ...[
+                Text(
+                  profileController.activeProfile?.label ?? 'Birth profile',
+                  style: _KundliStyle.eyebrow,
+                ),
+                const SizedBox(height: 8),
+                AppCard(
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  child: NorthIndianKundliChart(
+                    houses: buildD1ChartHouses(summary),
+                    onHouseTap: (house) => _showHouseDetails(context, house),
+                    onPlanetTap: (planet) => context.pushNamed(
+                      'planet-detail',
+                      pathParameters: {'planet': planet.body},
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              _HouseAccessibilityFallback(houses: buildD1ChartHouses(summary)),
-              const SizedBox(height: AppSpacing.xl),
-              _IdentityCards(summary: summary),
-              const SizedBox(height: AppSpacing.xl),
-              const Text('PLANETARY POSITIONS', style: _KundliStyle.eyebrow),
-              const SizedBox(height: 10),
-              ...summary.planets.map(
-                (position) => _PlanetRow(position: position, copy: copy),
-              ),
+                const SizedBox(height: AppSpacing.sm),
+                _HouseAccessibilityFallback(
+                  houses: buildD1ChartHouses(summary),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                _IdentityCards(summary: summary),
+              ],
             ],
-          ],
-        ),
-      );
-    },
+          ),
+        );
+      },
+    ),
   );
 }
 
-class _ModuleGrid extends StatelessWidget {
-  const _ModuleGrid({
-    required this.onDasha,
-    required this.onTransits,
-    required this.onAshtakavarga,
-  });
-  final VoidCallback onDasha;
-  final VoidCallback onTransits;
-  final VoidCallback onAshtakavarga;
+class _KundliIntro extends StatelessWidget {
+  const _KundliIntro();
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const Text('EXPLORE YOUR KUNDLI', style: _KundliStyle.eyebrow),
-      const SizedBox(height: 10),
-      Row(
-        children: [
-          Expanded(
-            child: _ModuleCard(
-              icon: Icons.timeline_outlined,
-              title: 'Dasha',
-              subtitle: 'Vimshottari timeline',
-              onTap: onDasha,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _ModuleCard(
-              icon: Icons.public_outlined,
-              title: 'Transits',
-              subtitle: 'Current Gochar',
-              onTap: onTransits,
-            ),
-          ),
-        ],
-      ),
-      const SizedBox(height: 10),
-      _ModuleCard(
-        icon: Icons.grid_view_outlined,
-        title: 'Ashtakavarga',
-        subtitle: 'Sign-oriented scores',
-        onTap: onAshtakavarga,
-      ),
-    ],
+  Widget build(BuildContext context) => const AppCard(
+    child: Text(
+      'Your Kundli brings together the birth chart, timing cycles, current transits and supported planetary analysis. Open any section to explore the underlying chart facts.',
+      style: _KundliStyle.body,
+    ),
   );
 }
 
-class _ModuleCard extends StatelessWidget {
-  const _ModuleCard({
+class _KundliGroup extends StatelessWidget {
+  const _KundliGroup({required this.title, required this.children});
+  final String title;
+  final List<Widget> children;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: _KundliStyle.eyebrow),
+        const SizedBox(height: AppSpacing.sm),
+        ...children,
+      ],
+    ),
+  );
+}
+
+class _KundliLink extends StatelessWidget {
+  const _KundliLink({
     required this.icon,
     required this.title,
     required this.subtitle,
@@ -245,38 +231,380 @@ class _ModuleCard extends StatelessWidget {
   final String subtitle;
   final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => Material(
-    color: const Color(0xFF082625),
-    borderRadius: BorderRadius.circular(14),
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 74),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0x33255C57)),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+    child: AppCard(
+      padding: EdgeInsets.zero,
+      child: ListTile(
+        onTap: onTap,
+        leading: Icon(icon, color: const Color(0xFFD6B15A)),
+        title: Text(
+          title,
+          style: const TextStyle(
+            color: Color(0xFFF7F4EC),
+            fontWeight: FontWeight.w600,
+          ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        subtitle: Text(subtitle, style: _KundliStyle.body),
+        trailing: const Icon(Icons.chevron_right, color: Color(0xFF35B9AC)),
+      ),
+    ),
+  );
+}
+
+class KundliDivisionalChartScreen extends StatefulWidget {
+  const KundliDivisionalChartScreen({
+    super.key,
+    required this.profileController,
+    required this.controller,
+    required this.type,
+  });
+  final ProfileController profileController;
+  final DivisionalChartController controller;
+  final DivisionalChartType type;
+
+  @override
+  State<KundliDivisionalChartScreen> createState() =>
+      _KundliDivisionalChartScreenState();
+}
+
+class _KundliDivisionalChartScreenState
+    extends State<KundliDivisionalChartScreen> {
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.load(widget.type);
+  }
+
+  @override
+  Widget build(BuildContext context) => _KundliDetailScaffold(
+    title: widget.type == DivisionalChartType.d9
+        ? 'Navamsha Chart'
+        : 'D10 Career Chart',
+    child: Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+          child: _ChartExplanation(
+            title: widget.type == DivisionalChartType.d9
+                ? 'What Navamsha represents'
+                : 'What D10 represents',
+            body: widget.type == DivisionalChartType.d9
+                ? 'Navamsha is a supporting divisional chart used to examine deeper planetary context and relationship themes. It is not a prediction by itself.'
+                : 'D10 is a supporting divisional chart used for profession, responsibility and career development. It should be read with the main chart and timing evidence.',
+          ),
+        ),
+        Expanded(
+          child: DivisionalChartPanel(
+            profileController: widget.profileController,
+            controller: widget.controller,
+            type: widget.type,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class DivisionalChartsScreen extends StatelessWidget {
+  const DivisionalChartsScreen({super.key});
+  @override
+  Widget build(BuildContext context) => _KundliDetailScaffold(
+    title: 'Divisional Charts',
+    child: ListView(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+      children: [
+        const _ChartExplanation(
+          title: 'Focused chart views',
+          body: 'Divisional charts provide focused views derived by the TaraVerse astrology engine. Only charts currently available through the verified customer API are shown here.',
+        ),
+        const SizedBox(height: AppSpacing.md),
+        _KundliLink(
+          icon: Icons.auto_awesome_outlined,
+          title: 'Navamsha (D9)',
+          subtitle: 'A deeper view of planetary placement context',
+          onTap: () => context.push('/kundli/navamsha'),
+        ),
+        _KundliLink(
+          icon: Icons.work_outline,
+          title: 'Dashamsha (D10)',
+          subtitle: 'A focused chart used in grounded career analysis',
+          onTap: () => context.push('/kundli/divisional/d10'),
+        ),
+      ],
+    ),
+  );
+}
+
+class ChandraChartScreen extends StatelessWidget {
+  const ChandraChartScreen({
+    super.key,
+    required this.profileController,
+    required this.natalController,
+  });
+  final ProfileController profileController;
+  final NatalSummaryController natalController;
+
+  @override
+  Widget build(BuildContext context) => _KundliDetailScaffold(
+    title: 'Chandra Kundli',
+    child: ListenableBuilder(
+      listenable: natalController,
+      builder: (context, child) {
+        final summary = natalController.summary;
+        return RefreshIndicator(
+          onRefresh: natalController.refresh,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+            children: [
+              const _ChartExplanation(
+                title: 'The chart viewed from your Moon',
+                body: 'Chandra Kundli keeps the same natal signs and planets, with your Moon sign shown as the first house. It helps you inspect the chart from the Moon perspective.',
+              ),
+              const SizedBox(height: AppSpacing.md),
+              if (natalController.state == NatalSummaryLoadState.loading ||
+                  natalController.state == NatalSummaryLoadState.initial)
+                const _NatalLoading()
+              else if (summary == null)
+                _NatalError(onRetry: natalController.refresh)
+              else ...[
+                Text(
+                  profileController.activeProfile?.label ?? 'Birth profile',
+                  style: _KundliStyle.eyebrow,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                AppCard(
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  child: NorthIndianKundliChart(
+                    houses: buildChandraChartHouses(summary),
+                    onHouseTap: (house) => _showHouseDetails(context, house),
+                    onPlanetTap: (planet) => context.pushNamed(
+                      'planet-detail',
+                      pathParameters: {'planet': planet.body},
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _HouseAccessibilityFallback(
+                  houses: buildChandraChartHouses(summary),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    ),
+  );
+}
+
+class PlanetPositionsScreen extends StatelessWidget {
+  const PlanetPositionsScreen({super.key, required this.natalController});
+  final NatalSummaryController natalController;
+  @override
+  Widget build(BuildContext context) => _KundliDetailScaffold(
+    title: 'Planet Positions',
+    child: ListenableBuilder(
+      listenable: natalController,
+      builder: (context, child) {
+        final summary = natalController.summary;
+        final copy = AstrologyPresentationCopy.of(context);
+        return RefreshIndicator(
+          onRefresh: natalController.refresh,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+            children: [
+              const _ChartExplanation(
+                title: 'Authoritative natal placements',
+                body: 'These positions show each Graha by sign, house, degree, Nakshatra, Pada and supported motion state.',
+              ),
+              const SizedBox(height: AppSpacing.md),
+              if (summary == null)
+                _NatalError(onRetry: natalController.refresh)
+              else
+                ...summary.planets.map(
+                  (position) => _PlanetRow(position: position, copy: copy),
+                ),
+            ],
+          ),
+        );
+      },
+    ),
+  );
+}
+
+class PlanetaryStatusScreen extends StatelessWidget {
+  const PlanetaryStatusScreen({super.key, required this.natalController});
+  final NatalSummaryController natalController;
+  @override
+  Widget build(BuildContext context) => _KundliDetailScaffold(
+    title: 'Planetary Status',
+    child: ListenableBuilder(
+      listenable: natalController,
+      builder: (context, child) {
+        final summary = natalController.summary;
+        final copy = AstrologyPresentationCopy.of(context);
+        return RefreshIndicator(
+          onRefresh: natalController.refresh,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+            children: [
+              const _ChartExplanation(
+                title: 'Supported motion status',
+                body: 'Retrograde describes apparent planetary motion; it is not a simple good-or-bad score. TaraVerse does not display unsupported Shadbala or dignity claims here.',
+              ),
+              const SizedBox(height: AppSpacing.md),
+              if (summary == null)
+                _NatalError(onRetry: natalController.refresh)
+              else
+                ...summary.planets.map(
+                  (planet) => AppCard(
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            copy.planet(planet.body),
+                            style: const TextStyle(
+                              color: Color(0xFFF7F4EC),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          planet.retrograde ? copy.retrograde : 'Direct',
+                          style: TextStyle(
+                            color: planet.retrograde
+                                ? const Color(0xFFD6B15A)
+                                : const Color(0xFF35B9AC),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    ),
+  );
+}
+
+class BirthDetailsScreen extends StatelessWidget {
+  const BirthDetailsScreen({
+    super.key,
+    required this.profileController,
+    required this.natalController,
+  });
+  final ProfileController profileController;
+  final NatalSummaryController natalController;
+  @override
+  Widget build(BuildContext context) => _KundliDetailScaffold(
+    title: 'Birth Details',
+    child: ListenableBuilder(
+      listenable: Listenable.merge([profileController, natalController]),
+      builder: (context, child) {
+        final profile = profileController.activeProfile;
+        final summary = natalController.summary;
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
           children: [
-            Icon(icon, color: const Color(0xFFD6B15A), size: 19),
-            const SizedBox(height: 7),
-            Text(
-              title,
-              style: const TextStyle(
-                color: Color(0xFFF7F4EC),
-                fontWeight: FontWeight.w600,
+            const _ChartExplanation(
+              title: 'Saved birth input',
+              body: 'These profile details identify the birth input used by TaraVerse. Coordinates and other sensitive technical fields are not displayed.',
+            ),
+            const SizedBox(height: AppSpacing.md),
+            AppCard(
+              child: Column(
+                children: [
+                  _Value(label: 'Profile', value: profile?.label ?? '—'),
+                  _Value(
+                    label: 'Birth date',
+                    value:
+                        profile?.birthData.value['localDate'] as String? ?? '—',
+                  ),
+                  _Value(
+                    label: 'Birth time',
+                    value:
+                        profile?.birthData.value['localTime'] as String? ?? '—',
+                  ),
+                  _Value(
+                    label: 'Birth place',
+                    value:
+                        profile?.birthData.displayLocation ?? 'Not available',
+                  ),
+                  if (summary != null) ...[
+                    _Value(
+                      label: 'Ascendant',
+                      value: summary.summary.ascendant.sign.englishName,
+                    ),
+                    _Value(
+                      label: 'Moon sign',
+                      value: summary.summary.moonSign.englishName,
+                    ),
+                    _Value(
+                      label: 'Sun sign',
+                      value: summary.summary.sunSign.englishName,
+                    ),
+                    _Value(
+                      label: 'Moon Nakshatra',
+                      value: summary.summary.moonNakshatra.name,
+                    ),
+                    _Value(
+                      label: 'Moon Pada',
+                      value: '${summary.summary.moonPada}',
+                    ),
+                  ],
+                ],
               ),
             ),
-            Text(
-              subtitle,
-              style: const TextStyle(color: Color(0xFFA8B7B4), fontSize: 11),
-            ),
           ],
+        );
+      },
+    ),
+  );
+}
+
+class _KundliDetailScaffold extends StatelessWidget {
+  const _KundliDetailScaffold({required this.title, required this.child});
+  final String title;
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: const Color(0xFF061A1A),
+    appBar: AppBar(
+      title: Text(title),
+      backgroundColor: const Color(0xFF061A1A),
+      foregroundColor: const Color(0xFFF7F4EC),
+    ),
+    body: SafeArea(top: false, child: child),
+  );
+}
+
+class _ChartExplanation extends StatelessWidget {
+  const _ChartExplanation({required this.title, required this.body});
+  final String title;
+  final String body;
+  @override
+  Widget build(BuildContext context) => AppCard(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: Color(0xFFF7F4EC),
+            fontFamily: 'EBGaramond',
+            fontSize: 21,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-      ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(body, style: _KundliStyle.body),
+      ],
     ),
   );
 }
@@ -595,7 +923,7 @@ class _PlanetRow extends StatelessWidget {
                     side: const BorderSide(color: Color(0x66D6B15A)),
                   )
                 : const Icon(Icons.chevron_right, color: Color(0xFFD6B15A)),
-            onTap: () => context.goNamed(
+            onTap: () => context.pushNamed(
               'planet-detail',
               pathParameters: {'planet': position.body},
             ),
