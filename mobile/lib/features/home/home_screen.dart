@@ -373,6 +373,15 @@ class _LifeAreaCards extends StatelessWidget {
           onTap: () => context.push(destination('/career')),
         ),
         const SizedBox(height: 10),
+_LifeAreaCard(
+  key: const ValueKey('home-life-area-property'),
+  icon: Icons.home_work_outlined,
+  title: 'Property & Assets',
+  subtitle: 'Property timing and asset-related insights.',
+  onTap: () => context.push(destination('/property')),
+),
+const SizedBox(height: 10),
+
         _LifeAreaCard(
           key: const ValueKey('home-life-area-vehicle'),
           icon: Icons.directions_car_outlined,
@@ -397,12 +406,12 @@ class _LifeAreaCards extends StatelessWidget {
           onTap: () => context.push(destination('/relationships')),
         ),
         const SizedBox(height: 10),
-        const _LifeAreaCard(
+        _LifeAreaCard(
           key: ValueKey('home-life-area-tarot'),
           icon: Icons.auto_awesome_outlined,
           title: 'Tarot',
-          subtitle: 'A new way to explore guidance, coming soon.',
-          comingSoon: true,
+          subtitle: 'Ask a question and draw 3 cards.',
+          onTap: () => context.push('/tarot'),
         ),
       ],
     );
@@ -416,32 +425,25 @@ class _LifeAreaCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     this.onTap,
-    this.comingSoon = false,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
   final VoidCallback? onTap;
-  final bool comingSoon;
 
   @override
   Widget build(BuildContext context) {
     final card = Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: comingSoon ? const Color(0xFF08211F) : null,
+        color: null,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: comingSoon ? const Color(0xFF255C57) : const Color(0xFF3F8179),
-        ),
+        border: Border.all(color: const Color(0xFF3F8179)),
       ),
       child: Row(
         children: [
-          Icon(
-            icon,
-            color: comingSoon ? _HomeColors.slate : const Color(0xFF35B9AC),
-          ),
+          Icon(icon, color: const Color(0xFF35B9AC)),
           const SizedBox(width: 13),
           Expanded(
             child: Column(
@@ -453,22 +455,12 @@ class _LifeAreaCard extends StatelessWidget {
                       child: Text(
                         title,
                         style: GoogleFonts.inter(
-                          color: comingSoon
-                              ? _HomeColors.slate
-                              : _HomeColors.alabaster,
+                          color: _HomeColors.alabaster,
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
-                    if (comingSoon)
-                      Text(
-                        'COMING NEXT',
-                        style: _labelStyle(
-                          fontSize: 8,
-                          color: _HomeColors.slate,
-                        ),
-                      ),
                   ],
                 ),
                 const SizedBox(height: 4),
@@ -483,12 +475,10 @@ class _LifeAreaCard extends StatelessWidget {
               ],
             ),
           ),
-          if (!comingSoon)
-            const Icon(Icons.chevron_right, color: _HomeColors.slate),
+          const Icon(Icons.chevron_right, color: _HomeColors.slate),
         ],
       ),
     );
-    if (comingSoon) return card;
     return Material(
       color: const Color(0xFF103B38),
       borderRadius: BorderRadius.circular(18),
