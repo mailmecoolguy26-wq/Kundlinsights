@@ -61,6 +61,8 @@ import '../../features/wealth/presentation/wealth_hub_screen.dart';
 import '../../features/relationships/relationship_answer_controller.dart';
 import '../../features/family_expansion/family_expansion_answer_controller.dart';
 import '../../features/relationships/presentation/relationship_hub_screen.dart';
+import '../../features/tarot/tarot_controller.dart';
+import '../../features/tarot/presentation/tarot_screens.dart';
 import '../../core/analytics/analytics.dart';
 import '../../core/push/push_notification_service.dart';
 import '../../core/push/push_permission_prompt.dart';
@@ -103,6 +105,7 @@ GoRouter createAppRouter(
   WealthAnswerController? wealthAnswers,
   RelationshipAnswerController? relationshipAnswers,
   FamilyExpansionAnswerController? familyExpansionAnswers,
+  TarotController? tarot,
   RazorpayCareerPremiumController? razorpayPremium,
   required CareerExplanationLanguageController careerExplanationLanguage,
   required SplashLaunchGate splashLaunchGate,
@@ -133,7 +136,9 @@ GoRouter createAppRouter(
         : profiles.state == ProfileLoadState.error
         ? (location == '/profiles-error' ? null : '/profiles-error')
         : profiles.isEmpty
-        ? (location == '/onboarding' ? null : '/onboarding')
+        ? (location == '/onboarding' || location.startsWith('/tarot')
+              ? null
+              : '/onboarding')
         : location == '/splash' ||
               location == '/profiles-loading' ||
               authRoute ||
@@ -154,6 +159,32 @@ GoRouter createAppRouter(
     return destination;
   },
   routes: [
+    GoRoute(
+      path: '/tarot',
+      name: 'tarot',
+      builder: (context, state) => tarot == null
+          ? const Scaffold(body: Center(child: Text('Tarot unavailable')))
+          : TarotLandingScreen(controller: tarot),
+      routes: [
+        GoRoute(
+          path: 'reading/:readingId',
+          name: 'tarot-reading',
+          builder: (context, state) => tarot == null
+              ? const Scaffold(body: Center(child: Text('Tarot unavailable')))
+              : TarotReadingScreen(
+                  controller: tarot,
+                  readingId: state.pathParameters['readingId']!,
+                ),
+        ),
+        GoRoute(
+          path: 'history',
+          name: 'tarot-history',
+          builder: (context, state) => tarot == null
+              ? const Scaffold(body: Center(child: Text('Tarot unavailable')))
+              : TarotHistoryScreen(controller: tarot),
+        ),
+      ],
+    ),
     GoRoute(
       path: '/life-events',
       builder: (context, state) => LifeEventsScreen(
@@ -235,6 +266,7 @@ GoRouter createAppRouter(
             case CareerEligibilityState.eligible:
               return CareerHubScreen(
                 readings: readings,
+                generation: generation,
                 language: careerExplanationLanguage,
                 decisionHistory: careerDecisionHistory,
               );
@@ -519,21 +551,16 @@ GoRouter createAppRouter(
             }
             if (generation.eligibilityState ==
                 CareerEligibilityState.eligible) {
-              if (returnQuestion != null) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (context.mounted) returnToRequestedCareerAnswer();
-                });
-                return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                );
-              }
-              return Scaffold(
-                body: Center(
-                  child: FilledButton(
-                    onPressed: () => context.go('/readings'),
-                    child: const Text('TaraVerse Premium Active'),
-                  ),
-                ),
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!context.mounted) return;
+                if (returnQuestion != null) {
+                  returnToRequestedCareerAnswer();
+                } else {
+                  context.go('/career');
+                }
+              });
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
               );
             }
             return CareerPremiumPaywall(

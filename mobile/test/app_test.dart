@@ -88,6 +88,25 @@ void main() {
     },
   );
 
+  testWidgets(
+    'Home Career always opens the Career route while entitlement resolves',
+    (tester) async {
+      await tester.pumpWidget(_app(controller, profiles));
+      await controller.restore();
+      await tester.pumpAndSettle();
+
+      final careerCard = find.byKey(const ValueKey('home-life-area-career'));
+      await tester.ensureVisible(careerCard);
+      await tester.tap(careerCard);
+      await tester.pump();
+
+      final router = GoRouter.of(tester.element(find.byType(Scaffold).last));
+      expect(router.state.uri.path, '/career');
+      expect(router.state.uri.path, isNot('/premium'));
+      expect(router.state.uri.path, isNot('/readings'));
+    },
+  );
+
   testWidgets('cold launch keeps ready profiles on splash before Home', (
     tester,
   ) async {

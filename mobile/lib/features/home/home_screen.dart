@@ -370,7 +370,9 @@ class _LifeAreaCards extends StatelessWidget {
           icon: Icons.work_outline,
           title: 'Career & Business',
           subtitle: 'Career · Business',
-          onTap: () => context.push(destination('/career')),
+          // Career owns its entitlement, reading-loading, empty, and error
+          // states. Never route a first tap from transient Home eligibility.
+          onTap: () => context.push('/career'),
         ),
         const SizedBox(height: 10),
 _LifeAreaCard(
@@ -554,14 +556,17 @@ class _CareerPremiumCard extends StatelessWidget {
               ],
             ),
           ),
-          if (!loading)
+          if (!loading && !active)
             TextButton(
               key: const ValueKey('home-career-premium-cta'),
-              onPressed: () => context.push(active ? '/career' : '/premium'),
-              child: Text(
-                active ? 'ACTIVE' : 'VIEW / UNLOCK',
-                style: _labelStyle(color: _HomeColors.gold, fontSize: 9),
-              ),
+              onPressed: () => context.push('/premium'),
+              child: Text('VIEW / UNLOCK', style: _labelStyle(color: _HomeColors.gold, fontSize: 9)),
+            ),
+          if (active)
+            Text(
+              'ACTIVE',
+              key: const ValueKey('home-career-premium-status'),
+              style: _labelStyle(color: _HomeColors.gold, fontSize: 9),
             ),
         ],
       ),

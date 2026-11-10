@@ -16,6 +16,8 @@ import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile.dart
 import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile_repository.dart';
 import 'package:kundlinsights_mobile/features/profiles/profile_controller.dart';
 import 'package:kundlinsights_mobile/features/readings/domain/reading.dart';
+import 'package:kundlinsights_mobile/features/readings/domain/reading_repository.dart';
+import 'package:kundlinsights_mobile/features/readings/reading_controller.dart';
 
 void main() {
   testWidgets('renders the consolidated Career Hub and practical questions', (
@@ -26,6 +28,10 @@ void main() {
     expect(find.text('CAREER & BUSINESS'), findsOneWidget);
     expect(find.text('Your Career Outlook'), findsOneWidget);
     expect(find.text('Create Career Reading'), findsOneWidget);
+    final createButton = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Create Career Reading'),
+    );
+    expect(createButton.onPressed, isNull);
     expect(find.text('When is my next strong career window?'), findsNothing);
     expect(find.text('My current career phase'), findsNothing);
     expect(find.text('Career Activity'), findsNothing);
@@ -37,6 +43,13 @@ void main() {
     expect(find.text('Career Timeline'), findsOneWidget);
     expect(find.text('Career Events'), findsOneWidget);
     expect(find.text('View Career Timeline'), findsNothing);
+    final timelineCard = tester.widget<InkWell>(
+      find.ancestor(
+        of: find.text('Career Timeline'),
+        matching: find.byType(InkWell),
+      ),
+    );
+    expect(timelineCard.onTap, isNull);
     for (final title in const [
       'Should I switch jobs?',
       'Should I start a business?',
@@ -134,6 +147,81 @@ void main() {
     await tester.tap(find.byTooltip('Back'));
     await tester.pumpAndSettle();
     expect(find.text('Open Career'), findsOneWidget);
+  });
+
+  testWidgets('Career hub stays visible while profile readings are loading', (
+    tester,
+  ) async {
+    final pending = Completer<List<ReadingSummary>>();
+    final harness = await _ReadingHarness.create(
+      _ReadingRepository(listPending: {'profile-a': pending}),
+    );
+    addTearDown(harness.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: CareerHubScreen(readings: harness.readings)),
+    );
+    await tester.pump();
+
+    expect(find.text('CAREER & BUSINESS'), findsOneWidget);
+    expect(find.text('Preparing your saved Career outlook…'), findsOneWidget);
+    expect(find.text('Create Career Reading'), findsNothing);
+  });
+
+  testWidgets('Career hub keeps a retryable reading error in place', (
+    tester,
+  ) async {
+    final harness = await _ReadingHarness.create(
+      _ReadingRepository(listFailures: {'profile-a'}),
+    );
+    addTearDown(harness.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: CareerHubScreen(readings: harness.readings)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('CAREER & BUSINESS'), findsOneWidget);
+    expect(find.text('We could not load your Career outlook.'), findsOneWidget);
+    expect(find.text('Retry'), findsOneWidget);
+  });
+
+  testWidgets('profile switch clears the previous Career outlook immediately', (
+    tester,
+  ) async {
+    final profileBPending = Completer<List<ReadingSummary>>();
+    final detail = _careerReadingDetail(
+      phase: 'Profile A has a saved customer Career phase.',
+      timingMeaning: 'Profile A timing context.',
+    );
+    final harness = await _ReadingHarness.create(
+      _ReadingRepository(
+        lists: {
+          'profile-a': [_summaryFor(detail)],
+        },
+        details: {'reading-a': detail},
+        listPending: {'profile-b': profileBPending},
+      ),
+    );
+    addTearDown(harness.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: CareerHubScreen(readings: harness.readings)),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Profile A has a saved customer Career phase.'),
+      findsOneWidget,
+    );
+
+    harness.profiles.select(harness.profiles.profiles.last);
+    await tester.pump();
+
+    expect(
+      find.text('Profile A has a saved customer Career phase.'),
+      findsNothing,
+    );
+    expect(find.text('Preparing your saved Career outlook…'), findsOneWidget);
   });
 
   test('reuses a Career answer for the same profile and question', () async {
@@ -496,6 +584,16 @@ ReadingDetail _careerReadingDetail({
   ],
 );
 
+ReadingSummary _summaryFor(ReadingDetail detail) => ReadingSummary(
+  readingId: detail.readingId,
+  birthProfileId: detail.birthProfileId,
+  domain: detail.domain,
+  status: detail.status,
+  createdAt: detail.createdAt,
+  readingInstant: detail.readingInstant,
+  locale: detail.locale,
+);
+
 Map<String, dynamic> _answerJson({
   required bool window,
   String? sourceReadingId = 'reading-a',
@@ -566,6 +664,56 @@ class _Harness {
     profiles.dispose();
     auth.dispose();
   }
+}
+
+class _ReadingHarness {
+  _ReadingHarness(this.auth, this.profiles, this.readings);
+  final AuthController auth;
+  final ProfileController profiles;
+  final ReadingController readings;
+
+  static Future<_ReadingHarness> create(ReadingRepository repository) async {
+    final auth = AuthController(_Auth());
+    await auth.restore();
+    final profiles = ProfileController(_Profiles(), auth);
+    await profiles.load();
+    final readings = ReadingController(repository, auth, profiles);
+    return _ReadingHarness(auth, profiles, readings);
+  }
+
+  void dispose() {
+    readings.dispose();
+    profiles.dispose();
+    auth.dispose();
+  }
+}
+
+class _ReadingRepository implements ReadingRepository {
+  _ReadingRepository({
+    this.lists = const {},
+    this.details = const {},
+    this.listPending = const {},
+    this.listFailures = const {},
+  });
+
+  final Map<String, List<ReadingSummary>> lists;
+  final Map<String, ReadingDetail> details;
+  final Map<String, Completer<List<ReadingSummary>>> listPending;
+  final Set<String> listFailures;
+
+  @override
+  Future<List<ReadingSummary>> getReadings({String? birthProfileId}) {
+    final profileId = birthProfileId!;
+    if (listFailures.contains(profileId)) {
+      return Future.error(StateError('offline'));
+    }
+    return listPending[profileId]?.future ??
+        Future.value(lists[profileId] ?? const []);
+  }
+
+  @override
+  Future<ReadingDetail> getReadingDetail(String readingId) async =>
+      details[readingId] ?? (throw StateError('missing detail'));
 }
 
 class _Answers implements CareerAnswerRepository {

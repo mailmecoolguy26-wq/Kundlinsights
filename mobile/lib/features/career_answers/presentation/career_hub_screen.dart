@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../shared/formatters/customer_date.dart';
 import '../../readings/career_explanation_language.dart';
 import '../../readings/career_customer_copy.dart';
+import '../../readings/career_reading_generation_controller.dart';
 import '../../readings/domain/reading.dart';
 import '../../readings/reading_controller.dart';
 import '../career_decision_history_controller.dart';
@@ -15,11 +16,13 @@ class CareerHubScreen extends StatefulWidget {
   const CareerHubScreen({
     super.key,
     this.readings,
+    this.generation,
     this.language,
     this.decisionHistory,
   });
 
   final ReadingController? readings;
+  final CareerReadingGenerationController? generation;
   final CareerExplanationLanguageController? language;
   final CareerDecisionHistoryController? decisionHistory;
 
@@ -40,11 +43,12 @@ class _CareerHubScreenState extends State<CareerHubScreen> {
   @override
   void didUpdateWidget(covariant CareerHubScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.readings == widget.readings) return;
-    oldWidget.readings?.removeListener(_onReadingsChanged);
-    widget.readings?.addListener(_onReadingsChanged);
-    _requestedReadingId = null;
-    _loadCareerDetail();
+    if (oldWidget.readings != widget.readings) {
+      oldWidget.readings?.removeListener(_onReadingsChanged);
+      widget.readings?.addListener(_onReadingsChanged);
+      _requestedReadingId = null;
+      _loadCareerDetail();
+    }
   }
 
   @override
@@ -59,7 +63,11 @@ class _CareerHubScreenState extends State<CareerHubScreen> {
     if (!mounted) return;
     final readings = widget.readings;
     final summary = _latestCareerReading(readings?.readings ?? const []);
-    if (summary == null || summary.readingId == _requestedReadingId) return;
+    if (summary == null) {
+      _requestedReadingId = null;
+      return;
+    }
+    if (summary.readingId == _requestedReadingId) return;
     _requestedReadingId = summary.readingId;
     readings?.loadDetail(summary.readingId);
   }
@@ -68,6 +76,7 @@ class _CareerHubScreenState extends State<CareerHubScreen> {
   Widget build(BuildContext context) {
     final listenables = <Listenable>[
       if (widget.readings != null) widget.readings!,
+      if (widget.generation != null) widget.generation!,
       if (widget.language != null) widget.language!,
     ];
     if (listenables.isEmpty) return _buildContent(context);
@@ -86,7 +95,19 @@ class _CareerHubScreenState extends State<CareerHubScreen> {
             readings?.detail?.domain == 'CAREER'
         ? readings!.detail
         : null;
-    final isLoadingReading = summary != null && detail == null;
+    final listLoading =
+        readings != null &&
+        summary == null &&
+        (readings.listState == ReadingListState.initial ||
+            readings.listState == ReadingListState.loading ||
+            readings.listState == ReadingListState.refreshing);
+    final detailLoading =
+        summary != null &&
+        detail == null &&
+        readings?.detailState != ReadingDetailState.error;
+    final hasReadingError =
+        readings?.listState == ReadingListState.error ||
+        (summary != null && readings?.detailState == ReadingDetailState.error);
 
     void openTimeline() {
       final id = summary?.readingId;
@@ -95,8 +116,6 @@ class _CareerHubScreenState extends State<CareerHubScreen> {
         // Reading Center's shell-child route from here can otherwise mount
         // the same detail route in two navigator stacks.
         context.push('/career/timeline/${Uri.encodeComponent(id)}');
-      } else {
-        context.go('/readings');
       }
     }
 
@@ -118,9 +137,21 @@ class _CareerHubScreenState extends State<CareerHubScreen> {
             style: _CareerHubText.body,
           ),
           const SizedBox(height: 18),
-          _CareerOutlookCard(detail: detail, isLoading: isLoadingReading),
+          _CareerOutlookCard(
+            detail: detail,
+            isLoading: listLoading || detailLoading,
+            hasError: hasReadingError,
+            generation: widget.generation,
+            onRetry: () {
+              if (readings?.listState == ReadingListState.error) {
+                readings?.refresh();
+              } else if (summary != null) {
+                readings?.loadDetail(summary.readingId);
+              }
+            },
+          ),
           const SizedBox(height: 26),
-          const Text('ASK TARAVERSE', style: _CareerHubText.eyebrow),
+          const Text('ASK TARA', style: _CareerHubText.eyebrow),
           const SizedBox(height: 10),
           _CareerDecisionQuestions(
             onOpen: (type) => context.push('/career/decision/$type'),
@@ -136,7 +167,7 @@ class _CareerHubScreenState extends State<CareerHubScreen> {
             subtitle: summary == null
                 ? 'Create or open your Career Reading to view upcoming Career periods.'
                 : 'View your upcoming Career periods.',
-            onTap: openTimeline,
+            onTap: summary == null ? null : openTimeline,
           ),
           const SizedBox(height: 10),
           _NavigationCard(
@@ -164,10 +195,19 @@ class _CareerHubScreenState extends State<CareerHubScreen> {
 }
 
 class _CareerOutlookCard extends StatelessWidget {
-  const _CareerOutlookCard({required this.detail, required this.isLoading});
+  const _CareerOutlookCard({
+    required this.detail,
+    required this.isLoading,
+    required this.hasError,
+    required this.generation,
+    required this.onRetry,
+  });
 
   final ReadingDetail? detail;
   final bool isLoading;
+  final bool hasError;
+  final CareerReadingGenerationController? generation;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -190,6 +230,26 @@ class _CareerOutlookCard extends StatelessWidget {
         ),
       );
     }
+    if (hasError) {
+      return _HubCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'We could not load your Career outlook.',
+              style: _CareerHubText.cardTitle,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Your access is unchanged. Try loading this profile’s Career Reading again.',
+              style: _CareerHubText.body,
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
+          ],
+        ),
+      );
+    }
     final savedDetail = detail;
     if (savedDetail == null) {
       return _HubCard(
@@ -207,9 +267,33 @@ class _CareerOutlookCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             FilledButton(
-              onPressed: () => context.go('/readings'),
-              child: const Text('Create Career Reading'),
+              onPressed: generation?.canGenerate == true
+                  ? generation!.generate
+                  : null,
+              child:
+                  generation?.generationState ==
+                      CareerGenerationState.generating
+                  ? const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        SizedBox(width: 9),
+                        Text('Creating Career Reading…'),
+                      ],
+                    )
+                  : const Text('Create Career Reading'),
             ),
+            if (generation?.generationState == CareerGenerationState.error) ...[
+              const SizedBox(height: 8),
+              const Text(
+                'We could not create the reading yet. Your access is unchanged; please try again.',
+                style: _CareerHubText.body,
+              ),
+            ],
           ],
         ),
       );
@@ -295,7 +379,7 @@ class _NavigationCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) => _HubCard(
@@ -314,7 +398,8 @@ class _NavigationCard extends StatelessWidget {
             ],
           ),
         ),
-        const Icon(Icons.chevron_right, color: _CareerHubColors.slate),
+        if (onTap != null)
+          const Icon(Icons.chevron_right, color: _CareerHubColors.slate),
       ],
     ),
   );
