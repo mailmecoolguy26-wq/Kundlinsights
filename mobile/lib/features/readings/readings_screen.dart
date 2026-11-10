@@ -1990,10 +1990,7 @@ class _CareerReasonRow extends StatelessWidget {
               _CareerInsightStatusChip(status: insight.status),
               if (insight.status != 'SUPPORTED') ...[
                 const SizedBox(height: 8),
-                const Text(
-                  'IS READING KI LIMIT',
-                  style: _CareerReadingText.source,
-                ),
+                Text(copy.limitationHeading, style: _CareerReadingText.source),
                 const SizedBox(height: 3),
                 Text(
                   copy.caveat(insight.status),
@@ -2418,7 +2415,7 @@ class _CareerInsightCard extends StatelessWidget {
             _CareerReadingSectionLabel(
               insight.family == 'CONCURRENT_CAREER_TIMING'
                   ? (copy.isHinglish ? 'TIMING CONTEXT' : 'TIMING CONFIDENCE')
-                  : (copy.isHinglish ? 'IS READING KI LIMIT' : 'READING LIMIT'),
+                  : copy.limitationHeading,
             ),
             const SizedBox(height: 7),
             Text(copy.caveat(insight.status), style: _CareerReadingText.body),
@@ -2519,7 +2516,7 @@ String _technicalRow(
     return '${copy.dasha(row['level'])}: ${copy.planet(row['planet'] ?? 'Current period')}';
   }
   if (kind == 'TRANSIT') {
-    return '${copy.planet(row['transitPlanet'] ?? 'Current transit')}${row['natalHouseNumber'] is int ? ' · ${copy.house(row['natalHouseNumber'] as int)} context' : ''}';
+    return '${copy.planet(row['transitPlanet'] ?? 'Current transit')}${row['natalHouseNumber'] is int ? ' · ${copy.house(row['natalHouseNumber'] as int)}' : ''}';
   }
   if (kind == 'CONCURRENT_TIMING') {
     return 'Timing relationship: ${_lineageLabel(row['lineageClassification'])}';

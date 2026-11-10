@@ -24,15 +24,67 @@ void main() {
     );
     const formatter = CareerEvidenceFormatter(copy);
     final normalized = formatter.customerText(
-      'Guru Dev casts 5th aspect to Career axis. saturn|venus source data supplied deterministic evidence.',
+      'Guru Dev casts 5th aspect to Career axis. source data supplied deterministic evidence.',
     );
+    final combined = formatter.customerText('saturn|venus');
 
     expect(normalized, contains('Jupiter'));
     expect(normalized, isNot(contains('Guru Dev')));
     expect(normalized, isNot(contains('casts 5th aspect')));
-    expect(normalized, isNot(contains('saturn|venus')));
+    expect(
+      combined,
+      isNot(contains(RegExp(r'saturn\|venus', caseSensitive: false))),
+    );
     expect(normalized, isNot(contains('source data')));
     expect(normalized, isNot(contains('supplied deterministic evidence')));
+  });
+
+  test('normalizes legacy Career Hinglish with narrow presentation mappings', () {
+    const hinglishCopy = CareerReadingPresentationCopy(
+      CareerExplanationLanguage.hinglish,
+    );
+    const englishCopy = CareerReadingPresentationCopy(
+      CareerExplanationLanguage.english,
+    );
+    const hinglish = CareerEvidenceFormatter(hinglishCopy);
+    const english = CareerEvidenceFormatter(englishCopy);
+    const legacy = <String>[
+      'Jupiter ka Gochar 10th-house Career axis par activates through its 5th aspect hai.',
+      'Saturn ka Gochar 10th-house Career axis par activates through its 10th aspect hai.',
+      'Ketu Pratyantar Dasha Career structure se connected hai.',
+      'Mangal Pratyantar Dasha Career structure se connected hai.',
+      'D10 professional theme ko factual structural context ke roop mein dikhata hai.',
+    ];
+
+    expect(
+      hinglish.customerText(legacy[0]),
+      'Jupiter ka Gochar Career axis ko 5th drishti se activate kar raha hai.',
+    );
+    expect(
+      hinglish.customerText(legacy[1]),
+      'Saturn ka Gochar Career axis ko 10th drishti se activate kar raha hai.',
+    );
+    expect(
+      hinglish.customerText(legacy[2]),
+      'Ketu Pratyantardasha Career-related factors ke saath align ho rahi hai.',
+    );
+    expect(
+      hinglish.customerText(legacy[3]),
+      'Mars Pratyantardasha Career-related factors ke saath align ho rahi hai.',
+    );
+    expect(
+      hinglish.customerText(legacy[4]),
+      'D10 chart is period ko additional professional context deta hai.',
+    );
+    expect(
+      english.customerText(legacy[0]),
+      'Jupiter transit is activating the Career axis through its 5th aspect.',
+    );
+    expect(
+      english.customerText(legacy[2]),
+      'Ketu Pratyantardasha aligns with Career-related factors.',
+    );
+    expect(legacy[0], contains('activates through its 5th aspect hai'));
   });
 
   test('parses only the safe list and stored detail DTO contracts', () {
@@ -525,6 +577,11 @@ void main() {
                     'kind': 'CONCURRENT_TIMING',
                     'lineageClassification': 'INDEPENDENT',
                   },
+                  {
+                    'kind': 'TRANSIT',
+                    'transitPlanet': 'Rahu',
+                    'natalHouseNumber': 12,
+                  },
                 ],
                 'supportingContext': [],
                 'careerHistory': [],
@@ -559,7 +616,7 @@ void main() {
         lessThan(tester.getTopLeft(find.text('FUTURE CAREER TIMING').first).dy),
       );
       expect(find.text('Career structure'), findsNothing);
-      expect(find.text('READING LIMIT'), findsOneWidget);
+      expect(find.text('WHAT TO KEEP IN MIND'), findsOneWidget);
       final astrologyTrace = find.text('ASTROLOGY BEHIND THIS').first;
       await tester.ensureVisible(astrologyTrace);
       await tester.pumpAndSettle();
@@ -567,6 +624,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Timing'), findsWidgets);
       expect(find.textContaining('Independent mechanisms'), findsWidgets);
+      expect(find.text('Rahu · 12th House'), findsOneWidget);
+      expect(find.textContaining('House context'), findsNothing);
       expect(find.textContaining('Source rule:'), findsNothing);
       controller.dispose();
       profiles.dispose();
@@ -1240,7 +1299,7 @@ void main() {
       expect(find.text('20 Nov 2026 – 10 Jan 2027'), findsNWidgets(2));
       expect(
         find.text(
-          '• Jupiter Pratyantar Dasha Career structure se connected hai.',
+          '• Jupiter Pratyantardasha aligns with Career-related factors.',
         ),
         findsNWidgets(2),
       );

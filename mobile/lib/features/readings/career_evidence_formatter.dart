@@ -42,6 +42,7 @@ class CareerEvidenceFormatter {
     var output = value
         .replaceAll(RegExp(r'Guru Dev', caseSensitive: false), 'Jupiter')
         .replaceAll(RegExp(r'Shani Dev', caseSensitive: false), 'Saturn')
+        .replaceAll(RegExp(r'\bMangal\b', caseSensitive: false), 'Mars')
         .replaceAll(
           RegExp(r'casts 5th aspect to', caseSensitive: false),
           'activates through its 5th aspect',
@@ -66,7 +67,44 @@ class CareerEvidenceFormatter {
         .replaceAll(RegExp(r'\bMD\b'), 'Mahadasha')
         .replaceAll(RegExp(r'\bAD\b'), 'Antardasha')
         .replaceAll(RegExp(r'\bPD\b'), 'Pratyantardasha');
-    if (RegExp(r'[A-Z][A-Z0-9_]+\|').hasMatch(output)) {
+    output = output.replaceAllMapped(
+      RegExp(
+        r'\b(Jupiter|Saturn|Mars|Rahu|Ketu) ka Gochar 10th-house Career axis par activates through its (\d+(?:st|nd|rd|th)) aspect hai\.?',
+        caseSensitive: false,
+      ),
+      (match) {
+        final planet = _canonicalPlanet(match.group(1)!);
+        final aspect = match.group(2)!;
+        return copy.isHinglish
+            ? '$planet ka Gochar Career axis ko $aspect drishti se activate kar raha hai.'
+            : '$planet transit is activating the Career axis through its $aspect aspect.';
+      },
+    );
+    output = output.replaceAllMapped(
+      RegExp(
+        r'\b(Ketu|Mars|Jupiter|Saturn|Mercury|Venus|Rahu) Pratyantar Dasha Career structure se connected hai\.?',
+        caseSensitive: false,
+      ),
+      (match) {
+        final planet = _canonicalPlanet(match.group(1)!);
+        return copy.isHinglish
+            ? '$planet Pratyantardasha Career-related factors ke saath align ho rahi hai.'
+            : '$planet Pratyantardasha aligns with Career-related factors.';
+      },
+    );
+    output = output.replaceAll(
+      RegExp(
+        r'D10 professional theme ko factual structural context ke roop mein dikhata hai\.?',
+        caseSensitive: false,
+      ),
+      copy.isHinglish
+          ? 'D10 chart is period ko additional professional context deta hai.'
+          : 'The D10 chart adds professional context to this period.',
+    );
+    if (RegExp(
+      r'\b(?:saturn|jupiter|mars|mercury|venus|sun|moon|rahu|ketu)\|(?:saturn|jupiter|mars|mercury|venus|sun|moon|rahu|ketu)\b',
+      caseSensitive: false,
+    ).hasMatch(output)) {
       return copy.isHinglish
           ? 'Aapki Career History mein similar timing pattern repeat hua.'
           : 'A similar timing pattern appeared in your Career history.';
@@ -101,4 +139,7 @@ class CareerEvidenceFormatter {
     });
     return output;
   }
+
+  String _canonicalPlanet(String value) =>
+      '${value[0].toUpperCase()}${value.substring(1).toLowerCase()}';
 }

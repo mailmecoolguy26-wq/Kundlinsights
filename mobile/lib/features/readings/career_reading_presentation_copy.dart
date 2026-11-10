@@ -32,7 +32,7 @@ class CareerReadingPresentationCopy {
 
   String caveat(String status) => isHinglish
       ? const {
-              'MIXED': 'Is waqt kuch Career indicators support kar rahe hain, lekin kuch evidence fully align nahi ho raha.',
+              'MIXED': 'Is waqt kuch Career indicators supportive hain, lekin sabhi signals ek hi direction mein align nahi ho rahe.',
               'CONTRADICTED': 'Current evidence is signal ko consistently support nahi kar raha.',
               'INSUFFICIENT_EVIDENCE': 'Abhi timing ki picture poori tarah clear nahi hai, isliye is period ko lekar final baat nahi kahi ja rahi.',
             }[status] ??
@@ -43,6 +43,9 @@ class CareerReadingPresentationCopy {
               'INSUFFICIENT_EVIDENCE': 'The available evidence is not strong enough for a firm timing conclusion, so treat this period as supporting context.',
             }[status] ??
             'Additional deterministic context is available.';
+
+  String get limitationHeading =>
+      isHinglish ? 'KYA DHYAN RAKHEIN' : 'WHAT TO KEEP IN MIND';
 
   String careerHistory(String level, int? count) {
     if (!isHinglish) {

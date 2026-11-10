@@ -67,6 +67,12 @@ void main() {
     expect(copy.state('RETROGRADE'), 'Vakri');
     expect(copy.state('COMBUST'), 'Asta');
     expect(copy.dasha('PRATYANTAR_DASHA'), 'Pratyantar Dasha');
+    expect(copy.limitationHeading, 'KYA DHYAN RAKHEIN');
+    expect(copy.caveat('MIXED'), isNot(contains('probability')));
+    const english = CareerReadingPresentationCopy(
+      CareerExplanationLanguage.english,
+    );
+    expect(english.limitationHeading, 'WHAT TO KEEP IN MIND');
   });
 }
 
