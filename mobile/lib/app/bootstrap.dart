@@ -79,6 +79,9 @@ import '../features/relationships/relationship_answer_controller.dart';
 import '../features/family_expansion/family_expansion_answer_api_repository.dart';
 import '../features/family_expansion/family_expansion_answer_repository.dart';
 import '../features/family_expansion/family_expansion_answer_controller.dart';
+import '../features/tarot/data/tarot_api_repository.dart';
+import '../features/tarot/domain/tarot_repository.dart';
+import '../features/tarot/tarot_controller.dart';
 import 'app.dart';
 
 Future<void> bootstrap() async {
@@ -112,6 +115,7 @@ Future<void> bootstrap() async {
   final WealthAnswerRepository wealthAnswerRepository;
   final RelationshipAnswerRepository relationshipAnswerRepository;
   final FamilyExpansionAnswerRepository familyExpansionAnswerRepository;
+  final TarotRepository tarotRepository;
   FirebasePushNotificationService? pushNotifications;
   final storePurchaseService = AppleStorePurchaseService(
     client: InAppPurchaseStorePurchaseClient(InAppPurchase.instance),
@@ -167,7 +171,9 @@ Future<void> bootstrap() async {
     wealthAnswerRepository = const UnavailableWealthAnswerRepository();
     relationshipAnswerRepository =
         const UnavailableRelationshipAnswerRepository();
-    familyExpansionAnswerRepository = const UnavailableFamilyExpansionAnswerRepository();
+    familyExpansionAnswerRepository =
+        const UnavailableFamilyExpansionAnswerRepository();
+    tarotRepository = const UnavailableTarotRepository();
   } else {
     await Supabase.initialize(
       url: config.supabaseUrl,
@@ -196,7 +202,10 @@ Future<void> bootstrap() async {
     propertyAnswerRepository = PropertyAnswerApiRepository(apiClient);
     wealthAnswerRepository = WealthAnswerApiRepository(apiClient);
     relationshipAnswerRepository = RelationshipAnswerApiRepository(apiClient);
-    familyExpansionAnswerRepository = FamilyExpansionAnswerApiRepository(apiClient);
+    familyExpansionAnswerRepository = FamilyExpansionAnswerApiRepository(
+      apiClient,
+    );
+    tarotRepository = TarotApiRepository(apiClient);
     careerAnswerRepository = DevelopmentFlags.careerPremiumUiPreviewEnabled
         ? DebugJobFavourabilityPreviewRepository(answerApiRepository)
         : answerApiRepository;
@@ -294,7 +303,10 @@ Future<void> bootstrap() async {
         relationshipAnswerRepositoryProvider.overrideWithValue(
           relationshipAnswerRepository,
         ),
-        familyExpansionAnswerRepositoryProvider.overrideWithValue(familyExpansionAnswerRepository),
+        familyExpansionAnswerRepositoryProvider.overrideWithValue(
+          familyExpansionAnswerRepository,
+        ),
+        tarotRepositoryProvider.overrideWithValue(tarotRepository),
       ],
       child: KundlInsightsApp(
         authController: controller,

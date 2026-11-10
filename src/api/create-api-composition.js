@@ -3,6 +3,9 @@
 const { PostgresApplicationTransactionExecutor, SecureReadingService, CareerReadingInterpreter, CalibratedCareerReadingGenerator, CareerReadingPromptBuilder, ProviderBackedCareerGenerator } = require('../application/readings');
 const { OpenAICareerGenerationAdapter } = require('../infrastructure/ai/openai-career-generation-adapter');
 const { OpenAICareerChatRenderer } = require('../infrastructure/ai/openai-career-chat-renderer');
+const { OpenAITarotInterpretationAdapter } = require('../infrastructure/ai/openai-tarot-interpretation-adapter');
+const { TarotService } = require('../application/tarot');
+const { PostgresTarotRepository } = require('../persistence/postgres/tarot-repository');
 const { SecureBirthProfileService } = require('../application/birth-profiles');
 const { NatalSummaryService } = require('../application/natal-summary');
 const { DivisionalChartService } = require('../application/divisional-charts');
@@ -96,6 +99,13 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
     principal,
     role: 'app_runtime',
     operation: ({ db: client }) => resolveOrProvisionAppUser({ principal, userRepository: new PostgresUserRepository({ db: client }), idGenerator, now: clock }),
+  });
+  const tarotService = new TarotService({
+    authUserResolver: userResolver,
+    repository: new PostgresTarotRepository({ transactionExecutor: tx, idGenerator }),
+    interpreter: openai && openai.tarotModel ? new OpenAITarotInterpretationAdapter({ apiKey: openai.apiKey, model: openai.tarotModel, timeoutMilliseconds: openai.tarotTimeoutMilliseconds || openai.timeoutMilliseconds }) : null,
+    idGenerator,
+    clock,
   });
   const notificationSelfService = {
     async register({ principal, body }) { const user = await userResolver(principal); return tx.execute({ principal, role: 'app_runtime', operation: ({ db: client }) => new PostgresNotificationRepository({ db: client }).upsertDevice({ userId: user.id, deviceId: body.deviceId, platform: body.platform, pushProvider: 'FCM', pushToken: body.pushToken, appVersion: body.appVersion || null, environment: body.environment || 'development', notificationsEnabled: body.notificationsEnabled !== false, now: clock() }) }); },
@@ -193,9 +203,9 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   const razorpayPaymentService = razorpay ? new RazorpayPaymentService({ authUserResolver: userResolver, birthProfileRepository: repositories().birthProfiles, providerOrders: repositories().providerPaymentOrders, razorpayClient: razorpay.apiClient || new RazorpayApiClient({ keyId: razorpay.keyId, keySecret: razorpay.keySecret }), productCatalog: createCareerPremiumRazorpayProductCatalog(razorpay.products), purchaseService, unitOfWork: paymentUnitOfWork, idGenerator, clock, keyId: razorpay.keyId, keySecret: razorpay.keySecret, webhookSecret: razorpay.webhookSecret, environment: razorpay.environment }) : null;
   const { PlaceResolutionService } = require('./place-resolution-service');
   const placeResolutionService = placeResolver ? new PlaceResolutionService({ birthPlaceResolver: placeResolver }) : null;
-  const api = createApi({ authVerifier, userResolver: { resolve: userResolver }, birthProfileService, careerEventService, lifeEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, ashtakavargaService, secureReadingService, careerAnswerService, careerDecisionService, propertyAnswerService, vehicleAnswerService, wealthAnswerService, relationshipAnswerService, familyExpansionAnswerService, careerChatOrchestrator, taraConversationService, purchaseService, razorpayPaymentService, appleNotificationService, googleRtdnService, notificationSelfService, placeResolutionService, requestIdGenerator: idGenerator, corsAllowlist, isReady, logger, bodyLimit });
+  const api = createApi({ authVerifier, userResolver: { resolve: userResolver }, birthProfileService, careerEventService, lifeEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, ashtakavargaService, secureReadingService, tarotService, careerAnswerService, careerDecisionService, propertyAnswerService, vehicleAnswerService, wealthAnswerService, relationshipAnswerService, familyExpansionAnswerService, careerChatOrchestrator, taraConversationService, purchaseService, razorpayPaymentService, appleNotificationService, googleRtdnService, notificationSelfService, placeResolutionService, requestIdGenerator: idGenerator, corsAllowlist, isReady, logger, bodyLimit });
   api.apiRuntime = { astronomicalEngine, canonicalSiderealSunSampler };
-  return Object.freeze({ api, services: Object.freeze({ birthProfileService, careerEventService, lifeEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, secureReadingService, careerAnswerService, careerDecisionService, propertyAnswerService, vehicleAnswerService, wealthAnswerService, relationshipAnswerService, familyExpansionAnswerService, userResolver, transactionExecutor: tx }) });
+  return Object.freeze({ api, services: Object.freeze({ birthProfileService, careerEventService, lifeEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, secureReadingService, tarotService, careerAnswerService, careerDecisionService, propertyAnswerService, vehicleAnswerService, wealthAnswerService, relationshipAnswerService, familyExpansionAnswerService, userResolver, transactionExecutor: tx }) });
 }
 
 module.exports = { createApiComposition };

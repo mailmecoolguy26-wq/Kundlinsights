@@ -46,6 +46,7 @@ import '../features/property/property_answer_controller.dart';
 import '../features/wealth/wealth_answer_controller.dart';
 import '../features/relationships/relationship_answer_controller.dart';
 import '../features/family_expansion/family_expansion_answer_controller.dart';
+import '../features/tarot/tarot_controller.dart';
 
 class KundlInsightsApp extends ConsumerStatefulWidget {
   const KundlInsightsApp({
@@ -84,6 +85,7 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
   late final WealthAnswerController _wealthAnswers;
   late final RelationshipAnswerController _relationshipAnswers;
   late final FamilyExpansionAnswerController _familyExpansionAnswers;
+  late final TarotController _tarot;
   late final ProfileController _profiles;
   late final CareerReadingGenerationController _generation;
   late final PushNavigationAdapter _pushNavigation;
@@ -168,7 +170,12 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
     _relationshipAnswers = ref.read(
       relationshipAnswerControllerProvider(profiles),
     );
-    _familyExpansionAnswers = ref.read(familyExpansionAnswerControllerProvider(profiles));
+    _familyExpansionAnswers = ref.read(
+      familyExpansionAnswerControllerProvider(profiles),
+    );
+    _tarot = ref.read(
+      tarotControllerProvider((authController, _careerExplanationLanguage)),
+    );
     final premiumProduct = ref.read(careerPremiumProductControllerProvider);
     final premiumPurchase = ref.read(
       careerPremiumPurchaseControllerProvider((
@@ -216,6 +223,7 @@ class _KundlInsightsAppState extends ConsumerState<KundlInsightsApp>
       wealthAnswers: _wealthAnswers,
       relationshipAnswers: _relationshipAnswers,
       familyExpansionAnswers: _familyExpansionAnswers,
+      tarot: _tarot,
       razorpayPremium: _razorpayPremium,
       careerExplanationLanguage: _careerExplanationLanguage,
       splashLaunchGate: _splashLaunchGate,

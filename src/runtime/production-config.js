@@ -38,7 +38,8 @@ function loadProductionConfig(env = process.env) {
   if (env.DB_SSL_REJECT_UNAUTHORIZED !== undefined && env.DB_SSL_REJECT_UNAUTHORIZED !== 'true') invalid();
   const issuer = url(env.SUPABASE_AUTH_ISSUER, 'https:'); const jwksUri = url(env.SUPABASE_AUTH_JWKS_URL, 'https:');
   if (!text(env.SUPABASE_AUTH_AUDIENCE)) invalid();
-  const openai = Object.freeze({ apiKey: text(env.OPENAI_API_KEY) ? env.OPENAI_API_KEY : invalid(), careerModel: text(env.OPENAI_CAREER_MODEL) ? env.OPENAI_CAREER_MODEL : invalid(), timeoutMilliseconds: integer(env.OPENAI_CAREER_TIMEOUT_MS, 15000, 100, 30000) }); return Object.freeze({
+  const careerModel = text(env.OPENAI_CAREER_MODEL) ? env.OPENAI_CAREER_MODEL : invalid();
+  const openai = Object.freeze({ apiKey: text(env.OPENAI_API_KEY) ? env.OPENAI_API_KEY : invalid(), careerModel, tarotModel: text(env.OPENAI_TAROT_MODEL) ? env.OPENAI_TAROT_MODEL : careerModel, timeoutMilliseconds: integer(env.OPENAI_CAREER_TIMEOUT_MS, 15000, 100, 30000), tarotTimeoutMilliseconds: integer(env.OPENAI_TAROT_TIMEOUT_MS, 15000, 100, 30000) }); return Object.freeze({
     nodeEnv: 'production', host: env.HOST, port: integer(env.PORT, 3000, 1, 65535), databaseUrl: databaseUrl(env.DATABASE_URL),
     db: Object.freeze({
       ssl: Object.freeze({
