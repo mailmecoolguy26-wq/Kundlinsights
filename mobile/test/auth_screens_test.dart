@@ -164,7 +164,7 @@ void main() {
     );
 
     expect(find.text('Verify your mobile number'), findsOneWidget);
-    expect(find.text('Code dispatched to'), findsOneWidget);
+    expect(find.text('Code sent to'), findsOneWidget);
     expect(find.text('+91 ••••• 3210'), findsOneWidget);
     expect(find.byKey(const ValueKey('otp-cell-0')), findsOneWidget);
     expect(find.byKey(const ValueKey('otp-cell-5')), findsOneWidget);

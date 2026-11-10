@@ -1062,14 +1062,29 @@ class CareerDashaPeriod {
 }
 
 class CareerTransitTiming {
-  const CareerTransitTiming({this.planet, this.start, this.end});
+  const CareerTransitTiming({
+    this.planet,
+    this.start,
+    this.end,
+    this.natalHouseNumber,
+    this.natalBody,
+  });
   final String? planet, start, end;
+  final int? natalHouseNumber;
+  final String? natalBody;
   static CareerTransitTiming? tryFromJson(Map<String, dynamic> json) {
     final planet = json['transitPlanet'];
     final start = _optionalTimestamp(json['start']);
     final end = _optionalTimestamp(json['end']);
     if (planet is! String || start == null) return null;
-    return CareerTransitTiming(planet: planet, start: start, end: end);
+    final natalHouseNumber = json['natalHouseNumber'];
+    return CareerTransitTiming(
+      planet: planet,
+      start: start,
+      end: end,
+      natalHouseNumber: natalHouseNumber is int ? natalHouseNumber : null,
+      natalBody: json['natalBody'] as String?,
+    );
   }
 }
 

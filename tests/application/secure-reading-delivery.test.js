@@ -40,9 +40,11 @@ function setup() {
   return { service, calls, readings };
 }
 
-function persistedCalibratedDetail(calibrationInterpretation) {
+function persistedCalibratedDetail(calibrationInterpretation, careerTimingPeriods = null) {
   const readings = new InMemoryReadingRepository();
-  readings.insertReadingRecord({ userId: 'user-a', birthProfileId: 'profile-a', record: record('reading-calibrated', '2026-08-18T00:00:00.000Z', 'Stored content.', calibrationInterpretation) });
+  const stored = record('reading-calibrated', '2026-08-18T00:00:00.000Z', 'Stored content.', calibrationInterpretation);
+  if (careerTimingPeriods) stored.reading.careerTimingPeriods = careerTimingPeriods;
+  readings.insertReadingRecord({ userId: 'user-a', birthProfileId: 'profile-a', record: stored });
   const service = new SecureReadingService({
     authUserResolver: async () => ({ id: 'user-a', status: 'active' }), transactionExecutor: { execute: async ({ operation }) => operation({}) }, repositories: () => ({ birthProfiles: {}, readings, entitlements: {} }),
     readingGenerator: { generate: async () => { throw new Error('not used'); } }, readingRecordFactory: () => { throw new Error('not used'); }, replayReading: async () => { throw new Error('not used'); }, requiresEntitlement: () => false, idGenerator: () => 'unused', clock: () => '2026-08-20T00:00:00.000Z',
@@ -247,8 +249,22 @@ test('P7B reads back LIMITED calibration as a summary without recurrence section
 test('P7B reads back calibrated no-pattern output without fabricating recurrence', async () => {
   const detail = await persistedCalibratedDetail({ schemaVersion: 'career-reading-interpretation-schema-v1', calibrationSummary: { calibrationLevel: 'CALIBRATED', narrative: 'No repeated pattern is available.' }, recurringHistoricalEvidence: [], upcomingRecurrenceWindows: [], decisionConsiderations: ['Review options before acting.'], disclosure: { hasProvisionalEvidence: true } });
   assert.deepEqual(detail.calibratedContent.sections.map((section) => section.section), ['calibration', 'decision-considerations', 'calculation-note']);
-  assert.equal(detail.calibratedContent.sections[1].items[0].sentence, 'Review options before acting.'); assert.equal(detail.calibratedContent.sections[2].items[0].sentence, 'Some calculations use a provisional calculation basis.');
+  assert.equal(detail.calibratedContent.sections[1].items[0].sentence, 'Review options before acting.'); assert.equal(detail.calibratedContent.sections[2].items[0].sentence, 'A supporting historical-calibration calculation uses a provisional method. Treat it as additional context, not as a standalone Career conclusion.');
   assert.equal(JSON.stringify(detail.calibratedContent).includes('hasProvisionalEvidence'), false);
+});
+
+test('P7B distinguishes empty historical recurrence from broader future Career forecast windows', async () => {
+  const detail = await persistedCalibratedDetail({
+    schemaVersion: 'career-reading-interpretation-schema-v1',
+    calibrationSummary: { calibrationLevel: 'CALIBRATED', narrative: 'Since no future occurrences were supplied, there are no specific upcoming recurrence windows.' },
+    recurringHistoricalEvidence: [], upcomingRecurrenceWindows: [],
+    decisionConsiderations: ['Since no future occurrences were provided, no future periods exist.'],
+    disclosure: { hasProvisionalEvidence: false },
+  }, [{ startDate: '2026-11-20T00:00:00.000Z', endDate: '2027-01-10T00:00:00.000Z', evidenceState: 'POSSIBLE_CAREER_ACTIVITY_SIGNAL', headline: 'signal', summary: 'summary', whyItems: [], whatThisCanMean: 'context', professionalDirection: 'prepare', technicalDetails: { d1: { h10Sign: 9, h10Lord: 'Jupiter', directCareerFactors: [] }, dasha: { qualifyingLevel: [], periods: [] }, gochar: [], d10: { confirmationPresent: false }, moon: { supportPresent: false }, savBav: {}, historicalPattern: { available: false, present: false }, window: { startDate: '2026-11-20T00:00:00.000Z', endDate: '2027-01-10T00:00:00.000Z' } }, disclosure: 'No guarantee.', sourceRuleVersion: 'v1', longWindow: false }]);
+  const serialized = JSON.stringify(detail.calibratedContent);
+  assert.match(serialized, /an additional recurrence-based future window/);
+  assert.match(serialized, /broader Career timing model/);
+  assert.doesNotMatch(serialized, /no future occurrences|no future periods exist/i);
 });
 
 test('API-P5C2 service decrypts owned encrypted storage through the existing reading payload codec without exposing an envelope', async () => {

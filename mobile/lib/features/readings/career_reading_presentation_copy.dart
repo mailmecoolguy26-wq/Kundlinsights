@@ -59,8 +59,7 @@ class CareerReadingPresentationCopy {
       };
     }
     return switch (level) {
-      'NONE' =>
-        'Past Career Events is Reading ko aur personalize karne mein help kar sakte hain.',
+      'NONE' => 'Past Career Events is Reading ko aur personalize karne mein help kar sakte hain.',
       'LIMITED' =>
         'Abhi ${count ?? 1} Career event saved hai. Recurring-pattern comparison ke liye thodi aur Career History add karein.',
       'CALIBRATED' =>
@@ -169,42 +168,42 @@ class CareerReadingPresentationCopy {
 
   String get ashtakavargaStructureIntro => isHinglish
       ? 'Yeh aapki D1 Kundli ke Career se jude important Bhavon ke factual Ashtakavarga values hain.'
-      : 'These are factual Ashtakavarga values for key Career-linked Bhavs in your D1 chart.';
+      : 'These are factual Ashtakavarga values for key Career-linked houses in your D1 chart.';
 
   String get d10StructureIntro => isHinglish
       ? 'Yeh aapke D10 chart ke factual Career placements aur Drishti details hain.'
-      : 'Yeh D10 chart ke factual Career placements aur Drishti details hain.';
+      : 'These are the factual Career placements and aspects in your D10 chart.';
 
   String get d10ThemesIntro => isHinglish
       ? 'D10 ke placements se Career ki working style aur professional direction ko aur clearly samajhne mein help milti hai.'
-      : 'Yeh themes D10 ke factual placements se milne wali corroborative Career context hain.';
+      : 'These themes provide supporting Career context from the factual D10 placements.';
 
   String get d10ThemesLimitation => isHinglish
       ? 'Yeh D10 context Career ki overall picture ko samajhne mein help karta hai, lekin final prediction sirf D10 ke basis par nahi ki jaati.'
-      : 'Yeh D1 Career foundation ka corroborative context hai, standalone prediction nahi hai.';
+      : 'This supports the D1 Career foundation; it is not a standalone prediction.';
 
   String d10Theme(String theme, Object? planet) {
     final name = this.planet(planet);
     if (!isHinglish) {
       return switch (theme) {
         'AUTHORITY_ADMINISTRATION' =>
-          '$name authority, administration aur public responsibility themes ko corroborate karte hain.',
+          '$name supports themes of authority, administration, and public responsibility.',
         'PEOPLE_CARE_PUBLIC' =>
-          '$name people-facing, care aur public interaction themes ko corroborate karte hain.',
+          '$name supports people-facing, care, and public-interaction themes.',
         'EXECUTION_TECHNICAL' =>
-          '$name execution, technical aur operations themes ko corroborate karte hain.',
+          '$name supports execution, technical, and operations themes.',
         'COMMUNICATION_COMMERCE_TECH' =>
-          '$name communication, technology aur commercial work themes ko corroborate karte hain.',
+          '$name supports communication, technology, and commercial-work themes.',
         'ADVISORY_KNOWLEDGE' =>
-          '$name advisory, teaching aur knowledge-oriented themes ko corroborate karte hain.',
+          '$name supports advisory, teaching, and knowledge-oriented themes.',
         'DESIGN_LUXURY_CLIENT' =>
-          '$name design, aesthetics aur client-facing value themes ko corroborate karte hain.',
+          '$name supports design, aesthetics, and client-facing value themes.',
         'STRUCTURE_OPERATIONS' =>
-          '$name structure, discipline aur operations themes ko corroborate karte hain.',
+          '$name supports structure, discipline, and operations themes.',
         'UNCONVENTIONAL_TECH_GLOBAL' =>
-          '$name unconventional, technology aur global exposure themes ko corroborate kar sakta hai.',
+          '$name may support unconventional work, technology, and global-exposure themes.',
         'RESEARCH_SPECIALIZATION' =>
-          '$name research, specialization aur technical depth themes ko corroborate karta hai.',
+          '$name may support research, specialization, and technical-depth themes.',
         _ => '',
       };
     }

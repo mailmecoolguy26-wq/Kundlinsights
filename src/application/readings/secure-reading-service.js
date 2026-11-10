@@ -34,13 +34,25 @@ function publicReadingSummary(item) {
 function calibratedContent(record) {
   const interpretation = record && record.reading && record.reading.calibrationInterpretation;
   if (!interpretation || typeof interpretation !== 'object') return null;
+  const readingInstant = record && record.input && record.input.readingInstant;
+  const anchor = typeof readingInstant === 'string' ? Date.parse(readingInstant) : Number.NaN;
+  const hasForecastWindows = Number.isFinite(anchor) && Array.isArray(record.reading.careerTimingPeriods) && record.reading.careerTimingPeriods.some((period) => period && typeof period.startDate === 'string' && Date.parse(period.startDate) > anchor);
+  const recurrenceCopy = hasForecastWindows
+    ? 'Your historical event pattern did not produce an additional recurrence-based future window. The forecast above comes from the broader Career timing model.'
+    : 'Your historical event pattern did not produce an additional recurrence-based future window.';
+  const normalize = (value) => {
+    if (typeof value !== 'string') return value;
+    if (/no (specific )?(future occurrences|upcoming recurrence windows|future windows)|no future occurrences (were|are) (supplied|provided)/i.test(value)) return recurrenceCopy;
+    return value.replace(/\bMD_AD\b/g, 'Mahadasha–Antardasha pattern').replace(/\bPOSSIBLE_CAREER_ACTIVITY_SIGNAL\b/g, 'Career activity signal');
+  };
   const sections = []; const add = (section, headline, items) => { if (items.length) sections.push({ section, headline, items }); };
   const summary = interpretation.calibrationSummary;
-  if (summary && typeof summary.narrative === 'string') add('calibration', 'Calibration', [{ headline: 'Career calibration', sentence: summary.narrative }]);
-  add('historical-patterns', 'Historical patterns', (interpretation.recurringHistoricalEvidence || []).filter((item) => item && typeof item.text === 'string').map((item) => ({ headline: 'Recurring pattern', sentence: item.text })));
-  add('upcoming-periods', 'Upcoming periods', (interpretation.upcomingRecurrenceWindows || []).filter((item) => item && typeof item.text === 'string').map((item) => ({ headline: 'Upcoming period', sentence: item.text })));
-  add('decision-considerations', 'Decision considerations', (interpretation.decisionConsiderations || []).filter((item) => typeof item === 'string').map((sentence) => ({ headline: 'Consideration', sentence })));
-  if (interpretation.disclosure && interpretation.disclosure.hasProvisionalEvidence === true) add('calculation-note', 'Calculation note', [{ headline: 'Calculation basis', sentence: 'Some calculations use a provisional calculation basis.' }]);
+  if (summary && typeof summary.narrative === 'string') add('calibration', 'Calibration', [{ headline: 'Career pattern', sentence: normalize(summary.narrative) }]);
+  add('historical-patterns', 'Historical patterns', (interpretation.recurringHistoricalEvidence || []).filter((item) => item && typeof item.text === 'string').map((item) => ({ headline: 'Historical pattern', sentence: normalize(item.text) })));
+  add('upcoming-periods', 'Recurrence-based periods', (interpretation.upcomingRecurrenceWindows || []).filter((item) => item && typeof item.text === 'string').map((item) => ({ headline: 'History-linked period', sentence: normalize(item.text) })));
+  const considerationHeadings = ['Planning guidance', 'Historical pattern', 'Evidence limitation'];
+  add('decision-considerations', 'Decision considerations', (interpretation.decisionConsiderations || []).filter((item) => typeof item === 'string').slice(0, 3).map((sentence, index) => ({ headline: considerationHeadings[index], sentence: normalize(sentence) })));
+  if (interpretation.disclosure && interpretation.disclosure.hasProvisionalEvidence === true) add('calculation-note', 'Calculation note', [{ headline: 'Historical calibration method', sentence: 'A supporting historical-calibration calculation uses a provisional method. Treat it as additional context, not as a standalone Career conclusion.' }]);
   return { domain: record.domain, locale: record.input.locale, sections };
 }
 function publicCalibrationSummary(record) {

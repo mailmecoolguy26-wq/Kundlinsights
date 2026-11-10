@@ -807,13 +807,13 @@ void main() {
       expect(find.text('D10 CAREER THEMES'), findsOneWidget);
       expect(
         find.text(
-          'Yeh themes D10 ke factual placements se milne wali corroborative Career context hain.',
+          'These themes provide supporting Career context from the factual D10 placements.',
         ),
         findsOneWidget,
       );
       expect(
         find.text(
-          'Mercury communication, technology aur commercial work themes ko corroborate karte hain.',
+          'Mercury supports communication, technology, and commercial-work themes.',
         ),
         findsOneWidget,
       );
@@ -833,15 +833,15 @@ void main() {
       );
       expect(find.text('10th House'), findsOneWidget);
       expect(find.text('Mars'), findsOneWidget);
-      expect(find.text('31 SAV bindus'), findsOneWidget);
+      expect(find.text('SAV score: 31'), findsOneWidget);
       expect(
-        find.textContaining('Placed in 7th House · 31 SAV bindus'),
+        find.textContaining('Placed in 7th House · SAV score: 31'),
         findsOneWidget,
       );
       expect(
         find.textContaining(
           RegExp(
-            'strong Career|weak Career|favorable|promotion is likely|job change is likely|score',
+            'strong Career|weak Career|favorable|promotion is likely|job change is likely',
             caseSensitive: false,
           ),
         ),
@@ -907,8 +907,14 @@ void main() {
       expect(find.text('Shani Dev: 8th Bhav'), findsOneWidget);
       expect(find.text('Surya Dev is placed here'), findsOneWidget);
       expect(find.text('Budh is placed here'), findsOneWidget);
-      expect(find.text('Guru Dev ki Drishti is Bhav par hai'), findsOneWidget);
-      expect(find.text('Mangal ki Drishti is Bhav par hai'), findsOneWidget);
+      expect(
+        find.text('Guru Dev ki drishti is Bhav par pad rahi hai.'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Mangal ki drishti is Bhav par pad rahi hai.'),
+        findsOneWidget,
+      );
       expect(find.text('10th Bhav'), findsOneWidget);
       expect(find.text('Mangal'), findsOneWidget);
       expect(find.text('Shani Dev'), findsNWidgets(2));
@@ -1217,6 +1223,17 @@ void main() {
       expect(find.text('WHAT THIS CAN MEAN'), findsOneWidget);
       expect(find.text('WHAT TO DO'), findsOneWidget);
       expect(find.text('VIEW DETAILED ASTROLOGY'), findsOneWidget);
+      await _expandDetailedAstrology(tester);
+      await _expandDetailedAstrologySection(tester, 'Timing Evidence');
+      expect(find.text('POSSIBLE_CAREER_ACTIVITY_SIGNAL'), findsNothing);
+      expect(find.text('Career activity signal'), findsOneWidget);
+      expect(find.text('20 Nov 2026 – 10 Jan 2027'), findsNWidgets(2));
+      expect(
+        find.text(
+          '• Guru Dev Pratyantar Dasha Career structure se connected hai.',
+        ),
+        findsNWidgets(2),
+      );
       controller.dispose();
       profiles.dispose();
       auth.dispose();

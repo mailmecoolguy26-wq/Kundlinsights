@@ -13,6 +13,7 @@ import 'reading_controller.dart';
 import 'career_reading_generation_controller.dart';
 import 'career_explanation_language.dart';
 import 'career_customer_copy.dart';
+import 'career_evidence_formatter.dart';
 import 'career_reading_presentation_copy.dart';
 import '../payments/career_premium_product_controller.dart';
 import '../payments/career_premium_purchase_controller.dart';
@@ -1083,28 +1084,50 @@ class _PrimaryForecastCard extends StatelessWidget {
   final CareerReadingPresentationCopy copy;
 
   @override
-  Widget build(BuildContext context) => _ForecastCard(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          _dateRange(period.startDate, period.endDate),
-          style: _CareerReadingText.itemTitle,
-        ),
-        const SizedBox(height: 9),
-        Text(
-          active
-              ? (copy.isHinglish ? 'Abhi active' : 'Active now')
-              : (copy.isHinglish ? 'Upcoming' : 'Upcoming'),
-          style: _CareerReadingText.source,
-        ),
-        if (customerFacingCareerPeriodMeaning(period) case final meaning?) ...[
-          const SizedBox(height: 7),
-          Text(meaning, style: _CareerReadingText.body),
+  Widget build(BuildContext context) {
+    final formatter = CareerEvidenceFormatter(copy);
+    final reasons = period.whyItems
+        .map(formatter.customerText)
+        .where((item) => item.trim().isNotEmpty)
+        .take(4)
+        .toList(growable: false);
+    return _ForecastCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _dateRange(period.startDate, period.endDate),
+            style: _CareerReadingText.itemTitle,
+          ),
+          const SizedBox(height: 9),
+          Text(
+            active
+                ? (copy.isHinglish ? 'Abhi active' : 'Active now')
+                : (copy.isHinglish ? 'Upcoming' : 'Upcoming'),
+            style: _CareerReadingText.source,
+          ),
+          if (customerFacingCareerPeriodMeaning(period)
+              case final meaning?) ...[
+            const SizedBox(height: 7),
+            Text(meaning, style: _CareerReadingText.body),
+          ],
+          if (reasons.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Text(
+              copy.isHinglish ? 'Yeh window kyun' : 'Why this window',
+              style: _CareerReadingText.source,
+            ),
+            const SizedBox(height: 7),
+            for (final reason in reasons)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 5),
+                child: Text('• $reason', style: _CareerReadingText.meta),
+              ),
+          ],
         ],
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }
 
 class _CompactForecastPeriod extends StatelessWidget {
@@ -1203,7 +1226,10 @@ class _DetailedCareerAstrology extends StatelessWidget {
               title: 'Timing Evidence',
               children: [
                 if (periods.isNotEmpty)
-                  _SavedCareerTimingEvidenceSection(periods: periods),
+                  _SavedCareerTimingEvidenceSection(
+                    periods: periods,
+                    copy: copy,
+                  ),
                 if (timingEvidenceInsights.isNotEmpty) ...[
                   if (periods.isNotEmpty) const SizedBox(height: 16),
                   _CareerInsightExperience(
@@ -1237,7 +1263,10 @@ class _DetailedCareerAstrology extends StatelessWidget {
                     copy: copy,
                   )
                 else if (detail.content.sections.isNotEmpty)
-                  _CareerReadingContentSections(content: detail.content),
+                  _CareerReadingContentSections(
+                    content: detail.content,
+                    copy: copy,
+                  ),
                 if (detail.careerEvidenceSynthesis != null) ...[
                   if (foundationInsights.isNotEmpty ||
                       detail.content.sections.isNotEmpty)
@@ -1297,7 +1326,10 @@ class _DetailedCareerAstrology extends StatelessWidget {
                 if (calibration != null && calibration.sections.isNotEmpty) ...[
                   if (calibrationInsights.isNotEmpty)
                     const SizedBox(height: 16),
-                  _CareerReadingContentSections(content: calibration),
+                  _CareerReadingContentSections(
+                    content: calibration,
+                    copy: copy,
+                  ),
                 ],
                 if (_hasCalculationNote(calibration)) ...[
                   if (calibrationInsights.isNotEmpty ||
@@ -1516,7 +1548,7 @@ class _CareerAshtakavargaStructureSection extends StatelessWidget {
   }
 
   String _sav(int? value) =>
-      value == null ? 'SAV unavailable' : '$value SAV bindus';
+      value == null ? 'SAV unavailable' : 'SAV score: $value';
 
   String _placedIn(
     CareerReadingPresentationCopy copy,
@@ -1586,7 +1618,9 @@ class _CareerD10StructureSection extends StatelessWidget {
     }
     for (final aspect in value.aspectsReceived) {
       lines.add(
-        '${copy.planet(aspect.planet)} ki Drishti is ${copy.isHinglish ? 'Bhav' : 'House'} par hai',
+        copy.isHinglish
+            ? '${copy.planet(aspect.planet)} ki drishti is Bhav par pad rahi hai.'
+            : '${copy.planet(aspect.planet)} aspects this house.',
       );
     }
     return lines;
@@ -2025,11 +2059,20 @@ class _CareerTimingSection extends StatelessWidget {
                 ),
               for (final transit in transits)
                 _TimingRow(
-                  title: 'Current Transit',
+                  title: copy.isHinglish ? 'Current Gochar' : 'Current Transit',
                   value: transit.planet == null
                       ? 'Transit timing'
                       : copy.planet(transit.planet),
                   date: _dateRangeOrPoint(transit.start, transit.end),
+                  detail: transit.natalHouseNumber != null
+                      ? (copy.isHinglish
+                            ? '${copy.house(transit.natalHouseNumber!)} activate ho raha hai.'
+                            : 'Activates ${copy.house(transit.natalHouseNumber!)}.')
+                      : transit.natalBody != null
+                      ? (copy.isHinglish
+                            ? '${copy.planet(transit.natalBody)} se Career-relevant connection.'
+                            : 'Career-relevant connection with ${copy.planet(transit.natalBody)}.')
+                      : null,
                 ),
               for (final window in windows)
                 _TimingRow(
@@ -2050,45 +2093,77 @@ class _CareerTimingSection extends StatelessWidget {
 }
 
 class _SavedCareerTimingEvidenceSection extends StatelessWidget {
-  const _SavedCareerTimingEvidenceSection({required this.periods});
+  const _SavedCareerTimingEvidenceSection({
+    required this.periods,
+    required this.copy,
+  });
 
   final List<CareerTimingPeriod> periods;
+  final CareerReadingPresentationCopy copy;
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const _CareerReadingSectionLabel('SAVED CAREER TIMING EVIDENCE'),
-      const SizedBox(height: 12),
-      Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(15, 13, 15, 5),
-        decoration: BoxDecoration(
-          color: _CareerReadingColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _CareerReadingColors.cardBorder),
+  Widget build(BuildContext context) {
+    final formatter = CareerEvidenceFormatter(copy);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _CareerReadingSectionLabel(
+          copy.isHinglish ? 'CAREER TIMING EVIDENCE' : 'CAREER TIMING EVIDENCE',
         ),
-        child: Column(
-          children: [
-            for (final period in periods) ...[
-              _TimingRow(
-                title: 'Saved timing evidence',
-                date: _dateRange(period.startDate, period.endDate),
-                state: period.evidenceState,
-                detail: period.summary,
-              ),
-              for (final reason in period.whyItems)
-                _TimingRow(
-                  title: 'Why this period',
-                  date: _dateRange(period.startDate, period.endDate),
-                  detail: reason,
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(15, 13, 15, 5),
+          decoration: BoxDecoration(
+            color: _CareerReadingColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _CareerReadingColors.cardBorder),
+          ),
+          child: Column(
+            children: [
+              for (final period in periods) ...[
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _dateRange(period.startDate, period.endDate),
+                        style: _CareerReadingText.itemTitle,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        formatter.evidenceState(period.evidenceState),
+                        style: _CareerReadingText.source,
+                      ),
+                      if (period.whyItems.isNotEmpty) ...[
+                        const SizedBox(height: 9),
+                        Text(
+                          copy.isHinglish
+                              ? 'Yeh window kyun'
+                              : 'Why this window',
+                          style: _CareerReadingText.source,
+                        ),
+                        const SizedBox(height: 5),
+                        for (final reason in period.whyItems)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text(
+                              '• ${formatter.customerText(reason)}',
+                              style: _CareerReadingText.meta,
+                            ),
+                          ),
+                      ],
+                    ],
+                  ),
                 ),
+              ],
             ],
-          ],
+          ),
         ),
-      ),
-    ],
-  );
+      ],
+    );
+  }
 }
 
 class _TimingRow extends StatelessWidget {
@@ -2139,7 +2214,11 @@ class _CareerHistorySummary extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _CareerReadingSectionLabel('CAREER HISTORY'),
+        _CareerReadingSectionLabel(
+          copy.isHinglish
+              ? 'AAPKI HISTORY KA CAREER PATTERN'
+              : 'CAREER PATTERN FROM YOUR HISTORY',
+        ),
         const SizedBox(height: 12),
         Container(
           width: double.infinity,
@@ -2424,16 +2503,27 @@ String _technicalRow(
     final score = _ashtakavargaScoreLabel(row['scoreType']);
     final value = row['value'];
     final planet = row['planet'];
+    final rashi = row['rashiIndex'];
     final houseLabel = house is int ? copy.house(house) : 'House';
+    final target = rashi is int ? ' · sign $rashi' : '';
     return planet is String && planet.isNotEmpty
-        ? '${copy.planet(planet)} $score · $houseLabel: $value'
-        : '$houseLabel · $score: $value';
+        ? '${copy.planet(planet)} $score · $houseLabel$target: $value'
+        : '$houseLabel$target · $score: $value';
   }
   if (row['sourceFamily'] == 'PLANETARY_STATE') {
     return '${copy.planet(row['planet'])} — ${copy.state(row['state'])}';
   }
   if (row['sourceFamily'] == 'PLANETARY_RELATIONSHIP') {
-    return '${copy.planet(row['subjectPlanet'])} → ${copy.planet(row['targetPlanet'])} · ${row['relationshipType'] ?? 'Relationship'}: ${row['relationship'] ?? ''}';
+    final relationship = switch (row['relationship']) {
+      'enemy' => copy.isHinglish ? 'challenging' : 'challenging',
+      'friend' => copy.isHinglish ? 'supportive' : 'supportive',
+      'neutral' => 'neutral',
+      _ => 'relevant',
+    };
+    final framework = row['relationshipType'] == 'PANCHADHA'
+        ? 'Panchadha'
+        : 'planetary';
+    return '${copy.planet(row['subjectPlanet'])} and ${copy.planet(row['targetPlanet'])} show a $relationship $framework relationship.';
   }
   return '';
 }
@@ -2668,8 +2758,12 @@ class _CareerReadingSectionLabel extends StatelessWidget {
 }
 
 class _CareerReadingContentSections extends StatelessWidget {
-  const _CareerReadingContentSections({required this.content});
+  const _CareerReadingContentSections({
+    required this.content,
+    required this.copy,
+  });
   final ReadingContent content;
+  final CareerReadingPresentationCopy copy;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -2685,6 +2779,7 @@ class _CareerReadingContentSections extends StatelessWidget {
           _CareerReadingEvidenceCard(
             item: item,
             showHeadline: item.headline != section.headline,
+            formatter: CareerEvidenceFormatter(copy),
           ),
         const SizedBox(height: 18),
       ],
@@ -2696,9 +2791,11 @@ class _CareerReadingEvidenceCard extends StatelessWidget {
   const _CareerReadingEvidenceCard({
     required this.item,
     required this.showHeadline,
+    required this.formatter,
   });
   final ReadingSectionItem item;
   final bool showHeadline;
+  final CareerEvidenceFormatter formatter;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -2714,14 +2811,22 @@ class _CareerReadingEvidenceCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (showHeadline) ...[
-          Text(item.headline, style: _CareerReadingText.itemTitle),
+          Text(
+            formatter.customerText(item.headline),
+            style: _CareerReadingText.itemTitle,
+          ),
           const SizedBox(height: 7),
         ],
-        Text(item.sentence, style: _CareerReadingText.body),
+        Text(
+          formatter.customerText(item.sentence),
+          style: _CareerReadingText.body,
+        ),
         if (item.sourceTitle != null &&
             item.sourceTitle!.trim().isNotEmpty) ...[
           const SizedBox(height: 12),
-          _CareerReadingSourceChip(title: item.sourceTitle!),
+          _CareerReadingSourceChip(
+            title: formatter.customerText(item.sourceTitle!),
+          ),
         ],
       ],
     ),

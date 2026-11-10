@@ -17,7 +17,7 @@ function input(level = 'CALIBRATED', provisional = true) {
 function build(value = input(), locale = 'en-IN') { return new CareerReadingPromptBuilder().build({ interpretationInput: value, locale }); }
 
 test('exports the independent prompt version and an immutable provider-neutral payload', () => {
-  const prompt = build(); assert.equal(CAREER_READING_PROMPT_VERSION, 'career-reading-prompt-v1'); assert.equal(prompt.version, CAREER_READING_PROMPT_VERSION); assert.equal(prompt.input.schemaVersion, 'career-reading-interpretation-schema-v1'); assert.ok(Object.isFrozen(prompt)); assert.match(prompt.instructions, /Indian English/); assert.match(prompt.instructions, /en-IN/);
+  const prompt = build(); assert.equal(CAREER_READING_PROMPT_VERSION, 'career-reading-prompt-v2'); assert.equal(prompt.version, CAREER_READING_PROMPT_VERSION); assert.equal(prompt.input.schemaVersion, 'career-reading-interpretation-schema-v1'); assert.ok(Object.isFrozen(prompt)); assert.match(prompt.instructions, /Indian English/); assert.match(prompt.instructions, /en-IN/);
 });
 test('is deterministic and does not mutate deeply frozen interpretation input', () => {
   const value = deepFreeze(input()); const before = JSON.stringify(value); assert.deepEqual(build(value), build(value)); assert.equal(JSON.stringify(value), before);
@@ -30,7 +30,7 @@ test('preserves opaque evidence IDs, event references, and YEAR and MONTH precis
   const prompt = build(); assert.deepEqual(prompt.input.eventReferences, input().eventReferences); assert.equal(prompt.input.historicalEvidence[0].evidenceId, 'hist:opaque-1'); assert.equal(prompt.input.futureOccurrences[0].evidenceId, 'future:window-1'); assert.equal(prompt.input.composites[0].evidenceId, 'composite:opaque-1');
 });
 test('states NONE and LIMITED recurrence constraints and calibrated no-pattern constraint', () => {
-  const instructions = build().instructions; assert.match(instructions, /calibrationLevel NONE, make no recurrence narrative/); assert.match(instructions, /For LIMITED, make no recurring-pattern claim/); assert.match(instructions, /when supplied recurrence arrays are empty, reflect that no recurring evidence was found/); assert.equal(build(input('NONE')).input.calibrationLevel, 'NONE'); assert.equal(build(input('LIMITED')).input.calibrationLevel, 'LIMITED');
+  const instructions = build().instructions; assert.match(instructions, /calibrationLevel NONE, make no recurrence narrative/); assert.match(instructions, /For LIMITED, make no recurring-pattern claim/); assert.match(instructions, /historical pattern produced no additional recurrence-based future window/); assert.match(instructions, /not the product's broader deterministic Career forecast/); assert.match(instructions, /Never say that no future occurrences, future periods, or upcoming windows exist generally/); assert.equal(build(input('NONE')).input.calibrationLevel, 'NONE'); assert.equal(build(input('LIMITED')).input.calibrationLevel, 'LIMITED');
 });
 test('carries the provisional evidence flag while requiring disclosure only when supplied true', () => {
   assert.equal(build(input('CALIBRATED', true)).input.hasProvisionalEvidence, true); assert.equal(build(input('CALIBRATED', false)).input.hasProvisionalEvidence, false); assert.match(build().instructions, /If hasProvisionalEvidence is true, include the required disclosure/);
