@@ -436,7 +436,7 @@ class _RecipientRow extends StatelessWidget {
     runSpacing: 6,
     children: [
       Text(
-        'Code dispatched to',
+        'Code sent to',
         style: GoogleFonts.inter(color: const Color(0xFFA8B7B4), fontSize: 12),
       ),
       Container(
