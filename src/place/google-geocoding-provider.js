@@ -14,6 +14,20 @@ function candidate(result) {
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || typeof result.formatted_address !== 'string') return null;
   return freeze({ providerPlaceId: result.place_id, primaryLabel: result.formatted_address, latitude, longitude });
 }
+function component(result, types) {
+  if (!result || !Array.isArray(result.address_components)) return null;
+  const found = result.address_components.find((item) => item && Array.isArray(item.types) && types.some((type) => item.types.includes(type)) && typeof item.long_name === 'string' && item.long_name.trim());
+  return found ? found.long_name.trim() : null;
+}
+function reverseLabel(result) {
+  if (!result || typeof result !== 'object') return null;
+  const locality = component(result, ['locality', 'postal_town', 'administrative_area_level_2', 'sublocality']);
+  const state = component(result, ['administrative_area_level_1']);
+  const country = component(result, ['country']);
+  const concise = [...new Set([locality, state, country].filter(Boolean))].join(', ');
+  if (concise) return concise;
+  return typeof result.formatted_address === 'string' && result.formatted_address.trim() ? result.formatted_address.trim() : null;
+}
 
 class GoogleGeocodingProvider {
   constructor({ apiKey, fetchImplementation = globalThis.fetch, timeoutMilliseconds = 5000 } = {}) {
@@ -41,6 +55,12 @@ class GoogleGeocodingProvider {
     const found = candidate((await this.request({ place_id: providerPlaceId }))[0]);
     if (!found || found.providerPlaceId !== providerPlaceId) fail('PLACE_NOT_FOUND');
     return freeze({ provider: 'google-geocoding', providerPlaceId: found.providerPlaceId, latitude: found.latitude, longitude: found.longitude, displayName: found.primaryLabel });
+  }
+  async reverseGeocode({ latitude, longitude } = {}) {
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) fail('PLACE_COORDINATES_INVALID');
+    const label = reverseLabel((await this.request({ latlng: `${latitude},${longitude}` }))[0]);
+    if (!label) fail('PLACE_NOT_FOUND');
+    return freeze({ provider: 'google-geocoding', displayName: label });
   }
 }
 

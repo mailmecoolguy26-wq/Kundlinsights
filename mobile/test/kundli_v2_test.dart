@@ -125,7 +125,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Not available'), findsOneWidget);
+    expect(find.text('Location not available'), findsOneWidget);
 
     natal.dispose();
     profiles.dispose();

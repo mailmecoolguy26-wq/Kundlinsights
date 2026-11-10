@@ -534,7 +534,8 @@ class BirthDetailsScreen extends StatelessWidget {
                   _Value(
                     label: 'Birth place',
                     value:
-                        profile?.birthData.displayLocation ?? 'Not available',
+                        profile?.birthData.displayLocation ??
+                            'Location not available',
                   ),
                   if (summary != null) ...[
                     _Value(
