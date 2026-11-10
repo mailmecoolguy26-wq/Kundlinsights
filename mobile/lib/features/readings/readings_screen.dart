@@ -2021,6 +2021,7 @@ class _CareerTimingSection extends StatelessWidget {
 
   static bool hasContent(List<CareerInsight> insights) => insights.any(
     (insight) =>
+        insight.family == 'CURRENT_CAREER_TRANSIT' ||
         insight.timing.dashaPeriods.isNotEmpty ||
         insight.timing.transitContexts.isNotEmpty ||
         insight.timing.timingWindow != null,
@@ -2032,6 +2033,9 @@ class _CareerTimingSection extends StatelessWidget {
     final transits = <CareerTransitTiming>[];
     final windows = <(CareerTimingWindow, String?, String?)>[];
     final seen = <String>{};
+    final currentTransitInsights = insights
+        .where((insight) => insight.family == 'CURRENT_CAREER_TRANSIT')
+        .toList(growable: false);
     for (final insight in insights) {
       for (final period in insight.timing.dashaPeriods) {
         if (seen.add(
@@ -2040,11 +2044,14 @@ class _CareerTimingSection extends StatelessWidget {
           dashas.add(period);
         }
       }
-      for (final transit in insight.timing.transitContexts) {
-        if (seen.add(
-          'transit:${transit.planet}:${transit.start}:${transit.end}',
-        )) {
-          transits.add(transit);
+      if (currentTransitInsights.isEmpty ||
+          insight.family == 'CURRENT_CAREER_TRANSIT') {
+        for (final transit in insight.timing.transitContexts) {
+          if (seen.add(
+            'transit:${transit.planet}:${transit.start}:${transit.end}:${transit.natalHouseNumber}:${transit.aspectTargetHouses.join(',')}',
+          )) {
+            transits.add(transit);
+          }
         }
       }
       final window = insight.timing.timingWindow;
@@ -2081,22 +2088,31 @@ class _CareerTimingSection extends StatelessWidget {
                   date: _dateRange(period.start, period.end),
                   state: period.isCurrent ? 'Active now' : null,
                 ),
-              for (final transit in transits)
+              if (currentTransitInsights.isNotEmpty && transits.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      copy.noCurrentCareerTransit,
+                      style: _CareerReadingText.body,
+                    ),
+                  ),
+                ),
+              for (final transit in transits.take(3))
                 _TimingRow(
-                  title: copy.isHinglish ? 'Current Gochar' : 'Current Transit',
-                  value: transit.planet == null
-                      ? 'Transit timing'
+                  title: transit.planet == null
+                      ? (copy.isHinglish ? 'Current Gochar' : 'Current Transit')
                       : copy.planet(transit.planet),
+                  value: transit.natalHouseNumber == null
+                      ? null
+                      : '${copy.isHinglish ? 'Gochar' : 'Transit'}: ${copy.house(transit.natalHouseNumber!)}',
                   date: _dateRangeOrPoint(transit.start, transit.end),
-                  detail: transit.natalHouseNumber != null
-                      ? (copy.isHinglish
-                            ? '${copy.house(transit.natalHouseNumber!)} activate ho raha hai.'
-                            : 'Activates ${copy.house(transit.natalHouseNumber!)}.')
-                      : transit.natalBody != null
-                      ? (copy.isHinglish
-                            ? '${copy.planet(transit.natalBody)} se Career-relevant connection.'
-                            : 'Career-relevant connection with ${copy.planet(transit.natalBody)}.')
-                      : null,
+                  detail: [
+                    if (transit.aspectTargetHouses.isNotEmpty)
+                      '${copy.isHinglish ? 'Drishti' : 'Aspect'}: ${transit.aspectTargetHouses.map(copy.house).join(', ')}',
+                    copy.transitRelevance(transit.relevanceType),
+                  ].join(' · '),
                 ),
               for (final window in windows)
                 _TimingRow(

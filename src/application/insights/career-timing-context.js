@@ -44,6 +44,9 @@ function transitContexts(context) {
       ...(typeof item.motion === 'string' ? { motion: item.motion } : {}),
       ...(Number.isInteger(item.natalHouseNumber) ? { natalHouseNumber: item.natalHouseNumber } : {}),
       ...(typeof item.natalBody === 'string' ? { natalBody: item.natalBody } : {}),
+      ...(Array.isArray(item.aspectTargetHouses) ? { aspectTargetHouses: [...new Set(item.aspectTargetHouses.filter(Number.isInteger))].sort((a, b) => a - b) } : {}),
+      ...(Array.isArray(item.relevanceReasons) ? { relevanceReasons: [...new Set(item.relevanceReasons.filter((value) => typeof value === 'string'))].sort() } : {}),
+      ...(typeof item.relevanceType === 'string' ? { relevanceType: item.relevanceType } : {}),
       source: item.kind === 'GOCHAR_SNAPSHOT' ? 'GOCHAR' : 'TRANSIT_EVENT_SCANNER',
     };
   }).filter(Boolean).sort((left, right) => `${left.start}|${left.kind}|${left.transitPlanet || ''}`.localeCompare(`${right.start}|${right.kind}|${right.transitPlanet || ''}`));

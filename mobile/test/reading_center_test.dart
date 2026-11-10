@@ -806,6 +806,132 @@ void main() {
   );
 
   testWidgets(
+    'renders ranked Career transits in English and Hinglish without raw enums',
+    (tester) async {
+      tester.view.physicalSize = const Size(375, 700);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final authSource = _AuthSource();
+      final auth = AuthController(authSource);
+      await auth.restore();
+      final profiles = ProfileController(_Profiles(authSource), auth);
+      await tester.pump();
+      final language = CareerExplanationLanguageController(_LanguageStorage());
+      final repository = _ReadingRepository()
+        ..nextDetail = ReadingDetail.fromJson({
+          ..._detailJson(),
+          'insights': [
+            _insight(
+              'CURRENT_CAREER_TRANSIT',
+              0,
+              status: 'MIXED',
+              timing: {
+                'transitContexts': [
+                  {
+                    'transitPlanet': 'Jupiter',
+                    'start': '2026-10-18T07:08:17.000Z',
+                    'isCurrent': true,
+                    'natalHouseNumber': 6,
+                    'aspectTargetHouses': [10],
+                    'relevanceType': 'ASPECTS_10TH_HOUSE',
+                    'relevanceReasons': [
+                      'ASPECTS_10TH_HOUSE',
+                      'ACTIVATES_6TH_HOUSE',
+                    ],
+                    'evidenceState': 'SUPPORTED',
+                  },
+                  {
+                    'transitPlanet': 'Rahu',
+                    'start': '2026-10-18T07:08:17.000Z',
+                    'isCurrent': true,
+                    'natalHouseNumber': 12,
+                    'aspectTargetHouses': <int>[],
+                    'relevanceType': 'SECONDARY_CONTEXT',
+                    'relevanceReasons': ['SECONDARY_CONTEXT'],
+                    'evidenceState': 'MIXED',
+                  },
+                ],
+              },
+            ),
+          ],
+        });
+      final controller = ReadingController(repository, auth, profiles);
+      await tester.pumpWidget(
+        _localized(
+          ReadingDetailScreen(
+            controller: controller,
+            careerExplanationLanguage: language,
+            readingId: 'reading-a',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await _expandDetailedAstrology(tester);
+      await _expandDetailedAstrologySection(tester, 'Dasha & Transit');
+      expect(find.text('Transit: 6th House'), findsOneWidget);
+      expect(find.textContaining('Aspect: 10th House'), findsOneWidget);
+      expect(
+        find.textContaining('Direct aspect to the Career axis'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Secondary Career context'), findsOneWidget);
+      expect(find.textContaining('ASPECTS_10TH_HOUSE'), findsNothing);
+      expect(
+        tester.getTopLeft(find.text('Jupiter')).dy,
+        lessThan(tester.getTopLeft(find.text('Rahu')).dy),
+      );
+
+      await language.setLanguage(CareerExplanationLanguage.hinglish);
+      await tester.pump();
+      expect(find.text('Gochar: 6th Bhav'), findsOneWidget);
+      expect(find.textContaining('Drishti: 10th Bhav'), findsOneWidget);
+      expect(
+        find.textContaining('Career axis par direct drishti'),
+        findsOneWidget,
+      );
+
+      controller.dispose();
+      profiles.dispose();
+      auth.dispose();
+    },
+  );
+
+  testWidgets(
+    'renders a neutral state when no current Career transit is ranked',
+    (tester) async {
+      final authSource = _AuthSource();
+      final auth = AuthController(authSource);
+      await auth.restore();
+      final profiles = ProfileController(_Profiles(authSource), auth);
+      await tester.pump();
+      final repository = _ReadingRepository()
+        ..nextDetail = ReadingDetail.fromJson({
+          ..._detailJson(),
+          'insights': [_insight('CURRENT_CAREER_TRANSIT', 0)],
+        });
+      final controller = ReadingController(repository, auth, profiles);
+      await tester.pumpWidget(
+        _localized(
+          ReadingDetailScreen(controller: controller, readingId: 'reading-a'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await _expandDetailedAstrology(tester);
+      await _expandDetailedAstrologySection(tester, 'Dasha & Transit');
+      expect(
+        find.text(
+          'No strong Career-specific transit activation is currently identified.',
+        ),
+        findsOneWidget,
+      );
+      controller.dispose();
+      profiles.dispose();
+      auth.dispose();
+    },
+  );
+
+  testWidgets(
     'renders factual Career Ashtakavarga structure in English and Hinglish',
     (tester) async {
       tester.view.physicalSize = const Size(375, 700);

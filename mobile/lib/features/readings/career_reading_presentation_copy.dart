@@ -47,6 +47,34 @@ class CareerReadingPresentationCopy {
   String get limitationHeading =>
       isHinglish ? 'KYA DHYAN RAKHEIN' : 'WHAT TO KEEP IN MIND';
 
+  String get noCurrentCareerTransit => isHinglish
+      ? 'Abhi koi strong Career-specific Gochar activation identify nahi hui hai.'
+      : 'No strong Career-specific transit activation is currently identified.';
+
+  String transitRelevance(String? value) => isHinglish
+      ? const {
+              'DIRECT_10TH_HOUSE_TRANSIT': 'Direct Career-axis activation',
+              'ASPECTS_10TH_HOUSE': 'Career axis par direct drishti',
+              'ACTIVATES_10TH_LORD': '10th lord activation',
+              'ACTIVATES_6TH_HOUSE': 'Work aur service context',
+              'ACTIVATES_11TH_HOUSE': 'Professional gains context',
+              'ACTIVATES_2ND_HOUSE': 'Income-related Career context',
+              'D10_SUPPORT': 'Additional D10 context',
+              'SECONDARY_CONTEXT': 'Secondary Career context',
+            }[value] ??
+            'Career context'
+      : const {
+              'DIRECT_10TH_HOUSE_TRANSIT': 'Direct Career-axis activation',
+              'ASPECTS_10TH_HOUSE': 'Direct aspect to the Career axis',
+              'ACTIVATES_10TH_LORD': '10th-lord activation',
+              'ACTIVATES_6TH_HOUSE': 'Work and service context',
+              'ACTIVATES_11TH_HOUSE': 'Professional gains context',
+              'ACTIVATES_2ND_HOUSE': 'Income-related Career context',
+              'D10_SUPPORT': 'Additional D10 context',
+              'SECONDARY_CONTEXT': 'Secondary Career context',
+            }[value] ??
+            'Career context';
+
   String careerHistory(String level, int? count) {
     if (!isHinglish) {
       return switch (level) {

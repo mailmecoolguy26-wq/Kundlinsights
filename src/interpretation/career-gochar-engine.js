@@ -7,10 +7,26 @@ const { permitsCurrentCareerGocharActivation } = require('./career-gochar-depend
 const SADESATI = 'sadeSatiPhaseChange';
 function iso(value) { const text = value && (value.utc || value); return typeof text === 'string' && text.endsWith('Z') && !Number.isNaN(Date.parse(text)) ? text : null; }
 
-function transitContext(node) {
+function relevance(node, careerRelation) {
+  const fact = node.fact || {}; const upstream = fact.upstreamEvidence || {};
+  const transitHouse = Number.isInteger(fact.natalHouseNumber) ? fact.natalHouseNumber : Number.isInteger(upstream.transitNatalHouseNumber) ? upstream.transitNatalHouseNumber : null;
+  const aspectTargetHouses = (upstream.aspectsNatalHouses || []).map((item) => item && item.houseNumber).filter(Number.isInteger);
+  if (node.sourceLayer === '10' && /^transitDrishti/.test(fact.eventType) && Number.isInteger(fact.targetHouseNumber)) aspectTargetHouses.push(fact.targetHouseNumber);
+  const reasons = [];
+  if (transitHouse === 10) reasons.push('DIRECT_10TH_HOUSE_TRANSIT');
+  if (aspectTargetHouses.includes(10)) reasons.push('ASPECTS_10TH_HOUSE');
+  if (careerRelation && careerRelation.relationType === 'CAREER_HOUSE_LORD') reasons.push('ACTIVATES_10TH_LORD');
+  for (const house of [6, 11, 2]) if (transitHouse === house || aspectTargetHouses.includes(house)) reasons.push(`ACTIVATES_${house}${house === 2 ? 'ND' : house === 6 ? 'TH' : 'TH'}_HOUSE`);
+  if (careerRelation && careerRelation.relationType.startsWith('CAREER_D10_')) reasons.push('D10_SUPPORT');
+  if (!reasons.length) reasons.push('SECONDARY_CONTEXT');
+  return { transitHouse, aspectTargetHouses: [...new Set(aspectTargetHouses)].sort((a, b) => a - b), relevanceReasons: [...new Set(reasons)] };
+}
+
+function transitContext(node, careerRelation) {
   const fact = node.fact || {};
-  if (node.sourceLayer === '9') return { kind: 'GOCHAR_SNAPSHOT', instant: iso(node.temporalContext && node.temporalContext.instant), transitPlanet: fact.body || null, natalHouseNumber: Number.isInteger(fact.natalHouseNumber) ? fact.natalHouseNumber : null, motion: typeof fact.motion === 'string' ? fact.motion : null };
-  return { kind: 'TRANSIT_EVENT', instant: iso(fact.instant) || iso(node.temporalContext && node.temporalContext.instant), ...(iso(fact.startInstant) ? { start: iso(fact.startInstant) } : {}), ...(iso(fact.endInstant) ? { end: iso(fact.endInstant) } : {}), transitPlanet: fact.body || null, natalBody: fact.natalBody || null, eventType: fact.eventType || null };
+  const ranked = relevance(node, careerRelation);
+  if (node.sourceLayer === '9') return { kind: 'GOCHAR_SNAPSHOT', instant: iso(node.temporalContext && node.temporalContext.instant), transitPlanet: fact.body || null, natalHouseNumber: ranked.transitHouse, motion: typeof fact.motion === 'string' ? fact.motion : null, aspectTargetHouses: ranked.aspectTargetHouses, relevanceReasons: ranked.relevanceReasons };
+  return { kind: 'TRANSIT_EVENT', instant: iso(fact.instant) || iso(node.temporalContext && node.temporalContext.instant), ...(iso(fact.startInstant) ? { start: iso(fact.startInstant) } : {}), ...(iso(fact.endInstant) ? { end: iso(fact.endInstant) } : {}), transitPlanet: fact.body || null, natalBody: fact.natalBody || null, eventType: fact.eventType || null, aspectTargetHouses: ranked.aspectTargetHouses, relevanceReasons: ranked.relevanceReasons };
 }
 
 function buildCareerGocharConclusions({ domainGraph, temporalGraph, analysis } = {}) {
@@ -18,7 +34,7 @@ function buildCareerGocharConclusions({ domainGraph, temporalGraph, analysis } =
   const career = new Set(domainGraph.derivedRelations.map((relation) => relation.id)); const careerRelations = new Map(domainGraph.derivedRelations.map((relation) => [relation.id, relation]));
   const nodes = new Map(temporalGraph.nodes.map((node) => [node.id, node])); const analysisByNode = new Map(analysis.nodeAnalysis.map((node) => [node.nodeId, node])); const rules = new Map(CAREER_NATAL_RULES.map((rule) => [rule.id, rule])); const result = [];
   function make(rule, relation, node) {
-    const careerId = relation.inputNodeIds.find((id) => career.has(id)); const ids = [relation.id, careerId].sort(); const selected = ids.map((id) => analysisByNode.get(id)).filter(Boolean); const contradictions = (analysis.contradictionGroups || []).filter((group) => group.memberNodeIds.some((id) => ids.includes(id))); const context = transitContext(node);
+    const careerId = relation.inputNodeIds.find((id) => career.has(id)); const ids = [relation.id, careerId].sort(); const selected = ids.map((id) => analysisByNode.get(id)).filter(Boolean); const contradictions = (analysis.contradictionGroups || []).filter((group) => group.memberNodeIds.some((id) => ids.includes(id))); const context = transitContext(node, careerRelations.get(careerId));
     return createConclusion({ domain: 'CAREER', topic: rule.topic, rulesetId: rule.rulesetId, interpretiveRuleId: rule.id, ruleClassification: rule.classification, conclusionStatus: contradictions.length ? 'CONTRADICTED' : 'SUPPORTED', evidenceIds: ids, rootSourceIds: [...new Set(selected.flatMap((item) => item.rootSourceIds))], evidenceFamilyIds: (analysis.evidenceFamilies || []).filter((family) => family.memberNodeIds.some((id) => ids.includes(id))).map((family) => family.familyId), independentMechanismFamilies: [node.sourceLayer === '9' ? 'GOCHAR_SNAPSHOT' : 'TRANSIT_EVENT'], sourceStrengths: [...new Set(selected.flatMap((item) => item.sourceStrengths || []))], contradictions: contradictions.map((group) => group.contradictionGroupId), unresolvedEvidenceIds: [], missingData: [], temporalContext: { readingInstant: temporalGraph.instant || null, careerSubject: careerRelations.get(careerId)?.subject || null, dashaIntervals: [], transitContexts: [context], gocharSnapshotInstant: node.sourceLayer === '9' ? context.instant : null, transitEventIds: node.sourceLayer === '10' ? [node.id] : [], mechanismFamilies: [node.sourceLayer === '9' ? 'GOCHAR_SNAPSHOT' : 'TRANSIT_EVENT'], timingState: context.instant && temporalGraph.instant && Date.parse(context.instant) > Date.parse(temporalGraph.instant) ? 'UPCOMING' : context.instant && temporalGraph.instant && Date.parse(context.instant) < Date.parse(temporalGraph.instant) ? 'PAST' : 'CURRENT' }, provenance: { analysisId: analysis.analysisId, sourceRefs: rule.sourceRefs, sourceStatus: rule.sourceStatus, temporalEvidenceNodeId: node.id, eventType: node.fact && node.fact.eventType || null, scope: 'structural-context-only-not-career-outcome' } });
   }
   for (const relation of temporalGraph.relations) { if (relation.relationType !== 'TEMPORALLY_ACTIVATES') continue; const temporalId = relation.inputNodeIds.find((id) => nodes.has(id)); const node = nodes.get(temporalId); if (!node || !relation.inputNodeIds.some((id) => career.has(id))) continue; if (node.sourceLayer === '9' && permitsCurrentCareerGocharActivation({ ruleId: 'career-gochar-structural-connection-v1', node })) result.push(make(rules.get('career-gochar-structural-connection-v1'), relation, node)); if (node.sourceLayer === '10' && node.fact?.eventType !== SADESATI && permitsCurrentCareerGocharActivation({ ruleId: 'career-transit-event-timing-context-v1', node })) result.push(make(rules.get('career-transit-event-timing-context-v1'), relation, node)); }

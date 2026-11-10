@@ -1068,10 +1068,17 @@ class CareerTransitTiming {
     this.end,
     this.natalHouseNumber,
     this.natalBody,
+    this.aspectTargetHouses = const [],
+    this.relevanceReasons = const [],
+    this.relevanceType,
+    this.evidenceState,
   });
   final String? planet, start, end;
   final int? natalHouseNumber;
   final String? natalBody;
+  final List<int> aspectTargetHouses;
+  final List<String> relevanceReasons;
+  final String? relevanceType, evidenceState;
   static CareerTransitTiming? tryFromJson(Map<String, dynamic> json) {
     final planet = json['transitPlanet'];
     final start = _optionalTimestamp(json['start']);
@@ -1084,6 +1091,15 @@ class CareerTransitTiming {
       end: end,
       natalHouseNumber: natalHouseNumber is int ? natalHouseNumber : null,
       natalBody: json['natalBody'] as String?,
+      aspectTargetHouses: (json['aspectTargetHouses'] as List? ?? const [])
+          .whereType<int>()
+          .where((value) => value >= 1 && value <= 12)
+          .toList(growable: false),
+      relevanceReasons: (json['relevanceReasons'] as List? ?? const [])
+          .whereType<String>()
+          .toList(growable: false),
+      relevanceType: json['relevanceType'] as String?,
+      evidenceState: json['evidenceState'] as String?,
     );
   }
 }
