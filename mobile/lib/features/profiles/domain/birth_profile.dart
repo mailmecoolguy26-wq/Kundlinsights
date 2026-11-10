@@ -26,6 +26,35 @@ class ResolvedBirthData {
   String get localDate => value['localDate']! as String;
   String get localTime => value['localTime']! as String;
   String get timezone => value['timezone']! as String;
+
+  /// Customer-safe place label retained with the encrypted birth payload.
+  /// Older payload versions used a few different display-only shapes, so the
+  /// reader is deliberately tolerant while never falling back to coordinates.
+  String? get displayLocation {
+    final direct = [
+      value['displayLocation'],
+      value['displayName'],
+      value['placeName'],
+      value['placeLabel'],
+      value['location'],
+    ];
+    for (final candidate in direct) {
+      if (candidate is String && candidate.trim().isNotEmpty) {
+        return candidate.trim();
+      }
+    }
+    for (final containerKey in ['display', 'place']) {
+      final container = value[containerKey];
+      if (container is! Map) continue;
+      for (final key in ['label', 'displayName', 'name']) {
+        final candidate = container[key];
+        if (candidate is String && candidate.trim().isNotEmpty) {
+          return candidate.trim();
+        }
+      }
+    }
+    return null;
+  }
 }
 
 class BirthProfile {

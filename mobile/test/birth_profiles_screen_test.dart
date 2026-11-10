@@ -153,6 +153,50 @@ void main() {
     auth.dispose();
   });
 
+  testWidgets(
+    'profile cards show saved locations without exposing coordinates',
+    (tester) async {
+      final repository = _Profiles()
+        ..profiles = [
+          _profile(
+            'pratik',
+            'Pratik',
+            '1990-01-02',
+            '03:04:00',
+            'Hyderabad, Telangana, India',
+          ),
+        ];
+      final auth = AuthController(_Auth());
+      final controller = ProfileController(repository, auth);
+      await auth.restore();
+      await tester.pumpWidget(_app(controller));
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('Hyderabad, Telangana, India'), findsOneWidget);
+      expect(find.textContaining('17.385'), findsNothing);
+      controller.dispose();
+      auth.dispose();
+    },
+  );
+
+  testWidgets('legacy profile cards show a safe missing-location fallback', (
+    tester,
+  ) async {
+    final repository = _Profiles()
+      ..profiles = [_profile('legacy', 'Legacy profile')];
+    final auth = AuthController(_Auth());
+    final controller = ProfileController(repository, auth);
+    await auth.restore();
+    await tester.pumpWidget(_app(controller));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Location not available'), findsOneWidget);
+    controller.dispose();
+    auth.dispose();
+  });
+
   testWidgets('active profile has an explicit text indicator', (tester) async {
     final repository = _Profiles()
       ..profiles = [
@@ -285,6 +329,22 @@ void main() {
     scope.dispose();
   });
 
+  testWidgets('profile detail shows the saved place of birth', (tester) async {
+    final scope = await _detailScope(
+      tester,
+      _profile(
+        'detail-id',
+        'Detail',
+        '1992-11-26',
+        '13:40:00',
+        'Pune, Maharashtra, India',
+      ),
+    );
+    expect(find.text('PLACE OF BIRTH'), findsOneWidget);
+    expect(find.text('Pune, Maharashtra, India'), findsOneWidget);
+    scope.dispose();
+  });
+
   testWidgets('profile detail exposes no edit control', (tester) async {
     final scope = await _detailScope(tester, _profile('detail-id', 'Detail'));
     expect(find.text('Edit'), findsNothing);
@@ -365,6 +425,7 @@ BirthProfile _profile(
   String label, [
   String localDate = '1990-01-02',
   String localTime = '03:04:00',
+  String? displayLocation,
 ]) => BirthProfile(
   id: id,
   displayLabel: label,
@@ -373,6 +434,9 @@ BirthProfile _profile(
     'localDate': localDate,
     'localTime': localTime,
     'timezone': 'Asia/Kolkata',
+    ...?(displayLocation == null
+        ? null
+        : <String, Object?>{'displayLocation': displayLocation}),
   }),
 );
 

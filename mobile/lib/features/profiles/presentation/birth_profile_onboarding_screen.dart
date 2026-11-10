@@ -202,7 +202,14 @@ class _BirthProfileOnboardingScreenState
         return;
       }
       setState(() {
-        _resolved = resolved;
+        // The place search response owns the customer-facing label, while the
+        // resolution response owns the calculation fields. Persist both in the
+        // same encrypted birth payload so profile lists can show the saved
+        // place without exposing coordinates or repeating geocoding.
+        _resolved = ResolvedBirthData({
+          ...resolved.value,
+          'displayLocation': place.label,
+        });
         _resolving = false;
       });
     } catch (error) {
@@ -252,17 +259,6 @@ class _BirthProfileOnboardingScreenState
     if (value == null) return 'Select time';
     final hour = value.hourOfPeriod == 0 ? 12 : value.hourOfPeriod;
     return '${hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
-  }
-
-  String _coordinates() {
-    final data = _resolved?.value;
-    if (data == null) return '';
-    final latitude = data['latitude'] as num?;
-    final longitude = data['longitude'] as num?;
-    if (latitude == null || longitude == null) return '';
-    final ns = latitude >= 0 ? 'N' : 'S';
-    final ew = longitude >= 0 ? 'E' : 'W';
-    return '${latitude.abs().toStringAsFixed(4)}° $ns  ·  ${longitude.abs().toStringAsFixed(4)}° $ew';
   }
 
   String _timezoneDisplay() {
@@ -505,11 +501,11 @@ class _BirthProfileOnboardingScreenState
     ),
     child: Row(
       children: [
-        const Icon(Icons.gps_fixed, color: _gold, size: 17),
+        const Icon(Icons.location_on_outlined, color: _gold, size: 17),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            _coordinates(),
+            _selected?.label ?? 'Location not available',
             style: GoogleFonts.inter(color: _alabaster, fontSize: 11),
           ),
         ),

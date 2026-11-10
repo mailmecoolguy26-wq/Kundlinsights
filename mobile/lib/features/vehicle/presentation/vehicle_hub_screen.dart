@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/analytics/analytics.dart';
 import '../../../shared/formatters/customer_date.dart';
+import '../../../shared/widgets/domain_hub_sections.dart';
 import '../../readings/career_explanation_language.dart';
 import '../domain/vehicle_answer.dart';
 import '../vehicle_answer_controller.dart';
@@ -98,6 +99,7 @@ class _VehicleHubScreenState extends State<VehicleHubScreen> {
             },
             onOpenLifeEvents: () =>
                 context.push('/life-events?initialCategory=VEHICLE'),
+            onOpenAskTara: () => context.push('/career-chat'),
           ),
         },
       );
@@ -195,12 +197,14 @@ class _Result extends StatelessWidget {
     required this.detailsOpen,
     required this.onToggleDetails,
     required this.onOpenLifeEvents,
+    required this.onOpenAskTara,
   });
   final VehicleAnswer answer;
   final bool hinglish;
   final bool detailsOpen;
   final VoidCallback onToggleDetails;
   final VoidCallback onOpenLifeEvents;
+  final VoidCallback onOpenAskTara;
 
   @override
   Widget build(BuildContext context) {
@@ -209,11 +213,11 @@ class _Result extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 36),
       children: [
-        const Text(
-          'Understand when vehicle-related factors are more supportive.',
-          style: _T.body,
+        const DomainHubSectionTitle(
+          'Your Vehicle Outlook',
+          subtitle:
+              'Understand when vehicle-related factors are more supportive.',
         ),
-        const SizedBox(height: 22),
         _Card(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -232,7 +236,19 @@ class _Result extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        DomainHubAskTara(
+          questions: const [
+            'Is this a good time to buy a vehicle?',
+            'Should I buy now or wait?',
+            'What period looks better for changing my vehicle?',
+            'What factors are influencing my vehicle timing?',
+          ],
+          onOpen: onOpenAskTara,
+        ),
+        const DomainHubSectionTitle(
+          'Vehicle Timeline',
+          subtitle: 'Your current or next calculated support period.',
+        ),
         if (window != null && window.windowShape != 'NO_RELIABLE_WINDOW')
           _Card(
             child: Column(
@@ -312,7 +328,24 @@ class _Result extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const DomainHubSectionTitle(
+          'Vehicle Events',
+          subtitle: 'Add past vehicle milestones for calibration context.',
+        ),
+        DomainHubNavigationCard(
+          title: 'Vehicle Events',
+          subtitle: 'View or add vehicle purchase and sale events',
+          icon: Icons.directions_car_outlined,
+          onTap: onOpenLifeEvents,
+        ),
+        const SizedBox(height: 10),
+        Text(
+          hinglish
+              ? 'Past Vehicle events TaraVerse ko recurring timing patterns samajhne mein help karte hain. Yeh aapki birth chart calculations ko change nahi karte.'
+              : 'Past Vehicle events help TaraVerse understand recurring timing patterns. They do not change your birth chart.',
+          style: _T.small,
+        ),
+        const DomainHubSectionTitle('Detailed Astrology'),
         _Card(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -339,19 +372,6 @@ class _Result extends StatelessWidget {
                 _Details(evidence: answer.evidence, hinglish: hinglish),
             ],
           ),
-        ),
-        const SizedBox(height: 20),
-        OutlinedButton.icon(
-          onPressed: onOpenLifeEvents,
-          icon: const Icon(Icons.directions_car_outlined),
-          label: const Text('Vehicle Life Events'),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          hinglish
-              ? 'Past Vehicle events TaraVerse ko recurring timing patterns samajhne mein help karte hain. Yeh aapki birth chart calculations ko change nahi karte.'
-              : 'Past Vehicle events help TaraVerse understand recurring timing patterns. They do not change your birth chart.',
-          style: _T.small,
         ),
       ],
     );

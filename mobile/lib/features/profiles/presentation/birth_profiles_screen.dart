@@ -318,6 +318,17 @@ class _ProfileCard extends StatelessWidget {
                         fontSize: 13,
                       ),
                     ),
+                    const SizedBox(height: 3),
+                    Text(
+                      profile.birthData.displayLocation ??
+                          'Location not available',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: BirthProfilesScreen._slate,
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -548,6 +559,12 @@ class _ProfileDetailBirthCard extends StatelessWidget {
             _ProfileDetailValue(
               label: 'BIRTH TIME',
               value: _birthTime(context, profile),
+            ),
+            const SizedBox(height: 13),
+            _ProfileDetailValue(
+              label: 'PLACE OF BIRTH',
+              value:
+                  profile.birthData.displayLocation ?? 'Location not available',
             ),
           ],
         ),

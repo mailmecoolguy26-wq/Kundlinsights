@@ -49,7 +49,8 @@ void main() {
       find.byKey(const ValueKey('resolved-birth-details')),
       findsOneWidget,
     );
-    expect(find.textContaining('28.6139° N'), findsOneWidget);
+    expect(find.text(_place.label), findsWidgets);
+    expect(find.textContaining('28.6139° N'), findsNothing);
     expect(find.textContaining('UTC +05:30'), findsOneWidget);
     expect(find.text('No matching places found.'), findsNothing);
     expect(_generate(tester).onPressed, isNotNull);
@@ -62,7 +63,10 @@ void main() {
     await tester.ensureVisible(generate);
     await tester.tap(generate);
     await tester.pumpAndSettle();
-    expect(repository.createdBirthData, same(repository.resolution));
+    expect(repository.createdBirthData?.value, {
+      ...repository.resolution.value,
+      'displayLocation': _place.label,
+    });
     expect(repository.createdLabel, 'Riya Sharma');
     expect(find.text('Home destination'), findsOneWidget);
     scope.dispose();

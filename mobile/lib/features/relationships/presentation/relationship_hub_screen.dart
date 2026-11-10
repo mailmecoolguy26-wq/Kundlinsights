@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../shared/formatters/customer_date.dart';
+import '../../../shared/widgets/domain_hub_sections.dart';
 import '../domain/relationship_answer.dart';
 import '../relationship_answer_controller.dart';
 import '../../family_expansion/family_expansion_answer_controller.dart';
@@ -161,6 +162,19 @@ class _Result extends StatelessWidget {
             ],
           ],
         ),
+        DomainHubAskTara(
+          questions: const [
+            'What does my current relationship phase indicate?',
+            'When is a stronger relationship period?',
+            'Is an upcoming period more supportive for commitment?',
+            'What factors are influencing my relationship outlook?',
+          ],
+          onOpen: () => context.push('/career-chat'),
+        ),
+        const DomainHubSectionTitle(
+          'Relationship Timeline',
+          subtitle: 'Your current or next calculated relationship period.',
+        ),
         if (window != null) ...[
           const SizedBox(height: 12),
           _Card(
@@ -196,8 +210,6 @@ class _Result extends StatelessWidget {
             ],
           ),
         ],
-        const SizedBox(height: 20),
-        _FamilyExpansionSection(controller: familyController),
         if (answer.whatThisCanMean.isNotEmpty)
           _Section(title: 'WHAT THIS CAN MEAN', items: answer.whatThisCanMean),
         if (answer.supportiveFactors.isNotEmpty)
@@ -218,7 +230,18 @@ class _Result extends StatelessWidget {
             ],
           ),
         ],
-        const SizedBox(height: 12),
+        const DomainHubSectionTitle(
+          'Relationship Events',
+          subtitle: 'Add relationship and family milestones as context.',
+        ),
+        DomainHubNavigationCard(
+          title: 'Relationship Events',
+          subtitle: 'View or add marriage, engagement, and family events',
+          icon: Icons.favorite_border,
+          onTap: () =>
+              context.push('/life-events?initialCategory=RELATIONSHIPS_FAMILY'),
+        ),
+        const DomainHubSectionTitle('Detailed Astrology'),
         _Card(
           children: [
             InkWell(
@@ -248,6 +271,8 @@ class _Result extends StatelessWidget {
             style: _RelationshipText.subtle,
           ),
         ),
+        const SizedBox(height: 28),
+        _FamilyExpansionSection(controller: familyController),
       ],
     );
   }
@@ -356,7 +381,11 @@ class _FamilyExpansionSectionState extends State<_FamilyExpansionSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _Heading('FAMILY EXPANSION OUTLOOK'),
+        const DomainHubSectionTitle(
+          'Your Family Outlook',
+          subtitle:
+              'Non-medical astrological context for family expansion timing.',
+        ),
         _Card(
           children: [
             _StateChip(answer.state),
@@ -365,6 +394,19 @@ class _FamilyExpansionSectionState extends State<_FamilyExpansionSection> {
               Text(answer.summary, style: _RelationshipText.body),
             ],
           ],
+        ),
+        DomainHubAskTara(
+          questions: const [
+            'What does my current family-expansion phase indicate astrologically?',
+            'Which future periods appear more supportive astrologically?',
+            'What factors are influencing the current phase?',
+            'How does the upcoming period compare with the current period?',
+          ],
+          onOpen: () => context.push('/career-chat'),
+        ),
+        const DomainHubSectionTitle(
+          'Family Timeline',
+          subtitle: 'Calculated supportive, mixed, or cautious periods.',
         ),
         if (window != null) ...[
           const SizedBox(height: 12),
@@ -405,7 +447,18 @@ class _FamilyExpansionSectionState extends State<_FamilyExpansionSection> {
             ],
           ),
         ],
-        const SizedBox(height: 12),
+        const DomainHubSectionTitle(
+          'Family Events',
+          subtitle: 'Add family milestones as historical context.',
+        ),
+        DomainHubNavigationCard(
+          title: 'Family Events',
+          subtitle: 'View or add marriage and child-birth milestones',
+          icon: Icons.family_restroom_outlined,
+          onTap: () =>
+              context.push('/life-events?initialCategory=RELATIONSHIPS_FAMILY'),
+        ),
+        const DomainHubSectionTitle('Detailed Astrology'),
         _Card(
           children: [
             InkWell(
