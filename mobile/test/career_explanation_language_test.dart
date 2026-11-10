@@ -43,7 +43,7 @@ void main() {
       );
       expect(
         hinglish.insightSummary('CONCURRENT_CAREER_TIMING'),
-        contains('picture poori tarah clear nahi hai'),
+        contains('Career timing factors ko ek saath'),
       );
       expect(
         hinglish.insightSummary('CURRENT_CAREER_TRANSIT'),
@@ -56,13 +56,13 @@ void main() {
     },
   );
 
-  test('Hinglish uses only the locked technical terminology mappings', () {
+  test('Hinglish keeps customer-facing planet names natural', () {
     const copy = CareerReadingPresentationCopy(
       CareerExplanationLanguage.hinglish,
     );
-    expect(copy.planet('Saturn'), 'Shani Dev');
-    expect(copy.planet('Jupiter'), 'Guru Dev');
-    expect(copy.planet('Mercury'), 'Budh');
+    expect(copy.planet('Saturn'), 'Saturn');
+    expect(copy.planet('Jupiter'), 'Jupiter');
+    expect(copy.planet('Mercury'), 'Mercury');
     expect(copy.house(10), '10th Bhav');
     expect(copy.state('RETROGRADE'), 'Vakri');
     expect(copy.state('COMBUST'), 'Asta');

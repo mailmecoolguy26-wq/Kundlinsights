@@ -12,10 +12,29 @@ import 'package:kundlinsights_mobile/features/readings/domain/reading.dart';
 import 'package:kundlinsights_mobile/features/readings/domain/reading_repository.dart';
 import 'package:kundlinsights_mobile/features/readings/reading_controller.dart';
 import 'package:kundlinsights_mobile/features/readings/career_explanation_language.dart';
+import 'package:kundlinsights_mobile/features/readings/career_evidence_formatter.dart';
+import 'package:kundlinsights_mobile/features/readings/career_reading_presentation_copy.dart';
 import 'package:kundlinsights_mobile/features/readings/readings_screen.dart';
 import 'package:kundlinsights_mobile/l10n/app_localizations.dart';
 
 void main() {
+  test('normalizes legacy Career evidence without changing stored facts', () {
+    const copy = CareerReadingPresentationCopy(
+      CareerExplanationLanguage.hinglish,
+    );
+    const formatter = CareerEvidenceFormatter(copy);
+    final normalized = formatter.customerText(
+      'Guru Dev casts 5th aspect to Career axis. saturn|venus source data supplied deterministic evidence.',
+    );
+
+    expect(normalized, contains('Jupiter'));
+    expect(normalized, isNot(contains('Guru Dev')));
+    expect(normalized, isNot(contains('casts 5th aspect')));
+    expect(normalized, isNot(contains('saturn|venus')));
+    expect(normalized, isNot(contains('source data')));
+    expect(normalized, isNot(contains('supplied deterministic evidence')));
+  });
+
   test('parses only the safe list and stored detail DTO contracts', () {
     final summary = ReadingSummary.fromJson(_summaryJson());
     final detail = ReadingDetail.fromJson(_detailJson());
@@ -540,7 +559,7 @@ void main() {
         lessThan(tester.getTopLeft(find.text('FUTURE CAREER TIMING').first).dy),
       );
       expect(find.text('Career structure'), findsNothing);
-      expect(find.text('IS READING KI LIMIT'), findsOneWidget);
+      expect(find.text('READING LIMIT'), findsOneWidget);
       final astrologyTrace = find.text('ASTROLOGY BEHIND THIS').first;
       await tester.ensureVisible(astrologyTrace);
       await tester.pumpAndSettle();
@@ -803,22 +822,20 @@ void main() {
       await _expandDetailedAstrologySection(tester, 'D10 Career Analysis');
       await _expandDetailedAstrologySection(tester, 'D1 / Career Foundation');
       expect(find.text('CAREER ASHTAKAVARGA STRUCTURE'), findsOneWidget);
-      expect(find.text('CAREER D10 STRUCTURE'), findsOneWidget);
+      expect(find.text('D10 SNAPSHOT'), findsOneWidget);
       expect(find.text('D10 CAREER THEMES'), findsOneWidget);
       expect(
         find.text(
-          'These themes provide supporting Career context from the factual D10 placements.',
+          'The relevant D10 placements provide these concise Career themes.',
         ),
         findsOneWidget,
       );
       expect(
-        find.text(
-          'Mercury supports communication, technology, and commercial-work themes.',
-        ),
+        find.text('Mercury: communication, technology and commercial work'),
         findsOneWidget,
       );
       expect(find.text('ASHTAKAVARGA CAREER CONTEXT'), findsNothing);
-      expect(find.text('CAREER KA OVERALL PICTURE'), findsOneWidget);
+      expect(find.text('YOUR OVERALL CAREER PICTURE'), findsOneWidget);
       expect(
         find.textContaining('Ashtakavarga adds another layer of context'),
         findsOneWidget,
@@ -852,38 +869,28 @@ void main() {
       await tester.pump();
       expect(
         find.text(
-          'D10 ke placements se Career ki working style aur professional direction ko aur clearly samajhne mein help milti hai.',
+          'Relevant D10 placements se yeh concise Career themes milte hain.',
         ),
         findsOneWidget,
       );
       expect(
-        find.text(
-          'D10 mein Surya Dev ka role authority, leadership aur responsibility se jude Career themes ko highlight karta hai.',
-        ),
+        find.text('Sun: authority, administration aur public responsibility'),
         findsOneWidget,
       );
       expect(
-        find.text(
-          'Budh ka connection communication, technology, analysis aur business-oriented work se jude themes dikhata hai.',
-        ),
+        find.text('Mercury: communication, technology aur commercial work'),
         findsOneWidget,
       );
       expect(
-        find.text(
-          'Guru Dev ka role teaching, guidance, consulting aur knowledge-based work se jude themes ko highlight karta hai.',
-        ),
+        find.text('Jupiter: teaching, guidance aur knowledge-based work'),
         findsOneWidget,
       );
       expect(
-        find.text(
-          'Rahu ka role technology, unconventional work ya global exposure se jude themes ko highlight kar sakta hai.',
-        ),
+        find.text('Rahu: unconventional work, technology aur global exposure'),
         findsOneWidget,
       );
       expect(
-        find.text(
-          'Shani Dev ka role Career mein discipline, responsibility aur structured work ki importance dikhata hai.',
-        ),
+        find.text('Saturn: structure, discipline aur operations'),
         findsOneWidget,
       );
       expect(
@@ -900,24 +907,27 @@ void main() {
       expect(find.textContaining('contextual signal'), findsNothing);
       expect(
         find.text(
-          'Yeh aapke D10 chart ke factual Career placements aur Drishti details hain.',
+          'D10 snapshot professional structure ke relevant placements aur aspects dikhata hai.',
         ),
         findsOneWidget,
       );
-      expect(find.text('Shani Dev: 8th Bhav'), findsOneWidget);
-      expect(find.text('Surya Dev is placed here'), findsOneWidget);
-      expect(find.text('Budh is placed here'), findsOneWidget);
       expect(
-        find.text('Guru Dev ki drishti is Bhav par pad rahi hai.'),
+        find.textContaining('House lord Saturn · placed in 8th Bhav'),
+        findsOneWidget,
+      );
+      expect(find.text('Sun · Placed in this house'), findsOneWidget);
+      expect(find.text('Mercury · Placed in this house'), findsOneWidget);
+      expect(
+        find.text('Jupiter ki drishti is Bhav par pad rahi hai.'),
         findsOneWidget,
       );
       expect(
-        find.text('Mangal ki drishti is Bhav par pad rahi hai.'),
+        find.text('Mars ki drishti is Bhav par pad rahi hai.'),
         findsOneWidget,
       );
       expect(find.text('10th Bhav'), findsOneWidget);
-      expect(find.text('Mangal'), findsOneWidget);
-      expect(find.text('Shani Dev'), findsNWidgets(2));
+      expect(find.text('Mars'), findsOneWidget);
+      expect(find.text('Saturn'), findsWidgets);
       expect(
         find.textContaining('10th Bhav mein 31 SAV bindus hain'),
         findsOneWidget,
@@ -1158,7 +1168,6 @@ void main() {
         'Historical patterns',
         'Upcoming periods',
         'Considerations',
-        'Calculation note',
         'Unknown section',
       ];
       for (final headline in calibratedHeadlines) {
@@ -1167,7 +1176,8 @@ void main() {
         await tester.ensureVisible(finder.first);
       }
       expect(find.text('Stored text.'), findsWidgets);
-      expect(find.text('Provisional note.'), findsWidgets);
+      expect(find.text('Calculation note'), findsNothing);
+      expect(find.text('Provisional note.'), findsOneWidget);
       expect(find.text('Unknown text.'), findsWidgets);
       controller.dispose();
       profiles.dispose();
@@ -1230,7 +1240,7 @@ void main() {
       expect(find.text('20 Nov 2026 – 10 Jan 2027'), findsNWidgets(2));
       expect(
         find.text(
-          '• Guru Dev Pratyantar Dasha Career structure se connected hai.',
+          '• Jupiter Pratyantar Dasha Career structure se connected hai.',
         ),
         findsNWidgets(2),
       );

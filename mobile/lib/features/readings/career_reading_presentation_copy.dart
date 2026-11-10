@@ -12,21 +12,21 @@ class CareerReadingPresentationCopy {
               'CAREER_FOUNDATION': 'Aapki Janam Kundli mein Career ka base 10th Bhav se jude factors par based hai.',
               'ACTIVE_CAREER_DASHA': 'Aapki current Dasha timing Janam Kundli ke Career-related factors se connect ho rahi hai.',
               'CURRENT_CAREER_TRANSIT': 'Abhi ka Gochar aapke Career se jude ek important factor ko activate kar raha hai. Isliye yeh Gochar abhi Career ke current phase ko samajhne mein relevant hai.',
-              'CONCURRENT_CAREER_TIMING': 'Abhi timing ki picture poori tarah clear nahi hai, isliye is period ko lekar final baat nahi kahi ja rahi.',
+              'CONCURRENT_CAREER_TIMING': 'Yeh period available Career timing factors ko ek saath dekhne ka context deta hai.',
               'HISTORICAL_CALIBRATION_RECURRENCE': 'Aapke saved Career events mein similar timing pattern pehle bhi dikha hai.',
               'FUTURE_RECURRENCE_WINDOW': 'Aane wali ek timing window aapki saved Career History mein dekhe gaye pattern se match karti hai.',
               'AUDITED_CLASSICAL_PREDICATE': 'Supplied evidence existing audited classical predicate ko satisfy karta hai; isse koi Career outcome establish nahi hota.',
             }[family] ??
             'Yeh deterministic Career Insight aapki stored Reading se available hai.'
       : const {
-              'CAREER_FOUNDATION': 'Your natal Career structure is centered on the 10th-house factors identified in your chart.',
+              'CAREER_FOUNDATION': 'Your Career foundation is shaped by the 10th House and its lord. The detailed factors below add context rather than a standalone prediction.',
               'ACTIVE_CAREER_DASHA': 'Your current Dasha timing connects to Career-related factors in the natal chart.',
               'CURRENT_CAREER_TRANSIT': 'A current transit is activating a Career-related natal factor used by this reading.',
-              'CONCURRENT_CAREER_TIMING': 'Available Career timing evidence is insufficient to evaluate this signal fully.',
+              'CONCURRENT_CAREER_TIMING': 'This period provides context from the available Career timing factors considered together.',
               'HISTORICAL_CALIBRATION_RECURRENCE':
                   'Similar timing appeared across your saved Career events.',
               'FUTURE_RECURRENCE_WINDOW': 'An upcoming period matches a timing pattern seen in your saved Career history.',
-              'AUDITED_CLASSICAL_PREDICATE': 'The supplied evidence satisfies the existing audited classical predicate; this does not establish an outcome.',
+              'AUDITED_CLASSICAL_PREDICATE': 'An audited classical Career indicator is present; it does not establish a specific outcome.',
             }[family] ??
             'This deterministic Career Insight is available from your stored reading.';
 
@@ -38,9 +38,9 @@ class CareerReadingPresentationCopy {
             }[status] ??
             'Additional deterministic context available hai.'
       : const {
-              'MIXED': 'The supplied deterministic evidence contains both supporting and limiting context.',
+              'MIXED': 'The current reading contains both supportive and limiting Career context.',
               'CONTRADICTED': 'The relevant deterministic evidence contains an explicit contradiction.',
-              'INSUFFICIENT_EVIDENCE': 'Available deterministic evidence is insufficient to evaluate this signal fully.',
+              'INSUFFICIENT_EVIDENCE': 'The available evidence is not strong enough for a firm timing conclusion, so treat this period as supporting context.',
             }[status] ??
             'Additional deterministic context is available.';
 
@@ -70,20 +70,7 @@ class CareerReadingPresentationCopy {
     };
   }
 
-  String planet(Object? value) => isHinglish
-      ? const {
-              'Saturn': 'Shani Dev',
-              'Jupiter': 'Guru Dev',
-              'Mars': 'Mangal',
-              'Mercury': 'Budh',
-              'Venus': 'Shukra',
-              'Sun': 'Surya Dev',
-              'Moon': 'Chandra Dev',
-              'Rahu': 'Rahu',
-              'Ketu': 'Ketu',
-            }[value] ??
-            '${value ?? 'Planet'}'
-      : '${value ?? 'Planet'}';
+  String planet(Object? value) => '${value ?? 'Planet'}';
   String state(Object? value) => isHinglish
       ? const {
               'RETROGRADE': 'Vakri',
@@ -115,8 +102,8 @@ class CareerReadingPresentationCopy {
       : 'This is corroborating structural context, not a standalone prediction of promotion, job change, income, or timing.';
 
   String synthesisFoundation() => isHinglish
-      ? 'Aapki Janam Kundli mein Career ka base 10th Bhav se jude factors par established hai.'
-      : 'Your Career picture is anchored in the 10th House factors already identified in your birth chart.';
+      ? 'Aapka overall Career picture mainly 10th House aur uske lord se jude factors par based hai.'
+      : 'Your overall Career picture is shaped primarily by the 10th House and its lord.';
   String synthesisAshtakavarga(int sav) => isHinglish
       ? 'Ashtakavarga isi Career foundation ko additional context deta hai: 10th Bhav mein $sav SAV bindus hain. Yeh promotion, job change, income ya timing ka standalone prediction nahi.'
       : 'Ashtakavarga adds another layer of context: the 10th House carries $sav SAV bindus. This is not a standalone prediction of promotion, job change, income, or timing.';
@@ -152,7 +139,7 @@ class CareerReadingPresentationCopy {
   String synthesisCalibration(String level, int? count) => isHinglish
       ? switch (level) {
           'CALIBRATED' =>
-            '${count ?? 'Saved'} recorded Career events similar patterns ke personal context ko add karte hain; yeh future outcome forecast nahi hai.',
+            'Aapke ${count ?? 'saved'} recorded Career events historical context add karte hain aur recurring patterns samajhne mein help karte hain.',
           'LIMITED' => 'Aapki recorded Career History ka personal context abhi limited hai.',
           _ => '',
         }
@@ -170,13 +157,17 @@ class CareerReadingPresentationCopy {
       ? 'Yeh aapki D1 Kundli ke Career se jude important Bhavon ke factual Ashtakavarga values hain.'
       : 'These are factual Ashtakavarga values for key Career-linked houses in your D1 chart.';
 
+  String get ashtakavargaStructureNote => isHinglish
+      ? 'Yeh scores relevant houses ki structural strength dikhate hain. Inhe standalone prediction ki tarah use nahi karna chahiye.'
+      : 'These scores describe structural strength in the relevant houses. They are supporting evidence, not standalone predictions.';
+
   String get d10StructureIntro => isHinglish
-      ? 'Yeh aapke D10 chart ke factual Career placements aur Drishti details hain.'
-      : 'These are the factual Career placements and aspects in your D10 chart.';
+      ? 'D10 snapshot professional structure ke relevant placements aur aspects dikhata hai.'
+      : 'This D10 snapshot shows the relevant professional placements and aspects.';
 
   String get d10ThemesIntro => isHinglish
-      ? 'D10 ke placements se Career ki working style aur professional direction ko aur clearly samajhne mein help milti hai.'
-      : 'These themes provide supporting Career context from the factual D10 placements.';
+      ? 'Relevant D10 placements se yeh concise Career themes milte hain.'
+      : 'The relevant D10 placements provide these concise Career themes.';
 
   String get d10ThemesLimitation => isHinglish
       ? 'Yeh D10 context Career ki overall picture ko samajhne mein help karta hai, lekin final prediction sirf D10 ke basis par nahi ki jaati.'
@@ -187,48 +178,64 @@ class CareerReadingPresentationCopy {
     if (!isHinglish) {
       return switch (theme) {
         'AUTHORITY_ADMINISTRATION' =>
-          '$name supports themes of authority, administration, and public responsibility.',
+          '$name: authority, administration and public responsibility',
         'PEOPLE_CARE_PUBLIC' =>
-          '$name supports people-facing, care, and public-interaction themes.',
+          '$name: people-facing work, care and public interaction',
         'EXECUTION_TECHNICAL' =>
-          '$name supports execution, technical, and operations themes.',
+          '$name: execution, technical and operational work',
         'COMMUNICATION_COMMERCE_TECH' =>
-          '$name supports communication, technology, and commercial-work themes.',
+          '$name: communication, technology and commercial work',
         'ADVISORY_KNOWLEDGE' =>
-          '$name supports advisory, teaching, and knowledge-oriented themes.',
+          '$name: advisory, teaching and knowledge-oriented work',
         'DESIGN_LUXURY_CLIENT' =>
-          '$name supports design, aesthetics, and client-facing value themes.',
-        'STRUCTURE_OPERATIONS' =>
-          '$name supports structure, discipline, and operations themes.',
+          '$name: design, aesthetics and client-facing value',
+        'STRUCTURE_OPERATIONS' => '$name: structure, discipline and operations',
         'UNCONVENTIONAL_TECH_GLOBAL' =>
-          '$name may support unconventional work, technology, and global-exposure themes.',
+          '$name: unconventional work, technology and global exposure',
         'RESEARCH_SPECIALIZATION' =>
-          '$name may support research, specialization, and technical-depth themes.',
+          '$name: research, specialization and technical depth',
         _ => '',
       };
     }
     return switch (theme) {
       'AUTHORITY_ADMINISTRATION' =>
-        'D10 mein $name ka role authority, leadership aur responsibility se jude Career themes ko highlight karta hai.',
+        '$name: authority, administration aur public responsibility',
       'PEOPLE_CARE_PUBLIC' =>
-        '$name ka role people-facing work, care aur public interaction se jude themes ko highlight karta hai.',
+        '$name: people-facing work, care aur public interaction',
       'EXECUTION_TECHNICAL' =>
-        '$name ka role execution, technical work aur operations se jude themes ko highlight karta hai.',
+        '$name: execution, technical aur operational work',
       'COMMUNICATION_COMMERCE_TECH' =>
-        '$name ka connection communication, technology, analysis aur business-oriented work se jude themes dikhata hai.',
+        '$name: communication, technology aur commercial work',
       'ADVISORY_KNOWLEDGE' =>
-        '$name ka role teaching, guidance, consulting aur knowledge-based work se jude themes ko highlight karta hai.',
+        '$name: teaching, guidance aur knowledge-based work',
       'DESIGN_LUXURY_CLIENT' =>
-        '$name ka role design, aesthetics aur client-facing value creation se jude themes ko highlight karta hai.',
-      'STRUCTURE_OPERATIONS' =>
-        '$name ka role Career mein discipline, responsibility aur structured work ki importance dikhata hai.',
+        '$name: design, aesthetics aur client-facing value',
+      'STRUCTURE_OPERATIONS' => '$name: structure, discipline aur operations',
       'UNCONVENTIONAL_TECH_GLOBAL' =>
-        '$name ka role technology, unconventional work ya global exposure se jude themes ko highlight kar sakta hai.',
+        '$name: unconventional work, technology aur global exposure',
       'RESEARCH_SPECIALIZATION' =>
-        '$name ka role research, deep specialization aur detail-oriented work se jude themes ko highlight kar sakta hai.',
+        '$name: research, specialization aur technical depth',
       _ => '',
     };
   }
+
+  String get forecastMeaning => isHinglish
+      ? 'Is dauran interviews, networking, important Career conversations aur professional opportunities zyada relevant ho sakte hain.'
+      : 'Interviews, networking, important Career conversations and professional opportunities may become more relevant during this period.';
+
+  List<String> get forecastActions => isHinglish
+      ? const [
+          'Is window se pehle applications, interview preparation aur networking ko actively plan karein.',
+          'Important Career conversations is period ke around schedule karna useful ho sakta hai.',
+          'Supportive timing ko context ki tarah use karein, guarantee ki tarah nahi.',
+          'Specific offer ya job-switch decision ke liye Career Decisions use karein.',
+        ]
+      : const [
+          'Use the weeks before this window for applications, interview preparation and networking.',
+          'Consider scheduling important Career conversations during this period.',
+          'Treat supportive timing as context, not a guarantee.',
+          'Use Career Decisions for a specific offer or job-switch decision.',
+        ];
 
   String dasha(Object? value) => isHinglish
       ? const {

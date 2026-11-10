@@ -40,6 +40,24 @@ class CareerEvidenceFormatter {
 
   String customerText(String value) {
     var output = value
+        .replaceAll(RegExp(r'Guru Dev', caseSensitive: false), 'Jupiter')
+        .replaceAll(RegExp(r'Shani Dev', caseSensitive: false), 'Saturn')
+        .replaceAll(
+          RegExp(r'casts 5th aspect to', caseSensitive: false),
+          'activates through its 5th aspect',
+        )
+        .replaceAll(
+          RegExp(r'casts 10th aspect to', caseSensitive: false),
+          'activates through its 10th aspect',
+        )
+        .replaceAll(
+          RegExp(r'supplied deterministic evidence', caseSensitive: false),
+          'available Career evidence',
+        )
+        .replaceAll(
+          RegExp(r'source data', caseSensitive: false),
+          'available context',
+        )
         .replaceAll(
           'POSSIBLE_CAREER_ACTIVITY_SIGNAL',
           evidenceState('POSSIBLE_CAREER_ACTIVITY_SIGNAL'),
@@ -53,6 +71,14 @@ class CareerEvidenceFormatter {
           ? 'Aapki Career History mein similar timing pattern repeat hua.'
           : 'A similar timing pattern appeared in your Career history.';
     }
+    output = output.replaceAllMapped(
+      RegExp(
+        r'\b(saturn|jupiter|mars|mercury|venus|sun|moon|rahu|ketu)\b',
+        caseSensitive: false,
+      ),
+      (match) =>
+          '${match.group(0)![0].toUpperCase()}${match.group(0)!.substring(1).toLowerCase()}',
+    );
     const planets = {
       'SATURN': 'Saturn',
       'JUPITER': 'Jupiter',
