@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kundlinsights_mobile/features/auth/auth_controller.dart';
 import 'package:kundlinsights_mobile/features/auth/domain/auth_repository.dart';
+import 'package:kundlinsights_mobile/features/tarot/data/tarot_card_assets.dart';
 import 'package:kundlinsights_mobile/features/tarot/domain/tarot.dart';
 import 'package:kundlinsights_mobile/features/tarot/domain/tarot_repository.dart';
 import 'package:kundlinsights_mobile/features/tarot/presentation/tarot_screens.dart';
+import 'package:kundlinsights_mobile/features/tarot/presentation/tarot_card_artwork.dart';
 import 'package:kundlinsights_mobile/features/tarot/tarot_controller.dart';
 
 void main() {
@@ -19,6 +21,7 @@ void main() {
       ),
     );
     expect(find.text('The Fool'), findsNothing);
+    expect(find.byType(TarotCardArt), findsNothing);
     expect(
       find.bySemanticsLabel('Select this face-down Tarot card'),
       findsOneWidget,
@@ -48,6 +51,60 @@ void main() {
     expect(find.text('Situation'), findsOneWidget);
     expect(find.text('The Fool'), findsOneWidget);
     expect(find.text('Begin with an open mind.'), findsOneWidget);
+    expect(find.byType(TarotCardArt), findsOneWidget);
+  });
+
+  test('all 78 stable card ids map to unique bundled artwork paths', () {
+    expect(TarotCardAssets.byId, hasLength(78));
+    expect(TarotCardAssets.byId.values.toSet(), hasLength(78));
+    expect(
+      TarotCardArtwork.pathFor('MAJOR_FOOL'),
+      'assets/tarot/cards/major_00.webp',
+    );
+    expect(
+      TarotCardArtwork.pathFor('PENTACLES_KING'),
+      'assets/tarot/cards/pentacles_14.webp',
+    );
+    expect(TarotCardArtwork.pathFor('UNKNOWN_CARD'), isNull);
+  });
+
+  testWidgets('missing artwork falls back and card detail is read-only', (
+    tester,
+  ) async {
+    const card = TarotCard(
+      position: 2,
+      positionName: 'What To Understand',
+      cardId: 'UNKNOWN_CARD',
+      cardName: 'Known Persisted Card',
+      orientation: 'UPRIGHT',
+      coreTheme: 'A concise theme',
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: TarotRevealedCard(
+            card: card,
+            interpretation: 'Existing persisted interpretation.',
+          ),
+        ),
+      ),
+    );
+    expect(
+      find.byKey(const ValueKey('tarot-art-fallback-UNKNOWN_CARD')),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Known Persisted Card'));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('tarot-card-detail-art-UNKNOWN_CARD')),
+      findsOneWidget,
+    );
+    expect(find.text('Known Persisted Card'), findsNWidgets(2));
+    expect(find.text('Existing persisted interpretation.'), findsNWidgets(2));
+    expect(
+      find.byKey(const ValueKey('tarot-art-fallback-UNKNOWN_CARD')),
+      findsNWidgets(2),
+    );
   });
 
   testWidgets('landing renders eligible and used-today states safely', (
