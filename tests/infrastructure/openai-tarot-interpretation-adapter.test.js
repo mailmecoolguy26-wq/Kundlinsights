@@ -29,4 +29,7 @@ test('sends strict schema, bounded tokens, and no storage request', async () => 
   assert.equal(request.text.format.strict, true);
   assert.equal(request.max_output_tokens, 1400);
   assert.equal(request.store, false);
+  assert.match(request.instructions, /actual card name and spread position/);
+  assert.match(request.instructions, /user question/);
+  assert.match(request.instructions, /never provide an exact date/);
 });

@@ -25,13 +25,16 @@ function validateInterpretation(output, cards) {
 }
 function fallbackInterpretation(reading, cards) {
   const hinglish = reading.language === 'HINGLISH';
+  const spread = SPREADS[reading.spreadType];
   return {
     overview: hinglish ? 'Yeh teen cards aapke sawaal ko reflection aur grounded perspective ke saath dekhne ka invitation dete hain.' : 'These three cards invite you to view your question with reflection and a grounded perspective.',
     cards: cards.map((card, index) => ({
       position: index + 1,
       cardId: card.cardId,
       cardName: card.displayName,
-      interpretation: `${card.coreThemes[0]}. ${card.reflectiveGuidance}`,
+      interpretation: hinglish
+        ? `${card.displayName} ${spread[index]} position mein ${card.coreThemes[0].toLowerCase()} ko highlight karta hai. Aapke sawaal ke context mein, is theme ko ek grounded choice ke saath dekhein.`
+        : `${card.displayName} in the ${spread[index]} position highlights ${card.coreThemes[0].toLowerCase()}. In the context of your question, consider this theme alongside one grounded choice.`,
     })),
     combinedMessage: cards.map((card) => card.coreThemes[0]).join('; '),
     practicalReflection: hinglish ? 'Ek practical next step choose karein aur decision se pehle facts ko bhi verify karein.' : 'Choose one practical next step and verify the relevant facts before making a decision.',

@@ -30,6 +30,20 @@ const SUITS = Object.freeze({
   SWORDS: ['thought, truth and decision','clarity and honest communication','conflict, anxiety or harsh judgment'],
   PENTACLES: ['resources, work and practical stability','steady material progress','overfocus on security or possessions'],
 });
+const MINOR_THEMES = Object.freeze({
+  WANDS: Object.freeze({
+    ACE: 'Inspiration, initiative, a new spark', TWO: 'Planning, choices, looking ahead', THREE: 'Progress, expansion, wider possibilities', FOUR: 'Stability, celebration, a shared milestone', FIVE: 'Competition, differing priorities, productive friction', SIX: 'Recognition, confidence, visible progress', SEVEN: 'Conviction, boundaries, standing your ground', EIGHT: 'Momentum, swift movement, active communication', NINE: 'Resilience, caution, staying prepared', TEN: 'Responsibility, pressure, carrying too much', PAGE: 'Curiosity, exploration, an encouraging idea', KNIGHT: 'Bold action, energy, rapid pursuit', QUEEN: 'Confidence, warmth, independent vision', KING: 'Leadership, direction, purposeful action',
+  }),
+  CUPS: Object.freeze({
+    ACE: 'Emotional openness, care, a fresh connection', TWO: 'Partnership, mutual understanding, connection', THREE: 'Support, networking, collaboration', FOUR: 'Disengagement, reflection, overlooked possibilities', FIVE: 'Disappointment, grief, noticing what remains', SIX: 'Memory, familiarity, reconnecting with the past', SEVEN: 'Many options, imagination, unclear priorities', EIGHT: 'Moving on, seeking deeper meaning, release', NINE: 'Contentment, appreciation, a personal wish', TEN: 'Emotional harmony, belonging, shared wellbeing', PAGE: 'Sensitivity, openness, an intuitive message', KNIGHT: 'Emotional pursuit, invitation, idealism', QUEEN: 'Empathy, emotional depth, intuitive care', KING: 'Emotional balance, compassion, steady support',
+  }),
+  SWORDS: Object.freeze({
+    ACE: 'Clarity, truth, a decisive insight', TWO: 'Difficult choice, pause, competing perspectives', THREE: 'Heartache, difficult truth, emotional release', FOUR: 'Rest, recovery, mental pause', FIVE: 'Conflict, tension, the cost of winning', SIX: 'Transition, gradual recovery, moving forward', SEVEN: 'Strategy, discretion, acting carefully', EIGHT: 'Restriction, self-doubt, limited perspective', NINE: 'Worry, overthinking, mental pressure', TEN: 'A difficult ending, acceptance, release', PAGE: 'Curiosity, alertness, direct communication', KNIGHT: 'Fast thinking, direct action, strong opinions', QUEEN: 'Discernment, independence, clear boundaries', KING: 'Reason, authority, balanced judgment',
+  }),
+  PENTACLES: Object.freeze({
+    ACE: 'A practical opening, resources, solid potential', TWO: 'Balancing priorities, adapting, managing resources', THREE: 'Teamwork, skill, building something well', FOUR: 'Security, control, holding on tightly', FIVE: 'Material strain, isolation, seeking support', SIX: 'Giving and receiving, fairness, practical support', SEVEN: 'Patience, assessment, long-term effort', EIGHT: 'Practice, craftsmanship, focused improvement', NINE: 'Independence, earned comfort, self-reliance', TEN: 'Long-term stability, legacy, shared resources', PAGE: 'Learning, practical planning, a useful opportunity', KNIGHT: 'Consistency, patience, dependable effort', QUEEN: 'Resourcefulness, care, practical stability', KING: 'Stewardship, reliability, material leadership',
+  }),
+});
 const RANKS = [
   ['ACE','Ace','a new opening'],['TWO','Two','choice and balance'],['THREE','Three','development and collaboration'],
   ['FOUR','Four','stability and limits'],['FIVE','Five','friction and adjustment'],['SIX','Six','movement and rebalancing'],
@@ -54,7 +68,7 @@ function semantics({ cardId, displayName, arcana, suit = null, rank = null, core
 const majorCards = MAJORS.map(([id, name, core, opportunity, caution]) => semantics({ cardId: `MAJOR_${id}`, displayName: name, arcana: 'MAJOR', core, opportunity, caution }));
 const minorCards = Object.entries(SUITS).flatMap(([suit, suitMeaning]) => RANKS.map(([rank, rankName, rankMeaning]) => semantics({
   cardId: `${suit}_${rank}`, displayName: `${rankName} of ${suit[0]}${suit.slice(1).toLowerCase()}`, arcana: 'MINOR', suit, rank,
-  core: `${rankMeaning} in ${suitMeaning[0]}`, opportunity: `${suitMeaning[1]} through ${rankMeaning}`,
+  core: MINOR_THEMES[suit][rank], opportunity: `${suitMeaning[1]} through ${rankMeaning}`,
   caution: suitMeaning[2],
 })));
 const TAROT_CATALOG = Object.freeze([...majorCards, ...minorCards]);

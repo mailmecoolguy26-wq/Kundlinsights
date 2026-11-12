@@ -5,6 +5,7 @@ import '../../../app/theme/app_theme.dart';
 import '../../../shared/widgets/app_page_scaffold.dart';
 import '../domain/tarot.dart';
 import '../tarot_controller.dart';
+import 'tarot_card_artwork.dart';
 
 class TarotLandingScreen extends StatefulWidget {
   const TarotLandingScreen({super.key, required this.controller});
@@ -54,7 +55,7 @@ class _LandingState extends State<TarotLandingScreen> {
         title: 'Tarot',
         actions: [
           IconButton(
-            tooltip: 'Tarot history',
+            tooltip: c.isHinglish ? 'Tarot History' : 'Tarot history',
             onPressed: () => context.push('/tarot/history'),
             icon: const Icon(Icons.history),
           ),
@@ -66,15 +67,15 @@ class _LandingState extends State<TarotLandingScreen> {
             const SizedBox(height: 12),
             Text(
               c.isHinglish
-                  ? 'Ek sawaal poochhein aur reflection aur guidance ke liye teen cards draw karein.'
-                  : 'Ask a question and draw three cards for reflection and guidance.',
+                  ? 'Ek sawaal poochhein aur reflection aur guidance ke liye teen cards choose karein.'
+                  : 'Ask a question and choose three cards for reflection and guidance.',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 color: AppColors.textPrimary,
                 fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 18),
-            _Entitlement(c.entitlement),
+            _Entitlement(c.entitlement, hinglish: c.isHinglish),
             const SizedBox(height: 18),
             TextField(
               key: const ValueKey('tarot-question'),
@@ -83,8 +84,10 @@ class _LandingState extends State<TarotLandingScreen> {
               minLines: 3,
               maxLines: 6,
               onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(
-                labelText: 'What would you like guidance on?',
+              decoration: InputDecoration(
+                labelText: c.isHinglish
+                    ? 'Aap kis baare mein guidance chahte hain?'
+                    : 'What would you like guidance on?',
                 alignLabelWithHint: true,
                 border: OutlineInputBorder(),
               ),
@@ -111,18 +114,22 @@ class _LandingState extends State<TarotLandingScreen> {
             ),
             if (c.safetyBoundary case final boundary?) ...[
               const SizedBox(height: 16),
-              _Safety(boundary),
+              _Safety(boundary, hinglish: c.isHinglish),
             ],
             if (c.error != null) ...[
               const SizedBox(height: 12),
-              const Text(
-                'We could not start the reading. Your question is still here; please retry.',
+              Text(
+                c.isHinglish
+                    ? 'Reading shuru nahi ho saki. Aapka sawaal yahin hai; dobara try karein.'
+                    : 'We could not start the reading. Your question is still here; please retry.',
                 style: TextStyle(color: Color(0xFFE6B8A2)),
               ),
             ],
             const SizedBox(height: 16),
-            const Text(
-              'Tarot is intended for reflection and guidance, not certainty or professional advice.',
+            Text(
+              c.isHinglish
+                  ? 'Tarot reflection aur guidance ke liye hai, certainty ya professional advice ke liye nahi.'
+                  : 'Tarot is intended for reflection and guidance, not certainty or professional advice.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Color(0xFF9CB7B3)),
             ),
@@ -130,7 +137,9 @@ class _LandingState extends State<TarotLandingScreen> {
             TextButton.icon(
               onPressed: () => context.push('/tarot/history'),
               icon: const Icon(Icons.history),
-              label: const Text('View Tarot History'),
+              label: Text(
+                c.isHinglish ? 'Tarot History Dekhein' : 'View Tarot History',
+              ),
             ),
           ],
         ),
@@ -152,7 +161,13 @@ class TarotReadingScreen extends StatefulWidget {
 }
 
 class _ReadingState extends State<TarotReadingScreen> {
-  final page = PageController(viewportFraction: .62);
+  String? _lastSelectionToken;
+
+  Future<void> _select(TarotController controller, String token) async {
+    _lastSelectionToken = token;
+    await controller.select(token);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -161,12 +176,6 @@ class _ReadingState extends State<TarotReadingScreen> {
         widget.controller.loadReading(widget.readingId);
       }
     });
-  }
-
-  @override
-  void dispose() {
-    page.dispose();
-    super.dispose();
   }
 
   @override
@@ -188,25 +197,31 @@ class _ReadingState extends State<TarotReadingScreen> {
           ),
         );
       }
-      if (r.isComplete) return _Completed(r);
-      if (r.interpretationRetryable) return _Retry(r, c);
+      if (r.isComplete) return _Completed(r, hinglish: c.isHinglish);
+      if (r.interpretationRetryable) {
+        return _Retry(r, c, hinglish: c.isHinglish);
+      }
       if (r.status == 'INTERPRETING') {
-        return const AppPageScaffold(
+        return AppPageScaffold(
           title: 'Tarot Reading',
           body: Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 12),
-                Text('Preparing your interpretation…'),
+              children: <Widget>[
+                const CircularProgressIndicator(),
+                const SizedBox(height: 12),
+                Text(
+                  c.isHinglish
+                      ? 'Aapki reading taiyaar ho rahi hai…'
+                      : 'Preparing your reading…',
+                ),
               ],
             ),
           ),
         );
       }
       return AppPageScaffold(
-        title: 'Choose your cards',
+        title: c.isHinglish ? 'Apne Cards Chunein' : 'Choose your cards',
         body: ListView(
           padding: const EdgeInsets.symmetric(vertical: 16),
           children: [
@@ -221,7 +236,17 @@ class _ReadingState extends State<TarotReadingScreen> {
                         ?.copyWith(color: AppColors.textPrimary),
                   ),
                   const SizedBox(height: 8),
-                  Text('${r.selectedCards.length} of 3 cards selected'),
+                  Text(
+                    c.isHinglish
+                        ? '${r.selectedCards.length}/3 cards selected'
+                        : '${r.selectedCards.length} of 3 cards selected',
+                  ),
+                  const SizedBox(height: 6),
+                  LinearProgressIndicator(value: r.selectedCards.length / 3),
+                  if (_isTimingQuestion(r.question)) ...[
+                    const SizedBox(height: 12),
+                    _TimingNote(hinglish: c.isHinglish),
+                  ],
                   const SizedBox(height: 12),
                   if (r.selectedCards.isNotEmpty)
                     Wrap(
@@ -238,43 +263,61 @@ class _ReadingState extends State<TarotReadingScreen> {
               ),
             ),
             const SizedBox(height: 22),
-            SizedBox(
-              height: 270,
-              child: PageView.builder(
-                controller: page,
-                itemCount: r.selectableTokens.length,
-                itemBuilder: (_, i) => Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: TarotFaceDownCard(
-                    enabled: !c.selecting,
-                    onTap: () => c.select(r.selectableTokens[i]),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final cardWidth = ((constraints.maxWidth - 40) / 3).clamp(
+                  104.0,
+                  150.0,
+                );
+                return SizedBox(
+                  height: 184,
+                  child: ListView.separated(
+                    key: const ValueKey('tarot-card-choices'),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    scrollDirection: Axis.horizontal,
+                    itemCount: r.selectableTokens.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 8),
+                    itemBuilder: (_, i) => SizedBox(
+                      width: cardWidth,
+                      child: TarotFaceDownCard(
+                        enabled: !c.selecting,
+                        onTap: () => _select(c, r.selectableTokens[i]),
+                      ),
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
             if (c.selecting)
-              const Padding(
-                padding: EdgeInsets.all(12),
-                child: Center(child: Text('Revealing your card…')),
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Center(
+                  child: Text(
+                    c.isHinglish
+                        ? 'Aapka card reveal ho raha hai…'
+                        : 'Revealing your card…',
+                  ),
+                ),
               ),
             if (c.error != null)
               Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
-                    const Text(
-                      'The card was not revealed. Retry the same card safely.',
+                    Text(
+                      c.isHinglish
+                          ? 'Card reveal nahi hua. Isi card ko dobara safely try karein.'
+                          : 'The card was not revealed. Retry the same card safely.',
                     ),
                     TextButton(
-                      onPressed: r.selectableTokens.isEmpty
+                      onPressed: _lastSelectionToken == null
                           ? null
-                          : () => c.select(
-                              r.selectableTokens[(page.hasClients
-                                      ? page.page?.round() ?? 0
-                                      : 0)
-                                  .clamp(0, r.selectableTokens.length - 1)],
-                            ),
-                      child: const Text('Retry selection'),
+                          : () => _select(c, _lastSelectionToken!),
+                      child: Text(
+                        c.isHinglish
+                            ? 'Selection Dobara Try Karein'
+                            : 'Retry selection',
+                      ),
                     ),
                   ],
                 ),
@@ -308,15 +351,21 @@ class _HistoryState extends State<TarotHistoryScreen> {
     builder: (_, _) {
       final c = widget.controller;
       if (c.historyLoading && c.history.isEmpty) {
-        return const AppPageScaffold(
+        return AppPageScaffold(
           title: 'Tarot History',
-          body: Center(child: CircularProgressIndicator()),
+          body: const Center(child: CircularProgressIndicator()),
         );
       }
       return AppPageScaffold(
         title: 'Tarot History',
         body: c.history.isEmpty
-            ? const Center(child: Text('No Tarot readings yet.'))
+            ? Center(
+                child: Text(
+                  c.isHinglish
+                      ? 'Abhi koi Tarot reading nahi hai.'
+                      : 'No Tarot readings yet.',
+                ),
+              )
             : ListView.builder(
                 padding: const EdgeInsets.all(16),
                 itemCount: c.history.length + (c.nextCursor == null ? 0 : 1),
@@ -326,15 +375,23 @@ class _HistoryState extends State<TarotHistoryScreen> {
                       onPressed: c.historyLoading
                           ? null
                           : () => c.loadHistory(more: true),
-                      child: Text(c.historyLoading ? 'Loading…' : 'Load more'),
+                      child: Text(
+                        c.historyLoading
+                            ? (c.isHinglish ? 'Load ho raha hai…' : 'Loading…')
+                            : (c.isHinglish ? 'Aur dekhein' : 'Load more'),
+                      ),
                     );
                   }
                   final r = c.history[i];
                   final status = r.isComplete
-                      ? 'Completed'
+                      ? (c.isHinglish ? 'Complete' : 'Completed')
                       : r.interpretationRetryable
-                      ? 'Complete interpretation'
-                      : 'Continue reading';
+                      ? (c.isHinglish
+                            ? 'Interpretation complete karein'
+                            : 'Complete interpretation')
+                      : (c.isHinglish
+                            ? 'Reading continue karein'
+                            : 'Continue reading');
                   return Card(
                     child: ListTile(
                       onTap: () => context.push(
@@ -367,18 +424,19 @@ class _HistoryState extends State<TarotHistoryScreen> {
 }
 
 class _Completed extends StatelessWidget {
-  const _Completed(this.r);
+  const _Completed(this.r, {required this.hinglish});
   final TarotReading r;
+  final bool hinglish;
   @override
   Widget build(BuildContext context) {
     final result = r.interpretation;
     return AppPageScaffold(
-      title: 'Your Tarot Reading',
+      title: hinglish ? 'Aapki Tarot Reading' : 'Your Tarot Reading',
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
           Text(
-            'Question',
+            hinglish ? 'Sawaal' : 'Question',
             style: Theme.of(context).textTheme.labelLarge
                 ?.copyWith(color: _gold, fontWeight: FontWeight.w700),
           ),
@@ -391,9 +449,13 @@ class _Completed extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          Text(r.spread.spreadType.replaceAll('_', ' ')),
+          Text(_readingLabel(r.category)),
+          if (_isTimingQuestion(r.question)) ...[
+            const SizedBox(height: 12),
+            _TimingNote(hinglish: hinglish),
+          ],
           const SizedBox(height: 18),
-          const _SectionTitle('Your Three Cards'),
+          _SectionTitle(hinglish ? 'Aapke Teen Cards' : 'Your Three Cards'),
           ...r.selectedCards.map((card) {
             final matches =
                 result?.cards
@@ -412,19 +474,33 @@ class _Completed extends StatelessWidget {
           }),
           if (result != null) ...[
             _Section('Overall Reading', result.overview),
-            _Section('What This May Mean', result.combinedMessage),
-            _Section('What To Reflect On', result.practicalReflection),
+            _Section(
+              hinglish ? 'Iska Kya Matlab Ho Sakta Hai' : 'What This May Mean',
+              result.combinedMessage,
+            ),
+            _Section(
+              hinglish ? 'Kis Baat Par Sochna Hai' : 'What To Reflect On',
+              result.practicalReflection,
+            ),
             if (result.nextStep.isNotEmpty)
-              _Section('What You Can Do Next', result.nextStep),
-            _Section('Keep in Mind', result.caution),
+              _Section(hinglish ? 'Agla Step' : 'Next Step', result.nextStep),
+            if (_isSpecificCaution(result.caution, result.disclaimer))
+              _Section(
+                hinglish ? 'Kya Dhyan Rakhein' : 'What To Keep In Mind',
+                result.caution,
+              ),
           ],
           _Section(
             'Note',
-            result?.disclaimer.isNotEmpty == true ? result!.disclaimer : 'Tarot is intended for reflection and guidance, not certainty or professional advice.',
+            result?.disclaimer.isNotEmpty == true
+                ? result!.disclaimer
+                : (hinglish
+                      ? 'Tarot reflection aur guidance ke liye hai, certainty ya professional advice ke liye nahi.'
+                      : 'Tarot is intended for reflection and guidance, not certainty or professional advice.'),
           ),
           const SizedBox(height: 8),
           Text(
-            'Saved ${MaterialLocalizations.of(context).formatMediumDate(r.createdAt.toLocal())}',
+            'Saved · ${MaterialLocalizations.of(context).formatMediumDate(r.createdAt.toLocal())}',
             style: const TextStyle(color: Color(0xFF9CB7B3)),
           ),
         ],
@@ -434,9 +510,10 @@ class _Completed extends StatelessWidget {
 }
 
 class _Retry extends StatelessWidget {
-  const _Retry(this.r, this.c);
+  const _Retry(this.r, this.c, {required this.hinglish});
   final TarotReading r;
   final TarotController c;
+  final bool hinglish;
   @override
   Widget build(BuildContext context) => AppPageScaffold(
     title: 'Tarot Reading',
@@ -450,13 +527,21 @@ class _Retry extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 20),
-        const Text(
-          'Your cards are saved. The interpretation could not be prepared yet.',
+        Text(
+          hinglish
+              ? 'Aapke cards save hain. Interpretation abhi taiyaar nahi ho saki.'
+              : 'Your cards are saved. The interpretation could not be prepared yet.',
         ),
         const SizedBox(height: 12),
         FilledButton(
           onPressed: c.interpreting ? null : c.retryInterpretation,
-          child: Text(c.interpreting ? 'Retrying…' : 'Retry interpretation'),
+          child: Text(
+            c.interpreting
+                ? (hinglish ? 'Dobara try ho raha hai…' : 'Retrying…')
+                : (hinglish
+                      ? 'Interpretation Dobara Try Karein'
+                      : 'Retry interpretation'),
+          ),
         ),
       ],
     ),
@@ -538,79 +623,215 @@ class TarotRevealedCard extends StatelessWidget {
   final TarotCard card;
   final bool compact;
   final String? interpretation;
+
+  Future<void> _showDetail(BuildContext context) => showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: const Color(0xFF092725),
+    builder: (context) => SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Align(
+              alignment: Alignment.centerRight,
+              child: IconButton(
+                tooltip: 'Close card details',
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close),
+              ),
+            ),
+            Center(
+              child: SizedBox(
+                key: ValueKey('tarot-card-detail-art-${card.cardId}'),
+                width: 210,
+                child: TarotCardArt(
+                  cardId: card.cardId,
+                  cardName: card.cardName,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              card.positionName,
+              style: const TextStyle(color: _gold, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              card.cardName,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (card.coreTheme case final theme?) ...[
+              const SizedBox(height: 10),
+              Text(theme, style: const TextStyle(color: Color(0xFFB7CDC9))),
+            ],
+            if (interpretation case final value?) ...[
+              const SizedBox(height: 16),
+              Text(value),
+            ],
+          ],
+        ),
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) => AnimatedSwitcher(
     duration: const Duration(milliseconds: 320),
-    child: Container(
+    child: InkWell(
       key: ValueKey(card.cardId),
-      width: compact ? 150 : null,
-      padding: EdgeInsets.all(compact ? 12 : 18),
-      decoration: BoxDecoration(
-        color: const Color(0xFF103B38),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _gold),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            card.positionName,
-            style: const TextStyle(
-              color: _gold,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            card.cardName,
-            style: TextStyle(
-              fontSize: compact ? 15 : 19,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          if (card.coreTheme case final theme?) ...[
-            const SizedBox(height: 5),
-            Text(theme, style: const TextStyle(color: Color(0xFFB7CDC9))),
-          ],
-          if (interpretation != null) ...[
-            const SizedBox(height: 8),
-            Text(interpretation!),
-          ],
-        ],
+      onTap: () => _showDetail(context),
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        width: compact ? 150 : null,
+        padding: EdgeInsets.all(compact ? 10 : 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFF103B38),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: _gold),
+        ),
+        child: compact
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    height: 92,
+                    child: TarotCardArt(
+                      cardId: card.cardId,
+                      cardName: card.cardName,
+                    ),
+                  ),
+                  const SizedBox(height: 9),
+                  _TarotCardCopy(
+                    card: card,
+                    compact: true,
+                    interpretation: interpretation,
+                  ),
+                ],
+              )
+            : Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 92,
+                    child: TarotCardArt(
+                      cardId: card.cardId,
+                      cardName: card.cardName,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: _TarotCardCopy(
+                      card: card,
+                      compact: false,
+                      interpretation: interpretation,
+                    ),
+                  ),
+                ],
+              ),
       ),
     ),
   );
 }
 
+class _TarotCardCopy extends StatelessWidget {
+  const _TarotCardCopy({
+    required this.card,
+    required this.compact,
+    required this.interpretation,
+  });
+
+  final TarotCard card;
+  final bool compact;
+  final String? interpretation;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        card.positionName,
+        style: const TextStyle(
+          color: _gold,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      const SizedBox(height: 5),
+      Text(
+        card.cardName,
+        style: TextStyle(
+          fontSize: compact ? 14 : 18,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      if (card.coreTheme case final theme?) ...[
+        const SizedBox(height: 5),
+        Text(
+          theme,
+          maxLines: compact ? 2 : null,
+          overflow: compact ? TextOverflow.ellipsis : null,
+          style: const TextStyle(color: Color(0xFFB7CDC9)),
+        ),
+      ],
+      if (interpretation != null) ...[
+        const SizedBox(height: 8),
+        Text(
+          interpretation!,
+          maxLines: compact ? 3 : null,
+          overflow: compact ? TextOverflow.ellipsis : null,
+        ),
+      ],
+    ],
+  );
+}
+
 class _Entitlement extends StatelessWidget {
-  const _Entitlement(this.value);
+  const _Entitlement(this.value, {required this.hinglish});
   final TarotEntitlement? value;
+  final bool hinglish;
   @override
   Widget build(BuildContext context) => _Panel(
     value == null
-        ? const Text('Checking reading availability…')
+        ? Text(
+            hinglish
+                ? 'Reading availability check ho rahi hai…'
+                : 'Checking reading availability…',
+          )
         : Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 value!.freeReadingAvailableToday
-                    ? '1 free reading available today'
-                    : "Today's free reading has been used",
+                    ? (hinglish
+                          ? 'Aaj 1 free Tarot reading available hai'
+                          : '1 free reading available today')
+                    : (hinglish
+                          ? 'Aaj ki free reading use ho chuki hai'
+                          : "Today's free reading has been used"),
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
               if (value!.paidCreditsRemaining > 0)
                 Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: Text(
-                    '${value!.paidCreditsRemaining} Tarot readings available',
+                    hinglish
+                        ? '${value!.paidCreditsRemaining} Tarot readings available hain'
+                        : '${value!.paidCreditsRemaining} Tarot readings available',
                   ),
                 ),
-              const Padding(
-                padding: EdgeInsets.only(top: 6),
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
                 child: Text(
-                  '1 free reading per day',
-                  style: TextStyle(color: Color(0xFF9CB7B3)),
+                  hinglish
+                      ? 'Har din 1 free reading'
+                      : '1 free reading per day',
+                  style: const TextStyle(color: Color(0xFF9CB7B3)),
                 ),
               ),
             ],
@@ -619,22 +840,27 @@ class _Entitlement extends StatelessWidget {
 }
 
 class _Safety extends StatelessWidget {
-  const _Safety(this.value);
+  const _Safety(this.value, {required this.hinglish});
   final TarotSafetyBoundary value;
+  final bool hinglish;
   @override
   Widget build(BuildContext context) => _Panel(
     Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'A safer way to ask',
-          style: TextStyle(fontWeight: FontWeight.w700, color: _gold),
+        Text(
+          hinglish ? 'Sawaal poochhne ka safer tareeka' : 'A safer way to ask',
+          style: const TextStyle(fontWeight: FontWeight.w700, color: _gold),
         ),
         const SizedBox(height: 6),
         Text(value.message),
         if (value.suggestedQuestion != null) ...[
           const SizedBox(height: 8),
-          Text('You can instead ask: “${value.suggestedQuestion}”'),
+          Text(
+            hinglish
+                ? 'Aap is tarah poochh sakte hain: “${value.suggestedQuestion}”'
+                : 'You can instead ask: “${value.suggestedQuestion}”',
+          ),
         ],
       ],
     ),
@@ -657,3 +883,41 @@ class _Panel extends StatelessWidget {
 }
 
 const _gold = Color(0xFFD7B86A);
+
+bool _isTimingQuestion(String question) => RegExp(
+  r'\b(when|kab|kitne time|how soon|exact date|what date|which date|timing)\b',
+  caseSensitive: false,
+).hasMatch(question);
+
+String _readingLabel(String category) => switch (category) {
+  'CAREER' => 'Career Reading',
+  'RELATIONSHIP' => 'Relationship Reading',
+  'MONEY' => 'Money Reading',
+  'PERSONAL_GROWTH' => 'Personal Growth Reading',
+  'DECISION' => 'Decision Reading',
+  _ => 'General Reading',
+};
+
+bool _isSpecificCaution(String caution, String disclaimer) {
+  final value = caution.trim().toLowerCase();
+  if (value.isEmpty) return false;
+  if (value == disclaimer.trim().toLowerCase()) return false;
+  return !value.contains('certainty') &&
+      !value.contains('professional advice') &&
+      !value.contains('doosre vyakti ke baare mein fact');
+}
+
+class _TimingNote extends StatelessWidget {
+  const _TimingNote({required this.hinglish});
+  final bool hinglish;
+
+  @override
+  Widget build(BuildContext context) => _Panel(
+    Text(
+      hinglish
+          ? 'Tarot exact date predict nahi karta. Yeh reading aapki current situation, challenges aur next direction par reflection deti hai.'
+          : 'Tarot does not predict an exact date. This reading reflects your current situation, challenges and next direction.',
+      style: const TextStyle(color: Color(0xFFB7CDC9)),
+    ),
+  );
+}
