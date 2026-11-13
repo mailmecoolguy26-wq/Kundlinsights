@@ -1,6 +1,7 @@
 'use strict';
 
 const { CareerQuestionType, Answerability } = require('../career-answers');
+const { buildTaraCareerTimingContext } = require('../career-timing');
 const { appendHistoricalContext } = require('./tara-historical-context');
 
 const TaraCareerIntent = Object.freeze({ CURRENT_CAREER_PHASE: 'CURRENT_CAREER_PHASE', JOB_FAVOURABILITY_TIMING: 'JOB_FAVOURABILITY_TIMING', JOB_OFFER: 'JOB_OFFER', SWITCH_JOB: 'SWITCH_JOB', COMPARE_OFFERS: 'COMPARE_OFFERS', PROMOTION_GROWTH: 'PROMOTION_GROWTH', START_BUSINESS: 'START_BUSINESS', CAREER_ABROAD: 'CAREER_ABROAD', UNSUPPORTED_CAREER: 'UNSUPPORTED_CAREER' });
@@ -48,7 +49,7 @@ function classifyTaraCareerIntent(message) {
   if (/\b(start|starting|launch|launching|build|building) (?:a )?business\b|\bentrepreneur(?:ship)?\b|\bown company\b/.test(text)) return TaraCareerIntent.START_BUSINESS;
   if (/\b(abroad|overseas|international|internationally|foreign)\b/.test(text) && (/\b(career|jobs?|work|relocate|relocating|relocation|move|shift)\b/.test(text))) return TaraCareerIntent.CAREER_ABROAD;
   if ((/\b(switch|change|leave|quit|new|another)\b/.test(text) && /\b(jobs?|career|company|work|roles?)\b/.test(text)) || /\bthinking of switching\b/.test(text)) return TaraCareerIntent.SWITCH_JOB;
-  const timing = [/\bswitch(?:ing)? (?:the )?jobs?\b/, /\bchange (?:the )?jobs?\b/, /\bnew jobs?\b/, /\bjob opportunit(?:y|ies)\b/, /\bbetter (?:career )?opportunit(?:y|ies)\b/, /\bcareer timing\b/, /\bfavou?rable (?:time )?periods?\b/, /\bstronger career windows?\b/, /\bcareer activity stronger\b/, /\bcareer opportunit(?:y|ies) (?:improve|better)\b/, /\bcareer (?:likely to )?(?:improve|improvement|get better|growth)\b/, /\bthings improve professionally\b/, /\bprofessional(?:ly)? (?:improve|improvement|better)\b/, /\bgood (?:time|period) to (?:look for|change)\b/];
+  const timing = [/\bswitch(?:ing)? (?:the )?jobs?\b/, /\bchange (?:the )?jobs?\b/, /\bnew jobs?\b/, /\bjob opportunit(?:y|ies)\b/, /\bbetter (?:career )?opportunit(?:y|ies)\b/, /\bcareer timing\b/, /\bfavou?rable (?:time )?periods?\b/, /\b(?:strong|stronger) career windows?\b/, /\bcareer activity stronger\b/, /\bcareer opportunit(?:y|ies) (?:improve|better)\b/, /\bcareer (?:likely to )?(?:improve|improvement|get better|growth)\b/, /\bthings improve professionally\b/, /\bprofessional(?:ly)? (?:improve|improvement|better)\b/, /\bgood (?:time|period) to (?:look for|change)\b/];
   if (timing.some((pattern) => pattern.test(text))) return TaraCareerIntent.JOB_FAVOURABILITY_TIMING;
   if (/\bcurrent career phase\b|\bcareer (?:right )?now\b|\bwhat.*career.*(?:now|current)\b/.test(text)) return TaraCareerIntent.CURRENT_CAREER_PHASE;
   return TaraCareerIntent.UNSUPPORTED_CAREER;
@@ -98,7 +99,8 @@ class TaraCareerCapability {
     const messageWithContext = state === TaraCareerResponseState.ENTITLED_RESULT
       ? appendHistoricalContext(rendered, { domain: 'CAREER', historicalContext: answer.historicalContext, language })
       : rendered;
-    const result = Object.freeze({ intent, state, answerability: answer.answerability, message: messageWithContext, answer, action: state === TaraCareerResponseState.PREMIUM_REQUIRED ? Object.freeze({ type: 'OPEN_PROFILE_PREMIUM', label: 'Unlock TaraVerse Premium' }) : null });
+    const careerTimingContext = state === TaraCareerResponseState.ENTITLED_RESULT ? buildTaraCareerTimingContext(answer) : null;
+    const result = Object.freeze({ intent, state, answerability: answer.answerability, message: messageWithContext, answer, careerTimingContext, action: state === TaraCareerResponseState.PREMIUM_REQUIRED ? Object.freeze({ type: 'OPEN_PROFILE_PREMIUM', label: 'Unlock TaraVerse Premium' }) : null });
     diagnostic(diagnosticLog, { state: result.state, action: result.action, birthProfileId });
     return result;
   }

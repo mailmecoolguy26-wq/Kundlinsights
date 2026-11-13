@@ -12,6 +12,13 @@ test('Career decisions reuse persisted Career timing and preserve practical cont
   assert.equal(result.context.priority, 'Growth');
   assert.match(result.limitation, /guaranteed/i);
 });
+test('Job Offer evaluates offer and joining dates independently without inventing a missing joining date', async () => {
+  const timingContext={source:'CANONICAL',authority:'CANONICAL',mode:'ON',contractVersion:'career-timing-production-v1',timingEngineVersion:'engine',eligibilityRuleset:'eligibility',refinementRuleset:'refinement',intervalSemantics:'HALF_OPEN',eligiblePeriods:[{start:'2026-11-01',end:'2026-12-01'}],strongestWindows:[{start:'2026-11-10',end:'2026-11-20'}],currentEligiblePeriod:{start:'2026-11-01',end:'2026-12-01'},nextEligiblePeriod:null,activeRefinement:null,strongestCurrentRefinement:{start:'2026-11-10',end:'2026-11-20'},strongestUpcomingRefinement:null,primaryWindow:{start:'2026-11-10',end:'2026-11-20'},productState:'SUPPORTIVE',evidenceSummary:{jupiter:'CONFIRMS'}};
+  const service=new CareerDecisionService({careerAnswerService:{answer:async()=>({...supported,timingContext})}});
+  const result=await service.decide({principal:{},birthProfileId:'profile-a',body:{decisionType:'JOB_OFFER',context:{offerReceivedDate:'2026-11-05'}}});assert.equal(result.offerTiming.state,'WITHIN_CURRENT_WINDOW');assert.equal(result.offerTiming.isInsideStrongestWindow,false);assert.equal(result.joiningTiming.state,'NOT_ASSESSED');assert.equal(result.timingContext.authority,'CANONICAL');assert.equal(result.offerTiming.authority,'CANONICAL');assert.equal(result.joiningTiming.authority,'CANONICAL');
+  const strongest=await service.decide({principal:{},birthProfileId:'profile-a',body:{decisionType:'JOB_OFFER',context:{offerReceivedDate:'2026-11-10',joiningDate:'2026-11-20'}}});assert.equal(strongest.offerTiming.isInsideStrongestWindow,true);assert.equal(strongest.joiningTiming.state,'WITHIN_CURRENT_WINDOW');assert.equal(strongest.joiningTiming.isInsideStrongestWindow,false);
+  const end=await service.decide({principal:{},birthProfileId:'profile-a',body:{decisionType:'JOB_OFFER',context:{offerReceivedDate:'2026-12-01',joiningDate:'2026-12-01'}}});assert.equal(end.offerTiming.state,'OUTSIDE_CURRENT_WINDOW');assert.equal(end.joiningTiming.state,'OUTSIDE_CURRENT_WINDOW');
+});
 test('Career decisions fail safely without a usable saved timing window', async () => {
   const service = new CareerDecisionService({ careerAnswerService: { answer: async () => ({ answerability: 'INSUFFICIENT_EVIDENCE', sourceReadingId: null, evidence: [], agreement: null }) } });
   const result = await service.decide({ principal: {}, birthProfileId: 'profile-a', body: { decisionType: 'JOB_OFFER', context: {} } });
@@ -29,6 +36,7 @@ test('Switch Job keeps typed context and exposes exploration-only timing', async
   assert.deepEqual(result.context.reasons, ['Career growth', 'Better compensation']);
   assert.equal(result.context.activelyInterviewing, 'EXPLORING');
   assert.equal(result.context.preferredTimeline, 'ONE_TO_THREE_MONTHS');
+  assert.equal(result.offerTiming, undefined); assert.equal(result.joiningTiming, undefined);
 });
 test('Switch Job requires its typed reason, interviewing, and timeline context', () => {
   assert.throws(() => validateCareerDecisionRequest({ decisionType: 'SWITCH_JOB', context: { reasons: ['Career growth'], activelyInterviewing: 'EXPLORING' } }), { code: 'INVALID_SWITCH_JOB_CONTEXT' });
@@ -40,6 +48,13 @@ test('Compare Offers keeps two typed offers distinct and returns a calibrated co
   assert.equal(result.comparison.outcome, 'OFFER_A_MORE_ALIGNED');
   assert.equal(result.comparison.offerA.timing.state, 'WITHIN_CURRENT_WINDOW');
   assert.equal(result.comparison.offerB.timing.state, 'OUTSIDE_CURRENT_WINDOW');
+  assert.equal(result.comparison.offerA.offerTiming.state, 'OUTSIDE_CURRENT_WINDOW');
+  assert.equal(result.comparison.offerB.offerTiming.state, 'OUTSIDE_CURRENT_WINDOW');
+  assert.equal(result.comparison.offerA.joiningTiming, result.comparison.offerA.timing);
+  assert.equal(result.comparison.offerA.offerTiming.authority, result.timingContext.authority);
+  assert.equal(result.comparison.offerA.joiningTiming.authority, result.timingContext.authority);
+  assert.equal(result.comparison.offerB.offerTiming.authority, result.timingContext.authority);
+  assert.equal(result.comparison.offerB.joiningTiming.authority, result.timingContext.authority);
   assert.equal(result.context.offerA.role, 'Lead Engineer');
   assert.equal(result.context.offerB.role, 'Engineering Manager');
 });
@@ -105,6 +120,16 @@ test('saved decisions list and reopen only in their authenticated birth-profile 
   assert.equal(reopened.comparison.offerA.timing.state, 'NOT_ASSESSED');
   await assert.rejects(() => service.get({ principal: principalA, birthProfileId: 'profile-b', decisionId: created.decisionId }), { code: 'NOT_FOUND_OR_FORBIDDEN' });
   await assert.rejects(() => service.get({ principal: principalB, birthProfileId: 'profile-b', decisionId: created.decisionId }), { code: 'NOT_FOUND_OR_FORBIDDEN' });
+});
+test('old persisted decisions reopen byte-for-byte without timing injection or read-time recomputation', async () => {
+  let answerCalls = 0;
+  const { service, rows } = persistedFixture({ ...supported, answer: async () => { answerCalls += 1; return supported; } });
+  const oldResult = Object.freeze({ decisionType: 'JOB_OFFER', state: 'MORE_SUPPORTIVE', context: Object.freeze({}), sourceReadingId: 'reading-old', timing: Object.freeze({ start: '2026-01-01', end: '2026-02-01' }), limitation: 'Stored legacy result.' });
+  rows.push({ id: 'decision-old', userId: 'user-a', birthProfileId: 'profile-a', decisionType: 'JOB_OFFER', context: {}, result: oldResult, sourceReadingId: 'reading-old', createdAt: '2026-01-02T00:00:00.000Z' });
+  const reopened = await service.get({ principal: principalA, birthProfileId: 'profile-a', decisionId: 'decision-old' });
+  assert.equal(answerCalls, 0);
+  assert.equal(reopened.timingContext, undefined);
+  assert.deepEqual({ ...reopened, decisionId: undefined, createdAt: undefined }, { ...oldResult, decisionId: undefined, createdAt: undefined });
 });
 test('Promotion, business, and abroad contexts are strictly typed and persist through the shared decision flow', async () => {
   const { service, rows } = persistedFixture();

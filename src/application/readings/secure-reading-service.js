@@ -172,6 +172,64 @@ function publicCareerTimingPeriods(record) {
   }).filter(Boolean).sort((left, right) => left.startDate.localeCompare(right.startDate));
   return output;
 }
+function publicCareerTiming(record) {
+  const value = record && record.reading && record.reading.careerTiming;
+  if (!value || value.contractVersion !== 'career-timing-production-v1' || !['SHADOW', 'CANONICAL'].includes(value.authority) || value.intervalSemantics !== 'HALF_OPEN') return undefined;
+  if (typeof value.timingEngineVersion !== 'string' || typeof value.eligibilityRuleset !== 'string' || typeof value.refinementRuleset !== 'string' || !Array.isArray(value.periods)) return undefined;
+  const instant = (item) => typeof item === 'string' && item.endsWith('Z') && Number.isFinite(Date.parse(item)) ? item : null;
+  const identifier = (item) => typeof item === 'string' && item.length > 0 && item.length <= 1024 && /^[A-Za-z0-9:._%+-]+$/.test(item) ? item : null;
+  const member = (item, allowed) => typeof item === 'string' && allowed.includes(item) ? item : null;
+  const stateLabels = { SUPPORTIVE: 'Supportive period', SUPPORTIVE_WITH_CONDITIONS: 'Supportive with conditions', MIXED: 'Mixed signals', CAUTIOUS: 'Caution advised' };
+  const tierLabels = { PEAK: 'Strongest window', STRONG: 'Strong support', MODERATE: 'Supportive timing', BASE: 'Background support' };
+  const convergenceValues = ['STRONG_CONVERGENCE', 'PARTIAL_CONVERGENCE', 'WEAK_CONVERGENCE', 'NO_CONVERGENCE'];
+  const pdValues = ['PEAK_SUPPORT', 'SUPPORT', 'NEUTRAL', 'UNAVAILABLE'];
+  const d10Values = ['CONFIRMS', 'NEUTRAL', 'MIXED', 'UNAVAILABLE'];
+  const transitValues = ['DUAL_STRONG', 'JUPITER_ONLY', 'SATURN_ONLY', 'UNAVAILABLE'];
+  const confirmationValues = ['CONFIRMS', 'NOT_CONFIRMED'];
+  const ashtakavargaValues = ['RAW_CONTEXT', 'UNAVAILABLE'];
+  const refinement = (item) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return null;
+    const start = instant(item.start), end = instant(item.end), windowId = identifier(item.windowId), internalTier = member(item.internalTier, Object.keys(tierLabels));
+    if (!start || !end || Date.parse(start) >= Date.parse(end) || !windowId || !internalTier || item.label !== tierLabels[internalTier]) return null;
+    const reason = item.reasonSummary || {}, evidence = item.evidence || {};
+    const reasonSummary = {
+      primaryDashaConvergence: member(reason.primaryDashaConvergence, convergenceValues), pdRefinement: member(reason.pdRefinement, pdValues),
+      d10Confirmation: member(reason.d10Confirmation, d10Values), transitConfirmation: member(reason.transitConfirmation, transitValues),
+    };
+    const safeEvidence = { pd: member(evidence.pd, pdValues), d10: member(evidence.d10, d10Values), jupiter: member(evidence.jupiter, confirmationValues), saturn: member(evidence.saturn, confirmationValues), ashtakavarga: member(evidence.ashtakavarga, ashtakavargaValues) };
+    if (Object.values(reasonSummary).some((entry) => entry === null) || Object.values(safeEvidence).some((entry) => entry === null)) return null;
+    return { windowId, start, end, internalTier, label: tierLabels[internalTier], reasonSummary, evidence: safeEvidence };
+  };
+  const period = (item) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return null;
+    const start = instant(item.start), end = instant(item.end), periodId = identifier(item.periodId), internalState = member(item.internalState, Object.keys(stateLabels)), convergence = member(item.convergence, convergenceValues);
+    if (!start || !end || Date.parse(start) >= Date.parse(end) || !periodId || !internalState || item.label !== stateLabels[internalState] || !convergence || !Array.isArray(item.refinementWindows)) return null;
+    const refinementWindows = item.refinementWindows.map(refinement);
+    if (refinementWindows.some((entry) => entry === null || Date.parse(entry.start) < Date.parse(start) || Date.parse(entry.end) > Date.parse(end))) return null;
+    for (let index = 1; index < refinementWindows.length; index += 1) if (Date.parse(refinementWindows[index - 1].end) > Date.parse(refinementWindows[index].start)) return null;
+    const strongestWindow = item.strongestWindow === null ? null : refinement(item.strongestWindow);
+    if (item.strongestWindow !== null && (!strongestWindow || !refinementWindows.some((entry) => entry.windowId === strongestWindow.windowId && JSON.stringify(entry) === JSON.stringify(strongestWindow)))) return null;
+    return { periodId, start, end, internalState, label: stateLabels[internalState], convergence, strongestWindow, refinementWindows };
+  };
+  const periods = value.periods.map(period);
+  if (periods.some((entry) => entry === null)) return undefined;
+  for (let index = 1; index < periods.length; index += 1) if (Date.parse(periods[index - 1].end) > Date.parse(periods[index].start)) return undefined;
+  const canonicalPeriod = (candidate) => candidate && periods.find((entry) => entry.periodId === candidate.periodId && JSON.stringify(entry) === JSON.stringify(candidate)) || null;
+  const selected = (item, refinementKey) => {
+    if (item === null) return null;
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return undefined;
+    const projectedPeriod = item.eligiblePeriod === null ? null : period(item.eligiblePeriod);
+    const eligiblePeriod = projectedPeriod === null ? null : canonicalPeriod(projectedPeriod);
+    const selectedRefinement = item[refinementKey] === null ? null : refinement(item[refinementKey]);
+    if (item.eligiblePeriod !== null && !eligiblePeriod || item[refinementKey] !== null && !selectedRefinement) return undefined;
+    if (selectedRefinement && (!eligiblePeriod || !eligiblePeriod.refinementWindows.some((entry) => entry.windowId === selectedRefinement.windowId && JSON.stringify(entry) === JSON.stringify(selectedRefinement)))) return undefined;
+    return { eligiblePeriod, [refinementKey]: selectedRefinement };
+  };
+  const current = selected(value.current, 'activeRefinement'), next = selected(value.next, 'strongestWindow');
+  const policy = value.explanationPolicy;
+  if (current === undefined || next === undefined || !policy || policy.outcomeGuarantee !== false || policy.customerTimingLanguage !== 'SUPPORT_ONLY' || policy.ashtakavargaRole !== 'CONTEXT_ONLY' || policy.historicalEventsRole !== 'NOT_USED_FOR_ELIGIBILITY_OR_REFINEMENT') return undefined;
+  return { contractVersion: value.contractVersion, timingEngineVersion: value.timingEngineVersion, eligibilityRuleset: value.eligibilityRuleset, refinementRuleset: value.refinementRuleset, authority: value.authority, intervalSemantics: value.intervalSemantics, periods, current, next, explanationPolicy: { outcomeGuarantee: false, customerTimingLanguage: 'SUPPORT_ONLY', ashtakavargaRole: 'CONTEXT_ONLY', historicalEventsRole: 'NOT_USED_FOR_ELIGIBILITY_OR_REFINEMENT' } };
+}
 function publicAshtakavargaContext(context) {
   if (!context || context.sourceFamily !== 'ASHTAKAVARGA' || !['SAV', 'BAV', 'LAGNA_BAV'].includes(context.scoreType)) return null;
   if (!Number.isInteger(context.houseNumber) || context.houseNumber < 1 || context.houseNumber > 12 || !Number.isInteger(context.rashiIndex) || context.rashiIndex < 1 || context.rashiIndex > 12 || !Number.isInteger(context.value)) return null;
@@ -254,7 +312,7 @@ function publicInsights(record) {
   });
   });
 }
-function publicReadingDetail(item) { const calibrated = calibratedContent(item.record), calibrationContext = publicCalibrationSummary(item.record), careerAshtakavargaStructure = publicCareerAshtakavargaStructure(item.record), careerD10Structure = publicCareerD10Structure(item.record), careerD10Corroboration = publicCareerD10Corroboration(item.record), careerAshtakavargaCorroboration = publicCareerAshtakavargaCorroboration(item.record), careerEvidenceSynthesis = publicCareerEvidenceSynthesis(item.record), careerTimingPeriods = publicCareerTimingPeriods(item.record), insights = publicInsights(item.record); return immutableCopy({ ...publicReadingSummary(item), content: item.record.renderedReading, ...(calibrated ? { calibratedContent: calibrated } : {}), ...(calibrationContext === undefined ? {} : { calibrationContext }), ...(careerAshtakavargaStructure === undefined ? {} : { careerAshtakavargaStructure }), ...(careerD10Structure === undefined ? {} : { careerD10Structure }), ...(careerD10Corroboration === undefined ? {} : { careerD10Corroboration }), ...(careerAshtakavargaCorroboration === undefined ? {} : { careerAshtakavargaCorroboration }), ...(careerEvidenceSynthesis === undefined ? {} : { careerEvidenceSynthesis }), ...(careerTimingPeriods === undefined ? {} : { careerTimingPeriods }), ...(insights === undefined ? {} : { insights }) }); }
+function publicReadingDetail(item) { const calibrated = calibratedContent(item.record), calibrationContext = publicCalibrationSummary(item.record), careerAshtakavargaStructure = publicCareerAshtakavargaStructure(item.record), careerD10Structure = publicCareerD10Structure(item.record), careerD10Corroboration = publicCareerD10Corroboration(item.record), careerAshtakavargaCorroboration = publicCareerAshtakavargaCorroboration(item.record), careerEvidenceSynthesis = publicCareerEvidenceSynthesis(item.record), careerTimingPeriods = publicCareerTimingPeriods(item.record), careerTiming = publicCareerTiming(item.record), insights = publicInsights(item.record); return immutableCopy({ ...publicReadingSummary(item), content: item.record.renderedReading, ...(calibrated ? { calibratedContent: calibrated } : {}), ...(calibrationContext === undefined ? {} : { calibrationContext }), ...(careerAshtakavargaStructure === undefined ? {} : { careerAshtakavargaStructure }), ...(careerD10Structure === undefined ? {} : { careerD10Structure }), ...(careerD10Corroboration === undefined ? {} : { careerD10Corroboration }), ...(careerAshtakavargaCorroboration === undefined ? {} : { careerAshtakavargaCorroboration }), ...(careerEvidenceSynthesis === undefined ? {} : { careerEvidenceSynthesis }), ...(careerTimingPeriods === undefined ? {} : { careerTimingPeriods }), ...(careerTiming === undefined ? {} : { careerTiming }), ...(insights === undefined ? {} : { insights }) }); }
 function scopedKeyProvider(key) { return Object.freeze({ current: async () => ({ keyVersion: key.keyVersion, dek: Buffer.from(key.dek) }), forVersion: async () => ({ keyVersion: key.keyVersion, dek: Buffer.from(key.dek) }) }); }
 function rawRecord(raw, record) { return { readingId: raw.readingId, userId: raw.userId, birthProfileId: raw.birthProfileId, status: raw.status, archivedAt: raw.archivedAt, idempotencyKey: raw.idempotencyKey, record }; }
 

@@ -42,13 +42,14 @@ const { createCareerPremiumRazorpayProductCatalog } = require('../payment/razorp
 const { PostgresUserKeyEnvelopeStore, UserDekProvider, BirthProfilePayloadCodec, ReadingPayloadCodec } = require('../security/crypto');
 const { resolveOrProvisionAppUser } = require('../security/auth');
 const { AnalyticsEventRecorder } = require('../analytics/analytics-event-recorder');
+const { CareerTimingAuthorityService } = require('../application/career-timing');
 
 function req(value, name) {
   if (!value) throw new TypeError(`INVALID_${name}`);
   return value;
 }
 
-function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canonicalSiderealSunSampler, placeResolver = null, openai = null, careerChat = null, careerAnswerPolicy = null, apple = null, google = null, razorpay = null, analytics = null, idGenerator, clock, requiresEntitlement = () => true, corsAllowlist, isReady, logger, bodyLimit, transactionDiagnosticObserver } = {}) {
+function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canonicalSiderealSunSampler, placeResolver = null, openai = null, careerChat = null, careerAnswerPolicy = null, careerTimingPolicy = null, apple = null, google = null, razorpay = null, analytics = null, careerTimingAnalytics = null, idGenerator, clock, requiresEntitlement = () => true, corsAllowlist, isReady, logger, bodyLimit, transactionDiagnosticObserver } = {}) {
   const { createApi } = require('./index');
   req(db, 'DB'); req(authVerifier, 'AUTH_VERIFIER'); req(kms, 'KMS');
   req(astronomicalEngine, 'ASTRONOMICAL_ENGINE'); req(canonicalSiderealSunSampler, 'SUN_SAMPLER');
@@ -100,6 +101,31 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
     role: 'app_runtime',
     operation: ({ db: client }) => resolveOrProvisionAppUser({ principal, userRepository: new PostgresUserRepository({ db: client }), idGenerator, now: clock }),
   });
+  // New reading generation consumes this authority. OFF remains the default,
+  // while SHADOW/ON retain legacy timing for rollback compatibility.
+  const careerTimingAnalyticsRecorder = new AnalyticsEventRecorder({ provider: careerTimingAnalytics || analytics });
+  const careerTimingAuthorityService = new CareerTimingAuthorityService({
+    rolloutMode: careerTimingPolicy && careerTimingPolicy.mode || 'OFF',
+    diagnosticObserver: (entry) => { void careerTimingAnalyticsRecorder.record('career_timing_v2_shadow', {
+      mode: entry.mode, status: entry.status, duration_ms: entry.durationMs,
+      legacy_duration_ms: entry.legacyDurationMs, v2_duration_ms: entry.v2DurationMs,
+      parent_count: entry.v2ParentCount, child_count: entry.v2ChildCount,
+      has_current: entry.hasCurrent, has_next: entry.hasNext,
+      has_strongest_window: entry.hasStrongestWindow,
+      legacy_candidate_count: entry.legacyCandidateCount,
+      legacy_current_present: entry.legacyCurrentPresent,
+      legacy_next_present: entry.legacyNextPresent,
+      current_comparison: entry.currentComparison,
+      next_comparison: entry.nextComparison,
+      window_count_different: entry.windowCountDifferent,
+      fallback_occurred: entry.fallbackOccurred,
+      contract_version: entry.contractVersion,
+      timing_engine_version: entry.timingEngineVersion,
+      eligibility_ruleset: entry.eligibilityRuleset,
+      refinement_ruleset: entry.refinementRuleset,
+      error_code: entry.errorCode,
+    }); },
+  });
   const tarotService = new TarotService({
     authUserResolver: userResolver,
     repository: new PostgresTarotRepository({ transactionExecutor: tx, idGenerator }),
@@ -129,7 +155,7 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
     generate: async ({ birthProfile }) => {
       const { BirthCareerReadingOrchestrator } = require('../orchestration');
       const { createResolvedBirthPlace } = require('../place');
-      const orchestrator = new BirthCareerReadingOrchestrator({ astronomicalEngine, dashaRulesetId: 'vimshottari-longitude-proportional-solar-return-v1', canonicalSiderealSunSampler });
+      const orchestrator = new BirthCareerReadingOrchestrator({ astronomicalEngine, dashaRulesetId: 'vimshottari-longitude-proportional-solar-return-v1', canonicalSiderealSunSampler, careerTimingAuthorityService });
       const birth = birthProfile.birthData;
       const place = createResolvedBirthPlace({ provider: 'persisted', providerPlaceId: birthProfile.id, latitude: birth.latitude, longitude: birth.longitude, timezone: birth.timezone, timezoneResolver: birth.timezoneProvenance });
       const result = orchestrator.generate({ birth: { date: birth.localDate, time: birth.localTime, place }, readingInstant: clock(), locale: 'en-IN' });
@@ -144,7 +170,7 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   const { CareerAnswerService } = require('../application/career-answers');
   const { JobFavourabilityBetaEvaluator } = require('../application/career-answers/job-favourability-beta');
   const jobFavourabilityEvaluator = new JobFavourabilityBetaEvaluator({ birthProfileService, astronomicalEngine, canonicalSiderealSunSampler, clock });
-  const careerAnswerService = new CareerAnswerService({ secureReadingService, birthProfileService, jobFavourabilityResearchEnabled: Boolean(careerAnswerPolicy && careerAnswerPolicy.jobFavourabilityResearchEnabled === true), jobFavourabilityEvaluator });
+  const careerAnswerService = new CareerAnswerService({ secureReadingService, birthProfileService, jobFavourabilityResearchEnabled: Boolean(careerAnswerPolicy && careerAnswerPolicy.jobFavourabilityResearchEnabled === true), jobFavourabilityEvaluator, timingMode: careerTimingPolicy && careerTimingPolicy.mode || 'OFF', timingDiagnosticObserver: (entry) => { void careerTimingAnalyticsRecorder.record('career_timing_consumer_shadow', { mode: careerTimingPolicy && careerTimingPolicy.mode || 'OFF', status: 'COMPARED', duration_ms: entry.durationMs, has_current: entry.canonicalCurrentPresent, has_next: entry.canonicalStrongestWindowPresent, fallback_occurred: entry.fallbackOccurred }); } });
   const { CareerDecisionService } = require('../application/career-decisions');
   const careerDecisionService = new CareerDecisionService({ careerAnswerService, authUserResolver: userResolver, birthProfileService, transactionExecutor: tx, repositories, idGenerator, clock });
   const { CareerChatOrchestrator } = require('../application/career-chat');
@@ -205,7 +231,7 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   const placeResolutionService = placeResolver ? new PlaceResolutionService({ birthPlaceResolver: placeResolver }) : null;
   const api = createApi({ authVerifier, userResolver: { resolve: userResolver }, birthProfileService, careerEventService, lifeEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, ashtakavargaService, secureReadingService, tarotService, careerAnswerService, careerDecisionService, propertyAnswerService, vehicleAnswerService, wealthAnswerService, relationshipAnswerService, familyExpansionAnswerService, careerChatOrchestrator, taraConversationService, purchaseService, razorpayPaymentService, appleNotificationService, googleRtdnService, notificationSelfService, placeResolutionService, requestIdGenerator: idGenerator, corsAllowlist, isReady, logger, bodyLimit });
   api.apiRuntime = { astronomicalEngine, canonicalSiderealSunSampler };
-  return Object.freeze({ api, services: Object.freeze({ birthProfileService, careerEventService, lifeEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, secureReadingService, tarotService, careerAnswerService, careerDecisionService, propertyAnswerService, vehicleAnswerService, wealthAnswerService, relationshipAnswerService, familyExpansionAnswerService, userResolver, transactionExecutor: tx }) });
+  return Object.freeze({ api, services: Object.freeze({ birthProfileService, careerEventService, lifeEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, secureReadingService, tarotService, careerAnswerService, careerDecisionService, careerTimingAuthorityService, propertyAnswerService, vehicleAnswerService, wealthAnswerService, relationshipAnswerService, familyExpansionAnswerService, userResolver, transactionExecutor: tx }) });
 }
 
 module.exports = { createApiComposition };

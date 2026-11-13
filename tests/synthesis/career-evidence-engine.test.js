@@ -4,15 +4,15 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { EvidenceGraphBuilder, buildCareerEvidence } = require('../../src/synthesis');
 
-function graphFixture({ occupants = ['Saturn'], includeState = true, includeDrishti = true, includeD10 = true, productionD10 = false, includeAshtaka = true, productionAshtaka = false, duplicateH10Lord = null, contradictoryD10 = false, includeContexts = false, reverseContexts = false, missingContexts = false, duplicateH2Lord = null } = {}) {
+function graphFixture({ occupants = ['Saturn'], includeState = true, includeDrishti = true, includeD10 = true, productionD10 = false, includeAshtaka = true, productionAshtaka = false, duplicateH10Lord = null, contradictoryD10 = false, includeContexts = false, reverseContexts = false, missingContexts = false, duplicateH2Lord = null, sharedContextLord = null } = {}) {
   const builder = new EvidenceGraphBuilder({ sourceIdentity: 'career-provisional-meena-lagna-fixture' });
   const add = (input) => builder.addFact({ sourceStrength: 'ENGINE_CONVENTION', ...input });
   const h10 = { houseNumber: 10, rashi: { rashiIndex: 9, rashiName: 'Dhanu' }, rashiHouseLord: { name: 'Jupiter' } };
   add({ subject: { entityType: 'HOUSE', entityId: '10' }, sourceLayer: '5A', sourceRulesetId: 'parashari-rashi-house-v1', sourceIdentity: 'houses.10', fact: h10 });
   if (includeContexts) {
     const contexts = [
-      { number: 2, rashiIndex: 1, lord: 'Mars' },
-      { number: 11, rashiIndex: 10, lord: 'Saturn' }
+      { number: 2, rashiIndex: 1, lord: sharedContextLord || 'Mars' },
+      { number: 11, rashiIndex: 10, lord: sharedContextLord || 'Saturn' }
     ];
     (reverseContexts ? [...contexts].reverse() : contexts).forEach(({ number, rashiIndex, lord }) => add({ subject: { entityType: 'HOUSE', entityId: String(number) }, sourceLayer: '5A', sourceRulesetId: 'parashari-rashi-house-v1', sourceIdentity: `houses.${number}`, fact: { houseNumber: number, rashi: { rashiIndex }, rashiHouseLord: { name: lord } } }));
     if (duplicateH2Lord) add({ subject: { entityType: 'HOUSE', entityId: '2' }, sourceLayer: '5A', sourceRulesetId: 'parashari-rashi-house-v1', sourceIdentity: 'houses.2.conflict', fact: { houseNumber: 2, rashi: { rashiIndex: 1 }, rashiHouseLord: { name: duplicateH2Lord } } });
@@ -166,6 +166,25 @@ test('keeps H2/H11 lords, occupants, state, Drishti, and house-domain connection
   const connections = byType('CAREER_HOUSE_DOMAIN_CONNECTION');
   assert.deepEqual(connections.map((item) => [item.fact.fromHouseNumber, item.fact.toHouseNumber, item.fact.lord]).sort((a, b) => a[0] - b[0]), [[2, 10, 'Mars'], [11, 2, 'Saturn']]);
   assert.equal(connections.every((item) => item.inputNodeIds.length === 2 && item.fact.connection === 'supplied-house-lord-placement-only'), true);
+});
+
+test('keeps shared H2/H11 lord state and aspect relations distinct by their contextual house evidence', () => {
+  const result = buildCareerEvidence({ natalGraph: graphFixture({ occupants: [], includeContexts: true, sharedContextLord: 'Jupiter' }) });
+  const states = result.derivedRelations.filter((item) => item.relationType === 'CAREER_CONTEXT_HOUSE_LORD_STATE' && item.subject.entityId === 'Jupiter');
+  assert.deepEqual(states.map((item) => item.fact.contextualHouseNumber).sort((a, b) => a - b), [2, 11]);
+  assert.equal(new Set(states.map((item) => item.id)).size, 2);
+  assert.equal(states.every((item) => item.inputNodeIds.length === 2), true);
+  const aspects = result.derivedRelations.filter((item) => item.relationType === 'CAREER_CONTEXT_HOUSE_LORD_ASPECT' && item.target.entityId === 'Jupiter');
+  assert.deepEqual(aspects.map((item) => item.fact.contextualHouseNumber).sort((a, b) => a - b), [2, 11]);
+  assert.equal(new Set(aspects.map((item) => item.id)).size, 2);
+});
+
+test('still rejects genuinely conflicting payloads with the same relation identity', () => {
+  const graph = graphFixture({ occupants: [], includeContexts: true });
+  const source = graph.nodes.find((node) => node.sourceLayer === '6' && node.fact.fromBody === 'Jupiter' && node.fact.targetHouseNumber === 2);
+  const conflicting = { ...source, fact: { ...source.fact, aspectNumber: 9 } };
+  const malformedGraph = { ...graph, nodes: [...graph.nodes, conflicting] };
+  assert.throws(() => buildCareerEvidence({ natalGraph: malformedGraph }), /Career relation identity has different payload/);
 });
 
 test('retains only supplied H2/H11 occupants, remains deterministic across input order, and preserves frozen inputs', () => {

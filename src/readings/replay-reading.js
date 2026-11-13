@@ -1,6 +1,7 @@
 'use strict';
 
 const { BirthCareerReadingOrchestrator } = require('../orchestration');
+const { CAREER_TIMING_PRODUCTION_CONTRACT_VERSION, CareerTimingAuthorityService } = require('../application/career-timing');
 const { localDateTimeToUtc } = require('../astronomy/time');
 const { resolveEngineProfile } = require('../engine-profiles');
 const { freeze } = require('../synthesis/evidence-node');
@@ -33,10 +34,15 @@ function replayPersistedReading({ record, astronomicalRuntime, engineProfileRegi
   const solar = profile.calculation.solarReturnSolverId !== undefined;
   const sampler = astronomicalRuntime.canonicalSiderealSunSampler;
   if (solar && (!sampler || typeof sampler.sampleCanonicalSiderealSun !== 'function')) throw replayError('MISSING_REPLAY_SOLAR_DASHA_SAMPLER');
+  const persistedTimingContract = record.provenance && record.provenance.reading && record.provenance.reading.careerTimingContractVersion;
+  if (persistedTimingContract && persistedTimingContract !== CAREER_TIMING_PRODUCTION_CONTRACT_VERSION) throw replayError('UNSUPPORTED_REPLAY_CAREER_TIMING_CONTRACT');
+  const persistedTimingAuthority = record.provenance && record.provenance.reading && record.provenance.reading.careerTimingAuthority;
+  if (persistedTimingContract && !['SHADOW', 'CANONICAL'].includes(persistedTimingAuthority)) throw replayError('UNSUPPORTED_REPLAY_CAREER_TIMING_AUTHORITY');
   const orchestrator = new BirthCareerReadingOrchestrator({
     astronomicalEngine: astronomicalRuntime.astronomicalEngine,
     dashaRulesetId: profile.calculation.dashaRulesetId,
     ...(solar ? { canonicalSiderealSunSampler: sampler } : {}),
+    ...(persistedTimingContract ? { careerTimingAuthorityService: new CareerTimingAuthorityService({ rolloutMode: persistedTimingAuthority === 'SHADOW' ? 'SHADOW' : 'ON' }) } : {}),
   });
   let result;
   try {

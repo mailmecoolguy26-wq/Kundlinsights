@@ -33,6 +33,9 @@ function dtoReadingDetail(reading) {
     ...(reading.careerTimingPeriods === undefined ? {} : {
       careerTimingPeriods: reading.careerTimingPeriods,
     }),
+    ...(reading.careerTiming === undefined ? {} : {
+      careerTiming: reading.careerTiming,
+    }),
     ...(reading.insights === undefined ? {} : {
       insights: reading.insights,
     }),

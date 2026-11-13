@@ -6,6 +6,7 @@ const { BirthCareerReadingOrchestrator } = require('../../src/orchestration');
 const { createResolvedBirthPlace } = require('../../src/place');
 const { deepFreeze } = require('../../src/astronomy');
 const { createReadingRecord, replayPersistedReading } = require('../../src/readings');
+const { CareerTimingAuthorityService } = require('../../src/application/career-timing');
 
 const BIRTH = '1990-11-26T08:10:00.000Z'; const READING = '2026-08-12T00:00:00.000Z'; const DAY = 86400000;
 const SAVANA = 'vimshottari-longitude-proportional-savana-360-v1'; const SOLAR = 'vimshottari-longitude-proportional-solar-return-v1';
@@ -16,6 +17,7 @@ function engine(providerId = 'synthetic-replay') { const bodies = deepFreeze(Obj
 function sampler() { return deepFreeze({ sampleCanonicalSiderealSun({ instantUtc }) { return deepFreeze({ canonicalSiderealLongitudeDegrees: canonical(L.Sun + (Date.parse(instantUtc) - Date.parse(BIRTH)) * 360 / (365 * DAY)), provenance: deepFreeze({ providerId: 'synthetic-replay', swissVersion: 'test', calculationStatus: 'LICENSE_GATED_VALIDATION', siderealMode: 'SE_SIDM_LAHIRI', coordinateProvenance: 'provider-native', productionAuthority: false }) }); } }); }
 function input() { return { birth: { localDate: '1990-11-26', localTime: '13:40:00', timezone: 'Asia/Kolkata', utc: BIRTH, latitude: 17.385, longitude: 78.4867, placeResolution: { resolutionVersion: place.resolutionVersion, timezoneResolver: place.timezoneResolver }, display: { label: 'Hyderabad' } }, readingInstant: READING, transitScanRange: null, locale: 'en-IN' }; }
 function record(ruleset = SOLAR) { const result = new BirthCareerReadingOrchestrator({ astronomicalEngine: engine(), dashaRulesetId: ruleset, ...(ruleset === SOLAR ? { canonicalSiderealSunSampler: sampler() } : {}) }).generate({ birth: { date: '1990-11-26', time: '13:40:00', place }, readingInstant: READING, locale: 'en-IN' }); return createReadingRecord({ readingId: ruleset === SOLAR ? 'solar_reading_001' : 'savana_reading_001', createdAt: READING, input: input(), result }); }
+function canonicalRecord() { const result = new BirthCareerReadingOrchestrator({ astronomicalEngine: engine(), dashaRulesetId: SOLAR, canonicalSiderealSunSampler: sampler(), careerTimingAuthorityService: new CareerTimingAuthorityService({ rolloutMode: 'SHADOW' }) }).generate({ birth: { date: '1990-11-26', time: '13:40:00', place }, readingInstant: READING, locale: 'en-IN' }); return createReadingRecord({ readingId: 'canonical_reading_001', createdAt: READING, input: input(), result }); }
 function runtime(options = {}) { return { astronomicalEngine: engine(options.providerId), ...(options.sampler === false ? {} : { canonicalSiderealSunSampler: sampler() }), ...(options.timezoneConverter ? { timezoneConverter: options.timezoneConverter } : {}) }; }
 
 test('replays v1 Savana without a Solar sampler and v2 Solar with a sampler, independent of the current default', () => {
@@ -42,4 +44,18 @@ test('fails closed for unknown/missing profile, missing Solar sampler, timezone 
 test('never infers a legacy profile from incomplete historical records', () => {
   const legacy = record(SAVANA);
   assert.throws(() => replayPersistedReading({ record: { ...legacy, engineProfileId: undefined }, astronomicalRuntime: runtime({ sampler: false }) }), e => e.code === 'MISSING_REPLAY_ENGINE_PROFILE');
+});
+
+test('replays a persisted canonical Career timing snapshot with its recorded contract while legacy records remain OFF-compatible', () => {
+  const persisted = canonicalRecord();
+  assert.equal(persisted.provenance.reading.careerTimingContractVersion, 'career-timing-production-v1');
+  const replay = replayPersistedReading({ record: persisted, astronomicalRuntime: runtime() });
+  assert.deepEqual(replay.result.reading.careerTiming, persisted.reading.careerTiming);
+  assert.equal(replay.verification.outputDigest, persisted.integrity.output.digest);
+});
+
+test('fails closed when replay encounters an unsupported persisted Career timing contract', () => {
+  const persisted = canonicalRecord();
+  const incompatible = { ...persisted, provenance: { ...persisted.provenance, reading: { ...persisted.provenance.reading, careerTimingContractVersion: 'career-timing-future-v99' } } };
+  assert.throws(() => replayPersistedReading({ record: incompatible, astronomicalRuntime: runtime() }), error => error.code === 'UNSUPPORTED_REPLAY_CAREER_TIMING_CONTRACT');
 });

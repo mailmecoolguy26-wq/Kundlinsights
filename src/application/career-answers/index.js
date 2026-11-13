@@ -3,6 +3,7 @@
 // Career Answers is a product-facing projection over an immutable Career
 // Reading. It deliberately does not calculate charts, scan transits, or let a
 // question change deterministic timing eligibility.
+const { CareerDecisionTimingAdapter, canonicalJobFavourabilityProjection } = require('../career-timing');
 const CAREER_ANSWER_RULESET_VERSION = 'career-answer-v1';
 const CareerQuestionType = Object.freeze({
   CURRENT_CAREER_PHASE: 'CURRENT_CAREER_PHASE',
@@ -72,6 +73,22 @@ function collectEvidence(reading, signal = null) {
   return immutable({ primaryEligibility, evidence });
 }
 
+function collectCanonicalEvidence(timingContext, reading) {
+  const summary = timingContext && timingContext.evidenceSummary || {};
+  const d10 = summary.d10 && summary.d10 !== 'UNAVAILABLE';
+  const ashtakavarga = summary.ashtakavarga === 'RAW_CONTEXT';
+  const transit = summary.jupiter === 'CONFIRMS' || summary.saturn === 'CONFIRMS';
+  const eligible = Boolean(timingContext && timingContext.primaryWindow);
+  const evidence = [
+    eligible ? { family: 'D1_CAREER_FOUNDATION', role: 'PRIMARY', summary: 'Career foundation evidence is available.' } : null,
+    eligible ? { family: 'DASHA', role: 'PRIMARY', summary: 'Career-linked Dasha evidence is active.' } : null,
+    transit ? { family: 'TRANSIT', role: 'PRIMARY', summary: 'Career transit evidence is available.' } : null,
+    d10 ? { family: 'D10', role: 'SUPPORT', summary: 'Career chart context is available.' } : null,
+    ashtakavarga ? { family: 'ASHTAKAVARGA', role: 'SUPPORT', summary: 'Ashtakavarga context is available.' } : null,
+  ].filter(Boolean);
+  return immutable({ primaryEligibility: eligible && transit, evidence });
+}
+
 function agreement(evidence) {
   const primary = evidence.filter((item) => item.role === 'PRIMARY');
   return immutable({
@@ -135,12 +152,13 @@ function jobFavourabilityProfilePrerequisite() {
   });
 }
 
-async function jobFavourabilityContract({ reading, premium, researchEnabled, evaluator, principal, birthProfileId, birthProfile = null, timing = null }) {
+async function jobFavourabilityContract({ reading, premium, researchEnabled, evaluator, principal, birthProfileId, birthProfile = null, timing = null, timingContext = null }) {
   const signal = selectSignal(reading);
   const collected = collectEvidence(reading, signal);
   const historicalAvailable = Boolean(signal && typeof signal.recurrenceSummary === 'string' && signal.recurrenceSummary.trim());
   const base = {
     questionType: CareerQuestionType.JOB_FAVOURABILITY_TIMING,
+    timingAuthority: timingContext && timingContext.authority === 'CANONICAL' ? 'CANONICAL' : 'LEGACY_JOB_FAVOURABILITY',
     sourceReadingId: reading ? reading.readingId : null,
     broadWindow: null,
     strongerConcentrationWindow: null,
@@ -179,6 +197,47 @@ async function jobFavourabilityContract({ reading, premium, researchEnabled, eva
     projectionStatus: 'DISABLED',
     limitationCode: 'JOB_FAVOURABILITY_RESEARCH_DISABLED',
   });
+  if (timingContext && timingContext.authority === 'CANONICAL') {
+    const canonical = canonicalJobFavourabilityProjection(timingContext);
+    const timingMetadata = {
+      timingAuthority: 'CANONICAL',
+      contractVersion: timingContext.contractVersion,
+      timingEngineVersion: timingContext.timingEngineVersion,
+      eligibilityRuleset: timingContext.eligibilityRuleset,
+      refinementRuleset: timingContext.refinementRuleset,
+      currentPeriod: canonical.currentPeriod,
+      nextPeriod: canonical.nextPeriod,
+      strongestWindow: canonical.strongestWindow,
+      productState: canonical.productState,
+      timingEvidenceSummary: canonical.evidenceSummary,
+      timingContext,
+    };
+    if (!canonical.broadWindow) return immutable({
+      ...base, ...timingMetadata,
+      answerability: Answerability.NO_CONCENTRATED_JOB_FAVOURABILITY,
+      projectionStatus: 'RESEARCH_ENABLED_NO_CONCENTRATED_CONVERGENCE',
+      limitationCode: 'NO_CONCENTRATED_JOB_FAVOURABILITY',
+      provenance: immutable({ ...base.provenance, calculationAuthority: 'CANONICAL_CAREER_TIMING' }),
+    });
+    if (!premium) return jobFavourabilityPremiumTeaser();
+    return immutable({
+      answerability: Answerability.SUPPORTED,
+      questionType: CareerQuestionType.JOB_FAVOURABILITY_TIMING,
+      sourceReadingId: reading ? reading.readingId : null,
+      projectionStatus: 'BETA_CONVERGENCE_AVAILABLE',
+      broadWindow: canonical.broadWindow,
+      strongerConcentrationWindow: canonical.strongestWindow,
+      strength: canonical.strength,
+      evidenceAgreementCount: canonical.evidenceAgreementCount,
+      evidenceReasonCodes: canonical.evidenceReasonCodes,
+      recommendedActionCodes: immutable(['PREPARE_CAREER_MATERIALS_AND_CONVERSATIONS', 'REVIEW_PRACTICAL_ROLES_OPPORTUNITIES_AND_DECISIONS']),
+      limitationCode: 'BETA_DESCRIPTIVE_CONVERGENCE_ONLY',
+      primaryAlignment: immutable({ careerTimingFoundation: 'PRESENT', careerLinkedDasha: 'EVALUATED' }),
+      supportingContext: immutable({ d10: 'SUPPORT_ONLY', moon: 'SUPPORT_ONLY', ashtakavarga: 'SUPPORT_ONLY', historicalRecurrence: 'OPTIONAL', rahuKetu: 'CONTEXT_ONLY' }),
+      provenance: immutable({ projectionGate: 'RESEARCH_ENABLED', calculationAuthority: 'CANONICAL_CAREER_TIMING', genericCareerSignal: 'NOT_USED', historicalRecurrence: 'NOT_REQUIRED' }),
+      ...timingMetadata,
+    });
+  }
   if (!evaluator || typeof evaluator.evaluate !== 'function') return immutable({
     ...base,
     answerability: Answerability.NO_CONCENTRATED_JOB_FAVOURABILITY,
@@ -223,13 +282,15 @@ async function jobFavourabilityContract({ reading, premium, researchEnabled, eva
     primaryAlignment: immutable({ careerTimingFoundation: 'PRESENT', careerLinkedDasha: 'EVALUATED' }),
     supportingContext: immutable({ d10: 'SUPPORT_ONLY', moon: 'SUPPORT_ONLY', ashtakavarga: 'SUPPORT_ONLY', historicalRecurrence: 'OPTIONAL', rahuKetu: 'CONTEXT_ONLY' }),
     provenance: immutable({ projectionGate: 'RESEARCH_ENABLED', calculationAuthority: 'SERVER_CALCULATED', genericCareerSignal: 'NOT_USED', historicalRecurrence: 'NOT_REQUIRED' }),
+    timingAuthority: 'LEGACY_JOB_FAVOURABILITY',
   });
 }
 
-function present({ questionType, reading }) {
+function present({ questionType, reading, timingContext = null }) {
   if (!reading) return noReading(questionType);
   const signal = selectSignal(reading);
-  const collected = collectEvidence(reading, signal);
+  const canonical = timingContext && timingContext.authority === 'CANONICAL';
+  const collected = canonical ? collectCanonicalEvidence(timingContext, reading) : collectEvidence(reading, signal);
   const calibratedHistory = reading && reading.calibrationInterpretation && reading.calibrationInterpretation.customerHistoricalContext;
   const history = calibratedHistory && calibratedHistory.available === true && typeof calibratedHistory.summary === 'string'
     ? { summary: calibratedHistory.summary }
@@ -241,16 +302,17 @@ function present({ questionType, reading }) {
     historicalContext: history,
     sourceReadingId: reading.readingId,
     rulesetVersion: CAREER_ANSWER_RULESET_VERSION,
+    ...(timingContext ? { timingContext } : {}),
   };
   if (questionType === CareerQuestionType.CURRENT_CAREER_PHASE) {
-    const supported = collected.evidence.length > 0;
+    const supported = canonical ? timingContext.currentEligiblePeriod !== null : collected.evidence.length > 0;
     return immutable({
       ...base,
       answerability: supported ? Answerability.SUPPORTED : Answerability.INSUFFICIENT_EVIDENCE,
       answer: supported ? {
         headline: 'Your current Career phase',
         summary: 'TaraVerse has current Career context from your saved reading. Use it as supportive context, alongside practical decisions and real-world information.',
-        currentPhase: 'Current Career context available',
+        currentPhase: canonical ? timingContext.productState : 'Current Career context available',
         window: null,
         actionItems: ['Review ongoing Career priorities.', 'Use practical information when making decisions.'],
         limitation: 'This describes available Career context; it does not guarantee a specific outcome.',
@@ -264,7 +326,8 @@ function present({ questionType, reading }) {
       },
     });
   }
-  if (!signal || !collected.primaryEligibility) {
+  const selectedWindow = canonical ? timingContext.primaryWindow : signal && { start: signal.startDate, end: signal.endDate, classification: POSSIBLE_SIGNAL };
+  if (!selectedWindow || !collected.primaryEligibility) {
     return immutable({
       ...base,
       answerability: Answerability.INSUFFICIENT_EVIDENCE,
@@ -285,7 +348,7 @@ function present({ questionType, reading }) {
       headline: 'Career activity is more strongly indicated during this period',
       summary: 'This period contains more of the currently supported Career timing signals.',
       currentPhase: null,
-      window: { start: signal.startDate, end: signal.endDate, classification: POSSIBLE_SIGNAL },
+      window: selectedWindow,
       actionItems: ['Use this period for practical Career conversations and preparation.', 'Consider real-world role, financial, and personal factors before acting.'],
       limitation: 'This is a possible Career activity signal, not a favourable window, job-offer prediction, or guarantee.',
     },
@@ -313,12 +376,13 @@ function shapeForAccess(answer, premium) {
 }
 
 class CareerAnswerService {
-  constructor({ secureReadingService, birthProfileService = null, jobFavourabilityResearchEnabled = false, jobFavourabilityEvaluator = null } = {}) {
+  constructor({ secureReadingService, birthProfileService = null, jobFavourabilityResearchEnabled = false, jobFavourabilityEvaluator = null, timingMode = 'OFF', timingDiagnosticObserver = null } = {}) {
     if (!secureReadingService || typeof secureReadingService.getReadingEntitlementStatus !== 'function' || typeof secureReadingService.listSecureReadings !== 'function' || typeof secureReadingService.getSecureReadingDetail !== 'function') throw new TypeError('INVALID_SECURE_READING_SERVICE');
     this.readings = secureReadingService;
     this.birthProfiles = birthProfileService && typeof birthProfileService.get === 'function' ? birthProfileService : null;
     this.jobFavourabilityResearchEnabled = jobFavourabilityResearchEnabled === true;
     this.jobFavourabilityEvaluator = jobFavourabilityEvaluator;
+    this.timingAdapter = new CareerDecisionTimingAdapter({ mode: timingMode, diagnosticObserver: timingDiagnosticObserver });
   }
   async answer({ principal, birthProfileId, body, timing = null } = {}) {
     const measure = async (stage, operation) => {
@@ -348,16 +412,16 @@ class CareerAnswerService {
     const selected = request.readingId ? career.find((item) => item.readingId === request.readingId) : career[0];
     if (request.readingId && !selected) throw failure('NOT_FOUND_OR_FORBIDDEN');
     if (!premium) return profilePremiumRequired(request.questionType);
-    if (!selected && request.questionType === CareerQuestionType.JOB_FAVOURABILITY_TIMING) return jobFavourabilityContract({ reading: null, premium, researchEnabled: this.jobFavourabilityResearchEnabled, evaluator: this.jobFavourabilityEvaluator, principal, birthProfileId: profileId, birthProfile: authoritativeProfile, timing });
+    if (!selected && request.questionType === CareerQuestionType.JOB_FAVOURABILITY_TIMING) return jobFavourabilityContract({ reading: null, premium, researchEnabled: this.jobFavourabilityResearchEnabled, evaluator: this.jobFavourabilityEvaluator, principal, birthProfileId: profileId, birthProfile: authoritativeProfile, timing, timingContext: this.timingAdapter.resolve(null) });
     if (!selected) return shapeForAccess(
       present({ questionType: request.questionType, reading: null }),
       premium,
     );
     const detail = await measure('READING_PREPARATION', () => this.readings.getSecureReadingDetail({ principal, readingId: selected.readingId }));
     if (!detail || detail.domain !== 'CAREER' || detail.birthProfileId !== profileId || detail.readingId !== selected.readingId) throw failure('NOT_FOUND_OR_FORBIDDEN');
-    if (request.questionType === CareerQuestionType.JOB_FAVOURABILITY_TIMING) return jobFavourabilityContract({ reading: detail, premium, researchEnabled: this.jobFavourabilityResearchEnabled, evaluator: this.jobFavourabilityEvaluator, principal, birthProfileId: profileId, birthProfile: authoritativeProfile, timing });
+    if (request.questionType === CareerQuestionType.JOB_FAVOURABILITY_TIMING) return jobFavourabilityContract({ reading: detail, premium, researchEnabled: this.jobFavourabilityResearchEnabled, evaluator: this.jobFavourabilityEvaluator, principal, birthProfileId: profileId, birthProfile: authoritativeProfile, timing, timingContext: this.timingAdapter.resolve(detail) });
     return shapeForAccess(
-      present({ questionType: request.questionType, reading: detail }),
+      present({ questionType: request.questionType, reading: detail, timingContext: this.timingAdapter.resolve(detail) }),
       premium,
     );
   }

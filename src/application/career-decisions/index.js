@@ -1,4 +1,5 @@
 'use strict';
+const { lookupDate, legacyContextFromWindow } = require('../career-timing');
 
 const { verifiedPrincipal } = require('../../security/auth');
 
@@ -96,20 +97,26 @@ function listContext(context = {}) {
   // text in list responses. Detail remains protected by its owned GET route.
   return Object.freeze({ role: text('role'), currentRole: text('currentRole'), targetRole: text('targetRole'), priority: text('priority'), priorities: list('priorities'), reasons: list('reasons'), growthTypes: list('growthTypes'), startMode: text('startMode'), businessStage: text('businessStage'), abroadPath: text('abroadPath'), targetRegion: text('targetRegion'), offerA: offer('offerA'), offerB: offer('offerB') });
 }
-function withinWindow(date, window) { const instant = Date.parse(date); const start = Date.parse(window.start); const end = Date.parse(window.end); return Number.isFinite(instant) && Number.isFinite(start) && Number.isFinite(end) && instant >= start && instant <= end; }
-function offerTiming(offer, window) {
-  if (!offer.joiningDate) return Object.freeze({ state: 'NOT_ASSESSED', message: 'No expected joining date was provided, so joining timing cannot be compared yet.' });
-  if (withinWindow(offer.joiningDate, window)) return Object.freeze({ state: 'WITHIN_CURRENT_WINDOW', message: 'The expected joining date falls within the current supported Career period.' });
-  return Object.freeze({ state: 'OUTSIDE_CURRENT_WINDOW', message: 'The expected joining date does not fall within the current supported Career period.' });
+function dateTiming(date, timingContext, missingMessage) {
+  if (!date) return Object.freeze({ state: 'NOT_ASSESSED', message: missingMessage, authority: timingContext.authority, isInsideStrongestWindow: false });
+  const match = lookupDate(timingContext, date), inside = ['INSIDE_ELIGIBLE_PERIOD', 'INSIDE_STRONGEST_WINDOW'].includes(match.state);
+  return Object.freeze({ state: inside ? 'WITHIN_CURRENT_WINDOW' : 'OUTSIDE_CURRENT_WINDOW', message: inside ? 'The supplied date falls within the supported Career period.' : 'The supplied date does not fall within the supported Career period.', authority: match.authority, isInsideStrongestWindow: match.state === 'INSIDE_STRONGEST_WINDOW', strongestWindow: match.strongestWindow });
+}
+function offerTiming(offer, timingContext) {
+  const result = dateTiming(offer.joiningDate, timingContext, 'No expected joining date was provided, so joining timing cannot be compared yet.');
+  if (result.state === 'NOT_ASSESSED') return result;
+  return Object.freeze({ ...result, message: result.state === 'WITHIN_CURRENT_WINDOW' ? 'The expected joining date falls within the current supported Career period.' : 'The expected joining date does not fall within the current supported Career period.' });
 }
 function priorityAlignment(offer, priorities) {
   if (priorities.includes('Higher compensation') && offer.compensationContext === 'HIGHER') return Object.freeze({ state: 'SUPPORTS_PRIORITY', message: 'The supplied compensation context is higher, which supports your compensation priority.' });
   if (priorities.includes('Higher compensation') && offer.compensationContext === 'LOWER') return Object.freeze({ state: 'CONFLICTS_WITH_PRIORITY', message: 'The supplied compensation context is lower, which conflicts with your compensation priority.' });
   return Object.freeze({ state: 'NOT_ASSESSED', message: 'The supplied offer details do not establish a priority-based advantage for this offer.' });
 }
-function compareOffers(context, window) {
-  const aTiming = offerTiming(context.offerA, window);
-  const bTiming = offerTiming(context.offerB, window);
+function compareOffers(context, timingContext) {
+  const aTiming = offerTiming(context.offerA, timingContext);
+  const bTiming = offerTiming(context.offerB, timingContext);
+  const aOfferTiming = dateTiming(context.offerA.offerDate, timingContext, 'No offer date was provided, so offer timing cannot be compared yet.');
+  const bOfferTiming = dateTiming(context.offerB.offerDate, timingContext, 'No offer date was provided, so offer timing cannot be compared yet.');
   const aPriority = priorityAlignment(context.offerA, context.priorities);
   const bPriority = priorityAlignment(context.offerB, context.priorities);
   const timingScore = (result) => result.state === 'WITHIN_CURRENT_WINDOW' ? 1 : result.state === 'OUTSIDE_CURRENT_WINDOW' ? -1 : 0;
@@ -123,8 +130,8 @@ function compareOffers(context, window) {
   else if ((timingDifference < 0 && priorityDifference <= 0) || (timingDifference === 0 && priorityDifference < 0)) outcome = 'OFFER_B_MORE_ALIGNED';
   const timingComparison = !hasComparableTiming ? 'Joining timing cannot be compared until both expected joining dates are known.' : timingDifference > 0 ? 'Offer A falls more clearly within the current supported Career period.' : timingDifference < 0 ? 'Offer B falls more clearly within the current supported Career period.' : 'Both offers fall within broadly similar Career timing.';
   const summary = outcome === 'OFFER_A_MORE_ALIGNED' ? 'Offer A appears more aligned with the available Career timing and supplied priorities.' : outcome === 'OFFER_B_MORE_ALIGNED' ? 'Offer B appears more aligned with the available Career timing and supplied priorities.' : outcome === 'SIMILAR_ALIGNMENT' ? 'Both offers appear similarly aligned with the available Career timing and supplied priorities.' : 'The available timing and supplied practical priorities point to a mixed comparison rather than a single clear preference.';
-  const detail = (offer, timing, priority) => Object.freeze({ timing, priority, strengths: offer.strengths, cautions: [...offer.concerns, ...(offer.joiningDate ? [] : ['Expected joining date is not known.'])] });
-  return Object.freeze({ outcome, summary, timingComparison, offerA: detail(context.offerA, aTiming, aPriority), offerB: detail(context.offerB, bTiming, bPriority) });
+  const detail = (offer, timing, offerDateTiming, priority) => Object.freeze({ timing, offerTiming: offerDateTiming, joiningTiming: timing, priority, strengths: offer.strengths, cautions: [...offer.concerns, ...(offer.joiningDate ? [] : ['Expected joining date is not known.'])] });
+  return Object.freeze({ outcome, summary, timingComparison, offerA: detail(context.offerA, aTiming, aOfferTiming, aPriority), offerB: detail(context.offerB, bTiming, bOfferTiming, bPriority) });
 }
 
 class CareerDecisionService {
@@ -172,8 +179,11 @@ class CareerDecisionService {
     else {
     const hasConditions = Boolean(request.context.concerns || request.context.reasons.length || request.context.priority || request.context.priorities.length);
     const state = hasConditions ? DecisionState.SUPPORTIVE_WITH_CONDITIONS : DecisionState.MORE_SUPPORTIVE;
-    const comparison = request.decisionType === CareerDecisionType.COMPARE_OFFERS ? compareOffers(request.context, evidence.answer.window) : null;
-    result = Object.freeze({ decisionType: request.decisionType, state, context: request.context, sourceReadingId: evidence.sourceReadingId, timing: evidence.answer.window, ...(request.decisionType === CareerDecisionType.SWITCH_JOB ? { timingScope: 'EXPLORE_ONLY' } : {}), ...(comparison ? { comparison } : {}), overallView: comparison ? comparison.summary : `${title(request.decisionType)} can be considered alongside the currently supported Career timing.`, supports: (evidence.evidence || []).map((item) => item.summary), cautions: hasConditions ? ['Your stated priorities and concerns remain important practical conditions.'] : [], practicalFactors: [...practical[request.decisionType], ...(request.context.priority ? [`Prioritize ${request.context.priority} when comparing practical options.`] : [])], whatToDo: practical[request.decisionType], limitation: evidence.answer.limitation, detailedAstrology: { evidence: evidence.evidence || [], agreement: evidence.agreement || null } });
+    const timingContext = evidence.timingContext || legacyContextFromWindow(evidence.answer.window);
+    const comparison = request.decisionType === CareerDecisionType.COMPARE_OFFERS ? compareOffers(request.context, timingContext) : null;
+    const offerDateTiming = request.decisionType === CareerDecisionType.JOB_OFFER ? dateTiming(request.context.offerReceivedDate, timingContext, 'No offer received date was provided, so offer timing cannot be compared yet.') : null;
+    const joiningDateTiming = request.decisionType === CareerDecisionType.JOB_OFFER ? dateTiming(request.context.joiningDate, timingContext, 'No expected joining date was provided, so joining timing cannot be compared yet.') : null;
+    result = Object.freeze({ decisionType: request.decisionType, state, context: request.context, sourceReadingId: evidence.sourceReadingId, timing: evidence.answer.window, timingContext, ...(offerDateTiming ? { offerTiming: offerDateTiming, joiningTiming: joiningDateTiming } : {}), ...(request.decisionType === CareerDecisionType.SWITCH_JOB ? { timingScope: 'EXPLORE_ONLY' } : {}), ...(comparison ? { comparison } : {}), overallView: comparison ? comparison.summary : `${title(request.decisionType)} can be considered alongside the currently supported Career timing.`, supports: (evidence.evidence || []).map((item) => item.summary), cautions: hasConditions ? ['Your stated priorities and concerns remain important practical conditions.'] : [], practicalFactors: [...practical[request.decisionType], ...(request.context.priority ? [`Prioritize ${request.context.priority} when comparing practical options.`] : [])], whatToDo: practical[request.decisionType], limitation: evidence.answer.limitation, detailedAstrology: { evidence: evidence.evidence || [], agreement: evidence.agreement || null } });
     }
     return this._persist({ principal: owner ? owner.verified : principal, user: owner && owner.user, birthProfileId, request, result });
   }
