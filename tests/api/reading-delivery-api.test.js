@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createApi } = require('../../src/api');
 const { createTestOnlyAuthVerifier } = require('../../src/api/test-only-auth-verifier');
+const { CareerTimingAuthorityService } = require('../../src/application/career-timing');
 
 const a = { provider: 'supabase', subject: 'subject-a', isAnonymous: false };
 const b = { provider: 'supabase', subject: 'subject-b', isAnonymous: false };
@@ -101,4 +102,14 @@ test('Phase 5A passes an optional possible Career activity signal through GET wi
   assert.deepEqual(response.json().reading.careerTimingPeriods, timing);
   assert.equal(response.json().reading.careerTimingPeriods[0].evidenceState, 'POSSIBLE_CAREER_ACTIVITY_SIGNAL');
   await api.close();
+});
+test('Career reading detail additively exposes the canonical snapshot without replay or list-summary leakage', async () => {
+  const start='2026-01-01T00:00:00.000Z', end='2026-01-20T00:00:00.000Z';
+  const evidence={d1Houses:{houses:Array.from({length:12},(_,i)=>({houseNumber:i+1,rashi:{rashiIndex:i+1},rashiHouseLord:i===9?'Saturn':'Sun'})),planetaryAssignments:[{body:'Saturn',rashi:{rashiIndex:8},rashiHouseNumber:8},{body:'Moon',rashi:{rashiIndex:10},rashiHouseNumber:10}]},dashaIntervals:[{start,end,activePeriods:[{level:'MD',lord:'Saturn'},{level:'AD',lord:'Moon'},{level:'PD',lord:'Saturn'}]}],transitIntervals:[{planet:'Jupiter',sign:10,start,end},{planet:'Saturn',sign:10,start,end}],d10Corroboration:{themes:[{}]},forecastStart:start,forecastEnd:end,calculationInstant:start};
+  const careerTiming=new CareerTimingAuthorityService({rolloutMode:'SHADOW'}).calculate(evidence).careerTiming;
+  const calls={detail:0,replay:0};
+  const api=createApi({authVerifier:createTestOnlyAuthVerifier({a,b}),userResolver:{resolve:async()=>({id:'internal-user',status:'active'})},birthProfileService:{create:async()=>null,list:async()=>[],get:async()=>null},secureReadingService:{async getSecureReadingDetail(){calls.detail+=1;return {...detail('reading-canonical'),careerTiming};},async listSecureReadings(){return [summary('reading-canonical','2026-08-18T00:00:00.000Z')];},async generateSecureReading(){throw new Error('not used');},async replaySecureReading(){calls.replay+=1;throw new Error('must not replay');}},requestIdGenerator:()=> 'request-1'});
+  const response=await api.inject(request('a','/v1/readings/reading-canonical')); assert.equal(response.statusCode,200); assert.deepEqual(response.json().reading.careerTiming,careerTiming); assert.equal(response.json().reading.careerTiming.authority,'SHADOW'); assert.equal(calls.detail,1); assert.equal(calls.replay,0);
+  const keys=[]; const visit=(value)=>{if(Array.isArray(value))return value.forEach(visit);if(!value||typeof value!=='object')return;for(const [key,child] of Object.entries(value)){keys.push(key);visit(child);}}; visit(response.json().reading.careerTiming); for(const forbidden of ['birthData','latitude','longitude','rawD1','rawD10','rawDasha','rawTransit','historicalEvents','evidenceGraph','certification','debug','stack','error']) assert.equal(keys.includes(forbidden),false,forbidden);
+  const listed=await api.inject(request('a','/v1/readings')); assert.equal('careerTiming' in listed.json().readings[0],false); assertSafe(response.json()); await api.close();
 });

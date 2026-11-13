@@ -5,6 +5,7 @@ const test = require('node:test');
 const { BirthCareerReadingOrchestrator } = require('../../src/orchestration');
 const { createResolvedBirthPlace } = require('../../src/place');
 const { AstronomicalEngine } = require('../../src/astronomy');
+const { CareerTimingAuthorityService } = require('../../src/application/career-timing');
 
 const BODY_LONGITUDES = Object.freeze({ Sun: 245.1, Moon: 250.2, Mars: 180.3, Mercury: 210.4, Jupiter: 275.5, Venus: 300.6, Saturn: 225.7, Rahu: 90.8, Ketu: 270.8, Ascendant: 330.9 });
 function freeze(value) { if (value && typeof value === 'object' && !Object.isFrozen(value)) { Object.freeze(value); Object.values(value).forEach(freeze); } return value; }
@@ -117,4 +118,48 @@ test('propagates provider failure as fatal and contains no network or model inte
   assert.throws(() => failed.generate(request()), /provider failed/);
   const source = require('node:fs').readFileSync(require('node:path').join(__dirname, '../../src/orchestration/birth-career-reading-orchestrator.js'), 'utf8');
   for (const forbidden of ['fetch(', 'axios', 'mapbox', 'http', 'openai']) assert.equal(source.toLowerCase().includes(forbidden), false, forbidden);
+});
+
+test('reuses one bounded evidence packet for legacy and additive canonical timing', () => {
+  const fixture = engine(); let authorityCalls = 0; let captured = null;
+  const canonical = freeze({ contractVersion: 'career-timing-production-v1', authority: 'CAREER_TIMING_V2' });
+  const authority = { calculate(evidence, options) {
+    authorityCalls += 1; captured = { evidence, options };
+    return freeze({ authority: 'LEGACY', legacyTiming: { periods: freeze([]) }, careerTiming: canonical });
+  } };
+  const result = new BirthCareerReadingOrchestrator({ astronomicalEngine: fixture, dashaRulesetId: SAVANA_RULESET_ID, careerTimingHorizonMonths: 1, careerTimingAuthorityService: authority }).generate(request());
+  assert.equal(authorityCalls, 1);
+  assert.equal(captured.evidence.d1Houses.rulesetId, result.provenance.houseRulesetId);
+  assert.ok(captured.evidence.dashaIntervals.length > 0);
+  assert.deepEqual([...new Set(captured.evidence.transitIntervals.map((item) => item.planet))].sort(), ['Jupiter', 'Saturn']);
+  assert.equal(captured.evidence.calculationInstant, request().readingInstant);
+  assert.equal(captured.options.referenceInstant, request().readingInstant);
+  assert.deepEqual(result.reading.careerTimingPeriods, []);
+  assert.equal(result.reading.careerTiming, canonical);
+  assert.equal(Object.isFrozen(result.reading.careerTiming), true);
+  assert.equal('historicalEvents' in captured.evidence, false);
+});
+
+test('default OFF integration preserves legacy reading shape without canonical timing', () => {
+  const result = new BirthCareerReadingOrchestrator({ astronomicalEngine: engine(), dashaRulesetId: SAVANA_RULESET_ID, careerTimingHorizonMonths: 1 }).generate(request());
+  assert.ok(Array.isArray(result.reading.careerTimingPeriods));
+  assert.equal('careerTiming' in result.reading, false);
+});
+
+test('SHADOW end-to-end persists additive timing while customer-visible legacy timing stays byte-identical to OFF', () => {
+  const off = new BirthCareerReadingOrchestrator({ astronomicalEngine: engine(), dashaRulesetId: SAVANA_RULESET_ID, careerTimingHorizonMonths: 1 }).generate(request());
+  const shadow = new BirthCareerReadingOrchestrator({ astronomicalEngine: engine(), dashaRulesetId: SAVANA_RULESET_ID, careerTimingHorizonMonths: 1, careerTimingAuthorityService: new CareerTimingAuthorityService({ rolloutMode: 'SHADOW' }) }).generate(request());
+  assert.deepEqual(shadow.reading.careerTimingPeriods, off.reading.careerTimingPeriods);
+  assert.equal(shadow.reading.careerTiming.authority, 'SHADOW');
+  assert.equal(shadow.reading.careerTiming.contractVersion, 'career-timing-production-v1');
+  assert.ok(Array.isArray(shadow.reading.careerTiming.periods));
+  const keys = []; const visit = (value) => { if (Array.isArray(value)) return value.forEach(visit); if (!value || typeof value !== 'object') return; for (const [key, child] of Object.entries(value)) { keys.push(key); visit(child); } }; visit(shadow.reading.careerTiming);
+  for (const prohibited of ['birthData', 'latitude', 'longitude', 'birthProfileId', 'userId', 'historicalEvents', 'rawD1', 'rawD10', 'rawDasha', 'rawTransit', 'evidenceGraph']) assert.equal(keys.includes(prohibited), false, prohibited);
+});
+
+test('SHADOW eligibility/refinement failure leaves the complete legacy reading available', () => {
+  const failed = new CareerTimingAuthorityService({ rolloutMode: 'SHADOW', v2Calculator() { throw Object.assign(new Error('private'), { code: 'CAREER_V2_REFINEMENT_FAILURE' }); } });
+  const shadow = new BirthCareerReadingOrchestrator({ astronomicalEngine: engine(), dashaRulesetId: SAVANA_RULESET_ID, careerTimingHorizonMonths: 1, careerTimingAuthorityService: failed }).generate(request());
+  assert.ok(Array.isArray(shadow.reading.careerTimingPeriods));
+  assert.equal('careerTiming' in shadow.reading, false);
 });

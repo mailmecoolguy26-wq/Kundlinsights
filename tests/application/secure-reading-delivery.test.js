@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const { InMemoryReadingRepository } = require('../../src/persistence');
 const { SecureReadingService } = require('../../src/application/readings');
 const { ReadingPayloadCodec } = require('../../src/security/crypto');
+const { CareerTimingAuthorityService } = require('../../src/application/career-timing');
 
 const principal = (subject) => ({ provider: 'supabase', subject, isAnonymous: false });
 
@@ -214,6 +215,51 @@ test('Career timing delivery is optional, public-safe, chronological, and does n
   assert.equal(JSON.stringify(detail.careerTimingPeriods).match(/private|threshold|rank|score|probability|confidence/i), null);
   const legacy = await service.getSecureReadingDetail({ principal: principal('subject-a'), readingId: 'reading-a-new' });
   assert.equal('careerTimingPeriods' in legacy, false);
+});
+test('canonical Career timing is strictly allowlisted while legacy and unsupported snapshots remain compatible', async () => {
+  const { service, readings } = setup();
+  const start='2026-01-01T00:00:00.000Z', end='2026-01-20T00:00:00.000Z';
+  const evidence={d1Houses:{houses:Array.from({length:12},(_,i)=>({houseNumber:i+1,rashi:{rashiIndex:i+1},rashiHouseLord:i===9?'Saturn':'Sun'})),planetaryAssignments:[{body:'Saturn',rashi:{rashiIndex:8},rashiHouseNumber:8},{body:'Moon',rashi:{rashiIndex:10},rashiHouseNumber:10}]},dashaIntervals:[{start,end,activePeriods:[{level:'MD',lord:'Saturn'},{level:'AD',lord:'Moon'},{level:'PD',lord:'Saturn'}]}],transitIntervals:[{planet:'Jupiter',sign:10,start,end},{planet:'Saturn',sign:10,start,end}],d10Corroboration:{themes:[{}]},forecastStart:start,forecastEnd:end,calculationInstant:start};
+  const canonical=new CareerTimingAuthorityService({rolloutMode:'ON'}).calculate(evidence).careerTiming;
+  const stored=record('reading-canonical-timing','2026-08-26T00:00:00.000Z','Stored content.');
+  stored.reading.careerTiming=JSON.parse(JSON.stringify(canonical));
+  stored.reading.careerTiming.birthData={date:'private'}; stored.reading.careerTiming.coordinates={latitude:1}; stored.reading.careerTiming.certification={cohort:'private'}; stored.reading.careerTiming.historicalEvents=[{eventId:'private'}];
+  readings.insertReadingRecord({userId:'user-a',birthProfileId:'profile-a',record:stored});
+  const detail=await service.getSecureReadingDetail({principal:principal('subject-a'),readingId:'reading-canonical-timing'});
+  assert.equal(detail.careerTiming.contractVersion,'career-timing-production-v1');
+  assert.equal(detail.careerTiming.intervalSemantics,'HALF_OPEN');
+  assert.equal(Object.isFrozen(detail.careerTiming),true);
+  const serialized=JSON.stringify(detail.careerTiming);
+  for(const forbidden of ['birthData','coordinates','certification']) assert.equal(Object.hasOwn(detail.careerTiming,forbidden),false,forbidden);
+  assert.equal(Object.hasOwn(detail.careerTiming,'historicalEvents'),false);
+  assert.equal(serialized.includes('private'),false);
+
+  const future=record('reading-future-timing','2026-08-27T00:00:00.000Z','Stored content.'); future.reading.careerTiming={...canonical,contractVersion:'career-timing-production-v99'};
+  const malformed=record('reading-malformed-timing','2026-08-28T00:00:00.000Z','Stored content.'); malformed.reading.careerTiming={...canonical,periods:[{start:'invalid'}]};
+  readings.insertReadingRecord({userId:'user-a',birthProfileId:'profile-a',record:future}); readings.insertReadingRecord({userId:'user-a',birthProfileId:'profile-a',record:malformed});
+  assert.equal('careerTiming' in await service.getSecureReadingDetail({principal:principal('subject-a'),readingId:'reading-future-timing'}),false);
+  assert.equal('careerTiming' in await service.getSecureReadingDetail({principal:principal('subject-a'),readingId:'reading-malformed-timing'}),false);
+  assert.equal('careerTiming' in await service.getSecureReadingDetail({principal:principal('subject-a'),readingId:'reading-a-new'}),false);
+});
+test('canonical Career timing public contract is stable, nullable, half-open, and rejects malformed selections or boundaries', async () => {
+  const { service, readings } = setup();
+  const start='2026-01-01T00:00:00.000Z', end='2026-01-20T00:00:00.000Z';
+  const evidence={d1Houses:{houses:Array.from({length:12},(_,i)=>({houseNumber:i+1,rashi:{rashiIndex:i+1},rashiHouseLord:i===9?'Saturn':'Sun'})),planetaryAssignments:[{body:'Saturn',rashi:{rashiIndex:8},rashiHouseNumber:8},{body:'Moon',rashi:{rashiIndex:10},rashiHouseNumber:10}]},dashaIntervals:[{start,end,activePeriods:[{level:'MD',lord:'Saturn'},{level:'AD',lord:'Moon'},{level:'PD',lord:'Saturn'}]}],transitIntervals:[{planet:'Jupiter',sign:10,start,end},{planet:'Saturn',sign:10,start,end}],d10Corroboration:{themes:[{}]},forecastStart:start,forecastEnd:end,calculationInstant:'2026-01-05T00:00:00.000Z'};
+  const canonical=new CareerTimingAuthorityService({rolloutMode:'SHADOW'}).calculate(evidence,{referenceInstant:'2026-01-05T00:00:00.000Z'}).careerTiming;
+  const stored=record('reading-contract-snapshot','2026-08-29T00:00:00.000Z','Stored content.'); stored.reading.careerTiming=canonical; readings.insertReadingRecord({userId:'user-a',birthProfileId:'profile-a',record:stored});
+  const detail=await service.getSecureReadingDetail({principal:principal('subject-a'),readingId:'reading-contract-snapshot'});
+  assert.deepEqual(Object.keys(detail.careerTiming).sort(),['contractVersion','timingEngineVersion','eligibilityRuleset','refinementRuleset','authority','intervalSemantics','periods','current','next','explanationPolicy'].sort());
+  assert.deepEqual({contractVersion:detail.careerTiming.contractVersion,authority:detail.careerTiming.authority,intervalSemantics:detail.careerTiming.intervalSemantics},{contractVersion:'career-timing-production-v1',authority:'SHADOW',intervalSemantics:'HALF_OPEN'});
+  assert.equal(detail.careerTiming.periods.length,1); assert.equal(detail.careerTiming.periods[0].label,'Supportive period'); assert.equal(detail.careerTiming.periods[0].strongestWindow.label,'Background support'); assert.equal(detail.careerTiming.current.eligiblePeriod.periodId,detail.careerTiming.periods[0].periodId); assert.equal(detail.careerTiming.next,null); assert.equal(Object.isFrozen(detail.careerTiming.current.eligiblePeriod.refinementWindows),true);
+
+  const cases = [
+    ['missing-version',(({timingEngineVersion: _omitted,...rest})=>rest)(canonical)],
+    ['bad-semantics',{...canonical,intervalSemantics:'INCLUSIVE'}],
+    ['bad-state',{...canonical,periods:[{...canonical.periods[0],internalState:'UNKNOWN'}]}],
+    ['outside-child',{...canonical,periods:[{...canonical.periods[0],refinementWindows:[{...canonical.periods[0].refinementWindows[0],start:'2025-12-31T00:00:00.000Z'}]}]}],
+    ['detached-current',{...canonical,current:{...canonical.current,eligiblePeriod:{...canonical.current.eligiblePeriod,periodId:'different-period'}}}],
+  ];
+  for (const [suffix,value] of cases) { const invalid=record(`reading-invalid-${suffix}`,'2026-08-30T00:00:00.000Z','Stored content.'); invalid.reading.careerTiming=value; readings.insertReadingRecord({userId:'user-a',birthProfileId:'profile-a',record:invalid}); const output=await service.getSecureReadingDetail({principal:principal('subject-a'),readingId:`reading-invalid-${suffix}`}); assert.equal('careerTiming' in output,false,suffix); }
 });
 test('Career Insight delivery omits absent optional transit and concurrent fields without rejecting the detail DTO', async () => {
   const { service, readings } = setup();

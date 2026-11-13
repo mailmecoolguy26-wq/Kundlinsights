@@ -11,7 +11,7 @@ const { calculateAshtakavargaForLayer2 } = require('../application/ashtakavarga'
 const { buildCareerAshtakavargaStructure } = require('../application/ashtakavarga/career-ashtakavarga-structure');
 const { evaluatePlanetaryState } = require('../dignity');
 const { buildCareerReading } = require('./career-reading-orchestrator');
-const { buildCareerTimingPeriods } = require('../application/insights/career-timing-periods');
+const { CareerTimingAuthorityService } = require('../application/career-timing');
 const { isProductionAstronomicalAuthority } = require('../astronomy');
 const { validateBirthCareerRequest, utcInstantToLayer1Input } = require('./birth-career-input-validation');
 const {
@@ -204,7 +204,7 @@ function futureMajorTransitIntervals({ astronomicalEngine, start, end, place, na
 }
 
 class BirthCareerReadingOrchestrator {
-  constructor({ astronomicalEngine, dashaRulesetId, canonicalSiderealSunSampler, careerTimingHorizonMonths = 12 } = {}) {
+  constructor({ astronomicalEngine, dashaRulesetId, canonicalSiderealSunSampler, careerTimingHorizonMonths = 12, careerTimingAuthorityService = null } = {}) {
     if (!astronomicalEngine || typeof astronomicalEngine.calculate !== 'function') throw new TypeError('BirthCareerReadingOrchestrator requires an injected astronomicalEngine.');
     if (dashaRulesetId !== undefined && typeof dashaRulesetId !== 'string') throw new TypeError('dashaRulesetId must be a supported string identifier when supplied.');
     if (!Number.isInteger(careerTimingHorizonMonths) || careerTimingHorizonMonths < 1 || careerTimingHorizonMonths > 24) throw new RangeError('careerTimingHorizonMonths must be between 1 and 24.');
@@ -224,6 +224,8 @@ class BirthCareerReadingOrchestrator {
     this.engineProfile = engineProfile;
     this.canonicalSiderealSunSampler = canonicalSiderealSunSampler || null;
     this.careerTimingHorizonMonths = careerTimingHorizonMonths;
+    this.careerTimingAuthorityService = careerTimingAuthorityService || new CareerTimingAuthorityService();
+    if (!this.careerTimingAuthorityService || typeof this.careerTimingAuthorityService.calculate !== 'function') throw new TypeError('careerTimingAuthorityService must expose calculate().');
     Object.freeze(this);
   }
 
@@ -285,19 +287,26 @@ class BirthCareerReadingOrchestrator {
     const timingHorizonEnd = addMonths(input.readingInstant, this.careerTimingHorizonMonths);
     const h10 = houses.houses.find((house) => house.houseNumber === 10);
     const h10Sav = rawAshtakavarga.rawSarvashtakavarga.rashis.find((rashi) => rashi.rashiIndex === h10.rashi.rashiIndex)?.favorableMarkCount;
-    const careerTiming = buildCareerTimingPeriods({
+    const timingEvidence = freeze({
       d1Houses: houses,
       dashaIntervals: futureDashaIntervals(dasha, timingHorizonEnd),
       transitIntervals: futureMajorTransitIntervals({ astronomicalEngine: this.astronomicalEngine, start: input.readingInstant, end: timingHorizonEnd, place: input.birth.place, natalBodies: birthLayer1Result.bodies, natalHouses: houses }),
-      horizonStart: input.readingInstant,
-      horizonEnd: timingHorizonEnd,
-      d10Confirmation: Boolean(career.reading.careerD10Corroboration),
+      d10Structure: career.reading.careerD10Structure || null,
+      d10Corroboration: career.reading.careerD10Corroboration || null,
+      forecastStart: input.readingInstant,
+      forecastEnd: timingHorizonEnd,
+      calculationInstant: input.readingInstant,
       h10Sav,
     });
+    const timing = this.careerTimingAuthorityService.calculate(timingEvidence, { referenceInstant: input.readingInstant });
     return freeze({
       domain: career.domain,
       locale: career.locale,
-      reading: freeze({ ...career.reading, careerTimingPeriods: careerTiming.periods }),
+      reading: freeze({
+        ...career.reading,
+        careerTimingPeriods: timing.legacyTiming.periods,
+        ...(timing.careerTiming ? { careerTiming: timing.careerTiming } : {}),
+      }),
       renderedReading: career.renderedReading,
       provenance: safeProviderProvenance(birthLayer1Result, houses, dasha, input.birth.place, providerSamplerConsistency, this.engineProfile, CAREER_TRANSIT_BOUNDARY_METHOD),
     });

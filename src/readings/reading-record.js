@@ -66,7 +66,15 @@ function recordProvenance(result) {
     timezone: { rulesetId: provenance.timezoneRulesetId || null, datasetVersion: provenance.timezoneDatasetVersion || null },
     dasha: safeDasha(provenance),
     houses: { rulesetId: provenance.houseRulesetId || null },
-    reading: { rulesetId: result.reading && result.reading.rulesetId || null, interpretationRulesetId: provenance.layer15aRulesetId || null },
+    reading: {
+      rulesetId: result.reading && result.reading.rulesetId || null,
+      interpretationRulesetId: provenance.layer15aRulesetId || null,
+      careerTimingContractVersion: result.reading && result.reading.careerTiming && result.reading.careerTiming.contractVersion || null,
+      careerTimingEngineVersion: result.reading && result.reading.careerTiming && result.reading.careerTiming.timingEngineVersion || null,
+      careerTimingEligibilityRuleset: result.reading && result.reading.careerTiming && result.reading.careerTiming.eligibilityRuleset || null,
+      careerTimingRefinementRuleset: result.reading && result.reading.careerTiming && result.reading.careerTiming.refinementRuleset || null,
+      careerTimingAuthority: result.reading && result.reading.careerTiming && result.reading.careerTiming.authority || null,
+    },
     renderer: { rulesetId: result.renderedReading && result.renderedReading.provenance && result.renderedReading.provenance.rendererRulesetId || null },
     calibration: provenance.calibrationMetadata || null,
   };
