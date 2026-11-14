@@ -26,9 +26,20 @@ function unsupportedMessage(language) {
     ? 'Main abhi is area ke liye reliable personalized answer dene ke liye ready nahi hoon.'
     : 'I’m not ready to give you a reliable personalized answer for this area yet.';
 }
-function diagnostic(log, event, { state = null, action = null, messageId = null, birthProfileId = null } = {}) {
+function diagnostic(log, event, { state = null, action = null, messageId = null } = {}) {
   if (typeof log !== 'function') return;
-  log({ event, state, actionType: action && action.type || null, actionLabel: action && action.label || null, messageId, birthProfileId });
+  log({ event, state, actionType: action && action.type || null, messageId });
+}
+function routingDiagnostic(log, { requestId = null, domain, capability, responseSource = 'FRESH_GENERATION' } = {}) {
+  if (typeof log !== 'function') return;
+  log({
+    event: 'tara_request_routing',
+    requestId,
+    timestamp: new Date().toISOString(),
+    domain,
+    capability,
+    responseSource,
+  });
 }
 
 class TaraOrchestrator {
@@ -40,7 +51,7 @@ class TaraOrchestrator {
     this.vehicle = vehicleCapability && typeof vehicleCapability.respond === 'function' ? vehicleCapability : null;
   }
 
-  async respond({ principal, birthProfileId, message, conversationContext = [], language = 'ENGLISH', diagnosticLog = null } = {}) {
+  async respond({ principal, birthProfileId, message, conversationContext = [], language = 'ENGLISH', diagnosticLog = null, requestId = null } = {}) {
     const normalizedMessage = detectTaraLanguageStyle(message) === TaraLanguageStyle.HINGLISH
       ? normalizeHinglishForIntent(message)
       : message;
@@ -52,6 +63,11 @@ class TaraOrchestrator {
       return Object.freeze({ domain: hubIntent.kind === 'DOMAIN_HUB' ? hubIntent.domain : 'WEALTH_PROPERTY', ...hubResponse });
     }
     const domain = classifyTaraDomain(normalizedMessage);
+    const capability = domain === 'CAREER' ? 'CAREER_GROUNDED'
+      : domain === 'TRANSIT' ? 'TRANSIT_GROUNDED'
+        : domain === 'WEALTH_PROPERTY' ? 'PROPERTY_GROUNDED'
+          : domain === 'VEHICLE' ? 'VEHICLE_GROUNDED' : null;
+    routingDiagnostic(diagnosticLog, { requestId, domain, capability });
     if (domain === 'TRANSIT') {
       if (!this.transit) return Object.freeze({ domain, answerability: 'UNSUPPORTED', capability: null, message: unsupportedMessage(responseLanguage) });
       const transit = await this.transit.respond({ principal, birthProfileId, message: normalizedMessage, conversationContext, language: responseLanguage, diagnosticLog });
@@ -68,7 +84,7 @@ class TaraOrchestrator {
       return Object.freeze({ domain, answerability: vehicle.answerability, capability: 'VEHICLE_GROUNDED', message: vehicle.message, vehicle, action: null });
     }
     if (domain !== 'CAREER') return Object.freeze({ domain, answerability: 'UNSUPPORTED', capability: null, message: unsupportedMessage(responseLanguage) });
-    const career = await this.career.respond({ principal, birthProfileId, message: normalizedMessage, conversationContext, language: responseLanguage, diagnosticLog });
+    const career = await this.career.respond({ principal, birthProfileId, message: normalizedMessage, conversationContext, language: responseLanguage, diagnosticLog, requestId });
     diagnostic(diagnosticLog, 'TARA_BACKEND_ORCHESTRATOR', { state: career.state, action: career.action, birthProfileId });
     return Object.freeze({
       domain,

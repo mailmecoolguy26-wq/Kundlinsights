@@ -64,6 +64,43 @@ test('maps English and Hinglish job-acquisition questions to grounded Career tim
   assert.ok(calls.every((call) => call.body.questionType === 'JOB_FAVOURABILITY_TIMING'));
 });
 
+test('emits privacy-safe correlated routing, Career intent, and response-branch diagnostics', async () => {
+  const logs = [];
+  const capability = new TaraCareerCapability({ careerAnswerService: { answer: async () => ({
+    questionType: 'JOB_FAVOURABILITY_TIMING',
+    answerability: 'SUPPORTED',
+    broadWindow: { start: '2026-11-20T12:46:11.911Z', end: '2027-01-10T20:17:38.633Z' },
+  }) } });
+  const tara = new TaraOrchestrator({ careerCapability: capability });
+  const message = 'job kab tak milne ke chances hai ?';
+  const result = await tara.respond({
+    principal: {}, birthProfileId: 'sensitive-profile-id', message,
+    language: 'HINGLISH', requestId: 'tara-request-1', diagnosticLog: (entry) => logs.push(entry),
+  });
+
+  assert.equal(result.domain, 'CAREER');
+  assert.equal(result.career.intent, TaraCareerIntent.JOB_FAVOURABILITY_TIMING);
+  const routing = logs.find((entry) => entry.event === 'tara_request_routing');
+  const classified = logs.find((entry) => entry.event === 'tara_career_intent_classified');
+  const branch = logs.find((entry) => entry.event === 'tara_career_response_branch');
+  assert.equal(routing.domain, 'CAREER');
+  assert.equal(routing.capability, 'CAREER_GROUNDED');
+  assert.equal(classified.intent, TaraCareerIntent.JOB_FAVOURABILITY_TIMING);
+  assert.equal(classified.matchedBranch, 'JOB_FAVOURABILITY_HANDLER');
+  assert.equal(branch.handler, 'JOB_FAVOURABILITY_HANDLER');
+  assert.ok([routing, classified, branch].every((entry) => entry.requestId === 'tara-request-1'));
+  const serialized = JSON.stringify(logs);
+  assert.equal(serialized.includes(message), false);
+  assert.equal(serialized.includes('sensitive-profile-id'), false);
+  assert.equal(serialized.includes('birthProfileId'), false);
+
+  const unsupportedLogs = [];
+  const unsupported = await tara.respond({ principal: {}, birthProfileId: 'private', message: 'Should I switch phones?', requestId: 'tara-request-2', diagnosticLog: (entry) => unsupportedLogs.push(entry) });
+  assert.equal(unsupported.career.intent, TaraCareerIntent.UNSUPPORTED_CAREER);
+  assert.equal(unsupportedLogs.find((entry) => entry.event === 'tara_career_intent_classified').unsupportedFallback, true);
+  assert.equal(unsupportedLogs.find((entry) => entry.event === 'tara_career_response_branch').handler, 'UNSUPPORTED_FALLBACK');
+});
+
 test('routes only conservative Career decision requests to an existing decision form', async () => {
   const capability = new TaraCareerCapability({ careerAnswerService: { answer: async () => { throw new Error('decision routing must not calculate a result'); } } });
   const cases = [
