@@ -51,6 +51,19 @@ test('analytics recorder forwards only aggregate shadow properties', async () =>
   assert.equal(calls[0].properties.mode, 'SHADOW');
 });
 
+test('analytics recorder omits undefined optional shadow fields', async () => {
+  const calls = [];
+  const recorder = new AnalyticsEventRecorder({ provider: { track: async (name, properties) => calls.push({ name, properties }) } });
+  await recorder.record('career_timing_v2_shadow', {
+    mode: 'SHADOW', status: 'SUCCEEDED', duration_ms: 12,
+    error_code: undefined,
+  });
+  assert.deepEqual(calls, [{
+    name: 'career_timing_v2_shadow',
+    properties: { mode: 'SHADOW', status: 'SUCCEEDED', duration_ms: 12 },
+  }]);
+});
+
 test('career shadow event schema rejects every prohibited scalar or nested property', async () => {
   const calls = [];
   const recorder = new AnalyticsEventRecorder({ provider: { track: async (name, properties) => calls.push({ name, properties }) } });
