@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createApi } = require('../../src/api');
+const { createApi, careerReadingDiagnosticMessage } = require('../../src/api');
 const { createTestOnlyAuthVerifier } = require('../../src/api/test-only-auth-verifier');
 
 const principal = { provider: 'supabase', subject: 'subject-a', isAnonymous: false };
@@ -74,4 +74,19 @@ test('caller reading instant and locale are not forwarded as public creation aut
     idempotencyKey: 'key-1',
   });
   await api.close();
+});
+
+test('Career reading operational diagnostics expose only allowlisted stage metadata', () => {
+  assert.equal(
+    careerReadingDiagnosticMessage({
+      event: 'CAREER_READING_INTERPRETER_STEP',
+      step: 'EXTRACT_PROVIDER_OUTPUT',
+      status: 'FAILED',
+      extractionReasonCode: 'PROVIDER_INCOMPLETE',
+      birthProfileId: 'must-not-appear',
+      providerRequestId: 'must-not-appear',
+      narrative: 'must-not-appear',
+    }),
+    'CAREER_READING_DIAGNOSTIC event=CAREER_READING_INTERPRETER_STEP step=EXTRACT_PROVIDER_OUTPUT status=FAILED extractionReasonCode=PROVIDER_INCOMPLETE',
+  );
 });
