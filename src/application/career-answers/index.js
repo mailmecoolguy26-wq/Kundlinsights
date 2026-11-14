@@ -409,13 +409,16 @@ function shapeForAccess(answer, premium) {
 }
 
 class CareerAnswerService {
-  constructor({ secureReadingService, birthProfileService = null, jobFavourabilityResearchEnabled = false, jobFavourabilityEvaluator = null, timingMode = 'OFF', timingDiagnosticObserver = null } = {}) {
+  constructor({ secureReadingService, birthProfileService = null, jobFavourabilityResearchEnabled = false, jobFavourabilityEvaluator = null, timingMode = 'OFF', timingModeResolver = null, timingDiagnosticObserver = null } = {}) {
     if (!secureReadingService || typeof secureReadingService.getReadingEntitlementStatus !== 'function' || typeof secureReadingService.listSecureReadings !== 'function' || typeof secureReadingService.getSecureReadingDetail !== 'function') throw new TypeError('INVALID_SECURE_READING_SERVICE');
     this.readings = secureReadingService;
     this.birthProfiles = birthProfileService && typeof birthProfileService.get === 'function' ? birthProfileService : null;
     this.jobFavourabilityResearchEnabled = jobFavourabilityResearchEnabled === true;
     this.jobFavourabilityEvaluator = jobFavourabilityEvaluator;
-    this.timingAdapter = new CareerDecisionTimingAdapter({ mode: timingMode, diagnosticObserver: timingDiagnosticObserver });
+    if (timingModeResolver !== null && typeof timingModeResolver !== 'function') throw new TypeError('INVALID_CAREER_TIMING_MODE_RESOLVER');
+    this.timingMode = timingMode;
+    this.timingModeResolver = timingModeResolver;
+    this.timingDiagnosticObserver = timingDiagnosticObserver;
   }
   async answer({ principal, birthProfileId, body, timing = null } = {}) {
     const measure = async (stage, operation) => {
@@ -426,6 +429,8 @@ class CareerAnswerService {
       }
     };
     const profileId = requiredId(birthProfileId, 'INVALID_BIRTH_PROFILE_ID');
+    const effectiveTimingMode = this.timingModeResolver ? this.timingModeResolver(profileId) : this.timingMode;
+    const timingAdapter = (reading = null) => new CareerDecisionTimingAdapter({ mode: effectiveTimingMode !== 'OFF' && reading && reading.careerTiming && reading.careerTiming.authority === 'CANONICAL' ? 'ON' : effectiveTimingMode, diagnosticObserver: this.timingDiagnosticObserver });
     const request = validateQuestionRequest(body);
     const jobResearch = request.questionType === CareerQuestionType.JOB_FAVOURABILITY_TIMING && this.jobFavourabilityResearchEnabled;
     const { access, authoritativeProfile, summaries } = await measure('ENTITLEMENT_PROFILE_PREPARATION', async () => {
@@ -445,16 +450,16 @@ class CareerAnswerService {
     const selected = request.readingId ? career.find((item) => item.readingId === request.readingId) : career[0];
     if (request.readingId && !selected) throw failure('NOT_FOUND_OR_FORBIDDEN');
     if (!premium) return profilePremiumRequired(request.questionType);
-    if (!selected && request.questionType === CareerQuestionType.JOB_FAVOURABILITY_TIMING) return jobFavourabilityContract({ reading: null, premium, researchEnabled: this.jobFavourabilityResearchEnabled, evaluator: this.jobFavourabilityEvaluator, principal, birthProfileId: profileId, birthProfile: authoritativeProfile, timing, timingContext: this.timingAdapter.resolve(null) });
+    if (!selected && request.questionType === CareerQuestionType.JOB_FAVOURABILITY_TIMING) return jobFavourabilityContract({ reading: null, premium, researchEnabled: this.jobFavourabilityResearchEnabled, evaluator: this.jobFavourabilityEvaluator, principal, birthProfileId: profileId, birthProfile: authoritativeProfile, timing, timingContext: timingAdapter().resolve(null) });
     if (!selected) return shapeForAccess(
       present({ questionType: request.questionType, reading: null }),
       premium,
     );
     const detail = await measure('READING_PREPARATION', () => this.readings.getSecureReadingDetail({ principal, readingId: selected.readingId }));
     if (!detail || detail.domain !== 'CAREER' || detail.birthProfileId !== profileId || detail.readingId !== selected.readingId) throw failure('NOT_FOUND_OR_FORBIDDEN');
-    if (request.questionType === CareerQuestionType.JOB_FAVOURABILITY_TIMING) return jobFavourabilityContract({ reading: detail, premium, researchEnabled: this.jobFavourabilityResearchEnabled, evaluator: this.jobFavourabilityEvaluator, principal, birthProfileId: profileId, birthProfile: authoritativeProfile, timing, timingContext: this.timingAdapter.resolve(detail) });
+    if (request.questionType === CareerQuestionType.JOB_FAVOURABILITY_TIMING) return jobFavourabilityContract({ reading: detail, premium, researchEnabled: this.jobFavourabilityResearchEnabled, evaluator: this.jobFavourabilityEvaluator, principal, birthProfileId: profileId, birthProfile: authoritativeProfile, timing, timingContext: timingAdapter(detail).resolve(detail) });
     return shapeForAccess(
-      present({ questionType: request.questionType, reading: detail, timingContext: this.timingAdapter.resolve(detail) }),
+      present({ questionType: request.questionType, reading: detail, timingContext: timingAdapter(detail).resolve(detail) }),
       premium,
     );
   }

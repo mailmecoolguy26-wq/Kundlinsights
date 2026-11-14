@@ -85,6 +85,22 @@ test('ON uses the same persisted legacy fallback when canonical has no publishab
   assert.equal(value.careerTiming.periods.length,0);
 });
 
+test('profile-scoped timing mode selects persisted CANONICAL only for the QA profile', async () => {
+  const canonicalPeriod={periodId:'canonical-current',start:'2026-10-01T00:00:00.000Z',end:'2026-12-01T00:00:00.000Z',internalState:'SUPPORTIVE',label:'Supportive period',convergence:'STRONG_CONVERGENCE',strongestWindow:{windowId:'canonical-strong',start:'2026-11-01T00:00:00.000Z',end:'2026-11-20T00:00:00.000Z',internalTier:'STRONG',label:'Strong support',reasonSummary:{primaryDashaConvergence:'STRONG_CONVERGENCE',pdRefinement:'SUPPORT',d10Confirmation:'CONFIRMS',transitConfirmation:'JUPITER_ONLY'},evidence:{pd:'SUPPORT',d10:'CONFIRMS',jupiter:'CONFIRMS',saturn:'NOT_CONFIRMED',ashtakavarga:'UNAVAILABLE'}},refinementWindows:[]};canonicalPeriod.refinementWindows=[canonicalPeriod.strongestWindow];
+  const canonical={contractVersion:'career-timing-production-v1',timingEngineVersion:'career-timing-v2-production-1',eligibilityRuleset:'career-timing-v2.2-shadow-1',refinementRuleset:'career-timing-v2.3-shadow-1',authority:'CANONICAL',intervalSemantics:'HALF_OPEN',periods:[canonicalPeriod],current:{eligiblePeriod:canonicalPeriod,activeRefinement:null},next:null,explanationPolicy:{}};
+  const modes=[];const resolve=(profileId)=>{modes.push(profileId);return profileId==='profile-qa'?'ON':'SHADOW';};
+  const qaSummary={...summary,birthProfileId:'profile-qa'};const qaAnswers=new CareerAnswerService({secureReadingService:service({readings:[qaSummary],value:detail({...qaSummary,careerTiming:canonical})}),timingMode:'SHADOW',timingModeResolver:resolve});
+  const normalAnswers=new CareerAnswerService({secureReadingService:service({value:detail({careerTiming:{...canonical,authority:'SHADOW'}})}),timingMode:'SHADOW',timingModeResolver:resolve});
+  const removedQaAnswers=new CareerAnswerService({secureReadingService:service({readings:[qaSummary],value:detail({...qaSummary,careerTiming:canonical})}),timingMode:'SHADOW',timingModeResolver:()=> 'SHADOW'});
+  const qa=await qaAnswers.answer({principal:{},birthProfileId:'profile-qa',body:{questionType:CareerQuestionType.CAREER_ACTIVITY_TIMING}});
+  const normal=await normalAnswers.answer({principal:{},birthProfileId:'profile-a',body:{questionType:CareerQuestionType.CAREER_ACTIVITY_TIMING}});
+  const persistedAfterRemoval=await removedQaAnswers.answer({principal:{},birthProfileId:'profile-qa',body:{questionType:CareerQuestionType.CAREER_ACTIVITY_TIMING}});
+  assert.equal(qa.timingContext.authority,'CANONICAL');
+  assert.equal(normal.timingContext.authority,'LEGACY');
+  assert.equal(persistedAfterRemoval.timingContext.authority,'CANONICAL');
+  assert.deepEqual(modes,['profile-qa','profile-a']);
+});
+
 test('uses only the selected signal historical context and never invents dates or recurrence', async () => {
   const value = detail({
     careerEvidenceSynthesis: { futureRecurrence: 'Do not expose this unsupported summary.' },
