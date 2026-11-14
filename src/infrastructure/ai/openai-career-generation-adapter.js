@@ -176,7 +176,10 @@ class OpenAICareerGenerationAdapter {
     this.apiKey = apiKey; this.model = model; this.fetch = fetchImplementation; this.timeoutMilliseconds = timeoutMilliseconds; this.maxOutputTokens = maxOutputTokens; this.endpoint = endpoint; Object.freeze(this);
   }
   async generate({ prompt, diagnosticLog = null } = {}) {
-    if (!prompt || prompt.version !== 'career-reading-prompt-v1' || !validText(prompt.instructions) || !prompt.input || typeof prompt.input !== 'object') fail('invalid_prompt');
+    if (!prompt || prompt.version !== 'career-reading-prompt-v2' || !validText(prompt.instructions) || !prompt.input || typeof prompt.input !== 'object') {
+      if (typeof diagnosticLog === 'function') diagnosticLog({ event: 'CAREER_READING_INTERPRETER_STEP', step: 'VALIDATE_PROVIDER_PROMPT', status: 'FAILED', reasonCode: 'INVALID_PROMPT_CONTRACT' });
+      fail('invalid_prompt');
+    }
     const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), this.timeoutMilliseconds); let response;
     if (typeof diagnosticLog === 'function') diagnosticLog({ event: 'CAREER_READING_INTERPRETER_STEP', step: 'PROVIDER_REQUEST', status: 'STARTED' });
     try { response = await this.fetch(this.endpoint, { method: 'POST', headers: { Authorization: `Bearer ${this.apiKey}`, 'Content-Type': 'application/json' }, signal: controller.signal, body: JSON.stringify({ model: this.model, instructions: prompt.instructions, input: JSON.stringify(prompt.input), max_output_tokens: this.maxOutputTokens, store: false, text: { format: { type: 'json_schema', name: 'career_reading_interpretation', strict: true, schema: CAREER_OUTPUT_SCHEMA } } }) }); } catch { clearTimeout(timer); if (typeof diagnosticLog === 'function') diagnosticLog({ event: 'CAREER_READING_INTERPRETER_STEP', step: controller.signal.aborted ? 'PROVIDER_TIMEOUT' : 'PROVIDER_NETWORK', status: 'FAILED' }); fail(controller.signal.aborted ? 'timeout' : 'network'); }

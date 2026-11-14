@@ -1,11 +1,46 @@
 'use strict';
 const test = require('node:test'); const assert = require('node:assert/strict');
 const { OpenAICareerGenerationAdapter, OPENAI_RESPONSES_ENDPOINT, DEFAULT_MAX_OUTPUT_TOKENS, CAREER_OUTPUT_SCHEMA } = require('../../src/infrastructure/ai/openai-career-generation-adapter');
-const prompt = Object.freeze({ version: 'career-reading-prompt-v1', instructions: 'safe instructions', input: Object.freeze({ schemaVersion: 'career-reading-interpretation-schema-v1', eventReferences: [] }) });
+const { CareerReadingPromptBuilder } = require('../../src/application/readings');
+const prompt = Object.freeze({ version: 'career-reading-prompt-v2', instructions: 'safe instructions', input: Object.freeze({ schemaVersion: 'career-reading-interpretation-schema-v1', eventReferences: [] }) });
 const candidate = { schemaVersion: 'career-reading-interpretation-schema-v1', calibrationSummary: {}, recurringHistoricalEvidence: [], upcomingRecurrenceWindows: [], decisionConsiderations: [], disclosure: {} };
 function response(body, status = 200) { return { ok: status >= 200 && status < 300, status, headers: { get: (key) => key === 'x-request-id' ? 'req-safe' : null }, json: async () => body }; }
 function adapter(fetchImplementation) { return new OpenAICareerGenerationAdapter({ apiKey: 'test-secret', model: 'fake-model', fetchImplementation }); }
 test('posts one provider-neutral prompt to strict Responses structured output and returns one candidate', async () => { let seen; const value = await adapter(async (url, init) => { seen = { url, init }; return response({ status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text: JSON.stringify(candidate) }] }] }); }).generate({ prompt }); assert.deepEqual(value, candidate); assert.equal(seen.url, OPENAI_RESPONSES_ENDPOINT); assert.equal(seen.init.headers.Authorization, 'Bearer test-secret'); const body = JSON.parse(seen.init.body); assert.equal(body.text.format.type, 'json_schema'); assert.equal(body.text.format.strict, true); assert.equal(body.input.includes('safe instructions'), false); assert.equal(body.input.includes('PRIVATE'), false); assert.equal(body.instructions, 'safe instructions'); });
+test('accepts the exact prompt contract emitted by the production Career prompt builder', async () => {
+  const productionPrompt = new CareerReadingPromptBuilder().build({
+    locale: 'en-IN',
+    interpretationInput: {
+      schemaVersion: 'career-reading-interpretation-schema-v1',
+      calibrationLevel: 'NONE',
+      eventCount: 0,
+      eventReferences: [],
+      historicalEvidence: [],
+      futureOccurrences: [],
+      composites: [],
+      allowedFactors: [],
+      hasProvisionalEvidence: false,
+    },
+  });
+  let calls = 0;
+  const value = await adapter(async () => {
+    calls += 1;
+    return response({ status: 'completed', output_parsed: candidate, output: [] });
+  }).generate({ prompt: productionPrompt });
+  assert.equal(productionPrompt.version, 'career-reading-prompt-v2');
+  assert.equal(calls, 1);
+  assert.deepEqual(value, candidate);
+});
+test('fails closed for stale or unknown Career prompt contracts', async () => {
+  for (const version of ['career-reading-prompt-v1', 'career-reading-prompt-v99']) {
+    const diagnostics = [];
+    await assert.rejects(
+      () => adapter(async () => { throw new Error('provider must not run'); }).generate({ prompt: { ...prompt, version }, diagnosticLog: (entry) => diagnostics.push(entry) }),
+      (error) => error.code === 'READING_GENERATION_FAILED' && error.category === 'invalid_prompt',
+    );
+    assert.deepEqual(diagnostics, [{ event: 'CAREER_READING_INTERPRETER_STEP', step: 'VALIDATE_PROVIDER_PROMPT', status: 'FAILED', reasonCode: 'INVALID_PROMPT_CONTRACT' }]);
+  }
+});
 test('strict schema closes every object and requires strict-mode nullable optionals', () => {
   const objects = [];
   const visit = (schema) => {

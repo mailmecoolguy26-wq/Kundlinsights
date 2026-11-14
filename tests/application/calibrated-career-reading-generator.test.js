@@ -23,4 +23,36 @@ test('zero-event calibration preserves the base Career timing window without a p
   assert.deepEqual(result.result.reading.careerTimingPeriods, [timing]);
   assert.equal(result.result.reading.calibrationInterpretation.calibrationSummary.calibrationLevel, 'NONE');
 });
+test('ON zero-period canonical timing survives narrative assembly without mixing in a legacy candidate', async () => {
+  const none = { ...context, eventReferences: [] };
+  const canonical = {
+    contractVersion: 'career-timing-production-v1',
+    timingEngineVersion: 'career-timing-v2-production-1',
+    eligibilityRuleset: 'career-timing-v2.2-shadow-1',
+    refinementRuleset: 'career-timing-v2.3-shadow-1',
+    authority: 'CANONICAL',
+    intervalSemantics: 'HALF_OPEN',
+    periods: [],
+    current: null,
+    next: null,
+    explanationPolicy: { outcomeGuarantee: false },
+  };
+  const legacy = [{ startDate: '2026-11-20T00:00:00.000Z', endDate: '2027-01-10T00:00:00.000Z' }];
+  const interpreter = new CareerReadingInterpreter({
+    careerReadingContextBuilder: { build: async () => none },
+    generator: { generate: async () => { throw new Error('must not run'); } },
+  });
+  const generator = new CalibratedCareerReadingGenerator({
+    baseGenerator: { generate: async () => ({ input: {}, result: { domain: 'CAREER', reading: { careerTiming: canonical, careerTimingPeriods: legacy, insights: [] }, provenance: {} } }) },
+    careerReadingContextBuilder: { build: async () => none },
+    careerReadingInterpreter: interpreter,
+  });
+  const output = await generator.generate({ principal: {}, birthProfile: { id: 'profile-a' }, domain: 'CAREER' });
+  assert.equal(output.result.reading.careerTiming.authority, 'CANONICAL');
+  assert.deepEqual(output.result.reading.careerTiming.periods, []);
+  assert.equal(output.result.reading.careerTiming.current, null);
+  assert.equal(output.result.reading.careerTiming.next, null);
+  assert.deepEqual(output.result.reading.careerTimingPeriods, legacy);
+  assert.equal(output.result.reading.calibrationInterpretation.calibrationSummary.calibrationLevel, 'NONE');
+});
 for (const [level, eventReferences] of [['NONE', []], ['LIMITED', [{ eventId: 'event-month', eventDate: { precision: 'MONTH', year: 2021, month: 4 } }]]]) test(`${level} calibration flows through the integrated generator without recurrence`, async () => { const calls = { base: 0, builder: 0, interpreter: 0 }; const local = { ...context, calibrationLevel: level, sourceEventIds: eventReferences.map((item) => item.eventId), eventReferences }; const g = new CalibratedCareerReadingGenerator({ baseGenerator: { generate: async () => { calls.base++; return { input: { natal: 'existing', dasha: 'existing', gochar: 'existing' }, result: { domain: 'CAREER', reading: { existingCurrentContext: true }, provenance: {} } }; } }, careerReadingContextBuilder: { build: async () => { calls.builder++; return local; } }, careerReadingInterpreter: { interpretContext: async (value) => { calls.interpreter++; assert.equal(value, local); return { schemaVersion: 'career-reading-interpretation-schema-v1', calibrationSummary: { calibrationLevel: level }, recurringHistoricalEvidence: [], upcomingRecurrenceWindows: [], disclosure: { hasProvisionalEvidence: false } }; } } }); const out = await g.generate({ principal: { subject: 'u' }, birthProfile: { id: 'profile-a' }, domain: 'CAREER' }); assert.deepEqual(calls, { base: 1, builder: 1, interpreter: 1 }); assert.equal(out.result.reading.existingCurrentContext, true); assert.equal(out.result.reading.calibrationInterpretation.calibrationSummary.calibrationLevel, level); assert.deepEqual(out.result.reading.calibrationInterpretation.recurringHistoricalEvidence, []); assert.deepEqual(out.result.reading.calibrationInterpretation.upcomingRecurrenceWindows, []); if (level === 'LIMITED') assert.deepEqual(local.eventReferences[0].eventDate, { precision: 'MONTH', year: 2021, month: 4 }); });
