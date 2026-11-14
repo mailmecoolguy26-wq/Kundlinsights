@@ -9,7 +9,7 @@ test('writes one structured aggregate event without automatic identity enrichmen
   await provider.track('career_timing_v2_shadow', { mode: 'SHADOW', status: 'SUCCEEDED', duration_ms: 12 });
   assert.equal(lines.length, 1);
   const event = JSON.parse(lines[0]);
-  assert.deepEqual(event, { level: 'info', message: 'career_timing_v2_shadow', category: 'aggregate_analytics', event: 'career_timing_v2_shadow', observedAt: '2026-11-13T00:00:00.000Z', properties: { mode: 'SHADOW', status: 'SUCCEEDED', duration_ms: 12 } });
+  assert.deepEqual(event, { level: 'info', message: 'career_timing_v2_shadow', msg: 'career_timing_v2_shadow', category: 'aggregate_analytics', event: 'career_timing_v2_shadow', observedAt: '2026-11-13T00:00:00.000Z', properties: { mode: 'SHADOW', status: 'SUCCEEDED', duration_ms: 12 } });
   assert.equal(JSON.stringify(event).match(/user|profile|reading|ip|cookie|request|device/i), null);
 });
 

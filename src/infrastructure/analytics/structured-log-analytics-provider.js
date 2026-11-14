@@ -24,6 +24,7 @@ class StructuredLogAnalyticsProvider {
     const event = Object.freeze({
       level: 'info',
       message: eventName,
+      msg: eventName,
       category: 'aggregate_analytics',
       event: eventName,
       observedAt: this.clock(),
