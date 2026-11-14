@@ -38,7 +38,7 @@ class AnalyticsEventRecorder {
     const safe = {};
     for (const [key, value] of Object.entries(properties)) {
       if (allowlist.has(key) &&
-          (value == null || ['string', 'number', 'boolean'].includes(typeof value))) {
+          (value === null || ['string', 'number', 'boolean'].includes(typeof value))) {
         safe[key] = value;
       }
     }
