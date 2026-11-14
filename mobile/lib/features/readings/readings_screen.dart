@@ -9,6 +9,7 @@ import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/app_page_scaffold.dart';
 import '../../shared/widgets/states.dart';
 import 'domain/reading.dart';
+import 'domain/career_timing.dart';
 import 'reading_controller.dart';
 import 'career_reading_generation_controller.dart';
 import 'career_explanation_language.dart';
@@ -83,7 +84,7 @@ class _ReadingsScreenState extends State<ReadingsScreen> {
     }
     _navigatedReadingId = id;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
+      if (mounted && ModalRoute.of(context)?.isCurrent == true) {
         context.pushNamed('reading-detail', pathParameters: {'id': id});
       }
     });
@@ -730,13 +731,54 @@ class ReadingDetailScreen extends StatefulWidget {
 
 class _ReadingDetailScreenState extends State<ReadingDetailScreen> {
   bool _viewRecorded = false;
+  String? _selectedGeneratedReadingId;
+
   @override
   void initState() {
     super.initState();
+    widget.generation?.addListener(_onGenerationChanged);
     if (widget.controller.detail?.readingId == widget.readingId) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) widget.controller.loadDetail(widget.readingId);
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant ReadingDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.generation != widget.generation) {
+      oldWidget.generation?.removeListener(_onGenerationChanged);
+      widget.generation?.addListener(_onGenerationChanged);
+    }
+    if (oldWidget.readingId != widget.readingId) {
+      _viewRecorded = false;
+      _selectedGeneratedReadingId = null;
+      if (widget.controller.detail?.readingId != widget.readingId) {
+        widget.controller.loadDetail(widget.readingId);
+      }
+    }
+  }
+
+  void _onGenerationChanged() {
+    final generation = widget.generation;
+    final readingId = generation?.createdReadingId;
+    if (generation?.generationState != CareerGenerationState.success ||
+        readingId == null ||
+        readingId == widget.readingId ||
+        readingId == _selectedGeneratedReadingId) {
+      return;
+    }
+    _selectedGeneratedReadingId = readingId;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+      context.replaceNamed('reading-detail', pathParameters: {'id': readingId});
+    });
+  }
+
+  @override
+  void dispose() {
+    widget.generation?.removeListener(_onGenerationChanged);
+    super.dispose();
   }
 
   void _recordViewWhenDisplayed() {
@@ -884,6 +926,7 @@ class _CareerReadingDetail extends StatelessWidget {
                   const SizedBox(height: 22),
                   _CareerForecastOverview(
                     periods: detail.careerTimingPeriods ?? const [],
+                    careerTiming: detail.careerTiming,
                     content: detail.content,
                     readingInstant: detail.readingInstant,
                     copy: copy,
@@ -907,6 +950,7 @@ class _CareerReadingDetail extends StatelessWidget {
                     calibrated: calibrated,
                     copy: copy,
                     periods: detail.careerTimingPeriods ?? const [],
+                    careerTiming: detail.careerTiming,
                   ),
                   if (generation != null &&
                       generation!.activeBirthProfileId ==
@@ -936,18 +980,24 @@ class _CareerReadingDetail extends StatelessWidget {
 class _CareerForecastOverview extends StatelessWidget {
   const _CareerForecastOverview({
     required this.periods,
+    required this.careerTiming,
     required this.content,
     required this.readingInstant,
     required this.copy,
   });
 
   final List<CareerTimingPeriod> periods;
+  final CareerTimingDto? careerTiming;
   final ReadingContent content;
   final String readingInstant;
   final CareerReadingPresentationCopy copy;
 
   @override
   Widget build(BuildContext context) {
+    final resolved = resolveCareerTiming(careerTiming);
+    if (resolved.isCanonical) {
+      return _CanonicalCareerTimeline(timing: resolved.canonical!);
+    }
     final anchor = DateTime.tryParse(readingInstant)?.toUtc();
     final ordered = [...periods]
       ..sort((a, b) => a.startDate.compareTo(b.startDate));
@@ -1074,6 +1124,67 @@ class _CareerForecastOverview extends StatelessWidget {
   }
 }
 
+class _CanonicalCareerTimeline extends StatelessWidget {
+  const _CanonicalCareerTimeline({required this.timing});
+  final CareerTimingDto timing;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const _CareerReadingSectionLabel('CAREER TIMELINE'),
+      const SizedBox(height: 8),
+      if (timing.periods.isEmpty)
+        const _ForecastCard(
+          child: Text(
+            'No current or upcoming Career timing period is available in this reading.',
+            style: _CareerReadingText.body,
+          ),
+        )
+      else
+        for (var index = 0; index < timing.periods.length; index++) ...[
+          _CanonicalCareerPeriodCard(period: timing.periods[index]),
+          if (index < timing.periods.length - 1) const SizedBox(height: 12),
+        ],
+    ],
+  );
+}
+
+class _CanonicalCareerPeriodCard extends StatelessWidget {
+  const _CanonicalCareerPeriodCard({required this.period});
+  final CareerTimingPeriodDto period;
+
+  @override
+  Widget build(BuildContext context) => _ForecastCard(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(period.label, style: _CareerReadingText.itemTitle),
+        const SizedBox(height: 5),
+        Text(
+          _dateRange(
+            period.start.toIso8601String(),
+            period.end.toIso8601String(),
+          ),
+          style: _CareerReadingText.body,
+        ),
+        if (period.strongestWindow case final strongest?) ...[
+          const SizedBox(height: 14),
+          Text(strongest.label, style: _CareerReadingText.source),
+          const SizedBox(height: 5),
+          Text(
+            _dateRange(
+              strongest.start.toIso8601String(),
+              strongest.end.toIso8601String(),
+            ),
+            style: _CareerReadingText.meta,
+          ),
+        ],
+      ],
+    ),
+  );
+}
+
 class _PrimaryForecastCard extends StatelessWidget {
   const _PrimaryForecastCard({
     required this.period,
@@ -1184,12 +1295,14 @@ class _DetailedCareerAstrology extends StatelessWidget {
     required this.calibrated,
     required this.copy,
     required this.periods,
+    required this.careerTiming,
   });
   final List<CareerInsight> insights;
   final ReadingDetail detail;
   final ReadingContent? calibrated;
   final CareerReadingPresentationCopy copy;
   final List<CareerTimingPeriod> periods;
+  final CareerTimingDto? careerTiming;
 
   @override
   Widget build(BuildContext context) {
@@ -1236,7 +1349,11 @@ class _DetailedCareerAstrology extends StatelessWidget {
             _DetailedAstrologyGroup(
               title: 'Timing Evidence',
               children: [
-                if (periods.isNotEmpty)
+                if (resolveCareerTiming(careerTiming).isCanonical)
+                  _CanonicalTimingEvidenceSection(
+                    timing: resolveCareerTiming(careerTiming).canonical!,
+                  )
+                else if (periods.isNotEmpty)
                   _SavedCareerTimingEvidenceSection(
                     periods: periods,
                     copy: copy,
@@ -1353,6 +1470,39 @@ class _DetailedCareerAstrology extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _CanonicalTimingEvidenceSection extends StatelessWidget {
+  const _CanonicalTimingEvidenceSection({required this.timing});
+  final CareerTimingDto timing;
+
+  @override
+  Widget build(BuildContext context) {
+    final strongest = timing.current?.refinement ?? timing.next?.refinement;
+    if (strongest == null) {
+      return const Text(
+        'No additional timing evidence summary is available.',
+        style: _CareerReadingText.meta,
+      );
+    }
+    final evidence = strongest.evidence.values;
+    final rows = <String>[
+      if (evidence['pd'] case final String value) 'Dasha support · $value',
+      if (evidence['d10'] case final String value) 'D10 confirmation · $value',
+      if (evidence['jupiter'] case final String value)
+        'Jupiter confirmation · $value',
+      if (evidence['saturn'] case final String value)
+        'Saturn confirmation · $value',
+      if (evidence['ashtakavarga'] case final String value)
+        'Ashtakavarga context · $value',
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: rows
+          .map((row) => Text(row, style: _CareerReadingText.meta))
+          .toList(growable: false),
     );
   }
 }

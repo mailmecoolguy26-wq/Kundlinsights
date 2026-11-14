@@ -15,6 +15,8 @@ class CareerDecision {
     this.context,
     this.comparison,
     this.detailedAstrology,
+    this.offerTiming,
+    this.joiningTiming,
   });
   final String decisionType;
   final String state;
@@ -28,6 +30,8 @@ class CareerDecision {
   final CareerDecisionContext? context;
   final CareerOfferComparison? comparison;
   final CareerDecisionDetailedAstrology? detailedAstrology;
+  final CareerDecisionDateTiming? offerTiming;
+  final CareerDecisionDateTiming? joiningTiming;
   factory CareerDecision.fromJson(Map<String, dynamic> json) {
     final timing = json['timing'];
     return CareerDecision(
@@ -50,6 +54,10 @@ class CareerDecision {
       detailedAstrology: CareerDecisionDetailedAstrology.tryFromJson(
         json['detailedAstrology'],
       ),
+      offerTiming: CareerDecisionDateTiming.tryFromJson(json['offerTiming']),
+      joiningTiming: CareerDecisionDateTiming.tryFromJson(
+        json['joiningTiming'],
+      ),
     );
   }
   static List<String> _list(Object? value) =>
@@ -57,6 +65,38 @@ class CareerDecision {
   static DateTime? _date(Object? raw) {
     if (raw is! String) return null;
     return DateTime.tryParse(raw)?.toLocal();
+  }
+}
+
+class CareerDecisionDateTiming {
+  const CareerDecisionDateTiming({
+    required this.state,
+    required this.message,
+    required this.authority,
+    required this.isInsideStrongestWindow,
+  });
+  final String state;
+  final String message;
+  final String authority;
+  final bool isInsideStrongestWindow;
+
+  static CareerDecisionDateTiming? tryFromJson(Object? raw) {
+    if (raw is! Map) return null;
+    final state = raw['state'];
+    final message = raw['message'];
+    final authority = raw['authority'];
+    if (state is! String ||
+        message is! String ||
+        authority is! String ||
+        raw['isInsideStrongestWindow'] is! bool) {
+      return null;
+    }
+    return CareerDecisionDateTiming(
+      state: state,
+      message: message,
+      authority: authority,
+      isInsideStrongestWindow: raw['isInsideStrongestWindow'] as bool,
+    );
   }
 }
 
@@ -328,9 +368,12 @@ class CareerOfferComparisonDetail {
     required this.priority,
     required this.strengths,
     required this.cautions,
+    this.offerTiming,
+    this.joiningTiming,
   });
   final CareerOfferComparisonSignal timing, priority;
   final List<String> strengths, cautions;
+  final CareerDecisionDateTiming? offerTiming, joiningTiming;
   static CareerOfferComparisonDetail? tryFromJson(Object? raw) {
     if (raw is! Map) return null;
     final timing = CareerOfferComparisonSignal.tryFromJson(raw['timing']);
@@ -341,6 +384,8 @@ class CareerOfferComparisonDetail {
       priority: priority,
       strengths: CareerDecision._list(raw['strengths']),
       cautions: CareerDecision._list(raw['cautions']),
+      offerTiming: CareerDecisionDateTiming.tryFromJson(raw['offerTiming']),
+      joiningTiming: CareerDecisionDateTiming.tryFromJson(raw['joiningTiming']),
     );
   }
 }

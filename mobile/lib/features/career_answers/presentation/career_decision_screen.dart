@@ -270,7 +270,9 @@ class _Result extends StatelessWidget {
           if (decision.overall.isNotEmpty) Text(decision.overall),
           _section(
             'Offer Timing',
-            timing == null
+            decision.offerTiming != null
+                ? decision.offerTiming!.message
+                : timing == null
                 ? 'TaraVerse does not have a supported timing window for this decision.'
                 : [
                     '${DateFormat('d MMM y').format(timing.start)} – ${DateFormat('d MMM y').format(timing.end)}',
@@ -279,7 +281,11 @@ class _Result extends StatelessWidget {
           ),
           _section(
             'Joining Timing',
-            joiningKnown
+            decision.joiningTiming?.state == 'NOT_ASSESSED'
+                ? 'Joining timing was not assessed because no joining date was provided.'
+                : decision.joiningTiming != null
+                ? decision.joiningTiming!.message
+                : joiningKnown
                 ? 'Your expected joining date is included in this decision view. Review it alongside the offer timing and practical conditions.'
                 : 'Joining timing can be assessed once you know the expected joining date.',
           ),

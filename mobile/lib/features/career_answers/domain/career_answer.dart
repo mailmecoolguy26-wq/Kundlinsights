@@ -49,6 +49,11 @@ class JobFavourabilityBeta {
     required this.reasonCodes,
     required this.actionCodes,
     required this.limitationCode,
+    this.timingAuthority,
+    this.currentPeriod,
+    this.nextPeriod,
+    this.strongestWindow,
+    this.productState,
   });
   final JobFavourabilityWindow window;
   final JobFavourabilityWindow? narrowerWindow;
@@ -57,6 +62,11 @@ class JobFavourabilityBeta {
   final List<String> reasonCodes;
   final List<String> actionCodes;
   final String limitationCode;
+  final String? timingAuthority;
+  final JobFavourabilityWindow? currentPeriod;
+  final JobFavourabilityWindow? nextPeriod;
+  final JobFavourabilityWindow? strongestWindow;
+  final String? productState;
 
   static JobFavourabilityBeta? tryFromJson(Map<String, dynamic> json) {
     final window = JobFavourabilityWindow.tryFromJson(json['broadWindow']);
@@ -88,6 +98,23 @@ class JobFavourabilityBeta {
             .where((value) => value.isNotEmpty),
       ),
       limitationCode: limitationCode,
+      timingAuthority: json['timingAuthority'] == 'CANONICAL'
+          ? 'CANONICAL'
+          : null,
+      currentPeriod: json['timingAuthority'] == 'CANONICAL'
+          ? JobFavourabilityWindow.tryFromJson(json['currentPeriod'])
+          : null,
+      nextPeriod: json['timingAuthority'] == 'CANONICAL'
+          ? JobFavourabilityWindow.tryFromJson(json['nextPeriod'])
+          : null,
+      strongestWindow: json['timingAuthority'] == 'CANONICAL'
+          ? JobFavourabilityWindow.tryFromJson(json['strongestWindow'])
+          : null,
+      productState:
+          json['timingAuthority'] == 'CANONICAL' &&
+              json['productState'] is String
+          ? json['productState'] as String
+          : null,
     );
   }
 }

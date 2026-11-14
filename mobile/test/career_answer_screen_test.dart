@@ -16,6 +16,7 @@ import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile.dart
 import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile_repository.dart';
 import 'package:kundlinsights_mobile/features/profiles/profile_controller.dart';
 import 'package:kundlinsights_mobile/features/readings/domain/reading.dart';
+import 'package:kundlinsights_mobile/features/readings/domain/career_timing.dart';
 import 'package:kundlinsights_mobile/features/readings/domain/reading_repository.dart';
 import 'package:kundlinsights_mobile/features/readings/reading_controller.dart';
 
@@ -167,6 +168,96 @@ void main() {
     expect(find.text('Preparing your saved Career outlook…'), findsOneWidget);
     expect(find.text('Create Career Reading'), findsNothing);
   });
+
+  testWidgets(
+    'Career hub uses canonical authority without mixing legacy dates',
+    (tester) async {
+      final detail = _careerReadingDetail(
+        phase: 'Legacy phase must not be shown.',
+        timingMeaning: 'Legacy meaning must not be shown.',
+        careerTiming: CareerTimingDto.tryFromJson(
+          _canonicalTiming('CANONICAL'),
+        ),
+      );
+      final harness = await _ReadingHarness.create(
+        _ReadingRepository(
+          lists: {
+            'profile-a': [_summaryFor(detail)],
+          },
+          details: {'reading-a': detail},
+        ),
+      );
+      addTearDown(harness.dispose);
+      await tester.pumpWidget(
+        MaterialApp(home: CareerHubScreen(readings: harness.readings)),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('CURRENT CAREER PERIOD'), findsOneWidget);
+      expect(find.text('STRONGEST WINDOW'), findsOneWidget);
+      expect(find.text('Supportive period'), findsOneWidget);
+      expect(find.text('Strongest window'), findsOneWidget);
+      expect(find.textContaining('Legacy'), findsNothing);
+    },
+  );
+
+  testWidgets('Career hub ignores SHADOW canonical data', (tester) async {
+    final detail = _careerReadingDetail(
+      phase: 'Your current phase is supportive.',
+      timingMeaning: 'Legacy timing remains authoritative.',
+      careerTiming: CareerTimingDto.tryFromJson(_canonicalTiming('SHADOW')),
+    );
+    final harness = await _ReadingHarness.create(
+      _ReadingRepository(
+        lists: {
+          'profile-a': [_summaryFor(detail)],
+        },
+        details: {'reading-a': detail},
+      ),
+    );
+    addTearDown(harness.dispose);
+    await tester.pumpWidget(
+      MaterialApp(home: CareerHubScreen(readings: harness.readings)),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('CURRENT PHASE'), findsOneWidget);
+    expect(find.text('20 Nov 2026 – 10 Jan 2027'), findsOneWidget);
+    expect(find.text('CURRENT CAREER PERIOD'), findsNothing);
+  });
+
+  testWidgets(
+    'Career hub keeps a CANONICAL zero-period response empty without legacy fallback',
+    (tester) async {
+      final timing = _canonicalTiming('CANONICAL')
+        ..['periods'] = <Object?>[]
+        ..['current'] = null
+        ..['next'] = null;
+      final detail = _careerReadingDetail(
+        phase: 'Legacy phase must not be shown.',
+        timingMeaning: 'Legacy window must not be shown.',
+        careerTiming: CareerTimingDto.tryFromJson(timing),
+      );
+      final harness = await _ReadingHarness.create(
+        _ReadingRepository(
+          lists: {
+            'profile-a': [_summaryFor(detail)],
+          },
+          details: {'reading-a': detail},
+        ),
+      );
+      addTearDown(harness.dispose);
+      await tester.pumpWidget(
+        MaterialApp(home: CareerHubScreen(readings: harness.readings)),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          'No current or upcoming Career timing period is available in this reading.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Legacy'), findsNothing);
+    },
+  );
 
   testWidgets('Career hub keeps a retryable reading error in place', (
     tester,
@@ -547,6 +638,7 @@ CareerAnswer _answer({
 ReadingDetail _careerReadingDetail({
   required String phase,
   required String timingMeaning,
+  CareerTimingDto? careerTiming,
 }) => ReadingDetail(
   readingId: 'reading-a',
   birthProfileId: 'profile-a',
@@ -582,7 +674,58 @@ ReadingDetail _careerReadingDetail({
       longWindow: false,
     ),
   ],
+  careerTiming: careerTiming,
 );
+
+Map<String, dynamic> _canonicalTiming(String authority) {
+  final refinement = {
+    'windowId': 'window-1',
+    'start': '2026-11-10T00:00:00.000Z',
+    'end': '2026-11-20T00:00:00.000Z',
+    'internalTier': 'PEAK',
+    'label': 'Strongest window',
+    'reasonSummary': {
+      'primaryDashaConvergence': 'STRONG_CONVERGENCE',
+      'pdRefinement': 'PEAK_SUPPORT',
+      'd10Confirmation': 'CONFIRMS',
+      'transitConfirmation': 'JUPITER_ONLY',
+    },
+    'evidence': {
+      'pd': 'PEAK_SUPPORT',
+      'd10': 'CONFIRMS',
+      'jupiter': 'CONFIRMS',
+      'saturn': 'NOT_CONFIRMED',
+      'ashtakavarga': 'RAW_CONTEXT',
+    },
+  };
+  final period = {
+    'periodId': 'period-1',
+    'start': '2026-11-01T00:00:00.000Z',
+    'end': '2026-12-01T00:00:00.000Z',
+    'internalState': 'SUPPORTIVE',
+    'label': 'Supportive period',
+    'convergence': 'STRONG_CONVERGENCE',
+    'strongestWindow': refinement,
+    'refinementWindows': [refinement],
+  };
+  return {
+    'contractVersion': 'career-timing-production-v1',
+    'timingEngineVersion': 'career-timing-v2-production-1',
+    'eligibilityRuleset': 'career-timing-v2.2-shadow-1',
+    'refinementRuleset': 'career-timing-v2.3-shadow-1',
+    'authority': authority,
+    'intervalSemantics': 'HALF_OPEN',
+    'periods': [period],
+    'current': {'eligiblePeriod': period, 'activeRefinement': refinement},
+    'next': null,
+    'explanationPolicy': {
+      'outcomeGuarantee': false,
+      'customerTimingLanguage': 'SUPPORT_ONLY',
+      'ashtakavargaRole': 'CONTEXT_ONLY',
+      'historicalEventsRole': 'NOT_USED_FOR_ELIGIBILITY_OR_REFINEMENT',
+    },
+  };
+}
 
 ReadingSummary _summaryFor(ReadingDetail detail) => ReadingSummary(
   readingId: detail.readingId,

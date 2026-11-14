@@ -6,6 +6,7 @@ import '../../readings/career_explanation_language.dart';
 import '../../readings/career_customer_copy.dart';
 import '../../readings/career_reading_generation_controller.dart';
 import '../../readings/domain/reading.dart';
+import '../../readings/domain/career_timing.dart';
 import '../../readings/reading_controller.dart';
 import '../career_decision_history_controller.dart';
 import 'career_decision_history_screen.dart';
@@ -299,6 +300,10 @@ class _CareerOutlookCard extends StatelessWidget {
       );
     }
 
+    final resolved = resolveCareerTiming(savedDetail.careerTiming);
+    if (resolved.isCanonical) {
+      return _CanonicalCareerOutlookCard(timing: resolved.canonical!);
+    }
     final phase = careerHubCustomerPhase(savedDetail);
     final window = _primaryWindow(savedDetail);
     return _HubCard(
@@ -332,6 +337,83 @@ class _CareerOutlookCard extends StatelessWidget {
     );
   }
 }
+
+class _CanonicalCareerOutlookCard extends StatelessWidget {
+  const _CanonicalCareerOutlookCard({required this.timing});
+  final CareerTimingDto timing;
+
+  @override
+  Widget build(BuildContext context) {
+    final current = timing.current?.eligiblePeriod;
+    final active = timing.current?.refinement;
+    final next = timing.next?.eligiblePeriod;
+    final strongest =
+        active ??
+        current?.strongestWindow ??
+        timing.next?.refinement ??
+        next?.strongestWindow;
+    return _HubCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (current != null) ...[
+            const Text('CURRENT CAREER PERIOD', style: _CareerHubText.eyebrow),
+            const SizedBox(height: 6),
+            Text(current.label, style: _CareerHubText.cardTitle),
+            const SizedBox(height: 4),
+            Text(
+              _canonicalRange(current.start, current.end),
+              style: _CareerHubText.body,
+            ),
+          ],
+          if (strongest != null) ...[
+            if (current != null) const SizedBox(height: 18),
+            const Text('STRONGEST WINDOW', style: _CareerHubText.eyebrow),
+            const SizedBox(height: 6),
+            Text(strongest.label, style: _CareerHubText.cardTitle),
+            const SizedBox(height: 4),
+            Text(
+              _canonicalRange(strongest.start, strongest.end),
+              style: _CareerHubText.body,
+            ),
+          ],
+          if (next != null && next.periodId != current?.periodId) ...[
+            if (current != null || strongest != null)
+              const SizedBox(height: 18),
+            const Text('NEXT CAREER PERIOD', style: _CareerHubText.eyebrow),
+            const SizedBox(height: 6),
+            Text(next.label, style: _CareerHubText.cardTitle),
+            const SizedBox(height: 4),
+            Text(
+              _canonicalRange(next.start, next.end),
+              style: _CareerHubText.body,
+            ),
+          ],
+          if (current == null && strongest == null && next == null)
+            const Text(
+              'No current or upcoming Career timing period is available in this reading.',
+              style: _CareerHubText.body,
+            ),
+          if (current != null || strongest != null || next != null) ...[
+            const SizedBox(height: 18),
+            const Text('WHAT THIS MEANS', style: _CareerHubText.eyebrow),
+            const SizedBox(height: 6),
+            const Text(
+              'Career-related support varies across these calculated periods. Use the timeline for the full sequence.',
+              style: _CareerHubText.body,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// HALF_OPEN intervals remain unchanged in memory. The UI displays their
+/// local calendar boundary dates without pretending that the end instant is
+/// an inclusive all-day guarantee.
+String _canonicalRange(DateTime start, DateTime end) =>
+    '${formatCustomerLocalDate(start)} – ${formatCustomerLocalDate(end)}';
 
 class _CareerDecisionQuestions extends StatelessWidget {
   const _CareerDecisionQuestions({required this.onOpen});

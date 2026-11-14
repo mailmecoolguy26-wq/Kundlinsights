@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:kundlinsights_mobile/app/theme/app_theme.dart';
 import 'package:kundlinsights_mobile/features/auth/auth_controller.dart';
 import 'package:kundlinsights_mobile/features/auth/domain/auth_repository.dart';
@@ -10,6 +11,8 @@ import 'package:kundlinsights_mobile/features/profiles/domain/birth_profile_repo
 import 'package:kundlinsights_mobile/features/profiles/profile_controller.dart';
 import 'package:kundlinsights_mobile/features/readings/domain/reading.dart';
 import 'package:kundlinsights_mobile/features/readings/domain/reading_repository.dart';
+import 'package:kundlinsights_mobile/features/readings/domain/career_reading_generation.dart';
+import 'package:kundlinsights_mobile/features/readings/career_reading_generation_controller.dart';
 import 'package:kundlinsights_mobile/features/readings/reading_controller.dart';
 import 'package:kundlinsights_mobile/features/readings/career_explanation_language.dart';
 import 'package:kundlinsights_mobile/features/readings/career_evidence_formatter.dart';
@@ -128,6 +131,29 @@ void main() {
       throwsFormatException,
     );
   });
+
+  test(
+    'parses additive canonical timing and ignores malformed canonical data',
+    () {
+      final canonical = ReadingDetail.fromJson({
+        ..._detailJson(),
+        'careerTimingPeriods': [_careerTimingPeriod()],
+        'careerTiming': _canonicalCareerTiming('CANONICAL'),
+      });
+      expect(canonical.careerTiming?.authority, 'CANONICAL');
+      expect(canonical.careerTimingPeriods, hasLength(1));
+      final malformed = ReadingDetail.fromJson({
+        ..._detailJson(),
+        'careerTimingPeriods': [_careerTimingPeriod()],
+        'careerTiming': {
+          ..._canonicalCareerTiming('CANONICAL'),
+          'contractVersion': 'unsupported',
+        },
+      });
+      expect(malformed.careerTiming, isNull);
+      expect(malformed.careerTimingPeriods, hasLength(1));
+    },
+  );
 
   test('parses Career Ashtakavarga structure defensively without affecting legacy details', () {
     final full = ReadingDetail.fromJson({
@@ -1511,6 +1537,170 @@ void main() {
       auth.dispose();
     },
   );
+
+  testWidgets(
+    'canonical Career timeline renders parent and strongest child only',
+    (tester) async {
+      final authSource = _AuthSource();
+      final auth = AuthController(authSource);
+      await auth.restore();
+      final profiles = ProfileController(_Profiles(authSource), auth);
+      await tester.pump();
+      final repository = _ReadingRepository()
+        ..nextDetail = ReadingDetail.fromJson({
+          ..._detailJson(),
+          'careerTimingPeriods': [
+            {..._careerTimingPeriod(), 'startDate': '2030-01-01T00:00:00.000Z'},
+          ],
+          'careerTiming': _canonicalCareerTiming('CANONICAL'),
+        });
+      final controller = ReadingController(repository, auth, profiles);
+      await tester.pumpWidget(
+        _localized(
+          ReadingDetailScreen(controller: controller, readingId: 'reading-a'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('CAREER TIMELINE'), findsOneWidget);
+      expect(find.text('Supportive period'), findsOneWidget);
+      expect(find.text('Strongest window'), findsOneWidget);
+      expect(find.text('1 Jan 2030'), findsNothing);
+      controller.dispose();
+      profiles.dispose();
+      auth.dispose();
+    },
+  );
+
+  testWidgets(
+    'updated Career Reading replaces the old detail route with the created reading',
+    (tester) async {
+      final authSource = _AuthSource();
+      final auth = AuthController(authSource);
+      await auth.restore();
+      final profiles = ProfileController(_Profiles(authSource), auth);
+      await tester.pump();
+      final oldDetail = ReadingDetail.fromJson({
+        ..._detailJson(),
+        'readingId': 'reading-old',
+        'createdAt': '2026-11-07T06:15:00.000Z',
+      });
+      final newDetail = ReadingDetail.fromJson({
+        ..._detailJson(),
+        'readingId': 'reading-new',
+        'createdAt': '2026-11-14T11:59:06.410Z',
+      });
+      final repository = _ReadingRepository()
+        ..detailsById = {'reading-old': oldDetail, 'reading-new': newDetail}
+        ..nextList = [oldDetail];
+      final readings = ReadingController(repository, auth, profiles);
+      final generationRepository = _RegenerationRepository();
+      final generation = CareerReadingGenerationController(
+        generationRepository,
+        auth,
+        profiles,
+        readings,
+        idempotencyKey: () => 'updated-reading-attempt',
+      );
+      await tester.pump();
+      final router = GoRouter(
+        initialLocation: '/readings/detail/reading-old',
+        routes: [
+          GoRoute(
+            path: '/readings/detail/:id',
+            name: 'reading-detail',
+            builder: (context, state) => ReadingDetailScreen(
+              controller: readings,
+              generation: generation,
+              readingId: state.pathParameters['id']!,
+            ),
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        MaterialApp.router(
+          theme: AppTheme.light,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          routerConfig: router,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(readings.detail?.readingId, 'reading-old');
+
+      final action = find.text('GENERATE UPDATED READING');
+      await tester.ensureVisible(action);
+      await tester.pumpAndSettle();
+      await tester.tap(action);
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Generate'));
+      await tester.pumpAndSettle();
+
+      expect(generationRepository.createCalls, 1);
+      expect(readings.detail?.readingId, 'reading-new');
+      expect(
+        router.routeInformationProvider.value.uri.path,
+        '/readings/detail/reading-new',
+      );
+      expect(find.textContaining('Created Nov 14, 2026'), findsOneWidget);
+      expect(find.textContaining('Created Nov 7, 2026'), findsNothing);
+
+      router.dispose();
+      generation.dispose();
+      readings.dispose();
+      profiles.dispose();
+      auth.dispose();
+    },
+  );
+}
+
+Map<String, dynamic> _canonicalCareerTiming(String authority) {
+  final refinement = {
+    'windowId': 'window-1',
+    'start': '2026-11-10T00:00:00.000Z',
+    'end': '2026-11-20T00:00:00.000Z',
+    'internalTier': 'PEAK',
+    'label': 'Strongest window',
+    'reasonSummary': {
+      'primaryDashaConvergence': 'STRONG_CONVERGENCE',
+      'pdRefinement': 'PEAK_SUPPORT',
+      'd10Confirmation': 'CONFIRMS',
+      'transitConfirmation': 'JUPITER_ONLY',
+    },
+    'evidence': {
+      'pd': 'PEAK_SUPPORT',
+      'd10': 'CONFIRMS',
+      'jupiter': 'CONFIRMS',
+      'saturn': 'NOT_CONFIRMED',
+      'ashtakavarga': 'RAW_CONTEXT',
+    },
+  };
+  final period = {
+    'periodId': 'period-1',
+    'start': '2026-11-01T00:00:00.000Z',
+    'end': '2026-12-01T00:00:00.000Z',
+    'internalState': 'SUPPORTIVE',
+    'label': 'Supportive period',
+    'convergence': 'STRONG_CONVERGENCE',
+    'strongestWindow': refinement,
+    'refinementWindows': [refinement],
+  };
+  return {
+    'contractVersion': 'career-timing-production-v1',
+    'timingEngineVersion': 'career-timing-v2-production-1',
+    'eligibilityRuleset': 'career-timing-v2.2-shadow-1',
+    'refinementRuleset': 'career-timing-v2.3-shadow-1',
+    'authority': authority,
+    'intervalSemantics': 'HALF_OPEN',
+    'periods': [period],
+    'current': {'eligiblePeriod': period, 'activeRefinement': refinement},
+    'next': null,
+    'explanationPolicy': {
+      'outcomeGuarantee': false,
+      'customerTimingLanguage': 'SUPPORT_ONLY',
+      'ashtakavargaRole': 'CONTEXT_ONLY',
+      'historicalEventsRole': 'NOT_USED_FOR_ELIGIBILITY_OR_REFINEMENT',
+    },
+  };
 }
 
 Widget _localized(Widget child) => MaterialApp(
@@ -1780,6 +1970,7 @@ class _ReadingRepository implements ReadingRepository {
   bool failDetail = false;
   List<ReadingSummary>? nextList;
   ReadingDetail? nextDetail;
+  Map<String, ReadingDetail> detailsById = const {};
   @override
   Future<List<ReadingSummary>> getReadings({String? birthProfileId}) {
     listCalls++;
@@ -1806,10 +1997,30 @@ class _ReadingRepository implements ReadingRepository {
       _pendingDetail = Completer<ReadingDetail>();
       return _pendingDetail!.future;
     }
-    return Future.value(nextDetail ?? _detail('profile-a'));
+    return Future.value(
+      detailsById[readingId] ?? nextDetail ?? _detail('profile-a'),
+    );
   }
 
   void completeDetail(ReadingDetail value) => _pendingDetail!.complete(value);
+}
+
+class _RegenerationRepository implements CareerReadingGenerationRepository {
+  int createCalls = 0;
+
+  @override
+  Future<CareerEligibility> getCareerEligibility({
+    required String birthProfileId,
+  }) async => const CareerEligibility(eligible: true);
+
+  @override
+  Future<CreatedCareerReading> createCareerReading({
+    required String birthProfileId,
+    required String idempotencyKey,
+  }) async {
+    createCalls++;
+    return const CreatedCareerReading(readingId: 'reading-new');
+  }
 }
 
 class _LanguageStorage implements CareerExplanationLanguageStorage {

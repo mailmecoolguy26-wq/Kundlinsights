@@ -1,3 +1,5 @@
+import 'career_timing.dart';
+
 /// Safe, backend-authoritative summary returned by `GET /v1/readings`.
 class ReadingSummary {
   const ReadingSummary({
@@ -133,6 +135,7 @@ class ReadingDetail extends ReadingSummary {
     this.careerAshtakavargaCorroboration,
     this.careerEvidenceSynthesis,
     this.careerTimingPeriods,
+    this.careerTiming,
     this.insights = const [],
   });
 
@@ -145,6 +148,7 @@ class ReadingDetail extends ReadingSummary {
   final CareerAshtakavargaCorroboration? careerAshtakavargaCorroboration;
   final CareerEvidenceSynthesis? careerEvidenceSynthesis;
   final List<CareerTimingPeriod>? careerTimingPeriods;
+  final CareerTimingDto? careerTiming;
   final List<CareerInsight> insights;
 
   factory ReadingDetail.fromJson(Map<String, dynamic> json) {
@@ -209,6 +213,7 @@ class ReadingDetail extends ReadingSummary {
       careerTimingPeriods: careerTimingPeriods == null
           ? null
           : List<CareerTimingPeriod>.unmodifiable(careerTimingPeriods),
+      careerTiming: CareerTimingDto.tryFromJson(json['careerTiming']),
       insights: List<CareerInsight>.unmodifiable(insights),
     );
   }
