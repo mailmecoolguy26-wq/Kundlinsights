@@ -13,6 +13,12 @@ const PRODUCT_TIER = Object.freeze({ PEAK: 'Strongest window', STRONG: 'Strong s
 function freeze(value) { if (value && typeof value === 'object' && !Object.isFrozen(value)) { Object.freeze(value); Object.values(value).forEach(freeze); } return value; }
 function mode(value = 'OFF') { if (!CAREER_TIMING_V2_MODES.includes(value)) throw new RangeError('CAREER_TIMING_V2_MODE must be OFF, SHADOW, or ON.'); return value; }
 function validInstant(value) { return typeof value === 'string' && Number.isFinite(Date.parse(value)); }
+function clockMilliseconds(clock) {
+  const value = clock();
+  const milliseconds = typeof value === 'number' ? value : value instanceof Date ? value.getTime() : Date.parse(value);
+  if (!Number.isFinite(milliseconds)) throw new TypeError('Career timing telemetry clock must resolve to a valid instant.');
+  return milliseconds;
+}
 function requiredInput(value) {
   if (!value || typeof value !== 'object' || !value.d1Houses || !Array.isArray(value.dashaIntervals) || !Array.isArray(value.transitIntervals) || !validInstant(value.forecastStart) || !validInstant(value.forecastEnd) || Date.parse(value.forecastStart) >= Date.parse(value.forecastEnd)) throw new TypeError('CareerTimingAuthorityService requires bounded deterministic Career evidence.');
   return value;
@@ -42,18 +48,18 @@ class CareerTimingAuthorityService {
   calculate(evidence, { referenceInstant = null } = {}) {
     const input = requiredInput(evidence); const at = referenceInstant || input.calculationInstant || input.forecastStart; if (!validInstant(at)) throw new TypeError('Career timing referenceInstant must be valid.');
     if (this.mode === 'OFF') return freeze({ mode: 'OFF', authority: 'LEGACY', legacyTiming: this.legacyCalculator(input), careerTiming: null });
-    const started = this.clock(); let legacyTiming = null;
+    const started = clockMilliseconds(this.clock); let legacyTiming = null;
     try {
       // Retain legacy timing in both rollout modes until the rollback window
       // closes. V2 and legacy consume the same already-calculated evidence.
-      const legacyStarted = this.clock(); legacyTiming = this.legacyCalculator(input); const legacyDurationMs = Math.max(0, this.clock() - legacyStarted);
-      const v2Started = this.clock(); const output = this.v2Calculator(input, at, this.mode === 'SHADOW' ? 'SHADOW' : 'CANONICAL'); const v2DurationMs = Math.max(0, this.clock() - v2Started); const durationMs = Math.max(0, this.clock() - started);
+      const legacyStarted = clockMilliseconds(this.clock); legacyTiming = this.legacyCalculator(input); const legacyDurationMs = Math.max(0, clockMilliseconds(this.clock) - legacyStarted);
+      const v2Started = clockMilliseconds(this.clock); const output = this.v2Calculator(input, at, this.mode === 'SHADOW' ? 'SHADOW' : 'CANONICAL'); const v2DurationMs = Math.max(0, clockMilliseconds(this.clock) - v2Started); const durationMs = Math.max(0, clockMilliseconds(this.clock) - started);
       const comparison = shadowComparison({ legacyTiming, careerTiming: output.dto, referenceInstant: at });
       const diagnostic = freeze({ event: 'CAREER_TIMING_V2_SHADOW', mode: this.mode, status: 'SUCCEEDED', durationMs, legacyDurationMs, v2DurationMs, v2ParentCount: output.v23.parentCount, v2ChildCount: output.v23.children.length, hasCurrent: output.v23.selected.activeParentId !== null, hasNext: output.v23.selected.nextParentId !== null, hasStrongestWindow: comparison.canonicalStrongestPresent, legacyCandidateCount: legacyTiming ? legacyTiming.periods.length : null, legacyCurrentPresent: comparison.legacyCurrentPresent, legacyNextPresent: comparison.legacyNextPresent, currentComparison: comparison.currentComparison, nextComparison: comparison.nextComparison, windowCountDifferent: comparison.windowCountDifferent, fallbackOccurred: false, contractVersion: output.dto.contractVersion, timingEngineVersion: output.dto.timingEngineVersion, eligibilityRuleset: output.dto.eligibilityRuleset, refinementRuleset: output.dto.refinementRuleset });
       if (this.observe) this.observe(diagnostic);
       return freeze({ mode: this.mode, authority: this.mode === 'ON' ? 'CAREER_TIMING_V2' : 'LEGACY', legacyTiming, careerTiming: output.dto, shadowDiagnostic: this.mode === 'SHADOW' ? diagnostic : null });
     } catch (error) {
-      const durationMs = Math.max(0, this.clock() - started); if (this.observe) this.observe(freeze({ event: 'CAREER_TIMING_V2_SHADOW', mode: this.mode, status: 'FAILED', durationMs, errorCode: normalizeShadowError(error), fallbackOccurred: this.fallbackToLegacy }));
+      const durationMs = Math.max(0, clockMilliseconds(this.clock) - started); if (this.observe) this.observe(freeze({ event: 'CAREER_TIMING_V2_SHADOW', mode: this.mode, status: 'FAILED', durationMs, errorCode: normalizeShadowError(error), fallbackOccurred: this.fallbackToLegacy }));
       if (!this.fallbackToLegacy) throw error;
       return freeze({ mode: this.mode, authority: 'LEGACY_FALLBACK', legacyTiming: legacyTiming || this.legacyCalculator(input), careerTiming: null, fallbackReason: 'CAREER_TIMING_V2_UNAVAILABLE' });
     }
