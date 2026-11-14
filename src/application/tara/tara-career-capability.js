@@ -48,6 +48,18 @@ function classifyTaraCareerIntent(message) {
   if (/\b(promotion|promoted|growth at work|grow in my role|salary growth|salary hike|leadership role|more responsibility)\b/.test(text) || /\bgrowth\s+(?:when|kab|hogi|hoga)\b/.test(text)) return TaraCareerIntent.PROMOTION_GROWTH;
   if (/\b(start|starting|launch|launching|build|building) (?:a )?business\b|\bentrepreneur(?:ship)?\b|\bown company\b/.test(text)) return TaraCareerIntent.START_BUSINESS;
   if (/\b(abroad|overseas|international|internationally|foreign)\b/.test(text) && (/\b(career|jobs?|work|relocate|relocating|relocation|move|shift)\b/.test(text))) return TaraCareerIntent.CAREER_ABROAD;
+  // Job-acquisition questions ask for the same bounded Career timing context
+  // as the stronger-window experience. Keep this ahead of switch-job routing:
+  // "next job timing" is a timing request, not a decision-form request.
+  const jobAcquisitionTiming = [
+    /\b(?:jobs?|naukri|nokri)\s+(?:when|kab)(?:\s+tak)?\s+(?:milegi|milega|milne|mil)\b/,
+    /\b(?:when|kab)(?:\s+tak)?\s+(?:will\s+i\s+|can\s+i\s+)?(?:get|find|mil(?:egi|ega|ne)?)\s+(?:a\s+)?(?:jobs?|naukri|nokri)\b/,
+    /\b(?:jobs?|naukri|nokri)\s+milne\s+ke\s+chances?\b/,
+    /\bchances?\s+(?:of|for)\s+(?:getting|finding)\s+(?:a\s+)?jobs?\b/,
+    /\bnext\s+job\s+(?:timing|likely)\b/,
+    /\bjob\s+opportunit(?:y|ies)\s+(?:when|kab|aayegi|aayega)\b/,
+  ];
+  if (jobAcquisitionTiming.some((pattern) => pattern.test(text))) return TaraCareerIntent.JOB_FAVOURABILITY_TIMING;
   if ((/\b(switch|change|leave|quit|new|another)\b/.test(text) && /\b(jobs?|career|company|work|roles?)\b/.test(text)) || /\bthinking of switching\b/.test(text)) return TaraCareerIntent.SWITCH_JOB;
   const timing = [/\bswitch(?:ing)? (?:the )?jobs?\b/, /\bchange (?:the )?jobs?\b/, /\bnew jobs?\b/, /\bjob opportunit(?:y|ies)\b/, /\bbetter (?:career )?opportunit(?:y|ies)\b/, /\bcareer timing\b/, /\bfavou?rable (?:time )?periods?\b/, /\b(?:strong|stronger) career windows?\b/, /\bcareer activity stronger\b/, /\bcareer opportunit(?:y|ies) (?:improve|better)\b/, /\bcareer (?:likely to )?(?:improve|improvement|get better|growth)\b/, /\bthings improve professionally\b/, /\bprofessional(?:ly)? (?:improve|improvement|better)\b/, /\bgood (?:time|period) to (?:look for|change)\b/];
   if (timing.some((pattern) => pattern.test(text))) return TaraCareerIntent.JOB_FAVOURABILITY_TIMING;
@@ -59,7 +71,7 @@ function displayDate(value) {
   const date = new Date(`${value.slice(0, 10)}T00:00:00.000Z`);
   return Number.isNaN(date.getTime()) ? null : new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(date);
 }
-function range(window) { const start = displayDate(window && window.start); const end = displayDate(window && window.end); return start && end ? `${start} to ${end}` : null; }
+function range(window) { const start = displayDate(window && window.start); const end = displayDate(window && window.end); return start && end ? { start, end } : null; }
 function diagnostic(log, { state = null, action = null, birthProfileId = null } = {}) { if (typeof log === 'function') log({ event: 'TARA_BACKEND_CAPABILITY', state, actionType: action && action.type || null, actionLabel: action && action.label || null, messageId: null, birthProfileId }); }
 function unsupportedCareerMessage(language) { return language === 'HINGLISH' ? 'Main abhi aapki Career phase aur stronger Career timing windows mein help kar sakti hoon, lekin is specific Career question ka reliable answer dene ke liye ready nahi hoon.' : 'I can currently help with your Career phase and stronger Career timing windows, but I’m not ready to answer that specific Career question reliably yet.'; }
 function renderCareerAnswer(answer, language) {
@@ -67,7 +79,7 @@ function renderCareerAnswer(answer, language) {
   if (answer.questionType === CareerQuestionType.JOB_FAVOURABILITY_TIMING && answer.answerability === Answerability.SUPPORTED) {
     const window = range(answer.broadWindow);
     if (!window) return 'TaraVerse has grounded Career timing context, but cannot safely describe a bounded window right now.';
-    return language === 'HINGLISH' ? `Aapka stronger Career window ${window} hai. Is period mein multiple Career-related signals align hote hain. Yeh employment, offer ya kisi specific outcome ki guarantee nahi deta.` : `Your stronger Career window is ${window}. Multiple Career-related signals align in this period. This does not guarantee employment, an offer, or any specific outcome.`;
+    return language === 'HINGLISH' ? `Aapka next stronger Career window ${window.start} se ${window.end} ke beech dikh raha hai. Is period mein interviews, shortlisting aur job movement ke chances comparatively better hain. Exact offer date guarantee nahi ki ja sakti, lekin yeh aapka next stronger Career timing window hai.` : `Your next stronger Career window appears from ${window.start} to ${window.end}. Interviews, shortlisting, and job movement have comparatively stronger support in this period. This does not guarantee an exact offer date, but it is your next stronger Career timing window.`;
   }
   if (answer.answer && typeof answer.answer.summary === 'string') return language === 'HINGLISH' ? `Aapke Career ke liye: ${answer.answer.headline || 'Career insight'} ${answer.answer.summary} ${answer.answer.limitation || ''}`.trim() : `${answer.answer.headline || 'Career insight'} ${answer.answer.summary} ${answer.answer.limitation || ''}`.trim();
   if (answer.answerability === Answerability.PROJECTION_DISABLED) return language === 'HINGLISH' ? 'Stronger Career timing abhi TaraVerse ki validated methodology gate enable hone tak available nahi hai.' : 'Stronger Career timing is not available until TaraVerse’s validated methodology gate is enabled.';

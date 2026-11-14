@@ -47,7 +47,7 @@ test('Job Favourability structural ON selects next canonical timing and falls ba
   const malformed = reading({ ...canonical(), periods: { invalid: true } });
   const fallback = new CareerAnswerService({ secureReadingService: readings(malformed), jobFavourabilityResearchEnabled: true, jobFavourabilityEvaluator: { evaluate: async () => { calls += 1; return beta(); } }, timingMode: 'ON' });
   const fallbackAnswer = await fallback.answer({ principal: {}, birthProfileId: 'profile-a', body: { questionType: 'JOB_FAVOURABILITY_TIMING' } });
-  assert.equal(calls, 1); assert.equal(fallbackAnswer.timingAuthority, 'LEGACY_JOB_FAVOURABILITY'); assert.deepEqual(fallbackAnswer.broadWindow, beta().broadWindow); assert.equal(fallbackAnswer.currentPeriod, undefined);
+  assert.equal(calls, 0); assert.equal(fallbackAnswer.timingAuthority, 'LEGACY'); assert.equal(fallbackAnswer.timingContext.source, 'LEGACY_FALLBACK'); assert.deepEqual(fallbackAnswer.broadWindow, { start: legacyPeriod.startDate, end: legacyPeriod.endDate, classification: 'POSSIBLE_CAREER_ACTIVITY_SIGNAL' }); assert.equal(fallbackAnswer.currentPeriod, undefined);
 });
 
 test('Ask Tara exposes only a bounded Career timing packet and an explicit no-invention rule', async () => {
@@ -73,4 +73,40 @@ test('Ask Tara legacy context remains visible in OFF/SHADOW and structured decis
   }
   const decision = await new TaraCareerCapability({ careerAnswerService: { answer: async () => { throw new Error('decision route must not calculate timing'); } } }).respond({ principal: {}, birthProfileId: 'profile-a', message: 'Should I switch jobs?' });
   assert.equal(decision.action.decisionType, 'SWITCH_JOB'); assert.match(decision.message, /explor/i); assert.equal(decision.careerTimingContext, undefined);
+});
+
+test('Ask Tara consumes the shared canonical and legacy-fallback display windows without a second fallback calculation', async () => {
+  const fallbackReading = reading({ ...canonical(), periods: [], current: null, next: null });
+  fallbackReading.readingInstant = '2026-11-15T00:00:00.000Z';
+  fallbackReading.careerTimingPeriods = [{ ...legacyPeriod, startDate: '2026-11-20T12:46:11.911Z', endDate: '2027-01-10T20:17:38.633Z' }];
+  let evaluatorCalls = 0;
+  const fallbackService = new CareerAnswerService({
+    secureReadingService: readings(fallbackReading),
+    jobFavourabilityResearchEnabled: true,
+    jobFavourabilityEvaluator: { evaluate: async () => { evaluatorCalls += 1; return beta(); } },
+    timingMode: 'ON',
+  });
+  const fallback = await new TaraCareerCapability({ careerAnswerService: fallbackService }).respond({ principal: {}, birthProfileId: 'profile-a', message: 'job kab tak milne ke chances hai', language: 'HINGLISH' });
+  assert.equal(evaluatorCalls, 0);
+  assert.equal(fallback.careerTimingContext.timingSource, 'LEGACY_FALLBACK');
+  assert.equal(fallback.careerTimingContext.nextPeriod.start, '2026-11-20T12:46:11.911Z');
+  assert.match(fallback.message, /20 Nov 2026 se 10 Jan 2027/);
+
+  const canonicalService = new CareerAnswerService({ secureReadingService: readings(), jobFavourabilityResearchEnabled: true, jobFavourabilityEvaluator: { evaluate: async () => { throw new Error('must not run'); } }, timingMode: 'ON' });
+  const canonicalResult = await new TaraCareerCapability({ careerAnswerService: canonicalService }).respond({ principal: {}, birthProfileId: 'profile-a', message: 'when will I get a job' });
+  assert.equal(canonicalResult.careerTimingContext.timingSource, 'CANONICAL');
+  assert.equal(canonicalResult.careerTimingContext.currentPeriod.start, '2026-11-01T00:00:00.000Z');
+});
+
+test('Ask Tara returns a safe no-window state when the shared ON resolver source is NONE', async () => {
+  const expiredReading = reading({ ...canonical(), periods: [], current: null, next: null });
+  expiredReading.readingInstant = '2026-11-15T00:00:00.000Z';
+  expiredReading.careerTimingPeriods = [{ ...legacyPeriod, startDate: '2025-01-01T00:00:00.000Z', endDate: '2025-02-01T00:00:00.000Z' }];
+  let evaluatorCalls = 0;
+  const service = new CareerAnswerService({ secureReadingService: readings(expiredReading), jobFavourabilityResearchEnabled: true, jobFavourabilityEvaluator: { evaluate: async () => { evaluatorCalls += 1; return beta(); } }, timingMode: 'ON' });
+  const result = await new TaraCareerCapability({ careerAnswerService: service }).respond({ principal: {}, birthProfileId: 'profile-a', message: 'when will I get a job' });
+  assert.equal(evaluatorCalls, 0);
+  assert.equal(result.answer.timingContext.source, 'NONE');
+  assert.equal(result.answerability, 'NO_CONCENTRATED_JOB_FAVOURABILITY');
+  assert.doesNotMatch(result.message, /\b(?:19|20)\d{2}\b/);
 });
