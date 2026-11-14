@@ -43,6 +43,7 @@ const { PostgresUserKeyEnvelopeStore, UserDekProvider, BirthProfilePayloadCodec,
 const { resolveOrProvisionAppUser } = require('../security/auth');
 const { AnalyticsEventRecorder } = require('../analytics/analytics-event-recorder');
 const { CareerTimingAuthorityService } = require('../application/career-timing');
+const { CareerTimingAuthorityResolver } = require('../application/career-timing/authority-resolver');
 
 function req(value, name) {
   if (!value) throw new TypeError(`INVALID_${name}`);
@@ -104,9 +105,7 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   // New reading generation consumes this authority. OFF remains the default,
   // while SHADOW/ON retain legacy timing for rollback compatibility.
   const careerTimingAnalyticsRecorder = new AnalyticsEventRecorder({ provider: careerTimingAnalytics || analytics });
-  const careerTimingAuthorityService = new CareerTimingAuthorityService({
-    rolloutMode: careerTimingPolicy && careerTimingPolicy.mode || 'OFF',
-    diagnosticObserver: (entry) => { void careerTimingAnalyticsRecorder.record('career_timing_v2_shadow', {
+  const careerTimingDiagnosticObserver = (entry) => { void careerTimingAnalyticsRecorder.record('career_timing_v2_shadow', {
       mode: entry.mode, status: entry.status, duration_ms: entry.durationMs,
       legacy_duration_ms: entry.legacyDurationMs, v2_duration_ms: entry.v2DurationMs,
       parent_count: entry.v2ParentCount, child_count: entry.v2ChildCount,
@@ -124,8 +123,13 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
       eligibility_ruleset: entry.eligibilityRuleset,
       refinement_ruleset: entry.refinementRuleset,
       error_code: entry.errorCode,
-    }); },
+    }); };
+  const careerTimingAuthorityResolver = new CareerTimingAuthorityResolver({
+    globalMode: careerTimingPolicy && careerTimingPolicy.mode || 'OFF',
+    canonicalQaProfileIds: careerTimingPolicy && careerTimingPolicy.canonicalQaProfileIds || [],
+    serviceOptions: { diagnosticObserver: careerTimingDiagnosticObserver },
   });
+  const careerTimingAuthorityService = careerTimingAuthorityResolver.createService(null);
   const tarotService = new TarotService({
     authUserResolver: userResolver,
     repository: new PostgresTarotRepository({ transactionExecutor: tx, idGenerator }),
@@ -155,7 +159,8 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
     generate: async ({ birthProfile }) => {
       const { BirthCareerReadingOrchestrator } = require('../orchestration');
       const { createResolvedBirthPlace } = require('../place');
-      const orchestrator = new BirthCareerReadingOrchestrator({ astronomicalEngine, dashaRulesetId: 'vimshottari-longitude-proportional-solar-return-v1', canonicalSiderealSunSampler, careerTimingAuthorityService });
+      const profileCareerTimingAuthorityService = careerTimingAuthorityResolver.createService(birthProfile.id);
+      const orchestrator = new BirthCareerReadingOrchestrator({ astronomicalEngine, dashaRulesetId: 'vimshottari-longitude-proportional-solar-return-v1', canonicalSiderealSunSampler, careerTimingAuthorityService: profileCareerTimingAuthorityService });
       const birth = birthProfile.birthData;
       const place = createResolvedBirthPlace({ provider: 'persisted', providerPlaceId: birthProfile.id, latitude: birth.latitude, longitude: birth.longitude, timezone: birth.timezone, timezoneResolver: birth.timezoneProvenance });
       const result = orchestrator.generate({ birth: { date: birth.localDate, time: birth.localTime, place }, readingInstant: clock(), locale: 'en-IN' });
@@ -170,7 +175,7 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   const { CareerAnswerService } = require('../application/career-answers');
   const { JobFavourabilityBetaEvaluator } = require('../application/career-answers/job-favourability-beta');
   const jobFavourabilityEvaluator = new JobFavourabilityBetaEvaluator({ birthProfileService, astronomicalEngine, canonicalSiderealSunSampler, clock });
-  const careerAnswerService = new CareerAnswerService({ secureReadingService, birthProfileService, jobFavourabilityResearchEnabled: Boolean(careerAnswerPolicy && careerAnswerPolicy.jobFavourabilityResearchEnabled === true), jobFavourabilityEvaluator, timingMode: careerTimingPolicy && careerTimingPolicy.mode || 'OFF', timingDiagnosticObserver: (entry) => { void careerTimingAnalyticsRecorder.record('career_timing_consumer_shadow', { mode: careerTimingPolicy && careerTimingPolicy.mode || 'OFF', status: 'COMPARED', duration_ms: entry.durationMs, has_current: entry.canonicalCurrentPresent, has_next: entry.canonicalStrongestWindowPresent, fallback_occurred: entry.fallbackOccurred }); } });
+  const careerAnswerService = new CareerAnswerService({ secureReadingService, birthProfileService, jobFavourabilityResearchEnabled: Boolean(careerAnswerPolicy && careerAnswerPolicy.jobFavourabilityResearchEnabled === true), jobFavourabilityEvaluator, timingMode: careerTimingPolicy && careerTimingPolicy.mode || 'OFF', timingModeResolver: (birthProfileId) => careerTimingAuthorityResolver.resolveMode(birthProfileId), timingDiagnosticObserver: (entry) => { void careerTimingAnalyticsRecorder.record('career_timing_consumer_shadow', { mode: careerTimingPolicy && careerTimingPolicy.mode || 'OFF', status: 'COMPARED', duration_ms: entry.durationMs, has_current: entry.canonicalCurrentPresent, has_next: entry.canonicalStrongestWindowPresent, fallback_occurred: entry.fallbackOccurred }); } });
   const { CareerDecisionService } = require('../application/career-decisions');
   const careerDecisionService = new CareerDecisionService({ careerAnswerService, authUserResolver: userResolver, birthProfileService, transactionExecutor: tx, repositories, idGenerator, clock });
   const { CareerChatOrchestrator } = require('../application/career-chat');
@@ -231,7 +236,7 @@ function createApiComposition({ db, authVerifier, kms, astronomicalEngine, canon
   const placeResolutionService = placeResolver ? new PlaceResolutionService({ birthPlaceResolver: placeResolver }) : null;
   const api = createApi({ authVerifier, userResolver: { resolve: userResolver }, birthProfileService, careerEventService, lifeEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, ashtakavargaService, secureReadingService, tarotService, careerAnswerService, careerDecisionService, propertyAnswerService, vehicleAnswerService, wealthAnswerService, relationshipAnswerService, familyExpansionAnswerService, careerChatOrchestrator, taraConversationService, purchaseService, razorpayPaymentService, appleNotificationService, googleRtdnService, notificationSelfService, placeResolutionService, requestIdGenerator: idGenerator, corsAllowlist, isReady, logger, bodyLimit });
   api.apiRuntime = { astronomicalEngine, canonicalSiderealSunSampler };
-  return Object.freeze({ api, services: Object.freeze({ birthProfileService, careerEventService, lifeEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, secureReadingService, tarotService, careerAnswerService, careerDecisionService, careerTimingAuthorityService, propertyAnswerService, vehicleAnswerService, wealthAnswerService, relationshipAnswerService, familyExpansionAnswerService, userResolver, transactionExecutor: tx }) });
+  return Object.freeze({ api, services: Object.freeze({ birthProfileService, careerEventService, lifeEventService, careerEventAstrologyService, natalSummaryService, divisionalChartService, vimshottariService, transitSnapshotService, secureReadingService, tarotService, careerAnswerService, careerDecisionService, careerTimingAuthorityService, careerTimingAuthorityResolver, propertyAnswerService, vehicleAnswerService, wealthAnswerService, relationshipAnswerService, familyExpansionAnswerService, userResolver, transactionExecutor: tx }) });
 }
 
 module.exports = { createApiComposition };

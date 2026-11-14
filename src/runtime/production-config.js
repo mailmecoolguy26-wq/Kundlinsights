@@ -37,7 +37,14 @@ function careerTiming(env) {
   if (!['OFF', 'SHADOW', 'ON'].includes(mode)) invalid('CAREER_TIMING_V2_MODE must be OFF, SHADOW, or ON');
   const telemetryProvider = env.CAREER_TIMING_V2_TELEMETRY_PROVIDER === undefined ? 'STRUCTURED_LOG' : env.CAREER_TIMING_V2_TELEMETRY_PROVIDER;
   if (!['OFF', 'STRUCTURED_LOG'].includes(telemetryProvider)) invalid('CAREER_TIMING_V2_TELEMETRY_PROVIDER must be OFF or STRUCTURED_LOG');
-  return Object.freeze({ mode, telemetryProvider });
+  const rawQaProfileIds = env.CAREER_TIMING_V2_CANONICAL_QA_PROFILE_IDS;
+  let canonicalQaProfileIds = [];
+  if (rawQaProfileIds !== undefined && rawQaProfileIds !== '') {
+    const values = rawQaProfileIds.split(',');
+    if (values.some((value) => !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value))) invalid('CAREER_TIMING_V2_CANONICAL_QA_PROFILE_IDS must be a comma-separated list of profile UUIDs');
+    canonicalQaProfileIds = [...new Set(values.map((value) => value.toLowerCase()))];
+  }
+  return Object.freeze({ mode, telemetryProvider, canonicalQaProfileIds: Object.freeze(canonicalQaProfileIds) });
 }
 
 function loadProductionConfig(env = process.env) {
