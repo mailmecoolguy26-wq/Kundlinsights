@@ -84,6 +84,7 @@ test('POST Tara message exposes the allowlisted profile premium action', async (
   });
 
   assert.equal(response.statusCode, 201);
+  assert.equal(response.headers['x-tara-request-id'], 'request-1');
   assert.deepEqual(response.json().assistantMessage.action, {
     type: 'OPEN_PROFILE_PREMIUM',
     label: 'Unlock TaraVerse Premium',

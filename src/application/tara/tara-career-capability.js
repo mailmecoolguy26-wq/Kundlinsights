@@ -6,6 +6,7 @@ const { appendHistoricalContext } = require('./tara-historical-context');
 
 const TaraCareerIntent = Object.freeze({ CURRENT_CAREER_PHASE: 'CURRENT_CAREER_PHASE', JOB_FAVOURABILITY_TIMING: 'JOB_FAVOURABILITY_TIMING', JOB_OFFER: 'JOB_OFFER', SWITCH_JOB: 'SWITCH_JOB', COMPARE_OFFERS: 'COMPARE_OFFERS', PROMOTION_GROWTH: 'PROMOTION_GROWTH', START_BUSINESS: 'START_BUSINESS', CAREER_ABROAD: 'CAREER_ABROAD', UNSUPPORTED_CAREER: 'UNSUPPORTED_CAREER' });
 const TaraCareerResponseState = Object.freeze({ ENTITLED_RESULT: 'ENTITLED_RESULT', PREMIUM_REQUIRED: 'PREMIUM_REQUIRED', FEATURE_DISABLED: 'FEATURE_DISABLED', UNSUPPORTED_CAREER: 'UNSUPPORTED_CAREER' });
+const TARA_CAREER_CLASSIFIER_VERSION = 'tara-career-intent-v1';
 
 const CAREER_DECISION_TRANSITIONS = Object.freeze({
   [TaraCareerIntent.JOB_OFFER]: Object.freeze({
@@ -72,7 +73,21 @@ function displayDate(value) {
   return Number.isNaN(date.getTime()) ? null : new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(date);
 }
 function range(window) { const start = displayDate(window && window.start); const end = displayDate(window && window.end); return start && end ? { start, end } : null; }
-function diagnostic(log, { state = null, action = null, birthProfileId = null } = {}) { if (typeof log === 'function') log({ event: 'TARA_BACKEND_CAPABILITY', state, actionType: action && action.type || null, actionLabel: action && action.label || null, messageId: null, birthProfileId }); }
+function diagnostic(log, { state = null, action = null } = {}) { if (typeof log === 'function') log({ event: 'TARA_BACKEND_CAPABILITY', state, actionType: action && action.type || null, messageId: null }); }
+function intentBranch(intent) {
+  if (intent === TaraCareerIntent.JOB_FAVOURABILITY_TIMING) return 'JOB_FAVOURABILITY_HANDLER';
+  if (intent === TaraCareerIntent.CURRENT_CAREER_PHASE) return 'CURRENT_CAREER_PHASE_HANDLER';
+  if (intent === TaraCareerIntent.UNSUPPORTED_CAREER) return 'UNSUPPORTED_FALLBACK';
+  return 'CAREER_DECISION_HANDLER';
+}
+function intentDiagnostic(log, { requestId, intent } = {}) {
+  if (typeof log !== 'function') return;
+  log({ event: 'tara_career_intent_classified', requestId, intent, classifierVersion: TARA_CAREER_CLASSIFIER_VERSION, matchedBranch: intentBranch(intent), classifierReached: true, unsupportedFallback: intent === TaraCareerIntent.UNSUPPORTED_CAREER });
+}
+function responseDiagnostic(log, { requestId, intent, responseType } = {}) {
+  if (typeof log !== 'function') return;
+  log({ event: 'tara_career_response_branch', requestId, intent, handler: intentBranch(intent), responseType, freshlyGenerated: true, persistedResponseUsed: false, cacheUsed: false });
+}
 function unsupportedCareerMessage(language) { return language === 'HINGLISH' ? 'Main abhi aapki Career phase aur stronger Career timing windows mein help kar sakti hoon, lekin is specific Career question ka reliable answer dene ke liye ready nahi hoon.' : 'I can currently help with your Career phase and stronger Career timing windows, but I’m not ready to answer that specific Career question reliably yet.'; }
 function renderCareerAnswer(answer, language) {
   if (answer.answerability === Answerability.PREMIUM_REQUIRED) return language === 'HINGLISH' ? 'Is profile ke personalized insights TaraVerse Premium ka part hain.' : 'Personalized insights for this profile are part of TaraVerse Premium.';
@@ -87,19 +102,22 @@ function renderCareerAnswer(answer, language) {
 }
 class TaraCareerCapability {
   constructor({ careerAnswerService } = {}) { if (!careerAnswerService || typeof careerAnswerService.answer !== 'function') throw new TypeError('INVALID_TARA_CAREER_ANSWER_SERVICE'); this.answers = careerAnswerService; }
-  async respond({ principal, birthProfileId, message, language = 'ENGLISH', diagnosticLog = null } = {}) {
+  async respond({ principal, birthProfileId, message, language = 'ENGLISH', diagnosticLog = null, requestId = null } = {}) {
     const intent = classifyTaraCareerIntent(message);
+    intentDiagnostic(diagnosticLog, { requestId, intent });
     const transition = CAREER_DECISION_TRANSITIONS[intent];
     if (transition) {
       const copy = language === 'HINGLISH' ? transition.message.HINGLISH : transition.message.ENGLISH;
       const label = language === 'HINGLISH' ? transition.label.HINGLISH : transition.label.ENGLISH;
       const result = Object.freeze({ intent, state: 'DECISION_CONTEXT_REQUIRED', answerability: Answerability.SUPPORTED, message: copy, answer: null, action: Object.freeze({ type: 'OPEN_CAREER_DECISION', label, decisionType: intent }) });
       diagnostic(diagnosticLog, { state: result.state, action: result.action, birthProfileId });
+      responseDiagnostic(diagnosticLog, { requestId, intent, responseType: result.state });
       return result;
     }
     if (intent === TaraCareerIntent.UNSUPPORTED_CAREER) {
       const result = Object.freeze({ intent, state: TaraCareerResponseState.UNSUPPORTED_CAREER, answerability: Answerability.UNSUPPORTED, message: unsupportedCareerMessage(language), answer: null, action: null });
       diagnostic(diagnosticLog, { state: result.state, action: result.action, birthProfileId });
+      responseDiagnostic(diagnosticLog, { requestId, intent, responseType: result.state });
       return result;
     }
     const questionType = CareerQuestionType[intent];
@@ -114,6 +132,7 @@ class TaraCareerCapability {
     const careerTimingContext = state === TaraCareerResponseState.ENTITLED_RESULT ? buildTaraCareerTimingContext(answer) : null;
     const result = Object.freeze({ intent, state, answerability: answer.answerability, message: messageWithContext, answer, careerTimingContext, action: state === TaraCareerResponseState.PREMIUM_REQUIRED ? Object.freeze({ type: 'OPEN_PROFILE_PREMIUM', label: 'Unlock TaraVerse Premium' }) : null });
     diagnostic(diagnosticLog, { state: result.state, action: result.action, birthProfileId });
+    responseDiagnostic(diagnosticLog, { requestId, intent, responseType: result.state });
     return result;
   }
 }

@@ -96,7 +96,7 @@ function createApi({ authVerifier, userResolver, birthProfileService, careerEven
     if (request.url.split('?', 1)[0] === '/v1/payments/razorpay/webhook') return done(null, body);
     try { done(null, JSON.parse(body.toString('utf8'))); } catch (error) { done(error); }
   });
-  app.register(cors, { origin: (origin, callback) => callback(null, !!origin && corsAllowlist.includes(origin)), methods: ['GET', 'POST', 'PATCH', 'DELETE'], allowedHeaders: ['authorization', 'content-type', 'idempotency-key'], exposedHeaders: ['x-request-id'], credentials: false, strictPreflight: true, logLevel: 'silent' });
+  app.register(cors, { origin: (origin, callback) => callback(null, !!origin && corsAllowlist.includes(origin)), methods: ['GET', 'POST', 'PATCH', 'DELETE'], allowedHeaders: ['authorization', 'content-type', 'idempotency-key'], exposedHeaders: ['x-request-id', 'x-tara-request-id'], credentials: false, strictPreflight: true, logLevel: 'silent' });
   app.addHook('preHandler', async (request) => { const pathname = request.url.split('?', 1)[0]; if (pathname === '/health' || pathname === '/ready' || pathname === '/v1/webhooks/apple' || pathname === '/v1/webhooks/google' || pathname === '/v1/payments/razorpay/webhook') return; request.principal = await authVerifier.verifyRequest(request); });
   app.setErrorHandler((error, request, reply) => { const out = mapApiError(error); reply.code(out.statusCode).send({ ...out.body, requestId: request.id }); });
   app.get('/health', async () => ({ status: 'ok' })); app.get('/ready', async (request, reply) => { if (!isReady()) { reply.code(503); return { status: 'not-ready' }; } return { status: 'ready' }; });
@@ -205,9 +205,16 @@ function createApi({ authVerifier, userResolver, birthProfileService, careerEven
     app.get('/v1/birth-profiles/:id/tara/conversations/:conversationId', async (request) => ({ ...await taraConversationService.get({ principal: request.principal, birthProfileId: id(request.params.id, 'BIRTH_PROFILE_ID'), conversationId: id(request.params.conversationId, 'TARA_CONVERSATION_ID') }), requestId: request.id }));
     app.post('/v1/birth-profiles/:id/tara/conversations/:conversationId/messages', async (request, reply) => {
       const birthProfileId = id(request.params.id, 'BIRTH_PROFILE_ID');
-      const diagnosticLog = (entry) => request.log.info(entry);
-      const result = await taraConversationService.message({ principal: request.principal, birthProfileId, conversationId: id(request.params.conversationId, 'TARA_CONVERSATION_ID'), body: request.body || {}, diagnosticLog });
-      request.log.info({ event: 'TARA_BACKEND_RESPONSE', state: result.tara && ((result.tara.career && result.tara.career.state) || (result.tara.property && result.tara.property.state) || (result.tara.vehicle && result.tara.vehicle.state)) || null, actionType: result.assistantMessage.action && result.assistantMessage.action.type || null, actionLabel: result.assistantMessage.action && result.assistantMessage.action.label || null, messageId: result.assistantMessage.messageId, birthProfileId });
+      const deploymentIdentity = {
+        deploymentId: process.env.RAILWAY_DEPLOYMENT_ID || null,
+        deploymentCommit: process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GIT_COMMIT_SHA || null,
+        environmentName: process.env.RAILWAY_ENVIRONMENT_NAME || process.env.NODE_ENV || null,
+        serviceName: process.env.RAILWAY_SERVICE_NAME || null,
+      };
+      const diagnosticLog = (entry) => request.log.info({ ...entry, ...(entry && /^tara_/.test(entry.event) ? deploymentIdentity : {}) });
+      reply.header('X-Tara-Request-Id', request.id);
+      const result = await taraConversationService.message({ principal: request.principal, birthProfileId, conversationId: id(request.params.conversationId, 'TARA_CONVERSATION_ID'), body: request.body || {}, diagnosticLog, requestId: request.id });
+      request.log.info({ event: 'TARA_BACKEND_RESPONSE', state: result.tara && ((result.tara.career && result.tara.career.state) || (result.tara.property && result.tara.property.state) || (result.tara.vehicle && result.tara.vehicle.state)) || null, actionType: result.assistantMessage.action && result.assistantMessage.action.type || null, messageId: result.assistantMessage.messageId, requestId: request.id });
       reply.code(201);
       return { ...result, requestId: request.id };
     });
