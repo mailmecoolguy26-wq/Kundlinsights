@@ -9,12 +9,16 @@ function freeze(value) { if (value && typeof value === 'object' && !Object.isFro
 function validInterval(value) { return value && typeof value.start === 'string' && typeof value.end === 'string' && Number.isFinite(Date.parse(value.start)) && Number.isFinite(Date.parse(value.end)) && Date.parse(value.start) < Date.parse(value.end); }
 function containsDate(interval, date, { halfOpen = true } = {}) { const instant = Date.parse(date), start = interval && Date.parse(interval.start), end = interval && Date.parse(interval.end); return Number.isFinite(instant) && Number.isFinite(start) && Number.isFinite(end) && instant >= start && (halfOpen ? instant < end : instant <= end); }
 function copyWindow(value, classification = null) { return validInterval(value) ? freeze({ start: value.start, end: value.end, ...(classification ? { classification } : {}), ...(typeof value.label === 'string' ? { label: value.label } : {}) }) : null; }
-function legacySignal(reading) { return (Array.isArray(reading && reading.careerTimingPeriods) ? reading.careerTimingPeriods : []).filter((item) => item && item.evidenceState === POSSIBLE_SIGNAL && validInterval({ start: item.startDate, end: item.endDate })).slice().sort((left, right) => left.startDate.localeCompare(right.startDate))[0] || null; }
-function legacyContext(reading, source = 'LEGACY') {
-  const signal = legacySignal(reading); const window = signal ? copyWindow({ start: signal.startDate, end: signal.endDate }, POSSIBLE_SIGNAL) : null;
-  return freeze({ source, authority: 'LEGACY', mode: source === 'LEGACY' ? 'OFF_OR_SHADOW' : 'ON_FALLBACK', contractVersion: null, timingEngineVersion: null, eligibilityRuleset: null, refinementRuleset: null, intervalSemantics: 'LEGACY_INCLUSIVE_END', eligiblePeriods: window ? freeze([window]) : freeze([]), strongestWindows: window ? freeze([window]) : freeze([]), currentEligiblePeriod: null, nextEligiblePeriod: window, activeRefinement: null, strongestCurrentRefinement: null, strongestUpcomingRefinement: window, primaryWindow: window, productState: signal && signal.evidenceState || null, evidenceSummary: null });
+function referenceInstant(reading, fallback) { const value = reading && reading.readingInstant; const parsed = typeof value === 'string' ? Date.parse(value) : NaN; return Number.isFinite(parsed) ? parsed : fallback; }
+function legacySignal(reading, at) {
+  const periods = (Array.isArray(reading && reading.careerTimingPeriods) ? reading.careerTimingPeriods : []).filter((item) => item && item.evidenceState === POSSIBLE_SIGNAL && validInterval({ start: item.startDate, end: item.endDate })).slice().sort((left, right) => left.startDate.localeCompare(right.startDate));
+  return periods.find((item) => Date.parse(item.startDate) <= at && at < Date.parse(item.endDate)) || periods.find((item) => Date.parse(item.startDate) > at) || null;
 }
-function legacyContextFromWindow(window) { return legacyContext({ careerTimingPeriods: validInterval(window) ? [{ startDate: window.start, endDate: window.end, evidenceState: window.classification || POSSIBLE_SIGNAL }] : [] }); }
+function legacyContext(reading, source = 'LEGACY', at = Date.now()) {
+  const signal = legacySignal(reading, at); const window = signal ? copyWindow({ start: signal.startDate, end: signal.endDate }, POSSIBLE_SIGNAL) : null;
+  return freeze({ source: window ? source : 'NONE', authority: 'LEGACY', mode: source === 'LEGACY' ? 'OFF_OR_SHADOW' : 'ON_FALLBACK', ...(source === 'LEGACY_FALLBACK' ? { resolutionReason: 'CANONICAL_NO_PUBLISHABLE_WINDOW' } : {}), contractVersion: null, timingEngineVersion: null, eligibilityRuleset: null, refinementRuleset: null, intervalSemantics: 'LEGACY_INCLUSIVE_END', eligiblePeriods: window ? freeze([window]) : freeze([]), strongestWindows: window ? freeze([window]) : freeze([]), currentEligiblePeriod: null, nextEligiblePeriod: window, activeRefinement: null, strongestCurrentRefinement: null, strongestUpcomingRefinement: window, primaryWindow: window, productState: signal && signal.evidenceState || null, evidenceSummary: null });
+}
+function legacyContextFromWindow(window) { return legacyContext({ careerTimingPeriods: validInterval(window) ? [{ startDate: window.start, endDate: window.end, evidenceState: window.classification || POSSIBLE_SIGNAL }] : [] }, 'LEGACY', validInterval(window) ? Date.parse(window.start) : Date.now()); }
 function supportedCanonical(timing) { return Boolean(timing && timing.contractVersion === 'career-timing-production-v1' && timing.authority === 'CANONICAL' && timing.intervalSemantics === 'HALF_OPEN' && Array.isArray(timing.periods)); }
 function canonicalContext(timing) {
   const current = timing.current, next = timing.next;
@@ -39,12 +43,15 @@ function lookupDate(context, date) {
 class CareerDecisionTimingAdapter {
   constructor({ mode = 'OFF', diagnosticObserver = null, clock = Date.now } = {}) { if (!MODES.has(mode)) throw new RangeError('Career decision timing mode must be OFF, SHADOW, or ON.'); if (diagnosticObserver !== null && typeof diagnosticObserver !== 'function') throw new TypeError('diagnosticObserver must be a function.'); this.mode = mode; this.observe = diagnosticObserver; this.clock = clock; Object.freeze(this); }
   resolve(reading) {
-    const started = this.clock(); const canonical = reading && reading.careerTiming;
+    const started = this.clock(); const at = referenceInstant(reading, started); const canonical = reading && reading.careerTiming;
     let context; let fallbackOccurred = false;
     if (this.mode === 'ON' && supportedCanonical(canonical)) {
-      try { context = canonicalContext(canonical); }
-      catch (_) { fallbackOccurred = true; context = legacyContext(reading, 'LEGACY_FALLBACK'); }
-    } else { fallbackOccurred = this.mode === 'ON'; context = legacyContext(reading, this.mode === 'ON' ? 'LEGACY_FALLBACK' : 'LEGACY'); }
+      try {
+        const candidate = canonicalContext(canonical);
+        if (candidate.primaryWindow) context = candidate;
+        else { fallbackOccurred = true; context = legacyContext(reading, 'LEGACY_FALLBACK', at); }
+      } catch (_) { fallbackOccurred = true; context = legacyContext(reading, 'LEGACY_FALLBACK', at); }
+    } else { fallbackOccurred = this.mode === 'ON'; context = legacyContext(reading, this.mode === 'ON' ? 'LEGACY_FALLBACK' : 'LEGACY', at); }
     if (this.mode === 'SHADOW' && this.observe) {
       let shadow = null;
       const shadowCandidate = canonical && canonical.authority === 'SHADOW';
@@ -56,4 +63,6 @@ class CareerDecisionTimingAdapter {
   lookupDate(context, date) { return lookupDate(context, date); }
 }
 
-module.exports = { CareerDecisionTimingAdapter, containsDate, lookupDate, legacyContextFromWindow };
+function resolveCareerDisplayTiming(reading, options = {}) { return new CareerDecisionTimingAdapter(options).resolve(reading); }
+
+module.exports = { CareerDecisionTimingAdapter, resolveCareerDisplayTiming, containsDate, lookupDate, legacyContextFromWindow };

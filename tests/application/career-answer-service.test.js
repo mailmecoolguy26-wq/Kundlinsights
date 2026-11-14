@@ -75,6 +75,16 @@ test('OFF and SHADOW preserve legacy answers while structural ON uses canonical 
   const phase=await new CareerAnswerService({secureReadingService:service({value}),timingMode:'ON'}).answer({principal:{},birthProfileId:'profile-a',body:{questionType:CareerQuestionType.CURRENT_CAREER_PHASE}});assert.equal(phase.answer.currentPhase,'SUPPORTIVE');
 });
 
+test('ON uses the same persisted legacy fallback when canonical has no publishable window', async () => {
+  const canonical={contractVersion:'career-timing-production-v1',timingEngineVersion:'career-timing-v2-production-1',eligibilityRuleset:'career-timing-v2.2-shadow-1',refinementRuleset:'career-timing-v2.3-shadow-1',authority:'CANONICAL',intervalSemantics:'HALF_OPEN',periods:[],current:null,next:null,explanationPolicy:{}};
+  const value=detail({readingInstant:'2026-11-14T18:06:13.733Z',careerTiming:canonical,careerTimingPeriods:[{...detail().careerTimingPeriods[0],startDate:'2026-11-20T12:46:11.911Z',endDate:'2027-01-10T20:17:38.633Z'}]});
+  const answer=await new CareerAnswerService({secureReadingService:service({value}),timingMode:'ON'}).answer({principal:{},birthProfileId:'profile-a',body:{questionType:CareerQuestionType.CAREER_ACTIVITY_TIMING}});
+  assert.equal(answer.timingContext.source,'LEGACY_FALLBACK');
+  assert.equal(answer.timingContext.authority,'LEGACY');
+  assert.deepEqual(answer.answer.window,{start:'2026-11-20T12:46:11.911Z',end:'2027-01-10T20:17:38.633Z',classification:'POSSIBLE_CAREER_ACTIVITY_SIGNAL'});
+  assert.equal(value.careerTiming.periods.length,0);
+});
+
 test('uses only the selected signal historical context and never invents dates or recurrence', async () => {
   const value = detail({
     careerEvidenceSynthesis: { futureRecurrence: 'Do not expose this unsupported summary.' },

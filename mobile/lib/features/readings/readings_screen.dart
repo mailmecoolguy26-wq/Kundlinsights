@@ -878,6 +878,7 @@ class _CareerReadingDetail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final displayTiming = resolveCareerDisplayTiming(detail);
     final calibrated = detail.calibratedContent;
     final hasCalibrationContext =
         calibrated != null && calibrated.sections.isNotEmpty;
@@ -925,8 +926,10 @@ class _CareerReadingDetail extends StatelessWidget {
                   ),
                   const SizedBox(height: 22),
                   _CareerForecastOverview(
-                    periods: detail.careerTimingPeriods ?? const [],
-                    careerTiming: detail.careerTiming,
+                    periods: displayTiming.legacyPeriod == null
+                        ? const []
+                        : [displayTiming.legacyPeriod!],
+                    careerTiming: displayTiming.canonical,
                     content: detail.content,
                     readingInstant: detail.readingInstant,
                     copy: copy,
@@ -949,8 +952,10 @@ class _CareerReadingDetail extends StatelessWidget {
                     detail: detail,
                     calibrated: calibrated,
                     copy: copy,
-                    periods: detail.careerTimingPeriods ?? const [],
-                    careerTiming: detail.careerTiming,
+                    periods: displayTiming.legacyPeriod == null
+                        ? const []
+                        : [displayTiming.legacyPeriod!],
+                    careerTiming: displayTiming.canonical,
                   ),
                   if (generation != null &&
                       generation!.activeBirthProfileId ==

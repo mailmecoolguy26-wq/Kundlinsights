@@ -300,12 +300,12 @@ class _CareerOutlookCard extends StatelessWidget {
       );
     }
 
-    final resolved = resolveCareerTiming(savedDetail.careerTiming);
+    final resolved = resolveCareerDisplayTiming(savedDetail);
     if (resolved.isCanonical) {
       return _CanonicalCareerOutlookCard(timing: resolved.canonical!);
     }
     final phase = careerHubCustomerPhase(savedDetail);
-    final window = _primaryWindow(savedDetail);
+    final window = resolved.legacyPeriod;
     return _HubCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -516,21 +516,6 @@ ReadingSummary? _latestCareerReading(List<ReadingSummary> readings) {
       readings.where((reading) => reading.domain == 'CAREER').toList()
         ..sort((left, right) => right.createdAt.compareTo(left.createdAt));
   return career.isEmpty ? null : career.first;
-}
-
-CareerTimingPeriod? _primaryWindow(ReadingDetail detail) {
-  final anchor = DateTime.tryParse(detail.readingInstant)?.toUtc();
-  final periods = [...?detail.careerTimingPeriods]
-    ..sort((left, right) => left.startDate.compareTo(right.startDate));
-  if (periods.isEmpty) return null;
-  if (anchor == null) return periods.first;
-  for (final period in periods) {
-    if (_isActive(period, detail.readingInstant)) return period;
-  }
-  for (final period in periods) {
-    if (_parse(period.startDate).isAfter(anchor)) return period;
-  }
-  return null;
 }
 
 bool _isActive(CareerTimingPeriod period, String readingInstant) {

@@ -1,7 +1,7 @@
 'use strict';
 
 const { buildCareerTimingPeriods, buildCareerTimingV22, buildCareerTimingV23 } = require('../insights');
-const { CareerDecisionTimingAdapter, containsDate, lookupDate, legacyContextFromWindow } = require('./decision-timing-adapter');
+const { CareerDecisionTimingAdapter, resolveCareerDisplayTiming, containsDate, lookupDate, legacyContextFromWindow } = require('./decision-timing-adapter');
 const { CAREER_TIMING_NO_INVENTION_RULE, canonicalJobFavourabilityProjection, buildTaraCareerTimingContext } = require('./specialized-career-context');
 const { shadowComparison, normalizeShadowError, SHADOW_DASHBOARD_METRICS } = require('./shadow-telemetry');
 
@@ -66,4 +66,4 @@ class CareerTimingAuthorityService {
   }
 }
 
-module.exports = { CAREER_TIMING_PRODUCTION_CONTRACT_VERSION, CAREER_TIMING_V2_MODES, PRODUCT_STATE, PRODUCT_TIER, CareerTimingAuthorityService, CareerDecisionTimingAdapter, containsDate, lookupDate, legacyContextFromWindow, canonicalJobFavourabilityProjection, buildTaraCareerTimingContext, CAREER_TIMING_NO_INVENTION_RULE, canonicalDto, shadowComparison, normalizeShadowError, SHADOW_DASHBOARD_METRICS };
+module.exports = { CAREER_TIMING_PRODUCTION_CONTRACT_VERSION, CAREER_TIMING_V2_MODES, PRODUCT_STATE, PRODUCT_TIER, CareerTimingAuthorityService, CareerDecisionTimingAdapter, resolveCareerDisplayTiming, containsDate, lookupDate, legacyContextFromWindow, canonicalJobFavourabilityProjection, buildTaraCareerTimingContext, CAREER_TIMING_NO_INVENTION_RULE, canonicalDto, shadowComparison, normalizeShadowError, SHADOW_DASHBOARD_METRICS };

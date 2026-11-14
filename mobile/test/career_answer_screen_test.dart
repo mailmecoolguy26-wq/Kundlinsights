@@ -225,15 +225,15 @@ void main() {
   });
 
   testWidgets(
-    'Career hub keeps a CANONICAL zero-period response empty without legacy fallback',
+    'Career hub uses persisted timing when CANONICAL has no publishable window',
     (tester) async {
       final timing = _canonicalTiming('CANONICAL')
         ..['periods'] = <Object?>[]
         ..['current'] = null
         ..['next'] = null;
       final detail = _careerReadingDetail(
-        phase: 'Legacy phase must not be shown.',
-        timingMeaning: 'Legacy window must not be shown.',
+        phase: 'Career movement is active.',
+        timingMeaning: 'Career-related support strengthens in this period.',
         careerTiming: CareerTimingDto.tryFromJson(timing),
       );
       final harness = await _ReadingHarness.create(
@@ -249,13 +249,9 @@ void main() {
         MaterialApp(home: CareerHubScreen(readings: harness.readings)),
       );
       await tester.pumpAndSettle();
-      expect(
-        find.text(
-          'No current or upcoming Career timing period is available in this reading.',
-        ),
-        findsOneWidget,
-      );
-      expect(find.textContaining('Legacy'), findsNothing);
+      expect(find.text('20 Nov 2026 – 10 Jan 2027'), findsOneWidget);
+      expect(find.text('NEXT STRONGER CAREER WINDOW'), findsOneWidget);
+      expect(find.textContaining('No current or upcoming'), findsNothing);
     },
   );
 

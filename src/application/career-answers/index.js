@@ -41,12 +41,14 @@ function supported(insights, family) {
   return Array.isArray(insights) && insights.some((item) => item && item.family === family && item.status === 'SUPPORTED');
 }
 
-function selectSignal(reading) {
+function selectSignal(reading, timingContext = null) {
   const periods = Array.isArray(reading && reading.careerTimingPeriods) ? reading.careerTimingPeriods : [];
-  return periods
+  const signals = periods
     .filter((item) => item && item.evidenceState === POSSIBLE_SIGNAL && typeof item.startDate === 'string' && typeof item.endDate === 'string' && Date.parse(item.startDate) < Date.parse(item.endDate))
     .slice()
-    .sort((left, right) => left.startDate.localeCompare(right.startDate))[0] || null;
+    .sort((left, right) => left.startDate.localeCompare(right.startDate));
+  const resolved = timingContext && timingContext.authority !== 'CANONICAL' && timingContext.primaryWindow;
+  return resolved ? signals.find((item) => item.startDate === resolved.start && item.endDate === resolved.end) || null : signals[0] || null;
 }
 
 function collectEvidence(reading, signal = null) {
@@ -153,7 +155,7 @@ function jobFavourabilityProfilePrerequisite() {
 }
 
 async function jobFavourabilityContract({ reading, premium, researchEnabled, evaluator, principal, birthProfileId, birthProfile = null, timing = null, timingContext = null }) {
-  const signal = selectSignal(reading);
+  const signal = selectSignal(reading, timingContext);
   const collected = collectEvidence(reading, signal);
   const historicalAvailable = Boolean(signal && typeof signal.recurrenceSummary === 'string' && signal.recurrenceSummary.trim());
   const base = {
@@ -288,7 +290,7 @@ async function jobFavourabilityContract({ reading, premium, researchEnabled, eva
 
 function present({ questionType, reading, timingContext = null }) {
   if (!reading) return noReading(questionType);
-  const signal = selectSignal(reading);
+  const signal = selectSignal(reading, timingContext);
   const canonical = timingContext && timingContext.authority === 'CANONICAL';
   const collected = canonical ? collectCanonicalEvidence(timingContext, reading) : collectEvidence(reading, signal);
   const calibratedHistory = reading && reading.calibrationInterpretation && reading.calibrationInterpretation.customerHistoricalContext;

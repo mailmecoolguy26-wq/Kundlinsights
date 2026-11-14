@@ -219,6 +219,77 @@ class ReadingDetail extends ReadingSummary {
   }
 }
 
+enum CareerDisplayTimingSource { canonical, legacyFallback, none }
+
+final class ResolvedCareerDisplayTiming {
+  const ResolvedCareerDisplayTiming._({
+    required this.source,
+    this.canonical,
+    this.legacyPeriod,
+    this.reason,
+  });
+
+  final CareerDisplayTimingSource source;
+  final CareerTimingDto? canonical;
+  final CareerTimingPeriod? legacyPeriod;
+  final String? reason;
+
+  bool get isCanonical => source == CareerDisplayTimingSource.canonical;
+  bool get hasWindow => isCanonical || legacyPeriod != null;
+}
+
+/// Selects one customer-facing Career timing authority without changing the
+/// persisted canonical or legacy packets.
+ResolvedCareerDisplayTiming resolveCareerDisplayTiming(ReadingDetail detail) {
+  final canonical = detail.careerTiming;
+  final canonicalResolved = resolveCareerTiming(canonical);
+  final hasCanonicalWindow =
+      canonicalResolved.isCanonical &&
+      (canonical!.current?.eligiblePeriod != null ||
+          canonical.current?.refinement != null ||
+          canonical.next?.eligiblePeriod != null ||
+          canonical.next?.refinement != null);
+  if (hasCanonicalWindow) {
+    return ResolvedCareerDisplayTiming._(
+      source: CareerDisplayTimingSource.canonical,
+      canonical: canonical,
+    );
+  }
+
+  final anchor =
+      DateTime.tryParse(detail.readingInstant)?.toUtc() ??
+      DateTime.now().toUtc();
+  final periods = [...?detail.careerTimingPeriods]
+    ..sort((left, right) => left.startDate.compareTo(right.startDate));
+  final selected = periods.cast<CareerTimingPeriod?>().firstWhere(
+    (period) {
+      if (period == null) return false;
+      final start = DateTime.tryParse(period.startDate)?.toUtc();
+      final end = DateTime.tryParse(period.endDate)?.toUtc();
+      return start != null &&
+          end != null &&
+          !anchor.isBefore(start) &&
+          anchor.isBefore(end);
+    },
+    orElse: () => periods.cast<CareerTimingPeriod?>().firstWhere((period) {
+      final start = DateTime.tryParse(period!.startDate)?.toUtc();
+      return start != null && start.isAfter(anchor);
+    }, orElse: () => null),
+  );
+  if (selected != null) {
+    return ResolvedCareerDisplayTiming._(
+      source: CareerDisplayTimingSource.legacyFallback,
+      legacyPeriod: selected,
+      reason: canonicalResolved.isCanonical
+          ? 'CANONICAL_NO_PUBLISHABLE_WINDOW'
+          : null,
+    );
+  }
+  return const ResolvedCareerDisplayTiming._(
+    source: CareerDisplayTimingSource.none,
+  );
+}
+
 /// A server-calculated, non-predictive Career timing signal. Flutter only
 /// displays this packet and never derives labels, dates, or astrology facts.
 class CareerTimingPeriod {

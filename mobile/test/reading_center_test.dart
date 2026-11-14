@@ -1572,6 +1572,61 @@ void main() {
   );
 
   testWidgets(
+    'empty canonical Career timing displays the nearest persisted legacy window',
+    (tester) async {
+      final authSource = _AuthSource();
+      final auth = AuthController(authSource);
+      await auth.restore();
+      final profiles = ProfileController(_Profiles(authSource), auth);
+      await tester.pump();
+      final emptyCanonical = _canonicalCareerTiming('CANONICAL')
+        ..['periods'] = const []
+        ..['current'] = null
+        ..['next'] = null;
+      final repository = _ReadingRepository()
+        ..nextDetail = ReadingDetail.fromJson({
+          ..._detailJson(),
+          'readingInstant': '2026-11-14T18:06:13.733Z',
+          'careerTimingPeriods': [
+            {
+              ..._careerTimingPeriod(),
+              'startDate': '2026-11-20T12:46:11.911Z',
+              'endDate': '2027-01-10T20:17:38.633Z',
+            },
+          ],
+          'careerTiming': emptyCanonical,
+        });
+      final detail = repository.nextDetail!;
+      final persistedCanonical = detail.careerTiming;
+      expect(
+        resolveCareerDisplayTiming(detail).source,
+        CareerDisplayTimingSource.legacyFallback,
+      );
+      expect(persistedCanonical!.periods, isEmpty);
+
+      final controller = ReadingController(repository, auth, profiles);
+      await tester.pumpWidget(
+        _localized(
+          ReadingDetailScreen(controller: controller, readingId: 'reading-a'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('NEXT STRONGER CAREER WINDOW'), findsOneWidget);
+      expect(find.text('20 Nov 2026 – 11 Jan 2027'), findsOneWidget);
+      expect(
+        find.text(
+          'No current or upcoming Career timing period is available in this reading.',
+        ),
+        findsNothing,
+      );
+      expect(persistedCanonical.periods, isEmpty);
+      controller.dispose();
+      profiles.dispose();
+      auth.dispose();
+    },
+  );
+
+  testWidgets(
     'updated Career Reading replaces the old detail route with the created reading',
     (tester) async {
       final authSource = _AuthSource();
