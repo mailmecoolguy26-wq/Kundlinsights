@@ -95,7 +95,10 @@ class AuthController extends ChangeNotifier {
       }
 
       _phoneOtpState = PhoneOtpState.phoneEntry;
-      _state = AuthSnapshot(AuthStatus.error, message: _safeMessage(error));
+      _state = AuthSnapshot(
+        AuthStatus.error,
+        message: _safeMessage(error, operation: _AuthOperation.otpRequest),
+      );
       _debug('AUTH_OTP_REQUEST_FAILURE', snapshot: _state, error: error);
     }
 
@@ -131,7 +134,10 @@ class AuthController extends ChangeNotifier {
       }
 
       _phoneOtpState = PhoneOtpState.sent;
-      _state = AuthSnapshot(AuthStatus.error, message: _safeMessage(error));
+      _state = AuthSnapshot(
+        AuthStatus.error,
+        message: _safeMessage(error, operation: _AuthOperation.otpVerification),
+      );
       _debug('AUTH_OTP_VERIFY_FAILURE', snapshot: _state, error: error);
     }
 
@@ -178,7 +184,10 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
-  String _safeMessage(Object error) {
+  String _safeMessage(
+    Object error, {
+    _AuthOperation operation = _AuthOperation.generic,
+  }) {
     final value = error.toString().toLowerCase();
     if (value.contains('invalid login') ||
         value.contains('invalid credentials')) {
@@ -197,9 +206,10 @@ class AuthController extends ChangeNotifier {
     if (value.contains('rate') || value.contains('too many')) {
       return 'Please wait a moment before requesting another OTP.';
     }
-    if (value.contains('otp') ||
-        value.contains('token') ||
-        value.contains('expired')) {
+    if (operation == _AuthOperation.otpVerification &&
+        (value.contains('otp') ||
+            value.contains('token') ||
+            value.contains('expired'))) {
       return 'That OTP is invalid or has expired. Please try again.';
     }
     if (value.contains('socket') ||
@@ -209,6 +219,9 @@ class AuthController extends ChangeNotifier {
     }
     if (value.contains('service') || value.contains('server')) {
       return 'Authentication is unavailable right now. Please try again.';
+    }
+    if (operation == _AuthOperation.otpRequest) {
+      return 'Unable to send the OTP right now. Please try again.';
     }
     return 'Something went wrong. Please try again.';
   }
@@ -233,3 +246,5 @@ class AuthController extends ChangeNotifier {
     super.dispose();
   }
 }
+
+enum _AuthOperation { generic, otpRequest, otpVerification }

@@ -60,6 +60,32 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('phone-continue')));
     await tester.pump();
     expect(source.requestedPhones, ['+919876543210']);
+    expect(source.verified, isEmpty);
+  });
+
+  testWidgets('OTP send failure never renders an expired-code message', (
+    tester,
+  ) async {
+    source.requestError = StateError(
+      'Phone OTP authentication is unavailable.',
+    );
+    await tester.pumpWidget(_app(LoginScreen(controller: controller)));
+    await tester.enterText(
+      find.byKey(const ValueKey('mobile-number-input')),
+      '9876543210',
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('phone-continue')));
+    await tester.pump();
+    await tester.pump();
+
+    expect(source.requestedPhones, ['+919876543210']);
+    expect(source.verified, isEmpty);
+    expect(
+      find.text('Unable to send the OTP right now. Please try again.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('invalid or has expired'), findsNothing);
   });
 
   testWidgets('OTP route retains the requested phone number', (tester) async {
@@ -120,6 +146,26 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('raw provider detail'), findsNothing);
+  });
+
+  testWidgets('expired OTP message is limited to verification failures', (
+    tester,
+  ) async {
+    source.verifyError = StateError('expired otp token');
+    await tester.pumpWidget(
+      _app(
+        VerifyOtpScreen(controller: controller, phoneNumber: '+919876543210'),
+      ),
+    );
+    await _enterOtp(tester, '123456');
+    await tester.tap(find.byKey(const ValueKey('verify-otp')));
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      find.text('That OTP is invalid or has expired. Please try again.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('returning to login clears a stale OTP verification error', (
@@ -246,6 +292,7 @@ class _Auth implements AuthRepository, PhoneOtpAuthRepository {
   final _states = StreamController<AuthSnapshot>.broadcast();
   final requestedPhones = <String>[];
   final verified = <(String, String)>[];
+  Object? requestError;
   Object? verifyError;
   bool authenticated = false;
 
@@ -263,6 +310,7 @@ class _Auth implements AuthRepository, PhoneOtpAuthRepository {
   @override
   Future<void> requestPhoneOtp({required String phoneNumber}) async {
     requestedPhones.add(phoneNumber);
+    if (requestError case final error?) throw error;
   }
 
   @override
