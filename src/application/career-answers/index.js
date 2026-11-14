@@ -199,6 +199,37 @@ async function jobFavourabilityContract({ reading, premium, researchEnabled, eva
     projectionStatus: 'DISABLED',
     limitationCode: 'JOB_FAVOURABILITY_RESEARCH_DISABLED',
   });
+  // In ON mode the shared resolver may deliberately select a persisted legacy
+  // display window when canonical timing has no publishable interval. Consume
+  // that exact window here; do not invoke the older evaluator and create an
+  // independent fallback decision inside Ask Tara.
+  if (timingContext && (timingContext.source === 'LEGACY_FALLBACK' || timingContext.source === 'NONE' && timingContext.mode === 'ON_FALLBACK')) {
+    const resolvedWindow = timingContext.primaryWindow;
+    if (!resolvedWindow) return immutable({
+      ...base,
+      timingContext,
+      answerability: Answerability.NO_CONCENTRATED_JOB_FAVOURABILITY,
+      projectionStatus: 'RESOLVED_TIMING_NO_WINDOW',
+      limitationCode: 'NO_CONCENTRATED_JOB_FAVOURABILITY',
+      provenance: immutable({ ...base.provenance, calculationAuthority: 'SHARED_CAREER_TIMING_RESOLVER' }),
+    });
+    if (!premium) return jobFavourabilityPremiumTeaser();
+    return immutable({
+      ...base,
+      answerability: Answerability.SUPPORTED,
+      projectionStatus: 'RESOLVED_TIMING_AVAILABLE',
+      broadWindow: resolvedWindow,
+      strongerConcentrationWindow: null,
+      strength: 'MODERATE',
+      evidenceAgreementCount: 1,
+      evidenceReasonCodes: immutable(['CAREER_TIMING_ACTIVATED']),
+      recommendedActionCodes: immutable(['PREPARE_CAREER_MATERIALS_AND_CONVERSATIONS']),
+      limitationCode: 'DESCRIPTIVE_TIMING_ONLY',
+      timingAuthority: timingContext.authority,
+      timingContext,
+      provenance: immutable({ ...base.provenance, calculationAuthority: 'SHARED_CAREER_TIMING_RESOLVER' }),
+    });
+  }
   if (timingContext && timingContext.authority === 'CANONICAL') {
     const canonical = canonicalJobFavourabilityProjection(timingContext);
     const timingMetadata = {

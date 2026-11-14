@@ -40,6 +40,7 @@ function buildTaraCareerTimingContext(answer) {
   const broadWindow = period(answer.broadWindow || answer.answer && answer.answer.window);
   if (!context && !broadWindow) return null;
   return freeze({
+    timingSource: context && context.source || null,
     timingAuthority: answer.timingAuthority || context && context.authority || 'LEGACY',
     contractVersion: answer.contractVersion || context && context.contractVersion || null,
     timingEngineVersion: answer.timingEngineVersion || context && context.timingEngineVersion || null,

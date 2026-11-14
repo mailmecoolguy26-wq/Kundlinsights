@@ -42,6 +42,28 @@ test('maps non-decision Career timing phrasing to the existing job-favourability
   assert.ok(calls.every((call) => call.body.questionType === 'JOB_FAVOURABILITY_TIMING'));
 });
 
+test('maps English and Hinglish job-acquisition questions to grounded Career timing', async () => {
+  const calls = [];
+  const capability = new TaraCareerCapability({ careerAnswerService: { answer: async (input) => {
+    calls.push(input);
+    return { questionType: 'JOB_FAVOURABILITY_TIMING', answerability: 'SUPPORTED', broadWindow: { start: '2026-11-20T12:46:11.911Z', end: '2027-01-10T20:17:38.633Z' } };
+  } } });
+  const cases = [
+    'job kab tak milne ke chances hai', 'job kab milegi', 'naukri kab milegi',
+    'when will I get a job', 'when can I get a job', 'chances of getting a job',
+    'next job timing', 'when is my next job likely', 'job opportunity kab aayegi',
+  ];
+  for (const message of cases) {
+    const response = await capability.respond({ principal: {}, birthProfileId: 'profile-a', message, language: /\b(kab|naukri|mil)/i.test(message) ? 'HINGLISH' : 'ENGLISH' });
+    assert.equal(response.intent, TaraCareerIntent.JOB_FAVOURABILITY_TIMING, message);
+    assert.equal(response.state, TaraCareerResponseState.ENTITLED_RESULT, message);
+    assert.match(response.message, /20 Nov 2026 (?:to|se) 10 Jan 2027/, message);
+    assert.doesNotMatch(response.message, /guaranteed job|pakka offer|100% chance/i, message);
+  }
+  assert.equal(calls.length, cases.length);
+  assert.ok(calls.every((call) => call.body.questionType === 'JOB_FAVOURABILITY_TIMING'));
+});
+
 test('routes only conservative Career decision requests to an existing decision form', async () => {
   const capability = new TaraCareerCapability({ careerAnswerService: { answer: async () => { throw new Error('decision routing must not calculate a result'); } } });
   const cases = [

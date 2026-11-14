@@ -93,12 +93,16 @@ test('routes Hinglish Career and Transit questions through the existing grounded
   });
   const timing = await tara.respond({ principal: {}, birthProfileId: 'profile-a', message: 'Mera career kab improve hoga?' });
   assert.equal(timing.domain, 'CAREER');
-  assert.match(timing.message, /Aapka stronger Career window/i);
+  assert.match(timing.message, /Aapka next stronger Career window/i);
+  const jobTiming = await tara.respond({ principal: {}, birthProfileId: 'profile-a', message: 'job kab tak milne ke chances hai ?' });
+  assert.equal(jobTiming.domain, 'CAREER');
+  assert.equal(jobTiming.career.intent, 'JOB_FAVOURABILITY_TIMING');
+  assert.match(jobTiming.message, /20 Nov 2026 se 10 Jan 2027/);
   const switchDecision = await tara.respond({ principal: {}, birthProfileId: 'profile-a', message: 'Job switch karne ka acha time kab hai?' });
   assert.equal(switchDecision.domain, 'CAREER');
   assert.equal(switchDecision.career.intent, 'SWITCH_JOB');
   assert.equal(switchDecision.action.type, 'OPEN_CAREER_DECISION');
-  assert.deepEqual(calls.map((call) => call.body.questionType), ['JOB_FAVOURABILITY_TIMING']);
+  assert.deepEqual(calls.map((call) => call.body.questionType), ['JOB_FAVOURABILITY_TIMING', 'JOB_FAVOURABILITY_TIMING']);
   const lifeArea = await tara.respond({ principal: {}, birthProfileId: 'profile-a', message: 'Jupiter ka gochar mere career ko kaise affect karega?' });
   assert.equal(lifeArea.domain, 'TRANSIT');
   assert.equal(transitCalls[0].language, TaraLanguageStyle.HINGLISH);
@@ -127,8 +131,8 @@ test('keeps grounded Career dates identical while changing only English or Hingl
   });
   const english = await career.respond({ principal: {}, birthProfileId: 'profile-a', message: 'career improve', language: TaraLanguageStyle.ENGLISH });
   const hinglish = await career.respond({ principal: {}, birthProfileId: 'profile-a', message: 'career improve', language: TaraLanguageStyle.HINGLISH });
-  assert.match(english.message, /^Your stronger Career window is 20 Nov 2026 to 10 Jan 2027/i);
-  assert.match(hinglish.message, /^Aapka stronger Career window 20 Nov 2026 to 10 Jan 2027/i);
+  assert.match(english.message, /^Your next stronger Career window appears from 20 Nov 2026 to 10 Jan 2027/i);
+  assert.match(hinglish.message, /^Aapka next stronger Career window 20 Nov 2026 se 10 Jan 2027/i);
   assert.deepEqual(hinglish.answer, english.answer);
 });
 
